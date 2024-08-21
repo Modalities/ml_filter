@@ -1,4 +1,6 @@
 import json
+import hydra
+from omegaconf import DictConfig
 from requests import Session
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
@@ -61,9 +63,22 @@ def load_config(yaml_file):
 
     return AppConfig(**config_data)
 
+# Loading config with hydra
+def run_hydra(app_config):
+    @hydra.main(config_path="../config", config_name="app_config")
+    def hydra_entry(cfg : DictConfig) -> None:
+        app_config.load_config(cfg)  # Call the load_config method
+    hydra_entry()
+
 
 if __name__ == "__main__":
-    app_config = load_config('config/app_config.yaml')
-    print(app_config)
-    processor = MainProcessor(app_config = app_config)
-    processor.run()
+
+    hydra_app = AppConfig()
+    run_hydra(hydra_app)
+
+    print(f"The configrations are {hydra_app}")
+
+    # app_config = load_config('config/app_config.yaml')
+    # print(app_config)
+    # processor = MainProcessor(app_config = app_config)
+    # processor.run()
