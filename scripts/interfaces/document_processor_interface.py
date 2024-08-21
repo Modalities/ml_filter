@@ -99,11 +99,12 @@ class LlamaDocumentProcessor(DocumentProcessorInterface):
         return input_string  
 
     def process(self, doc: Dict[str, Any], index: int,user_prompt:str="") -> Tuple[int, str]:
-        element = self.remove_special_strings(doc["text"])
-        prompt = PromptGenerator.get_prompt(element)
+        document = self.remove_special_strings(doc["text"])
+        prompt = PromptGenerator.get_prompt(document , app_config=self.app_config)
+
         #llm-service-tgi-mistralai-Mixtral-8x22B-Instruct-v0.1
 
-        print(f"The app_config is {self.app_config}")
+        #print(f"The app_config is {self.app_config}")
         sys.exit(0)
         response = self.llm_service.generate(
             prompt=prompt,

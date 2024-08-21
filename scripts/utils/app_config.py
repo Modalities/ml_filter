@@ -25,7 +25,7 @@ class AppConfig:
                 f"temperature={self.temperature}, max_words= {self.max_words})")
     
     def load_config(self, cfg : DictConfig) -> None:
-        logger.info(OmegaConf.to_yaml(cfg))  # Log the configuration data
+        #logger.info(OmegaConf.to_yaml(cfg))  # Log the configuration data
         self.data_file = cfg.data_file
         self.output_file = cfg.output_file
         self.rest_endpoint = cfg.rest_endpoint
@@ -34,3 +34,4 @@ class AppConfig:
         self.max_new_tokens = cfg.max_new_tokens
         self.temperature = cfg.temperature
         self.max_words =  cfg.max_words  
+        self.fineweb_prompt = cfg.fineweb.prompt
