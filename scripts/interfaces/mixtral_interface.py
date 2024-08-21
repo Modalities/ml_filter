@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 
 from requests import RequestException, Session
 import json
-
+import time
 from llm_interface.dto.model_config import ModelName
 from llm_interface.dto.decoding_strategy import TopPDecodingStrategy, TopKDecodingStrategy, TypicalPDecodingStrategy, BeamSearchDecodingStrategy
 from llm_interface.dto.prompt_response import PromptResponse
@@ -40,28 +40,35 @@ class Mixtral_Interface(LanguageModelAPI):
         if request_id is None:
             request_id = str(uuid.uuid4())
 
+        max_retries = 2
+        backoff_factor = 0.4 
+
         tokenizer = AutoTokenizer.from_pretrained("mistralai/Mixtral-8x22B-Instruct-v0.1")
         #Apply the prompt template
         inputs = tokenizer.apply_chat_template(prompt, tokenize=False)
         #print("##########################")
 
         #print(f'restend point is {self.__rest_endpoint_generate}')
-
+        #print("model name is mistralai/Mixtral-8x22B-Instruct-v0.1")
         content=dict({"inputs": inputs,"model": model_name, "parameters": dict( details=True, 
-                    max_tokens= 5000,max_new_tokens=500,
-                    temperature=0.001,)})
-        try:
-            response = self.__session.post(
-                url=self.__rest_endpoint_generate,
-                json=content,
-            
-            )
-            #print(f"response is {response.text}")
-            return response.json()
-        except RequestException as e:
-                print(f"Request failed with {e}")
-                print(f"the prompt length was {prompt}")
-                return None
+                    max_tokens= decoding["max_tokens"],max_new_tokens=decoding["max_new_tokens"],
+                    temperature=decoding["temperature"],)})
+        
+        for i in range(max_retries):
+            try:
+                response = self.__session.post(
+                    url=self.__rest_endpoint_generate,
+                    json=content,
+                    timeout=20, #wait for 10 seconds max 
+                
+                )
+                #print(f"response is {response.text}")
+                return response.json()
+            except RequestException as e:
+                    print(f"Request failed with {e}, retrying...{i}")
+                    time.sleep(backoff_factor * (2 ** i))
+                    #print(f"the prompt length was {prompt}")
+        return None
 
     def tokenize(self,
                  model_name: ModelName,

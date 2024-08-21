@@ -1,14 +1,9 @@
+from typing import Dict, List
 
-
-from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
-from typing import Any, Dict, List, Tuple
-from llm_interface.interface.interface import LanguageModelAPI
-from tqdm import tqdm
 
 class PromptGenerator:
     @staticmethod
-    def get_mixtral_prompt(extract):
+    def get_prompt(extract: str) -> List[Dict[str, str]]:
         chat = [
             {
                 "role": "user",

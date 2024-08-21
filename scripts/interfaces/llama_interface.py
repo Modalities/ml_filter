@@ -23,7 +23,7 @@ from requests.exceptions import RequestException
 from utils.prompt_templates import Prompt
 
 
-class Llama_Interface(LanguageModelAPI):
+class Llama_Interface_LMS(LanguageModelAPI):
     """
     This is a convenience class. It creates a REST call to the LanguageModelService given the endpoint below.
     """
@@ -83,7 +83,7 @@ class Llama_Interface(LanguageModelAPI):
         ],
         model_name: str,
         request_id: Optional[str] = None,
-        max_retries: int = 5,
+        max_retries: int = 2,
         backoff_factor: float = 0.4,
     ):
         if request_id is None:
@@ -104,40 +104,10 @@ class Llama_Interface(LanguageModelAPI):
             except RequestException as e:
                 print(f"Request failed with {e}, retrying...{i}")
                 temp = prompt.dict()["prompt_template"]
-                print(f"the prompt length was {temp['template'][0]['text']}")
+                #print(f"the prompt length was {temp['template'][0]['text']}")
                 time.sleep(backoff_factor * (2 ** i))  # Exponential backoff
-        print(f" ################## Error the response is {response.text}  for prompt {prompt.dict()}###############################")
+        #print(f" ################## Error the response is {response.text}  for prompt {prompt.dict()}###############################")
         return None
-
-
-    # def generate(
-    #     self,
-    #     prompt: Prompt,
-    #     decoding: Union[
-    #         TopPDecodingStrategy,
-    #         TopKDecodingStrategy,
-    #         TypicalPDecodingStrategy,
-    #         BeamSearchDecodingStrategy,
-    #     ],
-    #     model_name: str,
-    #     request_id: Optional[str] = None,
-    # ):
-    #     if request_id is None:
-    #         request_id = str(uuid.uuid4())
-
-    #     print(f"endpoint is {self.__rest_endpoint_generate}")
-    #     request_dict = {"decoding": decoding, "prompt": prompt.dict()}
-    #     response = self.__session.post(
-    #         url=self.__rest_endpoint_generate,
-    #         json=request_dict,
-    #         params={"model_name": model_name, "request_id": request_id},
-    #     )
-    #     try:
-    #         #print(f"response is {response.json()['texts']}")
-    #         return response.json()
-    #     except:
-    #         print(f"###################### Error the response is {response.text} ########################")  
-    #         return None  
         
 
     def tokenize(
