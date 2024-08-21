@@ -10,10 +10,11 @@ import time
 import yaml
 
 from interfaces.mixtral_interface import Mixtral_Interface
-from interfaces.document_processor_interface import DGX3LlamaDocumentProcessor, MixtralDocumentProcessor
+from interfaces.document_processor_interface import LlamaDocumentProcessor, MixtralDocumentProcessor
 from interfaces.llama_interface_dgx3 import Llama_Interface
-from utils.app_config import AppConfig
 from utils.batch_process import BatchProcessor
+from utils.app_config import AppConfig
+
 
 import logging
 
@@ -22,16 +23,14 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 class MainProcessor:
     def __init__(self, app_config: AppConfig):
         self.app_config = app_config
-        # self.data_file = app_config.data_file
-        # self.output_file = app_config.output_file
-        # self.rest_endpoint = app_config.rest_endpoint
-        # self.max_words = app_config.max_words
     
     def run(self):
         data = load_dataset('json', data_files=[self.app_config.data_file], split="train")
+        #FIXME This could be done better, we dont have to have multiple interfaces
         llama_service = Llama_Interface(session=Session(), rest_endpoint=self.app_config.rest_endpoint)
-        # Choose the appropriate processor
-        document_processor = DGX3LlamaDocumentProcessor(llama_service,self.app_config)  # or MixtralDocumentProcessor(llm_service)
+       
+        #FIXME This could be done better, we dont have to have multiple interfaces
+        document_processor = LlamaDocumentProcessor(llama_service,self.app_config)  
 
         #Using words count probably isnt the best, on the otherhand it avoids a tokenization step 
         batch_processor = BatchProcessor(document_processor,max_words= self.app_config.max_words)

@@ -24,6 +24,7 @@ class BatchProcessor:
             doc_word_count = len(doc["text"].split(" "))
             if doc_word_count > self.max_length:
                 print(f"Document {index} too large, to fit in context length .... ")
+                # We simply skip the larger documents, since index are being tracker it should not be an issue
                 #batches.append([(index, {"text": "Document too large to fit"})])
                 continue
 

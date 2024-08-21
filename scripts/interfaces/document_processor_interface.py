@@ -70,7 +70,7 @@ class MixtralDocumentProcessor(DocumentProcessorInterface):
             return index, response["generated_text"]
 
 
-class DGX3LlamaDocumentProcessor(DocumentProcessorInterface):
+class LlamaDocumentProcessor(DocumentProcessorInterface):
     def __init__(self, llm_service: LanguageModelAPI, app_config: AppConfig):
         self.llm_service = llm_service
         self.app_config = app_config
@@ -107,11 +107,11 @@ class DGX3LlamaDocumentProcessor(DocumentProcessorInterface):
         sys.exit(0)
         response = self.llm_service.generate(
             prompt=prompt,
-            model_name="meta-llama/Meta-Llama-3.1-70B-Instruct",
+            model_name=self.app_config.model_name,
             decoding={
-                "max_tokens": 120000,
-                "max_new_tokens": 500,
-                "temperature": 0.001
+                "max_tokens": self.app_config.max_tokens,
+                "max_new_tokens": self.app_config.max_new_tokens,
+                "temperature": self.app_config.temperature
             }
         )
         if response is None:
@@ -125,7 +125,7 @@ class DGX3LlamaDocumentProcessor(DocumentProcessorInterface):
             return index, response["generated_text"]
 
 
-class LlamaDocumentProcessor(DocumentProcessorInterface):
+class LmsLlamaDocumentProcessor(DocumentProcessorInterface):
     def __init__(self, llm_service: LanguageModelAPI, app_config: AppConfig):
         self.llm_service = llm_service
         self.app_config = app_config
