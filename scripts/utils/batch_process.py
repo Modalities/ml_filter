@@ -54,12 +54,9 @@ class BatchProcessor:
 
                 #Updating for each document instead of each batch
                 with self.lock:
-                    results.extend(local_results)
                     pbar.update(1)
-        
-        # with self.lock:
-        #     results.extend(local_results)
-        #     pbar.update(len(batch))
+
+        results.extend(local_results)
 
     def process_document(self, doc: Dict[str, Any], user_prompt: str, index: int) -> Tuple[int, str]:
         return self.document_processor.process(doc=doc,index=index,user_prompt=user_prompt)

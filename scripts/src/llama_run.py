@@ -8,12 +8,13 @@ from typing import List, Tuple, Dict, Any
 from tqdm import tqdm
 from datasets import load_dataset
 import time
+from urllib3 import PoolManager
 
 import yaml
 
 from interfaces.mixtral_interface import Mixtral_Interface
 from interfaces.document_processor_interface import LlamaDocumentProcessor, MixtralDocumentProcessor
-from interfaces.llama_interface_dgx3 import Llama_Interface
+from interfaces.llama_interface import Llama_Interface
 from utils.batch_process import BatchProcessor
 from utils.app_config import AppConfig
 
@@ -50,18 +51,11 @@ class MainProcessor:
            
         results.sort(key=lambda x: x[0])
 
-        with open(self.output_file, 'w') as f:
+        with open(self.app_config.output_file, 'w') as f:
             json.dump(results, f)
 
         pbar.close()
 
-
-# Function to read the yaml file and load it into a Config object
-def load_config(yaml_file):
-    with open(yaml_file, 'r') as file:
-        config_data = yaml.safe_load(file)
-
-    return AppConfig(**config_data)
 
 # Loading config with hydra
 def run_hydra(app_config):
@@ -73,12 +67,15 @@ def run_hydra(app_config):
 
 if __name__ == "__main__":
 
-    hydra_app = AppConfig()
-    run_hydra(hydra_app)
+    app_config = AppConfig()
+    run_hydra(app_config)
 
-    print(f"The configrations are {hydra_app}")
+    # Increase the pool size to 20
+    #http = PoolManager(maxsize=100)
+
+    #print(f"The configrations are {app_config.fineweb_prompt}")
 
     # app_config = load_config('config/app_config.yaml')
     # print(app_config)
-    # processor = MainProcessor(app_config = app_config)
-    # processor.run()
+    processor = MainProcessor(app_config = app_config)
+    processor.run()

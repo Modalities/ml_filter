@@ -47,16 +47,16 @@ class MixtralDocumentProcessor(DocumentProcessorInterface):
         return input_string    
 
     def process(self, doc: Dict[str, Any], index: int, user_prompt:str="") -> Tuple[int, str]:
-        element = self.remove_special_strings(doc["text"])
-        prompt = PromptGenerator.get_prompt(element)
+        document = self.remove_special_strings(doc["text"])
+        prompt = PromptGenerator.get_prompt(document , app_config=self.app_config)
         #llm-service-tgi-mistralai-Mixtral-8x22B-Instruct-v0.1
         response = self.llm_service.generate(
             prompt=prompt,
-            model_name="mistralai/Mixtral-8x22B-Instruct-v0.1",
+            model_name=self.app_config.model_name,
             decoding={
-                "max_tokens": 60000,
-                "max_new_tokens": 500,
-                "temperature": 0.001
+                "max_tokens": self.app_config.max_tokens,
+                "max_new_tokens": self.app_config.max_new_tokens,
+                "temperature": self.app_config.temperature
             }
         )
         if response is None:
@@ -104,8 +104,8 @@ class LlamaDocumentProcessor(DocumentProcessorInterface):
 
         #llm-service-tgi-mistralai-Mixtral-8x22B-Instruct-v0.1
 
-        #print(f"The app_config is {self.app_config}")
-        sys.exit(0)
+        #print(f"The prompt is {prompt}")
+
         response = self.llm_service.generate(
             prompt=prompt,
             model_name=self.app_config.model_name,
