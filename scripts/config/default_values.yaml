@@ -1,13 +1,24 @@
-#Data info
-data_file: '/data/akhan/fineweb-tsts/oscar_de_filtered_deduplicated_500k/top_500.jsonl'
-output_file: 'outputs/llama_top_500.json'
-
 #Endpoint --> points to an endpoint where the model is running
 rest_endpoint: 'http://0.0.0.0:8090/'
 
 #Model info
-model_name: 'meta-llama-Meta-Llama-3.1-70B-Instruct' # meta-llama-Meta-Llama-3.1-70B-Instruct ,# mistralai/Mixtral-8x22B-Instruct-v0.1
+#mixtral
+#llama
+model_name: llama
 max_tokens: 60000
 max_new_tokens: 500
 temperature: 0.001
 max_words: 30000
+
+#Data info
+data_file: '/data/akhan/fineweb-tsts/oscar_de_filtered_deduplicated_500k/top_50.jsonl'
+output_file: 'outputs/${model_name}_output.json'
+
+
+#Http configs
+max_retries: 2
+backoff_factor: 0.4 
+timeout: 20
+
+#Not the best way of creating a blacklist
+strings_to_remove: ["<", "|", "begin_of_text", ">", "<", "|", "start_header_id", "|", ">", "<", "|", "end_header_id", "|", ">", "[", "…", "]", "„", "“", "–", "‘", ";", ":", "/", "-", '"', "{", "}", "\\", "”", ")", "(", "www.", "%", "→", "!", "*", "#", "’", "..", ".com","[INST]","</s>","<s>",">","[","…","]","„","“","–","‘",";",":","/","-",'"',"{","}","\\","”",")","(","www.","%","→","!","*","#","’","..",".com"]

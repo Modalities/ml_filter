@@ -33,7 +33,7 @@ class MainProcessor:
         pbar = tqdm(total=len(data))
 
         for batch in batches:
-            batch_processor.process_batch(batch=batch, results=results, pbar=pbar,user_prompt=user_prompt)
+            batch_processor.process_batch(batch=batch, results=results, pbar=pbar)
 
         results.sort(key=lambda x: x[0])
 

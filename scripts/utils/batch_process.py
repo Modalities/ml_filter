@@ -1,12 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
-from llm_interface.interface.interface import LanguageModelAPI
 from typing import Any, Dict, List, Tuple
 
 from tqdm import tqdm
 
-from interfaces.document_processor_interface import DocumentProcessorInterface, MixtralDocumentProcessor
-from utils.app_config import AppConfig
+from interfaces.document_processor_interface import DocumentProcessorInterface
 
 
 class BatchProcessor:
@@ -41,11 +39,11 @@ class BatchProcessor:
 
         return batches
 
-    def process_batch(self, batch: List[Tuple[int, Dict[str, Any]]], results: List[Tuple[int, str]], pbar: tqdm,user_prompt: str=""):
+    def process_batch(self, batch: List[Tuple[int, Dict[str, Any]]], results: List[Tuple[int, str]], pbar: tqdm):
         local_results = []
         with ThreadPoolExecutor(max_workers=len(batch)) as executor:
             futures = {
-                executor.submit(self.process_document, doc, user_prompt, index): index
+                executor.submit(self.process_document, doc, index): index
                 for index, doc in batch
             }
             #FIXME should i be using as_completed(futures) ?
@@ -58,5 +56,5 @@ class BatchProcessor:
 
         results.extend(local_results)
 
-    def process_document(self, doc: Dict[str, Any], user_prompt: str, index: int) -> Tuple[int, str]:
-        return self.document_processor.process(doc=doc,index=index,user_prompt=user_prompt)
+    def process_document(self, doc: Dict[str, Any], index: int) -> Tuple[int, str]:
+        return self.document_processor.process(doc=doc,index=index)

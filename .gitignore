@@ -72,6 +72,3 @@ Desktop.ini
 
 # Ignore everything under outputs/
 outputs/
-
-git rm --cached -r *.pyc
-git rm --cached -r __pycache__/
