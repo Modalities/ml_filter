@@ -10,8 +10,9 @@
 
 1. Choose a model you want to run:
    In the config/default values you can choose between mixtral and llama
-2. You can find the rest of other important parameters like data_file and temperature in the same file.
-3. Finall from script directly run: `python -m src.lms_run`
+2. If you running your script from outside the machine which is hosting the LLM, create an ssh tunnel `ssh -o ServerAliveInterval=60 -L 8090:localhost:8090 user-name@85.215.1.201`   
+3. You can find the rest of other important parameters like data_file and temperature in the same file.
+4. Finall from script directly run: `python -m src.lms_run`
 
 ### Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
