@@ -7,7 +7,10 @@ from threading import Lock
 from typing import List, Tuple, Dict, Any
 from tqdm import tqdm
 from datasets import load_dataset
+import sys 
+import os
 
+sys.path.append(os.path.join(os.getcwd(), 'src'))
 from interfaces.document_processor_interface import DocumentProcessor
 from interfaces.llm_service import Llm_Service
 from utils.batch_process import BatchProcessor
@@ -52,7 +55,7 @@ class MainProcessor:
 
 # Loading config with hydra
 def run_hydra(app_config):
-    @hydra.main(config_path="../config", config_name="app_config")
+    @hydra.main(config_path="/raid/s3/opengptx/mehdi/git_repos/edu_filter/scripts/config", config_name="app_config")
     def hydra_entry(cfg : DictConfig) -> None:
         app_config.load_config(cfg)  # Call the load_config method
     hydra_entry()

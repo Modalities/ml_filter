@@ -1,0 +1,97 @@
+#Points to an endpoint where the model is running
+rest_endpoint: 'http://0.0.0.0:8090/'
+
+model:
+  model_name: llama
+  max_tokens: 60000
+  max_new_tokens: 500
+  temperature: 0.001
+  max_words: 30000
+
+data:
+  prompt: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/prompts/fineweb_edu/prompt.yaml
+  data_file: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/lorem_ipsum.jsonl
+  output_file: /raid/s3/opengptx/mehdi/git_repos/edu_filter/outputs
+
+
+#Http configs
+http:
+  max_retries: 2
+  backoff_factor: 0.4 
+  timeout: 20
+
+#Not the best way of creating a blacklist
+strings_to_remove: [
+  "<",
+  "|",
+  "begin_of_text",
+  ">",
+  "<",
+  "|",
+  "start_header_id",
+  "|",
+  ">",
+  "<",
+  "|",
+  "end_header_id",
+  "|",
+  ">",
+  "[",
+  "…",
+  "]",
+  "„",
+  "“",
+  "–",
+  "‘",
+  ";",
+  ":",
+  "/",
+  "-",
+  '"',
+  "{",
+  "}",
+  "\\",
+  "”",
+  ")",
+  "(",
+  "www.",
+  "%",
+  "→",
+  "!",
+  "*",
+  "#",
+  "’",
+  "..",
+  ".com",
+  "[INST]",
+  "</s>",
+  "<s>",
+  ">",
+  "[",
+  "…",
+  "]",
+  "„",
+  "“",
+  "–",
+  "‘",
+  ";"
+  ":",
+  "/",
+  "-",
+  '"',
+  "{",
+  "}",
+  "\\",
+  "”",
+  ")",
+  "(",
+  "www.",
+  "%",
+  "→",
+  "!",
+  "*",
+  "#",
+  "’",
+  "..",
+  ".com"
+  ]

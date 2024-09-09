@@ -1,6 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Any
-from llm_interface.interface.interface import LanguageModelAPI
+import sys 
+import os
+
+import sys 
+import os
+
+sys.path.append(os.path.join(os.getcwd(), 'src'))
 import re
 from utils import app_config
 from utils.app_config import AppConfig
@@ -19,7 +25,7 @@ class DocumentProcessorInterface(ABC):
 
 
 class LmsLlamaDocumentProcessor(DocumentProcessorInterface):
-    def __init__(self, llm_service: LanguageModelAPI, app_config: AppConfig):
+    def __init__(self, llm_service, app_config: AppConfig):
         self.llm_service = llm_service
         self.app_config = app_config
         
@@ -88,7 +94,7 @@ class LmsLlamaDocumentProcessor(DocumentProcessorInterface):
 
 
 class DocumentProcessor(DocumentProcessorInterface):
-    def __init__(self, llm_service: LanguageModelAPI, app_config: AppConfig):
+    def __init__(self, llm_service, app_config: AppConfig):
         self.llm_service = llm_service
         self.app_config = app_config
 

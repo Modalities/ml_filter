@@ -6,9 +6,9 @@ from typing import List, Tuple, Dict, Any
 from tqdm import tqdm
 from datasets import load_dataset
 
-from interfaces.llama_interface import Llama_Interface_LMS
+from edu_filter.interfaces.lms_llama_interface import Llama_Interface_LMS
 from interfaces.document_processor_interface import LmsLlamaDocumentProcessor
-from scripts.interfaces.llama_interface_dgx3 import Llama_Interface
+
 from utils.batch_process import BatchProcessor
 
 class MainProcessor:
@@ -20,7 +20,7 @@ class MainProcessor:
     def run(self):
         data = load_dataset('json', data_files=[self.data_file], split="train[:5%]")
         llama_service = Llama_Interface_LMS(session=Session(), rest_endpoint=self.rest_endpoint)
-        document_processor = LmsLlamaDocumentProcessor(llama_service)
+        document_processor = LmsLlamaDocumentProcessor(llama_service) # type: ignore
 
         #max_length is just my estimation, total words * 1.5 ~ 2 < context length (2048, 4096) 
         # TODO double check the models context length 

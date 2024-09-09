@@ -6,16 +6,6 @@ from typing import Dict, List, Optional, Union
 
 from requests import Session
 
-from llm_interface.dto.decoding_strategy import (
-    TopPDecodingStrategy,
-    TopKDecodingStrategy,
-    TypicalPDecodingStrategy,
-    BeamSearchDecodingStrategy,
-)
-
-from llm_interface.dto.prompt_response import PromptResponse
-
-from llm_interface.interface.interface import LanguageModelAPI,InputTextToLong
 
 import time
 from requests.exceptions import RequestException
@@ -23,7 +13,7 @@ from requests.exceptions import RequestException
 from utils.prompt_templates import Prompt
 
 
-class Llama_Interface_LMS(LanguageModelAPI):
+class Llama_Interface_LMS:
     """
     This is a convenience class. It creates a REST call to the LanguageModelService given the endpoint below.
     """
@@ -75,12 +65,13 @@ class Llama_Interface_LMS(LanguageModelAPI):
     def generate(
         self,
         prompt: Prompt,
-        decoding: Union[
-            TopPDecodingStrategy,
-            TopKDecodingStrategy,
-            TypicalPDecodingStrategy,
-            BeamSearchDecodingStrategy,
-        ],
+        decoding,
+        # decoding: Union[
+        #     TopPDecodingStrategy,
+        #     TopKDecodingStrategy,
+        #     TypicalPDecodingStrategy,
+        #     BeamSearchDecodingStrategy,
+        # ],
         model_name: str,
         request_id: Optional[str] = None,
         max_retries: int = 2,
