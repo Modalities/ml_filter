@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+from omegaconf import OmegaConf
 from requests import Session
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
@@ -6,19 +8,21 @@ from typing import List, Tuple, Dict, Any
 from tqdm import tqdm
 from datasets import load_dataset
 
-from edu_filter.interfaces.lms_llama_interface import Llama_Interface_LMS
+from edu_filter.llm_api.lms_llama_interface import Llama_Interface_LMS
 from interfaces.document_processor_interface import LmsLlamaDocumentProcessor
 
 from utils.batch_process import BatchProcessor
 
-class MainProcessor:
-    def __init__(self, data_file: str, output_file: str, rest_endpoint: str):
-        self.data_file = data_file
-        self.output_file = output_file
-        self.rest_endpoint = rest_endpoint
+class Main:
+    def __init__(self, config_file_path:Path):
+        cfg = OmegaConf.load(config_file_path)
+        self.data_file_path = cfg.data.input_data.path
+        self.split = cfg.data.input_data.split
+        self.output_file_path = cfg.data.output_data_path
+        self.rest_endpoint = cfg.rest_endpoint
 
     def run(self):
-        data = load_dataset('json', data_files=[self.data_file], split="train[:5%]")
+        data = load_dataset('json', data_files=[self.data_file_path], split=self.split)
         llama_service = Llama_Interface_LMS(session=Session(), rest_endpoint=self.rest_endpoint)
         document_processor = LmsLlamaDocumentProcessor(llama_service) # type: ignore
 
@@ -37,15 +41,8 @@ class MainProcessor:
 
         results.sort(key=lambda x: x[0])
 
-        with open(self.output_file, 'w') as f:
+        with open(self.output_file_path, 'w') as f:
             json.dump(results, f)
 
         pbar.close()
 
-if __name__ == "__main__":
-    processor = MainProcessor(
-        data_file='/data/akhan/fineweb-tsts/oscar_de_filtered_deduplicated_500k/combined_de_500k.jsonl',
-        output_file='outputs/llama_results_top_5_percent.json',
-        rest_endpoint='https://demo.iais.fraunhofer.de/llm-playground/'
-    )
-    processor.run()

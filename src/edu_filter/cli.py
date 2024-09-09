@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 
-from edu_filter.lms_llama_run import MainProcessor
+from edu_filter.lms_llama_run import Main
 
 @click.group()
 def main() -> None:
@@ -20,8 +20,7 @@ def main() -> None:
     help="Path to a file with the YAML config file.",
 )
 def entry_point_score_documents(config_file_path: Path):
-    cfg = OmegaConf.load(config_file_path)
-    processor = MainProcessor(app_config=cfg)
+    processor = Main(config_file_path=config_file_path)
     processor.run()
     
 

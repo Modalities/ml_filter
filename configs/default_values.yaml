@@ -1,5 +1,5 @@
 #Points to an endpoint where the model is running
-rest_endpoint: 'http://0.0.0.0:8090/'
+rest_endpoint: https://demo.iais.fraunhofer.de/llm-playground/
 
 model:
   model_name: llama
@@ -9,9 +9,11 @@ model:
   max_words: 30000
 
 data:
-  prompt: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/prompts/fineweb_edu/prompt.yaml
-  data_file: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/lorem_ipsum.jsonl
-  output_file: /raid/s3/opengptx/mehdi/git_repos/edu_filter/outputs
+  prompt_file_path: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/prompts/fineweb_edu/prompt.yaml
+  input_data:
+    path: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/lorem_ipsum.jsonl
+    split: train[:5%]
+  output_file_path: /raid/s3/opengptx/mehdi/git_repos/edu_filter/outputs
 
 
 #Http configs

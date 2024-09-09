@@ -12,7 +12,7 @@ import os
 
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 from interfaces.document_processor_interface import DocumentProcessor
-from interfaces.llm_service import Llm_Service
+from edu_filter.llm_api.llm_service import LLMService
 from utils.batch_process import BatchProcessor
 from utils.app_config import AppConfig
 
@@ -28,7 +28,7 @@ class MainProcessor:
     def run(self):
         data = load_dataset('json', data_files=[self.app_config.data_file], split="train")
 
-        llama_service = Llm_Service(session=Session(), rest_endpoint=self.app_config.rest_endpoint,
+        llama_service = LLMService(session=Session(), rest_endpoint=self.app_config.rest_endpoint,
                                     app_config=self.app_config)
 
         document_processor = DocumentProcessor(llama_service,self.app_config)  
