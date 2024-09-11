@@ -6,7 +6,7 @@ import yaml
 
 
 class PromptBuilder:
-    """A class representing a chat template."""
+    """A class representing a prompt builder."""
 
     def __init__(self, prompt_path: Path) -> None:
         with open(prompt_path, 'r') as file:
