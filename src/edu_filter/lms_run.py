@@ -12,7 +12,7 @@ import os
 
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 from interfaces.document_processor_interface import DocumentProcessor
-from edu_filter.llm_api.llm_service import LLMService
+from edu_filter.llm_api.llm_rest_client import LLMService
 from utils.batch_process import BatchProcessor
 from utils.app_config import AppConfig
 
