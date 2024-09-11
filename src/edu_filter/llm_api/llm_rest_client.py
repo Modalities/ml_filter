@@ -9,37 +9,46 @@ import time
 from transformers import AutoTokenizer
 from requests.adapters import HTTPAdapter
 
+from edu_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
+
 
 class LLMRestClient:
     """"A class representing a REST client for the LLM service. 
     This class is responsible for sending requests to the LLM service (hosted tgi container given the endpoint) and returning the response."""
   
-    def __init__(self, cfg: DictConfig, session: Session, rest_endpoint: str):
+    def __init__(self, cfg: DictConfig, session: Session, rest_endpoint: str, tokenizer: TokenizerWrapper):
         self.max_retries = cfg.max_retries
         self.backoff_factor = cfg.backoff_factor
         self.model_name = cfg.model_name
-        self.max_tokens = cfg.max_tokens
-        self.max_new_tokens = cfg.max_new_tokens
-        self.temperature = cfg.temperature
         self.timeout = cfg.timeout
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
-        #Not entirely sure why this is needed now, but it worked fine previously
-        self.session.mount('http://', HTTPAdapter(pool_connections=1000, pool_maxsize=1000))
+        self.tokenizer = tokenizer
+        # TODO: Not entirely sure why this is needed now, but it worked fine previously
+        self.session.mount(
+             'http://',
+            HTTPAdapter(pool_connections=cfg.max_pool_connections, pool_maxsize=cfg.max_pool_maxsize)
+        )
         
         self.rest_endpoint_generate = f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
   
     def generate(
-        self,
-        prompt: Union[str, List[int]],
-        request_id: Optional[str] = None,
-        ) -> Dict[str, Any]:
+            self,
+            prompt: str,
+            max_tokens:int,  
+            max_new_tokens: int, 
+            temperature: float,
+            verbose: bool,
+    ) -> Dict[str, Any]:
         """Generates a response based on the given prompt.
         
         Args:
-            prompt (Union[str, List[int]]): The prompt to generate a response for.
-            request_id (str, optional): The ID of the request. Defaults to None.
+            prompt (str): The prompt to generate a response for.
+            max_tokens (int): The maximum number of tokens in the generated response.
+            max_new_tokens (int): The maximum number of new tokens in the generated response.
+            temperature (float): The temperature value for controlling randomness in the generated response.
+            verbose (bool): Whether to include detailed information in the generated response.
         
         Returns:
             Dict[str, Any]: A dictionary containing the generated response.
@@ -48,27 +57,20 @@ class LLMRestClient:
             ValueError: If max_retries is set to 0.
         """
 
-        if request_id is None:
-            request_id = str(uuid.uuid4())
-
-        # TODO: inect tokeniezr from outside
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        #Apply the prompt template
-        #TODO: Create tokenizer interface
-        inputs = tokenizer.apply_chat_template(prompt, tokenize=False)
+        inputs = self.tokenizer.apply_chat_template(prompt, tokenize=False)
         
-        content=dict(
-                {
-                    "inputs": inputs,
-                    "model": self.model_name,
-                    "parameters": dict(
-                        details=True, 
-                        max_tokens= self.max_tokens,
-                        max_new_tokens= self.max_new_tokens,
-                        temperature= self.temperature,
-                    )
-                }
+        request = dict(
+            {
+            "inputs": inputs,
+            "model": self.model_name,
+            "parameters": dict(
+                details=verbose,  # TODO: check if this is correct
+                max_tokens=max_tokens,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
             )
+            }
+        )
         
         if self.max_retries == 0:
             raise ValueError("max_retries must be greater than 0.")
@@ -77,9 +79,8 @@ class LLMRestClient:
             try:
                 response = self.session.post(
                     url=self.rest_endpoint_generate,
-                    json=content,
+                    json=request,
                     timeout=self.timeout, 
-                
                 )
                 
                 return response.json()
