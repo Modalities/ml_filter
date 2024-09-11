@@ -14,18 +14,17 @@ class PromptBuilder:
        
 
     def construct_prompt(self, text: str, history: Optional[List[Dict[str, str]]] = None) -> List[Dict[str, str]]:
-        """
-        Apply a chat template to the given text.
-
+        """Constructs a prompt.
+            
         Args:
-            text (str): The text to be used as a placeholder in the template.
-
+            text (str): The text to be used as a placeholder in the prompt.
+            history (Optional[List[Dict[str, str]]]): The history of prompts. Defaults to None.
+        
         Returns:
-            Dict[str, str]: A dictionary representing a chat conversation.
-            The dictionary contains the role of the speaker ("user") and the content
-            of their message, which is the template with the placeholder replaced by
-            the given text.
+            List[Dict[str, str]]: The prompt that is represtend as a list (history) of messages.
         """
+    
+       
         # TODO: Is this fixed for all models?
         prompt = {
             "role": "user",
