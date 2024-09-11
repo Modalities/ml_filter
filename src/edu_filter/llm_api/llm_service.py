@@ -1,7 +1,6 @@
 import logging
 import uuid
-from abc import ABC, abstractmethod
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from omegaconf import DictConfig
 from requests import RequestException, Session
@@ -10,13 +9,11 @@ import time
 from transformers import AutoTokenizer
 from requests.adapters import HTTPAdapter
 
-from utils.app_config import AppConfig
 
 class LLMRestClient:
-    """
-    This is a convenience class. It creates a REST call to the hosted tgi container given the endpoint
-    """
-
+    """"A class representing a REST client for the LLM service. 
+    This class is responsible for sending requests to the LLM service (hosted tgi container given the endpoint) and returning the response."""
+  
     def __init__(self, cfg: DictConfig, session: Session, rest_endpoint: str):
         self.max_retries = cfg.max_retries
         self.backoff_factor = cfg.backoff_factor
@@ -37,18 +34,31 @@ class LLMRestClient:
         self,
         prompt: Union[str, List[int]],
         request_id: Optional[str] = None,
-        ):
+        ) -> Dict[str, Any]:
+        """Generates a response based on the given prompt.
+        
+        Args:
+            prompt (Union[str, List[int]]): The prompt to generate a response for.
+            request_id (str, optional): The ID of the request. Defaults to None.
+        
+        Returns:
+            Dict[str, Any]: A dictionary containing the generated response.
+        
+        Raises:
+            ValueError: If max_retries is set to 0.
+        """
 
         if request_id is None:
             request_id = str(uuid.uuid4())
 
-        
+        # TODO: inect tokeniezr from outside
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         #Apply the prompt template
+        #TODO: Create tokenizer interface
         inputs = tokenizer.apply_chat_template(prompt, tokenize=False)
         
         content=dict(
-            {
+                {
                     "inputs": inputs,
                     "model": self.model_name,
                     "parameters": dict(
@@ -58,8 +68,10 @@ class LLMRestClient:
                         temperature= self.temperature,
                     )
                 }
-        )
+            )
         
+        if self.max_retries == 0:
+            raise ValueError("max_retries must be greater than 0.")
         
         for i in range(self.max_retries):
             try:
@@ -74,4 +86,5 @@ class LLMRestClient:
             except RequestException as e:
                     print(f"Request failed with {e}, retrying...{i}")
                     time.sleep(self.backoff_factor * (2 ** i))
-        return None
+        
+        print(f"Request failed after {self.max_retries} retries.")
