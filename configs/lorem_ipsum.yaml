@@ -1,0 +1,111 @@
+#Points to an endpoint where the model is running
+rest_endpoint: https://demo.iais.fraunhofer.de/llm-playground/
+
+data:
+  input_data:
+    path: ../data/lorem_ipsum.jsonl
+    split: train[:5%]
+
+llm_rest_client:
+  rest_endpoit: ${rest_endpoint}
+  model_name: llama
+  max_tokens: 60000
+  max_new_tokens: 500
+  temperature: 0.001
+  max_words: 30000
+  max_pool_connections: 100
+  max_pool_maxsize: 100
+  max_retries: 2
+  backoff_factor: 0.4 
+  timeout: 20
+  verbose: false
+
+tokenizer:
+  pretrained_model_name_or_path: 
+  truncation: false
+  padding: false
+  max_length: 512
+  special_tokens: null
+
+prompt_builder:
+  prompt_path: ../data/prompts/fineweb_edu/prompt.yaml
+
+document_processor:
+  output_file_path: ../data/output/lorem_ipsum_result.jsonl
+  queue_size: 1000
+  batch_size: 200
+
+  strings_to_remove: [
+  "<",
+  "|",
+  "begin_of_text",
+  ">",
+  "<",
+  "|",
+  "start_header_id",
+  "|",
+  ">",
+  "<",
+  "|",
+  "end_header_id",
+  "|",
+  ">",
+  "[",
+  "…",
+  "]",
+  "„",
+  "“",
+  "–",
+  "‘",
+  ";",
+  ":",
+  "/",
+  "-",
+  '"',
+  "{",
+  "}",
+  "\\",
+  "”",
+  ")",
+  "(",
+  "www.",
+  "%",
+  "→",
+  "!",
+  "*",
+  "#",
+  "’",
+  "..",
+  ".com",
+  "[INST]",
+  "</s>",
+  "<s>",
+  ">",
+  "[",
+  "…",
+  "]",
+  "„",
+  "“",
+  "–",
+  "‘",
+  ";"
+  ":",
+  "/",
+  "-",
+  '"',
+  "{",
+  "}",
+  "\\",
+  "”",
+  ")",
+  "(",
+  "www.",
+  "%",
+  "→",
+  "!",
+  "*",
+  "#",
+  "’",
+  "..",
+  ".com"
+  ]

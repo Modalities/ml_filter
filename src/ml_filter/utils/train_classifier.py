@@ -1,17 +1,18 @@
 import torch
 from transformers import Trainer, TrainingArguments
 
+
 class DocumentClassifier:
     def __init__(self, model):
         self.model = model
 
     def classify_long_document(self, document, max_length=512, stride=256):
         inputs = self.model.model.tokenize([document], truncation=False, return_tensors="pt")
-        input_ids = inputs['input_ids'][0]
+        input_ids = inputs["input_ids"][0]
 
         chunks = []
         for i in range(0, len(input_ids), stride):
-            chunk = input_ids[i:i + max_length]
+            chunk = input_ids[i : i + max_length]
             chunks.append(chunk)
             if len(chunk) < max_length:
                 break
@@ -35,15 +36,14 @@ class DocumentClassifier:
             predictions = torch.argmax(logits, dim=1)
         return predictions
 
-    def train(self, train_dataset, output_dir='./results', epochs=3, batch_size=8):
-
+    def train(self, train_dataset, output_dir="./results", epochs=3, batch_size=8):
         training_args = TrainingArguments(
             output_dir=output_dir,
             evaluation_strategy="epoch",
             per_device_train_batch_size=batch_size,
             num_train_epochs=epochs,
             weight_decay=0.01,
-            logging_dir='./logs',
+            logging_dir="./logs",
             logging_steps=10,
             save_steps=10,
             save_total_limit=2,
