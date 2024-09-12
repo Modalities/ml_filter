@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Dict, List, Optional
 
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 
 class TokenizerWrapper(ABC):
@@ -9,6 +9,8 @@ class TokenizerWrapper(ABC):
 
     max_length: int
     truncation: bool
+    padding: bool | str
+    tokenizer: PreTrainedTokenizer
 
     # TODO: check return type
     def apply_tokenizer_chat_template(self, prompt: str, tokenize: bool) -> str:
