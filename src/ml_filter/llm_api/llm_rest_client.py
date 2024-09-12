@@ -1,26 +1,33 @@
 import logging
-import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from omegaconf import DictConfig
 from requests import RequestException, Session
 import time
 
-from transformers import AutoTokenizer
 from requests.adapters import HTTPAdapter
 
-from edu_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
+from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
 
 
 class LLMRestClient:
     """"A class representing a REST client for the LLM service. 
     This class is responsible for sending requests to the LLM service (hosted tgi container given the endpoint) and returning the response."""
   
-    def __init__(self, cfg: DictConfig, session: Session, rest_endpoint: str, tokenizer: TokenizerWrapper):
-        self.max_retries = cfg.max_retries
-        self.backoff_factor = cfg.backoff_factor
-        self.model_name = cfg.model_name
-        self.timeout = cfg.timeout
+    def __init__(
+        self,
+        max_retries: int,
+        backoff_factor: int,
+        model_name: str,
+        timeout: int,
+        session: Session,
+        rest_endpoint: str,
+        tokenizer: TokenizerWrapper,
+        ):
+        self.max_retries = max_retries
+        self.backoff_factor = backoff_factor
+        self.model_name = model_name
+        self.timeout = timeout
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
         self.tokenizer = tokenizer
@@ -34,13 +41,13 @@ class LLMRestClient:
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
   
     def generate(
-            self,
-            prompt: str,
-            max_tokens:int,  
-            max_new_tokens: int, 
-            temperature: float,
-            verbose: bool,
-    ) -> Dict[str, Any]:
+        self,
+        prompt: List[Dict[str, str]],
+        max_tokens:int,  
+        max_new_tokens: int, 
+        temperature: float,
+        verbose: bool,
+    ) -> Dict[str, str] | None:
         """Generates a response based on the given prompt.
         
         Args:
@@ -57,7 +64,7 @@ class LLMRestClient:
             ValueError: If max_retries is set to 0.
         """
 
-        inputs = self.tokenizer.apply_chat_template(prompt, tokenize=False)
+        inputs = self.tokenizer.apply_tokenizer_chat_template(prompt, tokenize=False)
         
         request = dict(
             {
@@ -82,7 +89,6 @@ class LLMRestClient:
                     json=request,
                     timeout=self.timeout, 
                 )
-                
                 return response.json()
             except RequestException as e:
                     print(f"Request failed with {e}, retrying...{i}")

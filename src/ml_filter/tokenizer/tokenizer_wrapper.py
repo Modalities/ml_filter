@@ -6,8 +6,11 @@ from transformers import AutoTokenizer
 class TokenizerWrapper(ABC):
     """Abstract interface for tokenizers."""
 
+    max_length: int
+    truncation: bool
+
     # TODO: check return type
-    def apply_chat_template(self, prompt: str, tokenize: bool) -> str:
+    def apply_tokenizer_chat_template(self, prompt: str, tokenize: bool) -> str:
         """Applies a chat template to the given prompt.
 
         Args:
@@ -59,7 +62,7 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
         self.truncation = truncation
         self.padding = padding
     
-    def apply_chat_template(self, prompt: str, tokenize: bool) -> str:
+    def apply_tokenizer_chat_template(self, prompt: List[Dict[str,str]], tokenize: bool) -> str:
         # TODO: check return type
-        return self.tokenizer.apply_chat_template(prompt, tokenize=False)
+        return self.tokenizer.apply_chat_template(prompt, tokenize=tokenize)
     
