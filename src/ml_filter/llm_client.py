@@ -17,7 +17,7 @@ import logging
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
-class LLMService:
+class LLMClient:
     def __init__(self, config_file_path:Path):
         """Initializes the LLMService."""
         cfg = OmegaConf.load(config_file_path)
