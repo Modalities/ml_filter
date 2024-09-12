@@ -1,6 +1,6 @@
 import multiprocessing
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 import sys 
 import os
 
@@ -23,30 +23,24 @@ class DocumentProcessor:
     def __init__(
         self,
         llm_rest_client: LLMRestClient,
-        prompt_template: PromptBuilder,
+        prompt_builder: PromptBuilder,
         queue_size: int,
         batch_size: int,
-        max_tokens: int,
-        max_new_tokens: int,
-        temperature: float,
-        verbose: bool,
         output_file_path: Path,
+        strings_to_remove: Optional[List[str]] = [],
         ):
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
-        self.prompt_builder = prompt_template
+        self.prompt_builder = prompt_builder
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
         self.num_processes = os.cpu_count()
-        self.max_tokens = max_tokens
-        self.max_new_tokens = max_new_tokens
-        self.temperature = temperature
-        self.verbose = verbose
         self.output_file_path = output_file_path
+        self.strings_to_remove = strings_to_remove
 
 
-    def _remove_special_strings(self, text: str, strings_to_remove: List[str]) -> str:
+    def _remove_special_strings(self, text: str) -> str:
         """
         Removes specific characters or strings from the input string.
 
@@ -59,7 +53,7 @@ class DocumentProcessor:
         """
        
         text = text.replace('\n', '').replace('\r', ' ')
-        for string in list(strings_to_remove):
+        for string in list(self.strings_to_remove):
             text = text.replace(string, ' ')
 
         # Remove extra spaces
@@ -72,14 +66,10 @@ class DocumentProcessor:
         batch_of_documents = self.documents_queue.get()
 
         for document in batch_of_documents:
+            text = document["text"]
+            text = self._remove_special_strings(text, ["\n", "\r"])
             prompt = self.prompt_builder.construct_prompt(document["text"])
-            model_response = self.llm_rest_client.generate(
-                prompt=prompt,
-                max_tokens=self.max_tokens,
-                max_new_tokens=self.max_new_tokens,
-                temperature=self.temperature,
-                verbose=self.verbose,
-            )       
+            model_response = self.llm_rest_client.generate(prompt=prompt)       
             responses.append(model_response["generated_text"])
         
         self.result_queue.put(responses)

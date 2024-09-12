@@ -26,14 +26,18 @@ class LLMService:
         self.split = cfg.data.input_data.split
         
         # LLMRestClient related variables
-        self.output_file_path = cfg.data.output_data_path
-        self.rest_endpoint = cfg.rest_endpoint
-        self.max_retries = cfg.max_retries
-        self.backoff_factor = cfg.backoff_factor
-        self.model_name = cfg.model_name
-        self.timeout = cfg.timeout
-        self.max_pool_connections = cfg.max_pool_connections
-        self.max_pool_maxsize = cfg.max_pool_maxsize
+        self.output_file_path = cfg.output_data_path
+        self.rest_endpoint = cfg.llm_rest_client.rest_endpoint
+        self.max_retries = cfg.llm_rest_client.max_retries
+        self.backoff_factor = cfg.llm_rest_client.backoff_factor
+        self.model_name = cfg.llm_rest_client.model_name
+        self.timeout = cfg.llm_rest_client.timeout
+        self.max_pool_connections = cfg.llm_rest_client.max_pool_connections
+        self.max_pool_maxsize = cfg.llm_rest_client.max_pool_maxsize
+        self.max_tokens = cfg.llm_rest_client.max_tokens
+        self.max_new_tokens = cfg.llm_rest_client.max_new_tokens
+        self.temperature = cfg.llm_rest_client.temperature
+        self.verbose = cfg.llm_rest_client.verbose
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = cfg.tokenizer.pretrained_model_name_or_path
@@ -43,13 +47,9 @@ class LLMService:
         self.special_tokens = cfg.tokenizer.special_tokens
 
         # DocumentProcessor related variables
-        self.prompt_template = cfg.document_processor.prompt_template
+        self.prompt_template_path = cfg.document_processor.prompt_template
         self.queue_size = cfg.document_processor.queue_size
         self.batch_size = cfg.document_processor.batch_size
-        self.max_tokens = cfg.document_processor.max_tokens
-        self.max_new_tokens = cfg.document_processor.max_new_tokens
-        self.temperature = cfg.document_processor.temperature
-        self.verbose = cfg.document_processor.verbose
     
     def run(self):
         """Runs the LLM service.
@@ -81,18 +81,18 @@ class LLMService:
             tokenizer=tokenizer,
             max_pool_connections=self.max_pool_connections,
             max_pool_maxsize=self.max_pool_maxsize,
+            max_tokens=self.max_tokens,
+            max_new_tokens=self.max_new_tokens,
+            temperature=self.temperature,
+            verbose=self.verbose,
         )
 
         # Get DocumentProcessor
         document_processor = DocumentProcessor(
             llm_rest_client=llm_rest_client,
-            prompt_template=self.prompt_template,
+            prompt_builder=self.prompt_template_path,
             queue_size=self.queue_size,
             batch_size=self.batch_size,
-            max_tokens=self.max_tokens,
-            max_new_tokens=self.max_new_tokens,
-            temperature=self.temperature,
-            verbose=self.verbose,
             output_file_path=self.output_file_path,
         )
         

@@ -25,12 +25,20 @@ class LLMRestClient:
         tokenizer: TokenizerWrapper,
         max_pool_connections: int,
         max_pool_maxsize: int,
+        max_tokens:int,  
+        max_new_tokens: int, 
+        temperature: float,
+        verbose: bool,
         ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
         self.model_name = model_name
         self.timeout = timeout
+        self.max_tokens = max_tokens
+        self.max_new_tokens = max_new_tokens
+        self.temperature = temperature
+        self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
         self.tokenizer = tokenizer
@@ -43,14 +51,7 @@ class LLMRestClient:
         self.rest_endpoint_generate = f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
   
-    def generate(
-        self,
-        prompt: List[Dict[str, str]],
-        max_tokens:int,  
-        max_new_tokens: int, 
-        temperature: float,
-        verbose: bool,
-    ) -> Dict[str, str] | None:
+    def generate(self, prompt: List[Dict[str, str]]) -> Dict[str, str] | None:
         """Generates a response based on the given prompt.
         
         Args:
@@ -74,10 +75,10 @@ class LLMRestClient:
             "inputs": inputs,
             "model": self.model_name,
             "parameters": dict(
-                details=verbose,  # TODO: check if this is correct
-                max_tokens=max_tokens,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
+                details=self.verbose,  # TODO: check if this is correct
+                max_tokens=self.max_tokens,
+                max_new_tokens=self.max_new_tokens,
+                temperature=self.temperature,
             )
             }
         )
