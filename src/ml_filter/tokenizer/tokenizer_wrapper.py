@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
+
 from transformers import AutoTokenizer
 
 
@@ -21,6 +22,7 @@ class TokenizerWrapper(ABC):
             str: The prompt with the chat template applied.
         """
         raise NotImplementedError()
+
 
 class PreTrainedHFTokenizer(TokenizerWrapper):
     """Wrapper for pretrained Hugging Face tokenizers."""
@@ -61,8 +63,7 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
         self.max_length = max_length
         self.truncation = truncation
         self.padding = padding
-    
-    def apply_tokenizer_chat_template(self, prompt: List[Dict[str,str]], tokenize: bool) -> str:
+
+    def apply_tokenizer_chat_template(self, prompt: List[Dict[str, str]], tokenize: bool) -> str:
         # TODO: check return type
         return self.tokenizer.apply_chat_template(prompt, tokenize=tokenize)
-    

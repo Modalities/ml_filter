@@ -1,6 +1,6 @@
-from sentence_transformers import SentenceTransformer
 import torch.nn as nn
-import torch
+from sentence_transformers import SentenceTransformer
+
 
 class MixedBreadForClassification(nn.Module):
     def __init__(self, model_name, dimensions, num_labels):

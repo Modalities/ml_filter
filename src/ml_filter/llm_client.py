@@ -1,30 +1,30 @@
+import logging
+import os
+import sys
 from pathlib import Path
+
+from datasets import load_dataset
 from omegaconf import OmegaConf
 from requests import Session
-from datasets import load_dataset
-import sys 
-import os
-
-from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
-
-sys.path.append(os.path.join(os.getcwd(), 'src'))
 
 from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
+sys.path.append(os.path.join(os.getcwd(), "src"))
 
-import logging
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
+
 class LLMClient:
-    def __init__(self, config_file_path:Path):
+    def __init__(self, config_file_path: Path):
         """Initializes the LLMService."""
         cfg = OmegaConf.load(config_file_path)
         # Dataset related variables
         self.data_file_path = cfg.data.input_data.path
         self.split = cfg.data.input_data.split
-        
+
         # LLMRestClient related variables
         self.output_file_path = cfg.output_data_path
         self.rest_endpoint = cfg.llm_rest_client.rest_endpoint
@@ -50,17 +50,17 @@ class LLMClient:
         self.prompt_template_path = cfg.document_processor.prompt_template
         self.queue_size = cfg.document_processor.queue_size
         self.batch_size = cfg.document_processor.batch_size
-    
+
     def run(self):
         """Runs the LLM service.
-        
+
         This method loads the dataset, initializes the tokenizer, LLMRestClient, and DocumentProcessor,
         and then runs the document processing on the loaded data to obtain the model responses.
         """
 
         # Get data
-        data = load_dataset('json', data_files=[self.data_file_path], split=self.split)
-        
+        data = load_dataset("json", data_files=[self.data_file_path], split=self.split)
+
         # Get Tokenizer
         tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=self.pretrained_model_name_or_path,
@@ -76,7 +76,7 @@ class LLMClient:
             backoff_factor=self.backoff_factor,
             model_name=self.model_name,
             timeout=self.timeout,
-            session=Session(), 
+            session=Session(),
             rest_endpoint=self.rest_endpoint,
             tokenizer=tokenizer,
             max_pool_connections=self.max_pool_connections,
@@ -95,6 +95,5 @@ class LLMClient:
             batch_size=self.batch_size,
             output_file_path=self.output_file_path,
         )
-        
-        document_processor.run(data)
 
+        document_processor.run(data)

@@ -1,12 +1,14 @@
 from typing import Optional
+
 import torch
 import torch.nn as nn
 from transformers import BertModel
 
+
 class CustomBertClassifier(nn.Module):
     """CustomBertClassifier class."""
 
-    def __init__(self, model_name:str, hidden_dim: int, num_classes: int, dropout: float):
+    def __init__(self, model_name: str, hidden_dim: int, num_classes: int, dropout: float):
         """Initializes the CustomBertClassifier."""
         super(CustomBertClassifier, self).__init__()
         self.bert = BertModel.from_pretrained(model_name)
@@ -15,10 +17,10 @@ class CustomBertClassifier(nn.Module):
 
     def forward(
         self,
-        input_ids, 
-        attention_mask: Optional[torch.Tensor]=None,
-        token_type_ids:Optional[torch.Tensor]=None,
-        ) -> torch.Tensor: 
+        input_ids,
+        attention_mask: Optional[torch.Tensor] = None,
+        token_type_ids: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """
         Forward pass of the classifier.
 
@@ -26,7 +28,7 @@ class CustomBertClassifier(nn.Module):
             input_ids (torch.Tensor): The input tensor of token indices.
             attention_mask (torch.Tensor, optional): The attention mask tensor. Defaults to None.
             token_type_ids (torch.Tensor, optional): The token type ids tensor. Defaults to None.
-        
+
         Returns:
             torch.Tensor: The output logits tensor.
         """
@@ -35,14 +37,15 @@ class CustomBertClassifier(nn.Module):
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
-            )
-        
+        )
+
         # Use [CLS] token
-        pooled_output = outputs[1]  
+        pooled_output = outputs[1]
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
-        
+
         return logits
+
 
 # TODO: Use Modaliteis
 # class DocumentClassifier:
