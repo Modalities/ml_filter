@@ -18,6 +18,7 @@ import json
 
 
 class DocumentProcessor:
+    """A class representing a document processor that generates model responses for a given set of documents."""
 
     def __init__(
         self,
@@ -31,6 +32,7 @@ class DocumentProcessor:
         verbose: bool,
         output_file_path: Path,
         ):
+        """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
         self.prompt_builder = prompt_template
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
@@ -121,6 +123,15 @@ class DocumentProcessor:
                     f.write('\n')
 
     def run(self, documents: Iterable):
+        """Runs the document processor.
+
+        The documents are split into batches and processed in parallel using multiple processes. 
+        A set of processes send the pre-procssed documents to the model for scoring,
+        while another process writes the results to a file.
+        
+        Args:
+            documents (Iterable): An iterable containing the documents to be processed.
+        """
         reader = multiprocessing.Process(target=self._create_batches, args=(documents,))
         reader.start()
 

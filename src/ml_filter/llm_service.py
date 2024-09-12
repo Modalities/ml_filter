@@ -19,6 +19,7 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 class LLMService:
     def __init__(self, config_file_path:Path):
+        """Initializes the LLMService."""
         cfg = OmegaConf.load(config_file_path)
         # Dataset related variables
         self.data_file_path = cfg.data.input_data.path
@@ -31,6 +32,8 @@ class LLMService:
         self.backoff_factor = cfg.backoff_factor
         self.model_name = cfg.model_name
         self.timeout = cfg.timeout
+        self.max_pool_connections = cfg.max_pool_connections
+        self.max_pool_maxsize = cfg.max_pool_maxsize
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = cfg.tokenizer.pretrained_model_name_or_path
@@ -49,6 +52,12 @@ class LLMService:
         self.verbose = cfg.document_processor.verbose
     
     def run(self):
+        """Runs the LLM service.
+        
+        This method loads the dataset, initializes the tokenizer, LLMRestClient, and DocumentProcessor,
+        and then runs the document processing on the loaded data to obtain the model responses.
+        """
+
         # Get data
         data = load_dataset('json', data_files=[self.data_file_path], split=self.split)
         
@@ -70,6 +79,8 @@ class LLMService:
             session=Session(), 
             rest_endpoint=self.rest_endpoint,
             tokenizer=tokenizer,
+            max_pool_connections=self.max_pool_connections,
+            max_pool_maxsize=self.max_pool_maxsize,
         )
 
         # Get DocumentProcessor

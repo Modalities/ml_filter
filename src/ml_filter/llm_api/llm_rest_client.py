@@ -23,7 +23,10 @@ class LLMRestClient:
         session: Session,
         rest_endpoint: str,
         tokenizer: TokenizerWrapper,
+        max_pool_connections: int,
+        max_pool_maxsize: int,
         ):
+        """Initializes the LLMRestClient."""
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
         self.model_name = model_name
@@ -34,7 +37,7 @@ class LLMRestClient:
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount(
              'http://',
-            HTTPAdapter(pool_connections=cfg.max_pool_connections, pool_maxsize=cfg.max_pool_maxsize)
+            HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize)
         )
         
         self.rest_endpoint_generate = f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
