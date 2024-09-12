@@ -2,9 +2,9 @@ MLFilter is a versatile, lightweight framework designed to facilitate the traini
 
 Key Features:
 
-- LLMService: This service provides seamless access to hosted large language models (LLMs) that evaluate the quality of documents using custom, user-defined prompts. By leveraging powerful LLMs, MLFilter enables the creation of training dataset for classifiers that filter documents based on their quality.
+- Dataset Generation: A client provides seamless access to hosted large language models (LLMs) that evaluate the quality of documents using custom, user-defined prompts. By leveraging powerful LLMs, MLFilter enables the creation of training dataset for classifiers that filter documents based on their quality.
 
-- Modalities: MLFilter includes an entry point for Modalities, allowing users to train and fine-tune classifiers based on the generated datasets. This feature enables the creation of specialized models tailored to specific needs and domains, enhancing the utility of the framework for a wide range of applications.
+- Training of Classifiers: MLFilter provides training functionalities allowing users to train and fine-tune classifiers based on the generated datasets. This feature enables the creation of specialized models tailored to specific needs and domains, enhancing the utility of the framework for a wide range of applications.
     
 ## Setup LLMService on DGX-01:
   1. Export the model weights path: `export HUGGINGFACECACHE=/raid/data/checkpoints/data`
