@@ -96,7 +96,7 @@ class DocumentProcessor:
                 self.documents_queue.put(batch)
                 batch = []
 
-        if len(batch) % self.batch_size == 0:
+        if len(batch) > 0:
             self.documents_queue.put(batch)
         
         for _ in range(self.num_processes):
