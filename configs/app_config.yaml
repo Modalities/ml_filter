@@ -1,4 +1,0 @@
-defaults:
-  - _self_
-  - default_values
-  - fineweb/prompt
