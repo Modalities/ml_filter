@@ -27,5 +27,17 @@ def entry_point_score_documents(config_file_path: Path):
     llm_service.run()
 
 
+@main.command(name="train_classifier")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the training config file.",
+)
+def entry_train_classifier(config_file_path: Path):
+    llm_service = LLMClient(config_file_path=config_file_path)
+    llm_service.run()
+
+
 if __name__ == "__main__":
     main()

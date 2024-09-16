@@ -1,0 +1,24 @@
+model:
+  name: Snowflake/snowflake-arctic-embed-m
+
+data: 
+  train_file_path: ../data/datasets/lorem_ipsum_train.jsonl
+  test_file_path: ../data/datasets/lorem_ipsum_test.jsonl
+  val_file_path: ../data/datasets/lorem_ipsum_val.jsonl
+  label_column: label
+  text_column: text
+  
+training:
+  batch_size: 32
+  epochs: 10
+  use_bf16: true
+  weight_decay: 0.01
+  eval_strategy: epochs
+  save_strategy: epochs
+  output_dir_path: ../data/output/lorem_ipsum_model
+  tokenizer:
+    pretrained_model_name_or_path: ${model.name}
+    truncation: false
+    padding: false
+    max_length: 512
+    special_tokens: null

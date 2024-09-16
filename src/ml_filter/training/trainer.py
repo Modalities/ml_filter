@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 
 import torch.nn as nn
@@ -23,9 +24,8 @@ class TrainingLoop:
     def train(
         self,
         model: nn.Module,
-        dataset: Dataset,
-        # optimizer: Optimizer,
-        # loss_fn: nn.Module,
+        train_dataset: Dataset,
+        val_dataset: Dataset,
         batch_size: int,
         weight_decay: float,
         epochs: int,
@@ -34,6 +34,8 @@ class TrainingLoop:
         logging_steps: int,
         output_dir: str,
         logging_dir: str,
+        use_bf16: bool,
+        tokenizer: TokenizerWrapper,
         # collator: DataCollator,
     ):
         training_args = TrainingArguments(
@@ -45,15 +47,20 @@ class TrainingLoop:
             save_strategy=save_strategy,
             logging_steps=logging_steps,
             logging_dir=logging_dir,
+            bf16=use_bf16,
+            # TODO: check
+            greater_is_better=True,
         )
 
-        tokenized_dataset = dataset.map(self._tokenize, batched=True)
+        # tokenized_dataset = train_dataset.map(self._tokenize, batched=True)
 
         trainer = Trainer(
             model=model,
             args=training_args,
-            train_dataset=tokenized_dataset,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
             # data_collator=DataCollatorWithPadding(self.tokenizer),
         )
 
         trainer.train()
+        trainer.save_model(os.path.join(output_dir, "final"))
