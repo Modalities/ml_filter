@@ -10,6 +10,8 @@ class TokenizerWrapper(ABC):
     max_length: int
     truncation: bool
     padding: bool | str
+    pad_token: str
+    eos_token: str
     tokenizer: PreTrainedTokenizer
 
     # TODO: check return type
@@ -65,6 +67,14 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
         self.max_length = max_length
         self.truncation = truncation
         self.padding = padding
+
+    @property
+    def pad_token(self) -> str:
+        return self.tokenizer.pad_token
+
+    @property
+    def eos_token(self) -> str:
+        return self.tokenizer.eos_token
 
     def apply_tokenizer_chat_template(self, prompt: List[Dict[str, str]], tokenize: bool) -> str:
         # TODO: check return type
