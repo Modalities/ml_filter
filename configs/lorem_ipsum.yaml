@@ -4,7 +4,7 @@ rest_endpoint: http://0.0.0.0:8090/
 data:
   input_data:
     path: ../data/lorem_ipsum.jsonl
-    split: train[:5%]
+    split: train
 
 llm_rest_client:
   rest_endpoint: ${rest_endpoint}

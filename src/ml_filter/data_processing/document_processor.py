@@ -29,8 +29,9 @@ class DocumentProcessor:
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
         self.prompt_builder = prompt_builder
-        self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
-        self.result_queue = multiprocessing.Queue(maxsize=queue_size)
+        self.manager = multiprocessing.Manager()
+        self.documents_queue = self.manager.Queue(maxsize=queue_size)
+        self.result_queue = self.manager.Queue(maxsize=queue_size)
         self.batch_size = batch_size
         self.num_processes = os.cpu_count()
         self.output_file_path = output_file_path
@@ -111,11 +112,14 @@ class DocumentProcessor:
             self.documents_queue.put(None)
 
     def _write_results(self, output_file: str):
+        termination_signals = 0
         with open(output_file, "w") as f:
-            while True:
+            while termination_signals < self.num_processes:
                 results = self.result_queue.get()
                 if results is None:
-                    break
+                    termination_signals += 1
+                    continue
+                print(f"Writing results: {results}")  # Print the results
                 for result in results:
                     json.dump(result, f)
                     f.write("\n")
