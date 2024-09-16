@@ -23,7 +23,7 @@ class PromptBuilder:
         """
 
         # TODO: Is this fixed for all models?
-        prompt = {"role": "user", "content": self.prompt_template.format(placeholder=text)}
+        prompt = {"role": "user", "content": self.prompt_template["prompt"].format(placeholder=text)}
 
         if history is None:
             history = []

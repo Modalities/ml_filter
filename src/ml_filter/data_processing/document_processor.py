@@ -57,20 +57,27 @@ class DocumentProcessor:
 
         return text
 
-    def _process_documents_batch(self) -> List[str]:
-        responses = []
-        batch_of_documents = self.documents_queue.get()
+    def _process_documents_batch(self):
+        while True:
+            try:
+                batch_of_documents = self.documents_queue.get()
+                if batch_of_documents is None:
+                    break
 
-        for document in batch_of_documents:
-            text = document["text"]
-            text = self._remove_special_strings(text, ["\n", "\r"])
-            prompt = self.prompt_builder.construct_prompt(document["text"])
-            model_response = self.llm_rest_client.generate(prompt=prompt)
-            responses.append(model_response["generated_text"])
+                responses = []
+                for document in batch_of_documents:
+                    text = document["text"]
+                    text = self._remove_special_strings(text)
+                    prompt = self.prompt_builder.construct_prompt(text)
+                    model_response = self.llm_rest_client.generate(prompt=prompt)
+                    responses.append(model_response["generated_text"])
 
-        self.result_queue.put(responses)
+                self.result_queue.put(responses)
+            except Exception as e:
+                print(f"Error in _process_documents_batch: {e}")
+                break
 
-        return responses
+        self.result_queue.put(None)  # Signal that this process is done
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
@@ -95,9 +102,11 @@ class DocumentProcessor:
                 self.documents_queue.put(batch)
                 batch = []
 
+        # If there are remaining documents that didn't fill up a batch
         if len(batch) > 0:
             self.documents_queue.put(batch)
 
+        # Add termination signal (None) once all batches are in the queue
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
 
