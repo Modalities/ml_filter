@@ -51,6 +51,7 @@ class LLMClient:
         self.prompt_template_path = cfg.prompt_builder.prompt_path
         self.queue_size = cfg.document_processor.queue_size
         self.batch_size = cfg.document_processor.batch_size
+        self.num_processes = cfg.document_processor.num_processes
 
     def run(self):
         """Runs the LLM service.
@@ -95,6 +96,7 @@ class LLMClient:
             queue_size=self.queue_size,
             batch_size=self.batch_size,
             output_file_path=self.output_file_path,
+            num_processes=self.num_processes,
         )
 
         document_processor.run(data)

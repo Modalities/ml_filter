@@ -24,16 +24,16 @@ class DocumentProcessor:
         queue_size: int,
         batch_size: int,
         output_file_path: Path,
+        num_processes: int,
         strings_to_remove: Optional[List[str]] = [],
     ):
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
         self.prompt_builder = prompt_builder
-        self.manager = multiprocessing.Manager()
-        self.documents_queue = self.manager.Queue(maxsize=queue_size)
-        self.result_queue = self.manager.Queue(maxsize=queue_size)
+        self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
+        self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
-        self.num_processes = os.cpu_count()
+        self.num_processes = num_processes
         self.output_file_path = output_file_path
         self.strings_to_remove = strings_to_remove
 
@@ -119,7 +119,7 @@ class DocumentProcessor:
                 if results is None:
                     termination_signals += 1
                     continue
-                print(f"Writing results: {results}")  # Print the results
+
                 for result in results:
                     json.dump(result, f)
                     f.write("\n")
