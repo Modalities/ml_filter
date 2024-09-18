@@ -16,7 +16,7 @@ data:
   train_file_path: ../data/datasets/lorem_ipsum_train.jsonl
   test_file_path: ../data/datasets/lorem_ipsum_test.jsonl
   val_file_path: ../data/datasets/lorem_ipsum_val.jsonl
-  label_column: label
+  label_column: score
   text_column: text
   
 training:
@@ -24,6 +24,8 @@ training:
   epochs: 10
   use_bf16: true
   weight_decay: 0.01
-  eval_strategy: epochs
-  save_strategy: epochs
+  eval_strategy: epoch
+  save_strategy: epoch
+  logging_steps: 100
+  logging_dir_path: ../data/output/lorem_ipsum_model
   output_dir_path: ../data/output/lorem_ipsum_model

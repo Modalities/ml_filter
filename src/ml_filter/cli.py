@@ -5,6 +5,7 @@ from pathlib import Path
 import click
 import click_pathlib
 
+from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
@@ -35,8 +36,8 @@ def entry_point_score_documents(config_file_path: Path):
     help="Path to the training config file.",
 )
 def entry_train_classifier(config_file_path: Path):
-    llm_service = LLMClient(config_file_path=config_file_path)
-    llm_service.run()
+    classifier_pipeline = ClassifierTrainingPipeline(config_file_path=config_file_path)
+    classifier_pipeline.train_classifier()
 
 
 if __name__ == "__main__":

@@ -2,35 +2,20 @@ import os
 from pathlib import Path
 from typing import Dict
 
-import torch.nn as nn
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    DataCollatorWithPadding,
-    Trainer,
-    TrainingArguments,
-)
+from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 
-from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
+from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
 
-class ClassifierTrainerClient:
-    def __init__(
-        self,
-        config_file_path: Path,
-        model: nn.Module,
-        tokenizer: TokenizerWrapper,
-        sample_key: str,
-        logging_steps: int,
-        logging_dir: str,
-    ):
+class ClassifierTrainingPipeline:
+    def __init__(self, config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
 
         # Data
-        self.train_data_file_path = cfg.data.train_data_file_path
-        self.val_data_file_path = cfg.data.val_data_file_path
+        self.train_data_file_path = cfg.data.train_file_path
+        self.val_data_file_path = cfg.data.val_file_path
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -43,10 +28,11 @@ class ClassifierTrainerClient:
         )
 
         # Tokenizer
-        pretrained_model_name_or_path = cfg.tokenizer.pretrained_model_name_or_path
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path,
-            model_max_length=cfg.tokenizer.max_length,
+        self.tokenizer = PreTrainedHFTokenizer(
+            pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
+            truncation=cfg.tokenizer.truncation,
+            padding=cfg.tokenizer.padding,
+            max_length=cfg.tokenizer.max_length,
         )
 
         # Training
@@ -56,13 +42,11 @@ class ClassifierTrainerClient:
         self.weight_decay = cfg.training.weight_decay
         self.eval_strategy = cfg.training.eval_strategy
         self.save_strategy = cfg.training.save_strategy
-        self.output_dir = cfg.training.output_dir
+        self.output_dir = cfg.training.output_dir_path
 
-        self.model = model
-        self.tokenizer = tokenizer
-        self.sample_key = sample_key
-        self.logging_steps = logging_steps
-        self.logging_dir = logging_dir
+        self.sample_key = cfg.data.text_column
+        self.logging_steps = cfg.training.logging_steps
+        self.logging_dir = cfg.training.logging_dir_path
 
     def _tokenize(self, documents: Dict[str, str]):
         return self.tokenizer.tokenizer(
