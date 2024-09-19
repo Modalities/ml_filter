@@ -24,6 +24,7 @@ class DocumentProcessor:
         queue_size: int,
         batch_size: int,
         output_file_path: Path,
+        num_processes: int,
         strings_to_remove: Optional[List[str]] = [],
     ):
         """Initializes the DocumentProcessor."""
@@ -32,7 +33,7 @@ class DocumentProcessor:
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
-        self.num_processes = os.cpu_count()
+        self.num_processes = num_processes
         self.output_file_path = output_file_path
         self.strings_to_remove = strings_to_remove
 
@@ -57,20 +58,23 @@ class DocumentProcessor:
 
         return text
 
-    def _process_documents_batch(self) -> List[str]:
-        responses = []
-        batch_of_documents = self.documents_queue.get()
+    def _process_documents_batch(self):
+        while True:
+            batch_of_documents = self.documents_queue.get()
 
-        for document in batch_of_documents:
-            text = document["text"]
-            text = self._remove_special_strings(text, ["\n", "\r"])
-            prompt = self.prompt_builder.construct_prompt(document["text"])
-            model_response = self.llm_rest_client.generate(prompt=prompt)
-            responses.append(model_response["generated_text"])
+            if batch_of_documents is None:
+                break
 
-        self.result_queue.put(responses)
+            responses = []
 
-        return responses
+            for document in batch_of_documents:
+                text = document["text"]
+                text = self._remove_special_strings(text)
+                prompt = self.prompt_builder.construct_prompt(text)
+                model_response = self.llm_rest_client.generate(prompt=prompt)
+                responses.append(model_response["generated_text"])
+
+            self.result_queue.put(responses)
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
@@ -95,11 +99,26 @@ class DocumentProcessor:
                 self.documents_queue.put(batch)
                 batch = []
 
+        # If there are remaining documents that didn't fill up a batch
         if len(batch) > 0:
             self.documents_queue.put(batch)
 
+        # Add termination signal (None) once all batches are in the queue
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
+
+    def _process_results(self, f, termination_signals):
+        """Process results from the result queue and write them to the file."""
+        while termination_signals < self.num_processes:
+            results = self.result_queue.get()
+            if results is None:
+                termination_signals += 1
+                continue
+            # Process each result in the batch and write to file
+            for result in results:
+                json.dump(result, f)
+                f.write("\n")
+        return termination_signals
 
     def _write_results(self, output_file: str):
         with open(output_file, "w") as f:
@@ -135,5 +154,8 @@ class DocumentProcessor:
         for p in processor_threads:
             p.join()
 
+        # Stop the writer process.
+        # We only need to put once None in the queue because all processor threads already joined
         self.documents_queue.put(None)
+
         writer.join()

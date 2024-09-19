@@ -8,6 +8,7 @@ from omegaconf import OmegaConf
 from requests import Session
 
 from ml_filter.data_processing.document_processor import DocumentProcessor
+from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
@@ -26,7 +27,6 @@ class LLMClient:
         self.split = cfg.data.input_data.split
 
         # LLMRestClient related variables
-        self.output_file_path = cfg.output_data_path
         self.rest_endpoint = cfg.llm_rest_client.rest_endpoint
         self.max_retries = cfg.llm_rest_client.max_retries
         self.backoff_factor = cfg.llm_rest_client.backoff_factor
@@ -47,9 +47,11 @@ class LLMClient:
         self.special_tokens = cfg.tokenizer.special_tokens
 
         # DocumentProcessor related variables
-        self.prompt_template_path = cfg.document_processor.prompt_template
+        self.output_file_path = cfg.document_processor.output_file_path
+        self.prompt_template_path = cfg.prompt_builder.prompt_path
         self.queue_size = cfg.document_processor.queue_size
         self.batch_size = cfg.document_processor.batch_size
+        self.num_processes = cfg.document_processor.num_processes
 
     def run(self):
         """Runs the LLM service.
@@ -90,10 +92,11 @@ class LLMClient:
         # Get DocumentProcessor
         document_processor = DocumentProcessor(
             llm_rest_client=llm_rest_client,
-            prompt_builder=self.prompt_template_path,
+            prompt_builder=PromptBuilder(self.prompt_template_path),
             queue_size=self.queue_size,
             batch_size=self.batch_size,
             output_file_path=self.output_file_path,
+            num_processes=self.num_processes,
         )
 
         document_processor.run(data)

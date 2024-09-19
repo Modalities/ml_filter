@@ -1,13 +1,13 @@
 #Points to an endpoint where the model is running
-rest_endpoint: https://demo.iais.fraunhofer.de/llm-playground/
+rest_endpoint: http://0.0.0.0:8090/
 
 data:
   input_data:
     path: ../data/lorem_ipsum.jsonl
-    split: train[:5%]
+    split: train
 
 llm_rest_client:
-  rest_endpoit: ${rest_endpoint}
+  rest_endpoint: ${rest_endpoint}
   model_name: llama
   max_tokens: 60000
   max_new_tokens: 500
@@ -21,10 +21,10 @@ llm_rest_client:
   verbose: false
 
 tokenizer:
-  pretrained_model_name_or_path: 
+  pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-70B
   truncation: false
   padding: false
-  max_length: 512
+  max_length: 60000
   special_tokens: null
 
 prompt_builder:
@@ -33,79 +33,79 @@ prompt_builder:
 document_processor:
   output_file_path: ../data/output/lorem_ipsum_result.jsonl
   queue_size: 1000
-  batch_size: 200
+  batch_size: 2
+  num_processes: 4
 
-  strings_to_remove: [
-  "<",
-  "|",
-  "begin_of_text",
-  ">",
-  "<",
-  "|",
-  "start_header_id",
-  "|",
-  ">",
-  "<",
-  "|",
-  "end_header_id",
-  "|",
-  ">",
-  "[",
-  "…",
-  "]",
-  "„",
-  "“",
-  "–",
-  "‘",
-  ";",
-  ":",
-  "/",
-  "-",
-  '"',
-  "{",
-  "}",
-  "\\",
-  "”",
-  ")",
-  "(",
-  "www.",
-  "%",
-  "→",
-  "!",
-  "*",
-  "#",
-  "’",
-  "..",
-  ".com",
-  "[INST]",
-  "</s>",
-  "<s>",
-  ">",
-  "[",
-  "…",
-  "]",
-  "„",
-  "“",
-  "–",
-  "‘",
-  ";"
-  ":",
-  "/",
-  "-",
-  '"',
-  "{",
-  "}",
-  "\\",
-  "”",
-  ")",
-  "(",
-  "www.",
-  "%",
-  "→",
-  "!",
-  "*",
-  "#",
-  "’",
-  "..",
-  ".com"
-  ]
+  strings_to_remove:
+    - "<"
+    - "|"
+    - "begin_of_text"
+    - ">"
+    - "<"
+    - "|"
+    - "start_header_id"
+    - "|"
+    - ">"
+    - "<"
+    - "|"
+    - "end_header_id"
+    - "|"
+    - ">"
+    - "["
+    - "…"
+    - "]"
+    - "„"
+    - "“"
+    - "–"
+    - "‘"
+    - ";"
+    - ":"
+    - "/"
+    - "-"
+    - '"'
+    - "{"
+    - "}"
+    - "\\"
+    - "”"
+    - ")"
+    - "("
+    - "www."
+    - "%"
+    - "→"
+    - "!"
+    - "*"
+    - "#"
+    - "’"
+    - ".."
+    - ".com"
+    - "[INST]"
+    - "</s>"
+    - "<s>"
+    - ">"
+    - "["
+    - "…"
+    - "]"
+    - "„"
+    - "“"
+    - "–"
+    - "‘"
+    - ";"
+    - ":"
+    - "/"
+    - "-"
+    - '"'
+    - "{"
+    - "}"
+    - "\\"
+    - "”"
+    - ")"
+    - "("
+    - "www."
+    - "%"
+    - "→"
+    - "!"
+    - "*"
+    - "#"
+    - "’"
+    - ".."
+    - ".com"

@@ -1,16 +1,18 @@
 [project]
-name = "edu-filter"
+name = "ml-filter"
 version = "0.1.0"
 requires-python = ">=3.10,<3.12"
-description = "EDU Filter, a python framework for filtering websites containing educational content."
+description = "ML Filter, a python framework for filtering websites containing educational content."
 dependencies = [
     "hydra-core",
     "requests",
     "tqdm",
     "datasets",
     "pydantic",
-    "transformers",
-    "click"
+    "transformers==4.42.3",
+    "click",
+    "click_pathlib",
+    "Jinja2"
 ]
 
 [project.optional-dependencies]
