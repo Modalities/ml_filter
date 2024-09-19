@@ -9,7 +9,7 @@ class PromptBuilder:
 
     def __init__(self, prompt_path: Path) -> None:
         with open(prompt_path, "r") as file:
-            self.prompt_template = yaml.safe_load(file)
+            self.prompt_template = yaml.safe_load(file)["prompt"]
 
     def construct_prompt(self, text: str, history: Optional[List[Dict[str, str]]] = None) -> List[Dict[str, str]]:
         """Constructs a prompt.
