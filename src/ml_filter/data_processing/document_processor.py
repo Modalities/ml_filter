@@ -156,6 +156,6 @@ class DocumentProcessor:
 
         # Stop the writer process.
         # We only need to put once None in the queue because all processor threads already joined
-        self.documents_queue.put(None)
+        self.result_queue.put(None)
 
         writer.join()
