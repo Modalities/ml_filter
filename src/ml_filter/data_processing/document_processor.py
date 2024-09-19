@@ -78,8 +78,6 @@ class DocumentProcessor:
                 print(f"Error in _process_documents_batch: {e}")
                 break
 
-        self.result_queue.put(None)  # Signal that this process is done
-
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
         if len(document["text"]) == 0:
@@ -112,14 +110,11 @@ class DocumentProcessor:
             self.documents_queue.put(None)
 
     def _write_results(self, output_file: str):
-        termination_signals = 0
         with open(output_file, "w") as f:
-            while termination_signals < self.num_processes:
+            while True:
                 results = self.result_queue.get()
                 if results is None:
-                    termination_signals += 1
-                    continue
-
+                    break
                 for result in results:
                     json.dump(result, f)
                     f.write("\n")
@@ -148,5 +143,8 @@ class DocumentProcessor:
         for p in processor_threads:
             p.join()
 
+        # Stop the writer process.
+        # We only need to put once None in the queue because all processor threads already joined
         self.documents_queue.put(None)
+
         writer.join()
