@@ -60,24 +60,21 @@ class DocumentProcessor:
 
     def _process_documents_batch(self):
         while True:
-            try:
-                batch_of_documents = self.documents_queue.get()
-                if batch_of_documents is None:
-                    break
+            batch_of_documents = self.documents_queue.get()
 
-                responses = []
-                for document in batch_of_documents:
-                    text = document["text"]
-                    text = self._remove_special_strings(text)
-                    prompt = self.prompt_builder.construct_prompt(text)
-                    model_response = self.llm_rest_client.generate(prompt=prompt)
-                    responses.append(model_response["generated_text"])
+            if batch_of_documents is None:
+                break
 
-                self.result_queue.put(responses)
-            except Exception as e:
-                print(f"Error in _process_documents_batch: {e}")
-                self.result_queue.put(None)
-                raise  # Re-raise the exception to terminate the program
+            responses = []
+
+            for document in batch_of_documents:
+                text = document["text"]
+                text = self._remove_special_strings(text)
+                prompt = self.prompt_builder.construct_prompt(text)
+                model_response = self.llm_rest_client.generate(prompt=prompt)
+                responses.append(model_response["generated_text"])
+
+            self.result_queue.put(responses)
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
