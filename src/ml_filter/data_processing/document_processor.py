@@ -76,7 +76,8 @@ class DocumentProcessor:
                 self.result_queue.put(responses)
             except Exception as e:
                 print(f"Error in _process_documents_batch: {e}")
-                break
+                self.result_queue.put(None)
+                raise  # Re-raise the exception to terminate the program
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
@@ -108,6 +109,19 @@ class DocumentProcessor:
         # Add termination signal (None) once all batches are in the queue
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
+
+    def _process_results(self, f, termination_signals):
+        """Process results from the result queue and write them to the file."""
+        while termination_signals < self.num_processes:
+            results = self.result_queue.get()
+            if results is None:
+                termination_signals += 1
+                continue
+            # Process each result in the batch and write to file
+            for result in results:
+                json.dump(result, f)
+                f.write("\n")
+        return termination_signals
 
     def _write_results(self, output_file: str):
         with open(output_file, "w") as f:

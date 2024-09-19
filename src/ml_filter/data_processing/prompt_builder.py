@@ -9,7 +9,7 @@ class PromptBuilder:
 
     def __init__(self, prompt_path: Path) -> None:
         with open(prompt_path, "r") as file:
-            self.prompt_template = yaml.safe_load(file)
+            self.prompt_template = yaml.safe_load(file)["prompt"]
 
     def construct_prompt(self, text: str, history: Optional[List[Dict[str, str]]] = None) -> List[Dict[str, str]]:
         """Constructs a prompt.
@@ -23,7 +23,7 @@ class PromptBuilder:
         """
 
         # TODO: Is this fixed for all models?
-        prompt = {"role": "user", "content": self.prompt_template["prompt"].format(placeholder=text)}
+        prompt = {"role": "user", "content": self.prompt_template.format(placeholder=text)}
 
         if history is None:
             history = []
