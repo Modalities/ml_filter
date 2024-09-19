@@ -13,9 +13,9 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: ../data/datasets/lorem_ipsum_train.jsonl
-  test_file_path: ../data/datasets/lorem_ipsum_test.jsonl
-  val_file_path: ../data/datasets/lorem_ipsum_val.jsonl
+  train_file_path: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/lorem_ipsum.jsonl
+  test_file_path: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/lorem_ipsum.jsonl
+  val_file_path: /raid/s3/opengptx/mehdi/git_repos/edu_filter/data/lorem_ipsum.jsonl
   label_column: score
   text_column: text
   
