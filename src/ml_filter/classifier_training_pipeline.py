@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
@@ -34,7 +34,6 @@ class ClassifierTrainingPipeline:
             padding=cfg.tokenizer.padding,
             max_length=cfg.tokenizer.max_length,
         )
-
         # Training
         self.batch_size = cfg.training.batch_size
         self.epochs = cfg.training.epochs
@@ -45,19 +44,23 @@ class ClassifierTrainingPipeline:
         self.output_dir = cfg.training.output_dir_path
 
         self.sample_key = cfg.data.text_column
+        self.sample_value = cfg.data.label_column
         self.logging_steps = cfg.training.logging_steps
         self.logging_dir = cfg.training.logging_dir_path
 
-    def _tokenize(self, documents: Dict[str, str]):
-        return self.tokenizer.tokenizer(
+    def _tokenize(self, documents: Dict[str, List[str]]):
+        tokenized = self.tokenizer.tokenizer(
             documents[self.sample_key],
             truncation=self.tokenizer.truncation,
             padding=self.tokenizer.padding,
             max_length=self.tokenizer.max_length,
         )
+        # Convert scores to tensor and add to tokenized output
+        tokenized["labels"] = [int(score) for score in documents[self.sample_value]]
+        return tokenized
 
     def _load_dataset(self, file_path: Path) -> Dataset:
-        return load_dataset(str(file_path))
+        return load_dataset("json", data_files=[file_path], split="train")
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -86,7 +89,11 @@ class ClassifierTrainingPipeline:
         # TODO
         train_dataset = self._load_dataset(self.train_data_file_path)
         val_dataset = self._load_dataset(self.val_data_file_path)
-        data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
+
+        train_dataset = self._map_dataset(train_dataset)
+        val_dataset = self._map_dataset(val_dataset)
+
+        data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
 
         trainer = Trainer(
             model=self.model,
