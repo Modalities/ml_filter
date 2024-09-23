@@ -7,8 +7,8 @@ model:
 
 tokenizer:
     pretrained_model_name_or_path: ${model.name}
-    truncation: True
-    padding: False
+    truncation: true
+    padding: true
     max_length: 512
     special_tokens: null
 
