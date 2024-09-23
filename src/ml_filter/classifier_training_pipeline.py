@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
+import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
@@ -49,15 +50,12 @@ class ClassifierTrainingPipeline:
         self.logging_dir = cfg.training.logging_dir_path
 
     def _tokenize(self, documents: Dict[str, List[str]]):
-        tokenized = self.tokenizer.tokenizer(
+        return self.tokenizer.tokenizer(
             documents[self.sample_key],
             truncation=self.tokenizer.truncation,
             padding=self.tokenizer.padding,
             max_length=self.tokenizer.max_length,
         )
-        # Convert scores to tensor and add to tokenized output
-        tokenized["labels"] = [int(score) for score in documents[self.sample_value]]
-        return tokenized
 
     def _load_dataset(self, file_path: Path) -> Dataset:
         return load_dataset("json", data_files=[file_path], split="train")
@@ -78,7 +76,14 @@ class ClassifierTrainingPipeline:
         )
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
-        return dataset.map(self._tokenize, batched=True)
+        # Map both tokenization and label assignment
+        return dataset.map(
+            lambda x: {
+                **self._tokenize(x),  # tokenize the text
+                "labels": torch.tensor([int(score) for score in x[self.sample_value]], dtype=torch.long),
+            },
+            batched=True,
+        )
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
