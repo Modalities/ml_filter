@@ -45,7 +45,7 @@ class ClassifierTrainingPipeline:
         self.output_dir = cfg.training.output_dir_path
 
         self.sample_key = cfg.data.text_column
-        self.sample_value = cfg.data.label_column
+        self.sample_label = cfg.data.label_column
         self.logging_steps = cfg.training.logging_steps
         self.logging_dir = cfg.training.logging_dir_path
 
@@ -58,7 +58,7 @@ class ClassifierTrainingPipeline:
         )
 
     def _load_dataset(self, file_path: Path) -> Dataset:
-        return load_dataset("json", data_files=[file_path], split="train")
+        return load_dataset("json", data_files=[file_path])
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -80,7 +80,7 @@ class ClassifierTrainingPipeline:
         return dataset.map(
             lambda x: {
                 **self._tokenize(x),  # tokenize the text
-                "labels": torch.tensor([int(score) for score in x[self.sample_value]], dtype=torch.long),
+                "labels": torch.tensor([int(score) for score in x[self.sample_label]], dtype=torch.long),
             },
             batched=True,
         )
