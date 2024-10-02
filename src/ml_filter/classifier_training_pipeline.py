@@ -71,6 +71,8 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
+            # Load best model at the end of training to save it after training in a separate directory
+            load_best_model_at_end=True,
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
         )
