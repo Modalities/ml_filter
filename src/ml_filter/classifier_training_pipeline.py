@@ -58,7 +58,7 @@ class ClassifierTrainingPipeline:
         )
 
     def _load_dataset(self, file_path: Path) -> Dataset:
-        return load_dataset("json", data_files=[file_path])
+        return load_dataset("json", data_files=[file_path], split="train")
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
