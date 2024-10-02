@@ -21,11 +21,11 @@ data:
   
 training:
   batch_size: 32
-  epochs: 10
+  epochs: 1
   use_bf16: true
   weight_decay: 0.01
   eval_strategy: epoch
   save_strategy: epoch
-  logging_steps: 10
+  logging_steps: 1
   logging_dir_path: tests/cache
   output_dir_path: tests/cache

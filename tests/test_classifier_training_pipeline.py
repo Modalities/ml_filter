@@ -14,7 +14,6 @@ def classifier_training_pipeline():
 
 
 def test_train_classifier(classifier_training_pipeline):
-    # Assuming the ClassifierTrainingPipeline has a method called `train`
     try:
         # Act: Call the train method
         classifier_training_pipeline.train_classifier()
