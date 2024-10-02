@@ -5,6 +5,7 @@ import pytest
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 working_dir = Path(os.path.dirname(__file__))
 
 
