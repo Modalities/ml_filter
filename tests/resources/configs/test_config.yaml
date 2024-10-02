@@ -27,5 +27,6 @@ training:
   eval_strategy: epoch
   save_strategy: epoch
   logging_steps: 1
+  greater_is_better: false
   logging_dir_path: tests/cache
   output_dir_path: tests/cache

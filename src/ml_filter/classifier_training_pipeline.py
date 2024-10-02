@@ -43,6 +43,7 @@ class ClassifierTrainingPipeline:
         self.eval_strategy = cfg.training.eval_strategy
         self.save_strategy = cfg.training.save_strategy
         self.output_dir = cfg.training.output_dir_path
+        self.greater_is_better = cfg.training.greater_is_better
 
         self.sample_key = cfg.data.text_column
         self.sample_label = cfg.data.label_column
@@ -71,8 +72,7 @@ class ClassifierTrainingPipeline:
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
             bf16=self.use_bf16,
-            # TODO: check
-            greater_is_better=True,
+            greater_is_better=self.greater_is_better,
         )
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
