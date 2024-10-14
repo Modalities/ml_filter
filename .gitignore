@@ -71,5 +71,6 @@ Desktop.ini
 *.local
 *.settings
 
-# Ignore everything under outputs/
+# Ignore everything under outputs/ and data/output
 outputs/
+data/output
