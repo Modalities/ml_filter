@@ -13,9 +13,9 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: /data/akhan/Fineweb-edu/data/lorem_ipsum.jsonl
-  test_file_path: /data/akhan/Fineweb-edu/data/lorem_ipsum.jsonl
-  val_file_path: /data/akhan/Fineweb-edu/data/lorem_ipsum.jsonl
+  train_file_path: data/lorem_ipsum.jsonl
+  test_file_path: data/lorem_ipsum.jsonl
+  val_file_path: data/lorem_ipsum.jsonl
   label_column: score
   text_column: text
   
@@ -28,5 +28,5 @@ training:
   save_strategy: epoch
   logging_steps: 100
   greater_is_better: false
-  logging_dir_path: ../data/output/lorem_ipsum_model
-  output_dir_path: ../data/output/lorem_ipsum_model
+  logging_dir_path: data/output/lorem_ipsum_model
+  output_dir_path: data/output/lorem_ipsum_model
