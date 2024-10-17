@@ -1,3 +1,4 @@
+
 import json
 import multiprocessing
 import os
@@ -9,7 +10,9 @@ from typing import Dict, Iterable, List, Optional
 from tqdm import tqdm
 
 from ml_filter.data_processing.prompt_builder import PromptBuilder
+from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
@@ -33,6 +36,7 @@ class DocumentProcessor:
         batch_size: int,
         output_file_path: Path,
         num_processes: int,
+        score_metric_name: str,
         strings_to_remove: Optional[List[str]] = [],
     ):
         """Initializes the DocumentProcessor."""
@@ -44,6 +48,7 @@ class DocumentProcessor:
         self.num_processes = num_processes
         self.output_file_path = output_file_path
         self.strings_to_remove = strings_to_remove
+        self.score_metric_name = score_metric_name
 
     def _remove_special_strings(self, text: str) -> str:
         """
@@ -81,7 +86,7 @@ class DocumentProcessor:
                 prompt = self.prompt_builder.construct_prompt(text)
                 model_response = self.llm_rest_client.generate(prompt=prompt)
                 try:
-                    model_response["educational_score"] = float(find_last_pattern(model_response["generated_text"], pattern=r"Educational score:\s*(\d+)"))
+                    model_response["educational_score"] = float(find_last_pattern(model_response["generated_text"], pattern=score_metrics[self.score_metric_name].pattern))
                 except Exception as e:
                     model_response["error"] = e
                 finally:

@@ -52,6 +52,7 @@ class LLMClient:
         self.queue_size = cfg.document_processor.queue_size
         self.batch_size = cfg.document_processor.batch_size
         self.num_processes = cfg.document_processor.num_processes
+        self.score_metric_name = cfg.document_processor.score_metric_name
 
     def run(self):
         """Runs the LLM service.
@@ -97,6 +98,7 @@ class LLMClient:
             batch_size=self.batch_size,
             output_file_path=self.output_file_path,
             num_processes=self.num_processes,
+            score_metric_name=self.score_metric_name,
         )
 
         document_processor.run(data)

@@ -35,6 +35,7 @@ document_processor:
   queue_size: 1000
   batch_size: 2
   num_processes: 4
+  score_metric_name: educational_score
 
   strings_to_remove:
     - "<"
