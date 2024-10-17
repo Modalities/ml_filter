@@ -102,7 +102,9 @@ class DocumentProcessor:
             is_valid_document = False
         if (
             self.llm_rest_client.tokenizer.truncation is False
-            and len(document["text"]) > self.llm_rest_client.tokenizer.max_length
+            and len(document["text"]) > self.llm_rest_client.tokenizer.max_length 
+            # TODO instead of len(document["text"]), we should take the number of tokens
+            # TODO check the length of the prompt + text, not only text
         ):
             is_valid_document = False
 
