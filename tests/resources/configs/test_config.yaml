@@ -13,20 +13,20 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: data/lorem_ipsum.jsonl
-  test_file_path: data/lorem_ipsum.jsonl
-  val_file_path: data/lorem_ipsum.jsonl
+  train_file_path: tests/resources/data/lorem_ipsum.jsonl
+  test_file_path: tests/resources/data/lorem_ipsum.jsonl
+  val_file_path: tests/resources/data/lorem_ipsum.jsonl
   label_column: score
   text_column: text
   
 training:
   batch_size: 32
-  epochs: 10
+  epochs: 1
   use_bf16: true
   weight_decay: 0.01
   eval_strategy: epoch
   save_strategy: epoch
-  logging_steps: 100
+  logging_steps: 1
   greater_is_better: false
-  logging_dir_path: data/output/lorem_ipsum_model
-  output_dir_path: data/output/lorem_ipsum_model
+  logging_dir_path: tests/cache
+  output_dir_path: tests/cache

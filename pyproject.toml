@@ -12,7 +12,8 @@ dependencies = [
     "transformers==4.42.3",
     "click",
     "click_pathlib",
-    "Jinja2"
+    "Jinja2",
+    "accelerate>=0.21.0"
 ]
 
 [project.optional-dependencies]

@@ -3,7 +3,7 @@ rest_endpoint: http://0.0.0.0:8090/
 
 data:
   input_data:
-    path: ../data/lorem_ipsum.jsonl
+    path: data/lorem_ipsum.jsonl
     split: train
 
 llm_rest_client:
@@ -28,10 +28,10 @@ tokenizer:
   special_tokens: null
 
 prompt_builder:
-  prompt_path: ../data/prompts/fineweb_edu/prompt.yaml
+  prompt_path: data/prompts/fineweb_edu/prompt.yaml
 
 document_processor:
-  output_file_path: ../data/output/lorem_ipsum_result.jsonl
+  output_file_path: data/output/lorem_ipsum_result.jsonl
   queue_size: 1000
   batch_size: 2
   num_processes: 4

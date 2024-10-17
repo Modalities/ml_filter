@@ -43,6 +43,7 @@ class ClassifierTrainingPipeline:
         self.eval_strategy = cfg.training.eval_strategy
         self.save_strategy = cfg.training.save_strategy
         self.output_dir = cfg.training.output_dir_path
+        self.greater_is_better = cfg.training.greater_is_better
 
         self.sample_key = cfg.data.text_column
         self.sample_label = cfg.data.label_column
@@ -58,7 +59,7 @@ class ClassifierTrainingPipeline:
         )
 
     def _load_dataset(self, file_path: Path) -> Dataset:
-        return load_dataset("json", data_files=[file_path])
+        return load_dataset("json", data_files=[file_path], split="train")
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -70,9 +71,10 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
+            # Load best model at the end of training to save it after training in a separate directory
+            load_best_model_at_end=True,
             bf16=self.use_bf16,
-            # TODO: check
-            greater_is_better=True,
+            greater_is_better=self.greater_is_better,
         )
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
