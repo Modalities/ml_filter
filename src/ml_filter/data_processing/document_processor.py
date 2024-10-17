@@ -14,6 +14,14 @@ from ml_filter.llm_api.llm_rest_client import LLMRestClient
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
 
+def find_last_pattern(text, pattern):
+    # Find all occurrences in the text
+    matches = re.findall(pattern, text)
+
+    # Return the last occurrence if there are any matches
+    return matches[-1][-1] if matches else None
+    
+    
 class DocumentProcessor:
     """A class representing a document processor that generates model responses for a given set of documents."""
 
@@ -72,9 +80,16 @@ class DocumentProcessor:
                 text = self._remove_special_strings(text)
                 prompt = self.prompt_builder.construct_prompt(text)
                 model_response = self.llm_rest_client.generate(prompt=prompt)
-                responses.append(model_response["generated_text"])
+                try:
+                    model_response["educational_score"] = float(find_last_pattern(model_response["generated_text"], pattern=r"Educational score:\s*(\d+)"))
+                except Exception as e:
+                    model_response["error"] = e
+                finally:
+                    responses.append(model_response)
 
             self.result_queue.put(responses)
+            
+
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
