@@ -86,7 +86,7 @@ class DocumentProcessor:
                 prompt = self.prompt_builder.construct_prompt(text)
                 model_response = self.llm_rest_client.generate(prompt=prompt)
                 try:
-                    model_response["educational_score"] = float(find_last_pattern(model_response["generated_text"], pattern=score_metrics[self.score_metric_name].pattern))
+                    model_response[self.score_metric_name] = float(find_last_pattern(model_response["generated_text"], pattern=score_metrics[self.score_metric_name].pattern))
                 except Exception as e:
                     model_response["error"] = e
                 finally:
