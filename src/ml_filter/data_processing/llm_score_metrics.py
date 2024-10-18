@@ -29,8 +29,8 @@ class EducationalScoreMetric(LLMScoreMetric):
             followed by one or more digits.
     """
 
-    metric_name = "educational_score"
-    pattern = r"Educational score:\s*(\d+)"
+    metric_name: str = "educational_score"
+    pattern: str = r"Educational score:\s*(\d+)"
 
 
 score_metrics = {"educational_score": EducationalScoreMetric}
