@@ -39,7 +39,11 @@ class DocumentProcessor:
         self.num_processes = num_processes
         self.output_file_path = output_file_path
         self.strings_to_remove = strings_to_remove
-        self.score_metric_name = score_metric_name
+
+        if score_metric_name not in score_metrics:
+            raise ValueError(f"Invalid score metric name: {score_metric_name}.")
+
+        self.score_metric = score_metrics[score_metric_name]
 
     def find_last_pattern(self, text: str, pattern: str) -> str | None:
         """
@@ -95,15 +99,14 @@ class DocumentProcessor:
                 model_response = self.llm_rest_client.generate(prompt=prompt)
 
                 try:
-                    score = self.find_last_pattern(
-                        model_response["generated_text"], pattern=score_metrics[self.score_metric_name].pattern
-                    )
+                    score = self.find_last_pattern(model_response["generated_text"], pattern=self.score_metric.pattern)
                     if score is None:
                         log.warning(
-                            f"Could not find the score metric '{self.score_metric_name}' in the model response."
+                            f"Could not find the score metric '{self.score_metric.metric_name}' in the model response. "
+                            "Ignore document."
                         )
                         continue
-                    model_response[self.score_metric_name] = float(score)
+                    model_response[self.score_metric.metric_name] = float(score)
                 except Exception as e:
                     model_response["error"] = e
                 finally:
