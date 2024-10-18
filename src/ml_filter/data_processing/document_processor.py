@@ -1,30 +1,21 @@
-
 import json
 import multiprocessing
 import os
 import re
 import sys
+from logging import log
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
 from tqdm import tqdm
 
-from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.data_processing.llm_score_metrics import score_metrics
+from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
-
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
 
-def find_last_pattern(text, pattern):
-    # Find all occurrences in the text
-    matches = re.findall(pattern, text)
-
-    # Return the last occurrence if there are any matches
-    return matches[-1][-1] if matches else None
-    
-    
 class DocumentProcessor:
     """A class representing a document processor that generates model responses for a given set of documents."""
 
@@ -49,6 +40,23 @@ class DocumentProcessor:
         self.output_file_path = output_file_path
         self.strings_to_remove = strings_to_remove
         self.score_metric_name = score_metric_name
+
+    def find_last_pattern(self, text: str, pattern: str) -> str | None:
+        """
+        Find the last occurrence of a pattern in the given text.
+
+        Args:
+            text (str): The text to search within.
+            pattern (str): The regex pattern to search for.
+        Returns:
+            str | None: The last occurrence of the pattern in the text, or None if no matches are found.
+        """
+
+        # Find all occurrences in the text
+        matches = re.findall(pattern, text)
+
+        # Return the last occurrence if there are any matches
+        return matches[-1][-1] if matches else None
 
     def _remove_special_strings(self, text: str) -> str:
         """
@@ -85,16 +93,23 @@ class DocumentProcessor:
                 text = self._remove_special_strings(text)
                 prompt = self.prompt_builder.construct_prompt(text)
                 model_response = self.llm_rest_client.generate(prompt=prompt)
+
                 try:
-                    model_response[self.score_metric_name] = float(find_last_pattern(model_response["generated_text"], pattern=score_metrics[self.score_metric_name].pattern))
+                    score = self.find_last_pattern(
+                        model_response["generated_text"], pattern=score_metrics[self.score_metric_name].pattern
+                    )
+                    if score is None:
+                        log.warning(
+                            f"Could not find the score metric '{self.score_metric_name}' in the model response."
+                        )
+                        continue
+                    model_response[self.score_metric_name] = float(score)
                 except Exception as e:
                     model_response["error"] = e
                 finally:
                     responses.append(model_response)
 
             self.result_queue.put(responses)
-            
-
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         is_valid_document = True
@@ -102,7 +117,7 @@ class DocumentProcessor:
             is_valid_document = False
         if (
             self.llm_rest_client.tokenizer.truncation is False
-            and len(document["text"]) > self.llm_rest_client.tokenizer.max_length 
+            and len(document["text"]) > self.llm_rest_client.tokenizer.max_length
             # TODO instead of len(document["text"]), we should take the number of tokens
             # TODO check the length of the prompt + text, not only text
         ):
