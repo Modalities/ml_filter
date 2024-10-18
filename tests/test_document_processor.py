@@ -31,6 +31,7 @@ def test_run():
         batch_size=2,
         output_file_path=Path(out_path),
         num_processes=1,
+        score_metric_name="educational_score",
     )
 
     data = [
