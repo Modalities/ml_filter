@@ -3,7 +3,7 @@ import multiprocessing
 import os
 import re
 import sys
-from logging import log
+import logging
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
@@ -12,6 +12,10 @@ from tqdm import tqdm
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+
+# Set up logging
+logging.basicConfig(level=logging.WARNING)  # Set the logging level as needed
+logger = logging.getLogger(__name__)  # Create a logger instance
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
@@ -96,43 +100,42 @@ class DocumentProcessor:
                 text = document["text"]
                 text = self._remove_special_strings(text)
                 prompt = self.prompt_builder.construct_prompt(text)
-                model_response = self.llm_rest_client.generate(prompt=prompt)
-
+                error_messages = []
                 try:
-                    score = self.find_last_pattern(model_response["generated_text"], pattern=self.score_metric.pattern)
-                    if score is None:
-                        log.warning(
-                            f"Could not find the score metric '{self.score_metric.metric_name}' in the model response. "
-                            "Ignore document."
-                        )
-                        continue
-                    model_response[self.score_metric.metric_name] = float(score)
+                    model_response = self.llm_rest_client.generate(prompt=prompt)
                 except Exception as e:
-                    model_response["error"] = e
-                finally:
-                    responses.append(model_response)
+                    error_messages.append(f"{type(e)}: {str(e)}")
+
+                if model_response is not None:
+                    if "generated_text" not in model_response:
+                        error_messages.append(f"Could not find the generated_text in the model_response. Ignore document. Server response: {model_response}")
+                    else:
+                        score = self.find_last_pattern(model_response["generated_text"], pattern=self.score_metric.pattern)
+                        if score is None:
+                            error_messages.append("Could not find the score metric '{self.score_metric.metric_name}' in the model response. Ignore document.")
+                        else:
+                            model_response[self.score_metric.metric_name] = float(score)
+
+                if len(error_messages) > 0:
+                    error_string = " | ".join(error_messages)
+                    logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
+                
+                model_response["error"] = error_messages
+                model_response["document_id"] = document["document_id"]
+                responses.append(model_response)
 
             self.result_queue.put(responses)
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        is_valid_document = True
-        if len(document["text"]) == 0:
-            is_valid_document = False
-        if (
-            self.llm_rest_client.tokenizer.truncation is False
-            and len(document["text"]) > self.llm_rest_client.tokenizer.max_length
-            # TODO instead of len(document["text"]), we should take the number of tokens
-            # TODO check the length of the prompt + text, not only text
-        ):
-            is_valid_document = False
-
-        return is_valid_document
+        return len(document["text"]) > 0
 
     def _create_batches(self, dataset: Iterable):
         batch = []
         for document in tqdm(dataset, desc="Reading documents", disable=True):
             if not self._is_valid_document(document):
+                logger.warning(f"Invalid document with id: {document['document_id']}. Ignoring.")
                 continue
+            
             batch.append(document)
 
             if len(batch) % self.batch_size == 0:
