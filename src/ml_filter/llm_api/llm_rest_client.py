@@ -96,5 +96,6 @@ class LLMRestClient:
             except RequestException as e:
                 print(f"Request failed with {e}, retrying...{i}")
                 time.sleep(self.backoff_factor * (2**i))
-
+        
         print(f"Request failed after {self.max_retries} retries.")
+        raise RequestException(f"Request failed after {self.max_retries} retries.")
