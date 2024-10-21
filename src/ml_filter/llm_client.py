@@ -41,9 +41,6 @@ class LLMClient:
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = cfg.tokenizer.pretrained_model_name_or_path
-        self.truncation = cfg.tokenizer.truncation
-        self.padding = cfg.tokenizer.padding
-        self.max_length = cfg.tokenizer.max_length
         self.special_tokens = cfg.tokenizer.special_tokens
 
         # DocumentProcessor related variables
@@ -67,9 +64,9 @@ class LLMClient:
         # Get Tokenizer
         tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=self.pretrained_model_name_or_path,
-            truncation=self.truncation,
-            padding=self.padding,
-            max_length=self.max_length,
+            truncation=False,
+            padding=False,
+            max_length=None,
             special_tokens=self.special_tokens,
         )
 
