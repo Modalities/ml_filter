@@ -14,25 +14,22 @@ llm_rest_client:
   temperature: 0.001
   max_words: 30000
   max_pool_connections: 100
-  max_pool_maxsize: 100
+  max_pool_maxsize: 100 #TODO
   max_retries: 2
   backoff_factor: 0.4 
   timeout: 20
   verbose: false
 
 tokenizer:
-  pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-70B
-  truncation: false
-  padding: false
-  max_length: 60000
+  pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-8B
   special_tokens: null
 
 prompt_builder:
   prompt_path: data/prompts/fineweb_edu/prompt.yaml
 
 document_processor:
-  output_file_path: data/output/lorem_ipsum_result.jsonl
-  queue_size: 1000
+  output_file_path: data/output/lorem_ipsum.json
+  queue_size: 10
   batch_size: 2
   num_processes: 4
   score_metric_name: educational_score
