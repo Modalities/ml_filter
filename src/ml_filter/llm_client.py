@@ -62,6 +62,7 @@ class LLMClient:
         data = load_dataset("json", data_files=[self.data_file_path], split=self.split)
 
         # Get Tokenizer
+        # This tokenizer is only used for applying the chat template, but is not applied within TGI.
         tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=self.pretrained_model_name_or_path,
             truncation=False,
