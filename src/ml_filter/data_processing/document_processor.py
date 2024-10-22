@@ -118,10 +118,10 @@ class DocumentProcessor:
 
                 if len(error_messages) > 0:
                     error_string = " | ".join(error_messages)
-                    logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
+                    logger.warning(f"Error processing document with id {document['id']}: {error_string}")
                 
                 model_response["error"] = error_messages
-                model_response["document_id"] = document["document_id"]
+                model_response["id"] = document["id"]
                 responses.append(model_response)
 
             self.result_queue.put(responses)
@@ -133,7 +133,7 @@ class DocumentProcessor:
         batch = []
         for document in tqdm(dataset, desc="Reading documents", disable=True):
             if not self._is_valid_document(document):
-                logger.warning(f"Invalid document with id: {document['document_id']}. Ignoring.")
+                logger.warning(f"Invalid document with id: {document['id']}. Ignoring.")
                 continue
             
             batch.append(document)
