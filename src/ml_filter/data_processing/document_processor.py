@@ -105,8 +105,9 @@ class DocumentProcessor:
                     model_response = self.llm_rest_client.generate(prompt=prompt)
                 except Exception as e:
                     error_messages.append(f"{type(e)}: {str(e)}")
+                    model_response = {}
 
-                if model_response is not None:
+                if len(model_response) > 0:
                     if "generated_text" not in model_response:
                         error_messages.append(f"Could not find the generated_text in the model_response. Ignore document. Server response: {model_response}")
                     else:

@@ -44,6 +44,7 @@ class LLMClient:
         self.special_tokens = cfg.tokenizer.special_tokens
 
         # DocumentProcessor related variables
+        self.max_prompt_length = cfg.prompt_builder.max_prompt_length
         self.output_file_path = cfg.document_processor.output_file_path
         self.prompt_template_path = cfg.prompt_builder.prompt_path
         self.queue_size = cfg.document_processor.queue_size
@@ -78,7 +79,6 @@ class LLMClient:
             timeout=self.timeout,
             session=Session(),
             rest_endpoint=self.rest_endpoint,
-            tokenizer=tokenizer,
             max_pool_connections=self.max_pool_connections,
             max_pool_maxsize=self.max_pool_maxsize,
             max_tokens=self.max_tokens,
@@ -90,7 +90,7 @@ class LLMClient:
         # Get DocumentProcessor
         document_processor = DocumentProcessor(
             llm_rest_client=llm_rest_client,
-            prompt_builder=PromptBuilder(self.prompt_template_path),
+            prompt_builder=PromptBuilder(self.prompt_template_path, tokenizer=tokenizer, max_prompt_length=self.max_prompt_length),
             queue_size=self.queue_size,
             batch_size=self.batch_size,
             output_file_path=self.output_file_path,

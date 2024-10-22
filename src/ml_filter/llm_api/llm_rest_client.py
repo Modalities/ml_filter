@@ -1,11 +1,10 @@
 import logging
 import time
+import traceback
 from typing import Dict, List
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
-
-from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
 
 
 class LLMRestClient:
@@ -22,7 +21,6 @@ class LLMRestClient:
         timeout: int,
         session: Session,
         rest_endpoint: str,
-        tokenizer: TokenizerWrapper,
         max_pool_connections: int,
         max_pool_maxsize: int,
         max_tokens: int,
@@ -41,7 +39,6 @@ class LLMRestClient:
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
-        self.tokenizer = tokenizer
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
@@ -54,7 +51,7 @@ class LLMRestClient:
         """Generates a response based on the given prompt.
 
         Args:
-            prompt (str): The prompt to generate a response for.
+            prompt (List[Dict[str, str]]): The prompt to generate a response for.
             max_tokens (int): The maximum number of tokens in the generated response.
             max_new_tokens (int): The maximum number of new tokens in the generated response.
             temperature (float): The temperature value for controlling randomness in the generated response.
@@ -66,12 +63,10 @@ class LLMRestClient:
         Raises:
             ValueError: If max_retries is set to 0.
         """
-
-        inputs = self.tokenizer.apply_tokenizer_chat_template(prompt, tokenize=False)
-
+ 
         request = dict(
             {
-                "inputs": inputs,
+                "inputs": prompt,
                 "model": self.model_name,
                 "parameters": dict(
                     details=self.verbose,  # TODO: check if this is correct
@@ -94,6 +89,7 @@ class LLMRestClient:
                 )
                 return response.json()
             except RequestException as e:
+                traceback.print_exc()
                 print(f"Request failed with {e}, retrying...{i}")
                 time.sleep(self.backoff_factor * (2**i))
         

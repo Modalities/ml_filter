@@ -1,5 +1,5 @@
 #Points to an endpoint where the model is running
-rest_endpoint: http://0.0.0.0:8090/
+rest_endpoint: http://127.0.0.1:8098/
 
 data:
   input_data:
@@ -13,8 +13,8 @@ llm_rest_client:
   max_new_tokens: 500
   temperature: 0.001
   max_words: 30000
-  max_pool_connections: 100
-  max_pool_maxsize: 100
+  max_pool_connections: 1000
+  max_pool_maxsize: 1000
   max_retries: 2
   backoff_factor: 0.4 
   timeout: 20
@@ -22,19 +22,17 @@ llm_rest_client:
 
 tokenizer:
   pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-70B
-  truncation: false
-  padding: false
-  max_length: 60000
   special_tokens: null
 
 prompt_builder:
   prompt_path: data/prompts/fineweb_edu/prompt.yaml
+  max_prompt_length: 3596
 
 document_processor:
   output_file_path: data/output/lorem_ipsum_result.jsonl
   queue_size: 1000
   batch_size: 2
-  num_processes: 4
+  num_processes: 3
   score_metric_name: educational_score
 
   strings_to_remove:
