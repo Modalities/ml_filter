@@ -3,7 +3,7 @@ rest_endpoint: http://127.0.0.1:8098/
 
 data:
   input_data:
-    path: data/lorem_ipsum.jsonl
+    path: data/1000_documents_new.jsonl
     split: train
 
 llm_rest_client:
@@ -12,7 +12,6 @@ llm_rest_client:
   max_tokens: 60000
   max_new_tokens: 500
   temperature: 0.001
-  max_words: 30000
   max_pool_connections: 100
   max_pool_maxsize: 100 #TODO
   max_retries: 2

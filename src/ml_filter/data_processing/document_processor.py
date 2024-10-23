@@ -100,8 +100,15 @@ class DocumentProcessor:
             for document in batch_of_documents:
                 text = document["text"]
                 text = self._remove_special_strings(text)
-                prompt = self.prompt_builder.construct_prompt(text)
+                
+                
                 error_messages = []
+                try:
+                    prompt = self.prompt_builder.construct_prompt(text)
+                except ValueError as e:
+                    logger.warning(f"Error processing document with id {document['id']}: {str(e)}")
+                    continue
+                
                 try:
                     model_response = self.llm_rest_client.generate(prompt=prompt)
                 except Exception as e:
