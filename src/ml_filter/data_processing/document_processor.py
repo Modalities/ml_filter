@@ -12,9 +12,10 @@ from tqdm import tqdm
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+import time
 
 # Set up logging
-logging.basicConfig(level=logging.WARNING)  # Set the logging level as needed
+logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
 logger = logging.getLogger(__name__)  # Create a logger instance
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
@@ -153,6 +154,9 @@ class DocumentProcessor:
 
     def _write_results(self, output_file: str):
         with open(output_file, "w") as f:
+            start_time = time.time()
+            results_written = 0
+
             while True:
                 results = self.result_queue.get()
                 if results is None:
@@ -160,6 +164,14 @@ class DocumentProcessor:
                 for result in results:
                     json.dump(result, f)
                     f.write("\n")
+                    results_written += 1
+
+                if results_written % 10 == 0:
+                    end_time = time.time()
+                    elapsed_time = end_time - start_time
+                    results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+
+                    logger.info(f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}")
 
     def run(self, documents: Iterable):
         """Runs the document processor.
@@ -178,9 +190,9 @@ class DocumentProcessor:
         writer.start()
 
         processor_threads = [
-            multiprocessing.Process(target=self._process_documents_batch) for _ in range(self.num_processes)
+            multiprocessing.Process(target=self._process_documents_batch) for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
-        for p in processor_threads:
+        for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()
         for p in processor_threads:
             p.join()
