@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -53,7 +54,8 @@ class PromptBuilder:
                 # construct the prompt
                 prompt_final = self.construct_prompt_helper(document_text_detokenized, history)
                 if text[:len(document_text_detokenized)] != document_text_detokenized:
-                    raise ValueError("The text was not properly tokenized and detokenized")
+                    logging.warning("The text was not properly tokenized and detokenized")
+                    # raise ValueError("The text was not properly tokenized and detokenized")
                 prompt_final = self.tokenizer.apply_tokenizer_chat_template(prompt_final, tokenize=False)
                 return prompt_final
         
