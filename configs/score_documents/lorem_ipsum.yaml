@@ -28,7 +28,7 @@ prompt_builder:
   max_prompt_length: 3596
 
 document_processor:
-  output_file_path: data/output/lorem_ipsum.json
+  output_file_path: data/output/lorem_ipsum.jsonl
   queue_size: 10
   batch_size: 2
   num_processes: 3

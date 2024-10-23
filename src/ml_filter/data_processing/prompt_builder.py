@@ -4,8 +4,9 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from ml_filter.data_processing.document import DocumentProcessingTags, ProcessedDocument
 from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
-
+import copy
 
 class PromptBuilder:
     """A class representing a prompt builder."""
@@ -35,16 +36,17 @@ class PromptBuilder:
 
         if history is None:
             history = []
-
-        history.append(prompt)
-        return history
+        
+        history_new = copy.deepcopy(history)
+        history_new.append(prompt)
+        return history_new
     
-    def construct_prompt(self, text: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def construct_prompt(self, processed_document: ProcessedDocument) -> ProcessedDocument:
         if self.max_prompt_length is not None:
-            prompt_empty = self.construct_prompt_helper("", history)
+            prompt_empty = self.construct_prompt_helper("", processed_document.original_history)
             chat_template_length = len(self.tokenizer.apply_tokenizer_chat_template(prompt_empty, tokenize=True))
             
-            document_text_tokenized = self.tokenizer.tokenizer.encode(text)
+            document_text_tokenized = self.tokenizer.tokenizer.encode(processed_document.preprocessed_text)
             # remove tokens that exceed max_prompt_length
             if len(document_text_tokenized) > self.max_prompt_length - chat_template_length:
                 document_text_tokenized = document_text_tokenized[:self.max_prompt_length - chat_template_length]
@@ -52,16 +54,18 @@ class PromptBuilder:
                 # we need to skip special tokens because they are not part of the original text e.g., begin of document token
                 document_text_detokenized = self.tokenizer.tokenizer.decode(document_text_tokenized, skip_special_tokens=True)
                 # construct the prompt
-                prompt_final = self.construct_prompt_helper(document_text_detokenized, history)
-                if text[:len(document_text_detokenized)] != document_text_detokenized:
-                    logging.warning("The truncated and detokenized text does not match the original text.")
-                    # raise ValueError("The truncated and detokenized text does not match the original text.")
-                prompt_final = self.tokenizer.apply_tokenizer_chat_template(prompt_final, tokenize=False)
-                return prompt_final
+                prompt_dict = self.construct_prompt_helper(document_text_detokenized, processed_document.original_history)
+                processed_document.tags.append(DocumentProcessingTags.TRUNCATED)
+                if processed_document.preprocessed_text[:len(document_text_detokenized)] != document_text_detokenized:
+                    logging.warning(f"document {processed_document.document_id}: The truncated and detokenized text does not match the original text.")
+                    processed_document.tags.append(DocumentProcessingTags.DETOKENIZATION_MISMATCH)
+                prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
+                processed_document.prompt = prompt_string
+                return processed_document
         
-        prompt_final = self.construct_prompt_helper(text, history)
-        prompt_final = self.tokenizer.apply_tokenizer_chat_template(prompt_final, tokenize=False)
-        return prompt_final
-
+        prompt_dict = self.construct_prompt_helper(processed_document.preprocessed_text, processed_document.original_history)
+        prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
+        processed_document.prompt = prompt_string
+        return processed_document
 
 

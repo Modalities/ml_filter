@@ -5,10 +5,12 @@ import re
 import sys
 import logging
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from tqdm import tqdm
+from dataclasses import asdict
 
+from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
@@ -19,7 +21,6 @@ logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
 logger = logging.getLogger(__name__)  # Create a logger instance
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
-
 
 class DocumentProcessor:
     """A class representing a document processor that generates model responses for a given set of documents."""
@@ -87,6 +88,33 @@ class DocumentProcessor:
         text = re.sub(r"\s+", " ", text)
 
         return text
+    
+    def _process_document(self, document: Dict[str, Any]) -> ProcessedDocument:
+        processed_document = ProcessedDocument(document_id=document["id"], original_text=document["text"])
+        # text preprocessing
+        processed_document.preprocessed_text = self._remove_special_strings(processed_document.original_text)
+        
+        # prompt building
+        processed_document = self.prompt_builder.construct_prompt(processed_document)
+        
+        # text generation
+        processed_document = self.llm_rest_client.generate(processed_document=processed_document)
+
+        # score filtering
+        score = self.find_last_pattern(processed_document.generated_text, pattern=self.score_metric.pattern)
+        if score is None:
+            processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
+            processed_document.errors.append(f"Could not find the score metric '{self.score_metric.metric_name}' in the model response.")
+        else:
+            processed_document.score = float(score)
+            processed_document.score_type = self.score_metric.metric_name
+            processed_document.document_processing_status = DocumentProcessingStatus.SUCCESS
+
+        if len(processed_document.errors) > 0:
+            error_string = " | ".join(processed_document.errors)
+            logger.warning(f"Error processing document with id {document['id']}: {error_string}")
+        return processed_document
+
 
     def _process_documents_batch(self):
         while True:
@@ -95,45 +123,13 @@ class DocumentProcessor:
             if batch_of_documents is None:
                 break
 
-            responses = []
+            processed_documents = []
 
             for document in batch_of_documents:
-                text = document["text"]
-                text = self._remove_special_strings(text)
-                
-                
-                error_messages = []
-                try:
-                    prompt = self.prompt_builder.construct_prompt(text)
-                except ValueError as e:
-                    logger.warning(f"Error processing document with id {document['id']}: {str(e)}")
-                    continue
-                
-                try:
-                    model_response = self.llm_rest_client.generate(prompt=prompt)
-                except Exception as e:
-                    error_messages.append(f"{type(e)}: {str(e)}")
-                    model_response = {}
+                processed_document = self._process_document(document)
+                processed_documents.append(processed_document)
 
-                if len(model_response) > 0:
-                    if "generated_text" not in model_response:
-                        error_messages.append(f"Could not find the generated_text in the model_response. Ignore document. Server response: {model_response}")
-                    else:
-                        score = self.find_last_pattern(model_response["generated_text"], pattern=self.score_metric.pattern)
-                        if score is None:
-                            error_messages.append("Could not find the score metric '{self.score_metric.metric_name}' in the model response. Ignore document.")
-                        else:
-                            model_response[self.score_metric.metric_name] = float(score)
-
-                if len(error_messages) > 0:
-                    error_string = " | ".join(error_messages)
-                    logger.warning(f"Error processing document with id {document['id']}: {error_string}")
-                
-                model_response["error"] = error_messages
-                model_response["id"] = document["id"]
-                responses.append(model_response)
-
-            self.result_queue.put(responses)
+            self.result_queue.put(processed_documents)
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         return len(document["text"]) > 0
@@ -165,11 +161,12 @@ class DocumentProcessor:
             results_written = 0
 
             while True:
-                results = self.result_queue.get()
-                if results is None:
+                processed_documents = self.result_queue.get()
+                if processed_documents is None:
                     break
-                for result in results:
-                    json.dump(result, f)
+                for processed_document in processed_documents:
+                    processed_document_dict = {k:v for k,v in asdict(processed_document).items() if k not in {"preprocessed_text", "original_text", "original_history", "prompt"}}
+                    json.dump(processed_document_dict, f)
                     f.write("\n")
                     results_written += 1
 
