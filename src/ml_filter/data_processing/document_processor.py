@@ -1,8 +1,6 @@
 import json
 import multiprocessing
-import os
 import re
-import sys
 import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -20,8 +18,6 @@ import time
 logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
 logger = logging.getLogger(__name__)  # Create a logger instance
 
-sys.path.append(os.path.join(os.getcwd(), "src"))
-
 class DocumentProcessor:
     """A class representing a document processor that generates model responses for a given set of documents."""
 
@@ -31,7 +27,8 @@ class DocumentProcessor:
         prompt_builder: PromptBuilder,
         queue_size: int,
         batch_size: int,
-        output_file_path: Path,
+        raw_data_file_path: Path,
+        experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
         strings_to_remove: Optional[List[str]] = [],
@@ -43,7 +40,9 @@ class DocumentProcessor:
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
         self.num_processes = num_processes
-        self.output_file_path = output_file_path
+        self.raw_data_file_path = raw_data_file_path
+        self.experiment_dir_path = experiment_dir_path
+        self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
         self.strings_to_remove = strings_to_remove
 
         if score_metric_name not in score_metrics:
@@ -134,18 +133,28 @@ class DocumentProcessor:
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         return len(document["text"]) > 0
 
-    def _create_batches(self, dataset: Iterable):
+    def _create_batches(self, raw_data_file_path: Path):
         batch = []
-        for document in tqdm(dataset, desc="Reading documents", disable=True):
-            if not self._is_valid_document(document):
-                logger.warning(f"Invalid document with id: {document['id']}. Ignoring.")
-                continue
-            
-            batch.append(document)
+        with open(raw_data_file_path, "r") as fin:
+            while True:
+                document_string = fin.readline()
+                if len(document_string) == 0:
+                    break
+                try:
+                    document = json.loads(document_string)
+                except json.JSONDecodeError:
+                    logger.warning(f"Error decoding document: {document_string}. Skipping.")
+                    continue
+                
+                if not self._is_valid_document(document):
+                    logger.warning(f"Invalid document with id: {document['id']}. Skipping.")
+                    continue
+                
+                batch.append(document)
 
-            if len(batch) % self.batch_size == 0:
-                self.documents_queue.put(batch)
-                batch = []
+                if len(batch) % self.batch_size == 0:
+                    self.documents_queue.put(batch)
+                    batch = []
 
         # If there are remaining documents that didn't fill up a batch
         if len(batch) > 0:
@@ -165,7 +174,7 @@ class DocumentProcessor:
                 if processed_documents is None:
                     break
                 for processed_document in processed_documents:
-                    processed_document_dict = {k:v for k,v in asdict(processed_document).items() if k not in {"preprocessed_text", "original_text", "original_history", "prompt"}}
+                    processed_document_dict = {k:v for k,v in asdict(processed_document).items() } # if k not in {"preprocessed_text", "original_text", "original_history", "prompt"}}
                     json.dump(processed_document_dict, f)
                     f.write("\n")
                     results_written += 1
@@ -177,7 +186,7 @@ class DocumentProcessor:
 
                     logger.info(f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}")
 
-    def run(self, documents: Iterable):
+    def run(self):
         """Runs the document processor.
 
         The documents are split into batches and processed in parallel using multiple processes.
@@ -187,7 +196,7 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(documents,))
+        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_path,))
         reader.start()
 
         writer = multiprocessing.Process(target=self._write_results, args=(self.output_file_path,))
