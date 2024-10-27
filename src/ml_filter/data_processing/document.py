@@ -30,3 +30,5 @@ class ProcessedDocument:
     document_processing_status: DocumentProcessingStatus = None
     errors: List[str] = field(default_factory=list)
     tags: List[DocumentProcessingTags] = field(default_factory=list)
+    document_text_detokenized: str = ""
+    truncated_preprocessed_text: str = ""

@@ -8,6 +8,8 @@ from ml_filter.data_processing.document import DocumentProcessingTags, Processed
 from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
 import copy
 
+from ml_filter.utils.string_comparison import get_char_differences
+
 class PromptBuilder:
     """A class representing a prompt builder."""
 
@@ -56,9 +58,14 @@ class PromptBuilder:
                 # construct the prompt
                 prompt_dict = self.construct_prompt_helper(document_text_detokenized, processed_document.original_history)
                 processed_document.tags.append(DocumentProcessingTags.TRUNCATED)
-                if processed_document.preprocessed_text[:len(document_text_detokenized)] != document_text_detokenized:
-                    logging.warning(f"document {processed_document.document_id}: The truncated and detokenized text does not match the original text.")
+                truncated_preprocessed_text = processed_document.preprocessed_text[:len(document_text_detokenized)]
+                if truncated_preprocessed_text != document_text_detokenized:
+                    num_diff_chars = get_char_differences(truncated_preprocessed_text, document_text_detokenized)
+                    logging.warning(f"document {processed_document.document_id}: The truncated and detokenized text does not match the original text. Number of different characters: {num_diff_chars}")
                     processed_document.tags.append(DocumentProcessingTags.DETOKENIZATION_MISMATCH)
+                    processed_document.errors.append(f"Detokenization mismatch: Number of different characters: {num_diff_chars}")
+                    processed_document.truncated_preprocessed_text = truncated_preprocessed_text
+                    processed_document.document_text_detokenized = document_text_detokenized
                 prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
                 processed_document.prompt = prompt_string
                 return processed_document
