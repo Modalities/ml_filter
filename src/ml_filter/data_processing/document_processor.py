@@ -174,7 +174,8 @@ class DocumentProcessor:
                 if processed_documents is None:
                     break
                 for processed_document in processed_documents:
-                    processed_document_dict = {k:v for k,v in asdict(processed_document).items() } # if k not in {"preprocessed_text", "original_text", "original_history", "prompt"}}
+                    rejected_keys = {"preprocessed_text", "original_text", "original_history", "prompt", "document_text_detokenized", "truncated_preprocessed_text"}
+                    processed_document_dict = {k:v for k,v in asdict(processed_document).items() if k not in rejected_keys}
                     json.dump(processed_document_dict, f)
                     f.write("\n")
                     results_written += 1
