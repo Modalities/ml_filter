@@ -27,5 +27,5 @@ prompt: 'Az alábbiakban egy részletet közlünk egy weboldalról. Értékelje,
   alapos betekintést nyújt a témába, nincs benne semmilyen nem pedagógiai vagy bonyolult
   tartalom.\n <notranslate>The extract: {placeholder}.</notranslate>\nA kivonat megvizsgálása
   után:\n Röviden indokolja meg az összpontszámot, legfeljebb 100 szóval.\nZárja le
-  a pontszámot a következő formátumban: <notranslate>''Educational score: < total
+  a pontszámot a következő formátumban: <notranslate>''Educational score: <total
   points>''</notranslate>'

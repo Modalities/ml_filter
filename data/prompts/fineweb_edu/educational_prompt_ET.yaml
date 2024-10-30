@@ -24,4 +24,4 @@ prompt: 'Allpool on väljavõte veebilehelt. Hinnake, kas lehekülg on kõrge ha
   teemasse, ilma igasuguse mitteõpetusliku või keerulise sisuta.\n <notranslate>The
   extract: {placeholder}.</notranslate>\nNa pärast väljavõtte läbivaatamist:\n Põhjendage
   lühidalt oma kogupunkti, kuni 100 sõna.\nSõlmige punktisumma, kasutades formaati:
-  <notranslate>''Educational score: < total points>''</notranslate>'
+  <notranslate>''Educational score: <total points>''</notranslate>'

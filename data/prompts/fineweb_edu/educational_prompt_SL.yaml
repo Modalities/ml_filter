@@ -25,4 +25,4 @@ prompt: 'Spodaj je izvleček s spletne strani. Ocenite, ali ima stran visoko izo
   vsebino, brez kakršnih koli neizobraževalnih ali zapletenih vsebin.\n <notranslate>The
   extract: {placeholder}.</notranslate>\nPo pregledu izvlečka:\n Na kratko utemeljite
   svojo skupno oceno, do 100 besed.\nZaključite z oceno v obliki: <notranslate>''Educational
-  score: < total points>''</notranslate>'
+  score: <total points>''</notranslate>'

@@ -25,4 +25,4 @@ prompt: 'Нижче наведено уривок з веб-сторінки. О
   та ґрунтовне розуміння предмета, позбавлене будь-якого не пов''язаного з навчанням
   або складного змісту.\n <notranslate>The extract: {placeholder}.</notranslate>\nПісля
   вивчення уривку:\nКоротко обґрунтуйте свою загальну оцінку (до 100 слів).\nВиставте
-  оцінку, використовуючи формат: <notranslate>''Educational score: < total points>''</notranslate>'
+  оцінку, використовуючи формат: <notranslate>''Educational score: <total points>''</notranslate>'

@@ -26,4 +26,4 @@ prompt: 'Poniżej znajduje się fragment strony internetowej. Oceń, czy strona 
   dogłębny i dokładny wgląd w temat, pozbawiony jakichkolwiek nieedukacyjnych lub
   złożonych treści.\n <notranslate>The extract: {placeholder}.</notranslate>\nPo przeanalizowaniu
   fragmentu: \n Krótko uzasadnij swoją całkowitą ocenę, do 100 słów.\nZakończ ocenę,
-  używając formatu: <notranslate>''Educational score: < total points>''</notranslate>'
+  używając formatu: <notranslate>''Educational score: <total points>''</notranslate>'

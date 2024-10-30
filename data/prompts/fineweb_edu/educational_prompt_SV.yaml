@@ -26,4 +26,4 @@ prompt: 'Nedan följer ett utdrag från en webbsida. Utvärdera om sidan har ett
   är lätt att följa och ger djupa och grundliga insikter i ämnet, utan något icke-pedagogiskt
   eller komplext innehåll.\n <notranslate>The extract: {placeholder}.</notranslate>\nEfter
   att ha granskat utdraget:\n Motivera kortfattat din totala poäng, upp till 100 ord.\nSlutför
-  med poängen enligt formatet: <notranslate>''Educational score: < total points>''</notranslate>'
+  med poängen enligt formatet: <notranslate>''Educational score: <total points>''</notranslate>'

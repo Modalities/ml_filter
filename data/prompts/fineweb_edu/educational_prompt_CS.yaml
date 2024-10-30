@@ -25,4 +25,4 @@ prompt: 'Níže je uveden výňatek z webové stránky. Posuďte, zda má strán
   nebo složitý obsah.\n <notranslate>The extract: {placeholder}.</notranslate>\nPo
   prostudování úryvku:\n Stručně zdůvodněte svůj celkový počet bodů, maximálně 100
   slov.\nZávěrem uveďte bodové hodnocení ve formátu: <notranslate>''Educational score:
-  < total points>''</notranslate>'
+  <total points>''</notranslate>'

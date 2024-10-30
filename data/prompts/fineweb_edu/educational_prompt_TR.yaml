@@ -25,4 +25,4 @@ prompt: 'Aşağıda bir web sayfasından bir alıntı yer almaktadır. Sayfanın
   bilgiler sunuyor, eğitimsel olmayan veya karmaşık içerikten yoksun.\n <notranslate>The
   extract: {placeholder}.</notranslate>\nÖzeti inceledikten sonra:\n Toplam puanınızı
   100 kelimeye kadar kısaca gerekçelendirin.\nPuanınızı formatı kullanarak sonuçlandırın:
-  <notranslate>''Educational score: < total points>''</notranslate>'
+  <notranslate>''Educational score: <total points>''</notranslate>'

@@ -25,4 +25,4 @@ prompt: 'Toliau pateikiama tinklalapio ištrauka. Įvertinkite, ar šis puslapis
   stilius lengvai suprantamas, pateikiama gili ir išsami įžvalga apie temą, nėra jokio
   nepedagoginio ar sudėtingo turinio.\n <notranslate>The extract: {placeholder}.</notranslate>\nIšnagrinėjus
   ištrauką:\n Trumpai pagrįskite bendrą balų skaičių, iki 100 žodžių.\nBaigdamas pateikite
-  įvertinimą pagal formą: <notranslate>''Educational score: < total points>''</notranslate>'
+  įvertinimą pagal formą: <notranslate>''Educational score: <total points>''</notranslate>'

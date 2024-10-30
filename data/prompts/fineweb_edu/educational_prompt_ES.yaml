@@ -28,4 +28,4 @@ prompt: 'A continuación se muestra un extracto de una página web. Evalúe si l
   de contenidos no didácticos o complejos.\n <notranslate>The extract: {placeholder}.</notranslate>\nDespués
   de examinar el extracto:\n Justifique brevemente su puntuación total, con un máximo
   de 100 palabras.\nConcluya con la puntuación utilizando el formato: <notranslate>''Educational
-  score: < total points>''</notranslate>'
+  score: <total points>''</notranslate>'

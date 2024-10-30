@@ -29,4 +29,4 @@ prompt: 'Di seguito è riportato un estratto di una pagina web. Valutate se la p
   o complessi.\n <notranslate>The extract: {placeholder}.</notranslate>\nDopo aver
   esaminato l''estratto:\n Giustifica brevemente il tuo punteggio totale, fino a 100
   parole.\nConclude con il punteggio utilizzando il formato: <notranslate>''Educational
-  score: < total points>''</notranslate>'
+  score: <total points>''</notranslate>'

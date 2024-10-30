@@ -26,4 +26,4 @@ prompt: 'Zemāk ir izvilkums no tīmekļa vietnes. Izvērtējiet, vai šai lapai
   tajā nav nekāda neizglītojoša vai sarežģīta satura.\n <notranslate>The extract:
   {placeholder}.</notranslate>\n Pēc izraksta izskatīšanas:\n Īsi pamatojiet savu
   kopējo punktu skaitu, līdz 100 vārdiem.\nNoslēdziet, norādot punktu skaitu, izmantojot
-  šādu formātu: <notranslate>''Educational score: < total points>''</notranslate>'
+  šādu formātu: <notranslate>''Educational score: <total points>''</notranslate>'
