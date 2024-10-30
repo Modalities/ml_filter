@@ -1,0 +1,30 @@
+prompt: 'Nedenfor er et uddrag fra en webside. Vurder, om siden har en høj uddannelsesmæssig
+  værdi og kan være nyttig i en uddannelsesmæssig sammenhæng til undervisning fra
+  grundskole- til folkeskoleniveau ved hjælp af det additive 5-punkts scoringssystem,
+  der er beskrevet nedenfor. Der akkumuleres point baseret på opfyldelsen af hvert
+  kriterium:\n1. Tilføj 1 point, hvis uddraget indeholder nogle grundlæggende oplysninger,
+  der er relevante for uddannelsesmæssige emner, selv om det indeholder noget irrelevant
+  eller ikke-akademisk indhold som reklamer og reklamemateriale.\n2. Tilføj endnu
+  et point, hvis uddraget behandler visse elementer, der er relevante for uddannelse,
+  men ikke ligger tæt op ad uddannelsesstandarderne. Det blander måske uddannelsesmæssigt
+  indhold med ikke-uddannelsesmæssigt materiale, giver et overfladisk overblik over
+  potentielt nyttige emner eller præsenterer information på en uorganiseret måde og
+  i en usammenhængende skrivestil.n3. Giv et tredje point, hvis uddraget er egnet
+  til undervisningsbrug og introducerer nøglebegreber, der er relevante for skolens
+  læseplaner. Det er sammenhængende, selvom det måske ikke er omfattende eller kan
+  indeholde uvedkommende information. Det kan ligne et indledende afsnit i en lærebog
+  eller en grundlæggende vejledning, der er egnet til læring, men har bemærkelsesværdige
+  begrænsninger som f.eks. at behandle begreber, der er for komplekse for folkeskoleelever.\n4.
+  Giv et fjerde point, hvis uddraget er yderst relevant og gavnligt til uddannelsesformål
+  for et niveau, der ikke er højere end folkeskolen, og udviser en klar og konsekvent
+  skrivestil. Det kan svare til et kapitel fra en lærebog eller en vejledning, der
+  tilbyder væsentligt uddannelsesmæssigt indhold, herunder øvelser og løsninger, med
+  minimal irrelevant information, og begreberne er ikke for avancerede for grundskoleelever.
+  Indholdet er sammenhængende, fokuseret og værdifuldt for struktureret læring.\n5.
+  Giv et femte point, hvis uddraget er enestående i sin uddannelsesmæssige værdi,
+  perfekt egnet til undervisning enten i grundskolen eller i folkeskolen. Det følger
+  et detaljeret ræsonnement, skrivestilen er let at følge og giver en dyb og grundig
+  indsigt i emnet uden noget ikke-pædagogisk eller komplekst indhold.\n <notranslate>The
+  extract: {placeholder}.</notranslate>\nEfter at have gennemgået uddraget:\n Begrund
+  kort din samlede score, op til 100 ord.\nSlut af med scoren ved hjælp af formatet:
+  <notranslate>''Educational score: < total points>''</notranslate>'

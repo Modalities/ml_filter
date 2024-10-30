@@ -1,0 +1,28 @@
+prompt: 'Nižšie je uvedený výňatok z webovej stránky. Posúďte, či má stránka vysokú
+  vzdelávaciu hodnotu a či by mohla byť užitočná vo vzdelávacom prostredí pre výučbu
+  od základnej školy až po základnú školu pomocou aditívneho 5-bodového systému hodnotenia
+  opísaného nižšie. Body sa zbierajú na základe splnenia jednotlivých kritérií:\n1.
+  Pridajte 1 bod, ak výňatok poskytuje základné informácie relevantné pre vzdelávacie
+  témy, aj keď obsahuje niektoré nepodstatné alebo neakademické obsahy, ako sú reklamy
+  a propagačné materiály.\n2. Pridajte ďalší bod, ak sa úryvok zaoberá určitými prvkami
+  relevantnými pre vzdelávanie, ale nie je v úzkom súlade so vzdelávacími štandardmi.
+  Môže sa v ňom miešať vzdelávací obsah s materiálom, ktorý nie je zameraný na vzdelávanie,
+  ponúka povrchný prehľad potenciálne užitočných tém alebo prezentuje informácie neorganizovaným
+  spôsobom a nesúvislým štýlom písania.\n3. Udeľte tretí bod, ak je úryvok vhodný
+  na vzdelávacie účely a uvádza kľúčové pojmy relevantné pre školské osnovy. Je ucelený,
+  hoci nemusí byť komplexný alebo môže obsahovať niektoré cudzie informácie. Môže
+  pripomínať úvodnú časť učebnice alebo základnú učebnicu, ktorá je vhodná na učenie,
+  ale má výrazné obmedzenia, ako napríklad spracovanie pojmov, ktoré sú príliš zložité
+  pre žiakov základnej školy.\n4. Udeľte štvrtý bod, ak je úryvok vysoko relevantný
+  a prínosný na vzdelávacie účely pre úroveň nie vyššiu ako základná škola, pričom
+  vykazuje jasný a konzistentný štýl písania. Mohol by byť podobný kapitole z učebnice
+  alebo učebnému textu, ponúka podstatný vzdelávací obsah vrátane cvičení a riešení
+  s minimom nepodstatných informácií a pojmy nie sú príliš pokročilé pre žiakov základnej
+  školy. Obsah je ucelený, sústredený a hodnotný pre štruktúrované učenie.\n5. Udeľte
+  piaty bod, ak je výpis vynikajúci svojou vzdelávacou hodnotou, dokonale sa hodí
+  na vyučovanie buď na základnej škole, alebo na základnej škole. Vyplýva z podrobného
+  zdôvodnenia, štýl písania je ľahko sledovateľný a ponúka hlboký a dôkladný pohľad
+  na danú tému, bez akéhokoľvek nevzdelávacieho alebo zložitého obsahu.\n <notranslate>The
+  extract: {placeholder}.</notranslate>\nPo preskúmaní úryvku:\n Stručne zdôvodnite
+  svoj celkový počet bodov, maximálne 100 slov.\nZáver s bodovým hodnotením urobte
+  vo formáte: <notranslate>''Educational score: < total points>''</notranslate>'

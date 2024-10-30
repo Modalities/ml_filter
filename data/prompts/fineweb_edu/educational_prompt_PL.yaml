@@ -1,0 +1,29 @@
+prompt: 'Poniżej znajduje się fragment strony internetowej. Oceń, czy strona ma wysoką
+  wartość edukacyjną i może być przydatna w środowisku edukacyjnym do nauczania od
+  poziomu szkoły podstawowej do poziomu szkoły podstawowej, korzystając z addytywnego
+  5-punktowego systemu punktacji opisanego poniżej. Punkty są gromadzone w oparciu
+  o spełnienie każdego kryterium:\n1. Dodaj 1 punkt, jeśli fragment zawiera podstawowe
+  informacje istotne dla tematów edukacyjnych, nawet jeśli zawiera pewne nieistotne
+  lub nieakademickie treści, takie jak reklamy i materiały promocyjne.\n2. Dodaj kolejny
+  punkt, jeśli fragment odnosi się do pewnych elementów związanych z edukacją, ale
+  nie jest ściśle zgodny ze standardami edukacyjnymi. Może on łączyć treści edukacyjne
+  z materiałami nieedukacyjnymi, oferując powierzchowny przegląd potencjalnie przydatnych
+  tematów lub prezentując informacje w sposób zdezorganizowany i niespójny styl pisania.\n3.
+  Przyznaj trzeci punkt, jeśli fragment jest odpowiedni do użytku edukacyjnego i wprowadza
+  kluczowe pojęcia istotne dla programów szkolnych. Jest spójny, choć może nie być
+  wyczerpujący lub może zawierać pewne obce informacje. Może przypominać wstępną sekcję
+  podręcznika lub podstawowy samouczek, który jest odpowiedni do nauki, ale ma zauważalne
+  ograniczenia, takie jak traktowanie pojęć, które są zbyt złożone dla uczniów szkół
+  podstawowych. 4. Przyznaj czwarty punkt, jeśli fragment jest bardzo istotny i korzystny
+  dla celów edukacyjnych na poziomie nie wyższym niż szkoła podstawowa, wykazując
+  jasny i spójny styl pisania. Może być podobny do rozdziału z podręcznika lub samouczka,
+  oferując istotne treści edukacyjne, w tym ćwiczenia i rozwiązania, z minimalną ilością
+  nieistotnych informacji, a koncepcje nie są zbyt zaawansowane dla uczniów szkół
+  podstawowych. Treść jest spójna, skoncentrowana i wartościowa dla ustrukturyzowanej
+  nauki. 5. Przyznaj piąty punkt, jeśli fragment ma wyjątkową wartość edukacyjną i
+  doskonale nadaje się do nauczania w szkole podstawowej lub gimnazjum. Wynika to
+  ze szczegółowego rozumowania, styl pisania jest łatwy do naśladowania i oferuje
+  dogłębny i dokładny wgląd w temat, pozbawiony jakichkolwiek nieedukacyjnych lub
+  złożonych treści.\n <notranslate>The extract: {placeholder}.</notranslate>\nPo przeanalizowaniu
+  fragmentu: \n Krótko uzasadnij swoją całkowitą ocenę, do 100 słów.\nZakończ ocenę,
+  używając formatu: <notranslate>''Educational score: < total points>''</notranslate>'

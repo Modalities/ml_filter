@@ -1,0 +1,28 @@
+prompt: 'Níže je uveden výňatek z webové stránky. Posuďte, zda má stránka vysokou
+  vzdělávací hodnotu a zda by mohla být užitečná ve vzdělávacím prostředí pro výuku
+  od základní školy až po druhý stupeň základní školy, a to pomocí níže popsaného
+  aditivního pětibodového systému hodnocení. Body se sčítají na základě splnění jednotlivých
+  kritérií:\n1. Přidejte 1 bod, pokud výňatek poskytuje základní informace relevantní
+  pro vzdělávací témata, i když obsahuje irelevantní nebo neakademický obsah, jako
+  jsou reklamy a propagační materiály.\n2. Přidejte další bod, pokud se výňatek zabývá
+  některými prvky relevantními pro vzdělávání, ale není v úzkém souladu se vzdělávacími
+  standardy. Může míchat vzdělávací obsah s nevzdělávacím materiálem, nabízet povrchní
+  přehled potenciálně užitečných témat nebo prezentovat informace neuspořádaným způsobem
+  a nesourodým stylem psaní.\n3. Udělte třetí bod, pokud je výňatek vhodný pro vzdělávací
+  účely a představuje klíčové pojmy relevantní pro školní osnovy. Je souvislý, i když
+  nemusí být vyčerpávající nebo může obsahovat některé cizí informace. Může připomínat
+  úvodní část učebnice nebo základní výukový materiál, který je vhodný pro výuku,
+  ale má znatelná omezení, například zpracovává pojmy, které jsou pro žáky základní
+  školy příliš složité.\n4. Udělte čtvrtý bod, pokud je výtah vysoce relevantní a
+  přínosný pro vzdělávací účely pro úroveň ne vyšší než základní škola a vykazuje
+  jasný a konzistentní styl psaní. Může být podobný kapitole z učebnice nebo výukového
+  programu, nabízí podstatný vzdělávací obsah včetně cvičení a řešení, s minimem nepodstatných
+  informací, a pojmy nejsou pro žáky základní školy příliš pokročilé. Obsah je ucelený,
+  soustředěný a hodnotný pro strukturované učení.\n5. Udělte pátý bod, pokud má výtah
+  vynikající vzdělávací hodnotu a dokonale se hodí pro výuku na základní škole nebo
+  na prvním stupni. Navazuje na podrobnou argumentaci, styl psaní je srozumitelný
+  a nabízí hluboký a důkladný vhled do problematiky, neobsahuje žádný nevzdělávací
+  nebo složitý obsah.\n <notranslate>The extract: {placeholder}.</notranslate>\nPo
+  prostudování úryvku:\n Stručně zdůvodněte svůj celkový počet bodů, maximálně 100
+  slov.\nZávěrem uveďte bodové hodnocení ve formátu: <notranslate>''Educational score:
+  < total points>''</notranslate>'

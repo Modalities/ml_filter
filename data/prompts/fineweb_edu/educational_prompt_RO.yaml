@@ -1,0 +1,32 @@
+prompt: 'Mai jos este prezentat un extras dintr-o pagină web. Evaluați dacă pagina
+  are o valoare educațională ridicată și dacă ar putea fi utilă într-un cadru educațional
+  pentru predarea de la nivelul școlii primare până la cel al școlii gimnaziale, utilizând
+  sistemul de punctaj aditiv în 5 puncte descris mai jos. Punctele se acumulează pe
+  baza satisfacerii fiecărui criteriu:\n1. Se adaugă 1 punct dacă extrasul furnizează
+  informații de bază relevante pentru subiectele educaționale, chiar dacă include
+  un conținut irelevant sau neacademic, precum reclame și materiale promoționale.\n2.
+  Adăugați încă un punct dacă extractul abordează anumite elemente relevante pentru
+  educație, dar nu se aliniază îndeaproape standardelor educaționale. Acesta poate
+  amesteca conținut educațional cu material non-educațional, oferind o prezentare
+  superficială a unor subiecte potențial utile sau prezentând informațiile într-un
+  mod dezorganizat și într-un stil de scriere incoerent.\n3. Acordați un al treilea
+  punct dacă fragmentul este adecvat pentru uz educațional și introduce concepte-cheie
+  relevante pentru programele școlare. Este coerent, deși este posibil să nu fie complet
+  sau să includă unele informații străine. Poate semăna cu o secțiune introductivă
+  a unui manual sau cu un tutorial de bază care este potrivit pentru învățare, dar
+  are limitări notabile, cum ar fi tratarea unor concepte care sunt prea complexe
+  pentru elevii de școală primară.\n4. Acordați un al patrulea punct dacă extrasul
+  este foarte relevant și benefic în scopuri educaționale pentru un nivel care nu
+  depășește școala primară, prezentând un stil de scriere clar și coerent. Extrasul
+  poate fi similar cu un capitol dintr-un manual sau un tutorial, oferind un conținut
+  educațional substanțial, inclusiv exerciții și soluții, cu un minim de informații
+  irelevante, iar conceptele nu sunt prea avansate pentru elevii de școală primară.
+  Conținutul este coerent, concentrat și valoros pentru învățarea structurată.\n5.
+  Acordați un al cincilea punct dacă extrasul este remarcabil prin valoarea sa educativă,
+  fiind perfect potrivit pentru predare fie la școala primară, fie la școala generală.
+  Acesta urmează un raționament detaliat, stilul de scriere este ușor de urmărit și
+  oferă o perspectivă profundă și amănunțită asupra subiectului, lipsit de orice conținut
+  non-educativ sau complex.\n <notranslate>The extract: {placeholder}.</notranslate>\nDupă
+  examinarea extrasului:\n Justificați pe scurt punctajul total, în maximum 100 de
+  cuvinte.\nConcluzionați cu punctajul folosind formatul: <notranslate>''Educational
+  score: < total points>''</notranslate>'

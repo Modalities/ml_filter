@@ -1,0 +1,32 @@
+prompt: 'Vous trouverez ci-dessous un extrait d''une page web. Évaluez si la page
+  a une valeur éducative élevée et si elle pourrait être utile dans un cadre éducatif
+  pour l''enseignement des niveaux primaire et primaire, en utilisant le système de
+  notation additif en 5 points décrit ci-dessous. Les points sont accumulés en fonction
+  de la satisfaction de chaque critère:1. Ajouter 1 point si l''extrait fournit des
+  informations de base pertinentes pour des sujets éducatifs, même s''il contient
+  des éléments non pertinents ou non académiques tels que des publicités et du matériel
+  promotionnel.\N2. Ajoutez un autre point si l''extrait aborde certains éléments
+  pertinents pour l''éducation, mais ne correspond pas exactement aux normes éducatives.
+  Il peut mélanger du contenu éducatif avec du matériel non éducatif, offrir une vue
+  d''ensemble superficielle de sujets potentiellement utiles, ou présenter les informations
+  de manière désorganisée et dans un style d''écriture incohérent.\n3. Attribuez un
+  troisième point si l''extrait est adapté à un usage pédagogique et introduit des
+  concepts clés pertinents pour les programmes scolaires. Il est cohérent bien qu''il
+  ne soit pas exhaustif ou qu''il puisse inclure des informations superflues. Il peut
+  ressembler à une section d''introduction d''un manuel ou à un tutoriel de base qui
+  convient à l''apprentissage mais présente des limites notables comme le traitement
+  de concepts trop complexes pour des élèves de l''enseignement primaire.4. Accordez
+  un quatrième point si l''extrait est très pertinent et utile à des fins éducatives
+  pour un niveau ne dépassant pas l''école primaire, et s''il présente un style d''écriture
+  clair et cohérent. L''extrait peut s''apparenter à un chapitre de manuel ou de didacticiel,
+  offrant un contenu éducatif substantiel, y compris des exercices et des solutions,
+  avec un minimum d''informations non pertinentes, et les concepts ne sont pas trop
+  avancés pour des élèves de l''enseignement primaire. Le contenu est cohérent, ciblé
+  et utile pour un apprentissage structuré.5. Attribuez un cinquième point si l''extrait
+  présente une valeur éducative exceptionnelle, parfaitement adaptée à l''enseignement
+  à l''école primaire ou à l''école élémentaire. Il suit un raisonnement détaillé,
+  le style d''écriture est facile à suivre et offre un aperçu profond et approfondi
+  du sujet, dépourvu de tout contenu non éducatif ou complexe.\N- <notranslate>The
+  extract: {placeholder}.</notranslate>\NAprès avoir examiné l''extrait:\Njustifiez
+  brièvement votre note totale, jusqu''à 100 mots.\NConcluez avec la note en utilisant
+  le format : <notranslate>''Educational score: < total points>''</notranslate>'

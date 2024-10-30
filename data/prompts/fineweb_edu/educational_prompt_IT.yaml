@@ -14,7 +14,7 @@ prompt: 'Di seguito è riportato un estratto di una pagina web. Valutate se la p
   concetti chiave rilevanti per i programmi scolastici. È coerente, anche se potrebbe
   non essere esaustivo o includere alcune informazioni estranee. Può assomigliare
   a una sezione introduttiva di un libro di testo o a un tutorial di base adatto all''apprendimento,
-  ma presenta limiti notevoli, come la trattazione di concetti troppo complessi per
+  ma presenta notevoli limiti, come la trattazione di concetti troppo complessi per
   gli studenti delle scuole elementari.\n4. Assegnare un quarto punto se l''estratto
   è altamente rilevante e utile a fini didattici per un livello non superiore alla
   scuola elementare, mostrando uno stile di scrittura chiaro e coerente. Potrebbe
@@ -26,6 +26,7 @@ prompt: 'Di seguito è riportato un estratto di una pagina web. Valutate se la p
   adatto all''insegnamento nella scuola primaria o nella scuola elementare. Segue
   un ragionamento dettagliato, lo stile di scrittura è facile da seguire e offre una
   visione profonda e approfondita dell''argomento, priva di contenuti non didattici
-  o complessi.\n L''estratto: {placeholder}.\nDopo aver esaminato l''estratto:\n Giustifica
-  brevemente il tuo punteggio totale, fino a 100 parole.\nConcludere con il punteggio
-  utilizzando il formato: ''Punteggio educativo: <punti totali>".'
+  o complessi.\n <notranslate>The extract: {placeholder}.</notranslate>\nDopo aver
+  esaminato l''estratto:\n Giustifica brevemente il tuo punteggio totale, fino a 100
+  parole.\nConclude con il punteggio utilizzando il formato: <notranslate>''Educational
+  score: < total points>''</notranslate>'

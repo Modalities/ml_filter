@@ -1,0 +1,29 @@
+prompt: 'Nedan följer ett utdrag från en webbsida. Utvärdera om sidan har ett högt
+  pedagogiskt värde och kan vara användbar i en utbildningsmiljö för undervisning
+  från lågstadiet till grundskolan med hjälp av det additiva 5-poängssystem som beskrivs
+  nedan. Poäng ackumuleras baserat på uppfyllandet av varje kriterium:\n1. Lägg till
+  1 poäng om utdraget ger grundläggande information som är relevant för utbildningsämnen,
+  även om det innehåller irrelevant eller icke-akademiskt innehåll som reklam och
+  marknadsföringsmaterial.\n2. Lägg till ytterligare en poäng om utdraget tar upp
+  vissa delar som är relevanta för utbildning men inte är helt i linje med utbildningsstandarderna.
+  Det kan handla om att blanda pedagogiskt innehåll med icke-pedagogiskt material,
+  erbjuda en ytlig översikt över potentiellt användbara ämnen eller presentera information
+  på ett oorganiserat sätt och med en osammanhängande skrivstil.nn3. Ge en tredje
+  poäng om utdraget är lämpligt för utbildningsändamål och introducerar nyckelbegrepp
+  som är relevanta för skolans läroplaner. Det är sammanhängande även om det kanske
+  inte är heltäckande eller kan innehålla en del ovidkommande information. Det kan
+  likna ett inledande avsnitt i en lärobok eller en grundläggande handledning som
+  är lämplig för inlärning men har anmärkningsvärda begränsningar som att behandla
+  begrepp som är för komplexa för grundskoleelever. 4. Ge en fjärde poäng om utdraget
+  är mycket relevant och användbart för utbildningsändamål för en nivå som inte är
+  högre än grundskolan och uppvisar en tydlig och konsekvent skrivstil. Det kan liknas
+  vid ett kapitel i en lärobok eller en handledning, med ett omfattande pedagogiskt
+  innehåll, inklusive övningar och lösningar, med minimalt med irrelevant information,
+  och begreppen är inte för avancerade för grundskoleelever. Innehållet är sammanhängande,
+  fokuserat och värdefullt för strukturerad inlärning.\n5. Ge en femte poäng om utdraget
+  är enastående i sitt pedagogiska värde, perfekt lämpat för undervisning antingen
+  på grundskolan eller i grundsärskolan. Det följer detaljerade resonemang, skrivstilen
+  är lätt att följa och ger djupa och grundliga insikter i ämnet, utan något icke-pedagogiskt
+  eller komplext innehåll.\n <notranslate>The extract: {placeholder}.</notranslate>\nEfter
+  att ha granskat utdraget:\n Motivera kortfattat din totala poäng, upp till 100 ord.\nSlutför
+  med poängen enligt formatet: <notranslate>''Educational score: < total points>''</notranslate>'
