@@ -60,15 +60,32 @@ def entry_train_classifier(config_file_path: Path):
     help="Authentication key for DeepL.",
 )
 @click.option(
+    "--tag_to_ignore",
+    type=str,
+    required=False,
+    help="Tag indicating which part of the translation should be ignored.",
+)
+@click.option(
     "--source_language",
     type=str,
     required=True,
     help="Path to the output file.",
 )
 @click.argument("languages", nargs=-1)
-def deepl_translate_cli(input_path: Path, output_path: Path, api_key: str, source_language: str, languages: list[str]):
+def deepl_translate_cli(
+    input_path: Path,
+    output_path: Path,
+    api_key: str,
+    source_language: str,
+    languages: list[str],
+    tag_to_ignore: str | None,
+):
     translated_data = deepl_translate(
-        input_path=input_path, api_key=api_key, source_language=source_language, languages=languages
+        input_path=input_path,
+        api_key=api_key,
+        source_language=source_language,
+        languages=languages,
+        tag_to_ignore=tag_to_ignore,
     )
     write_output(output_path=output_path, data=translated_data)
 
