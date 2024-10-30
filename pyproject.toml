@@ -9,7 +9,7 @@ dependencies = [
     "tqdm",
     "datasets",
     "pydantic",
-    "transformers==4.42.3",
+    "transformers==4.46.1",
     "click",
     "click_pathlib",
     "Jinja2",
