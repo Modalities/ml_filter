@@ -3,14 +3,12 @@
 settings:
   model_name: meta-llama/Meta-Llama-3.1-8B
   tokenizer_name_or_path: ${settings.model_name}
-  rest_endpoint: http://127.0.0.1:8098/
   paths:
     raw_data_file_path: data/lorem_ipsum.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
 
 llm_rest_client:
-  rest_endpoint: ${settings.rest_endpoint}
   model_name: llama
   max_tokens: 60000
   max_new_tokens: 500

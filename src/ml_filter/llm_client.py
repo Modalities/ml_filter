@@ -16,9 +16,10 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
 class LLMClient:
-    def __init__(self, config_file_path: Path, experiment_id: str):
+    def __init__(self, config_file_path: Path, experiment_id: str, rest_endpoint: str):
         """Initializes the LLMService."""
         self.experiment_id = experiment_id
+        self.rest_endpoint = rest_endpoint
 
         cfg = OmegaConf.load(config_file_path)
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
@@ -31,7 +32,6 @@ class LLMClient:
         self.raw_data_file_path = Path(cfg.settings.paths.raw_data_file_path)
 
         # LLMRestClient related variables
-        self.rest_endpoint = cfg.settings.rest_endpoint
         self.max_retries = cfg.llm_rest_client.max_retries
         self.backoff_factor = cfg.llm_rest_client.backoff_factor
         self.model_name = cfg.llm_rest_client.model_name
