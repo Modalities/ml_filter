@@ -172,6 +172,7 @@ class DocumentProcessor:
             while True:
                 processed_documents = self.result_queue.get()
                 if processed_documents is None:
+                    f.flush()
                     break
                 for processed_document in processed_documents:
                     rejected_keys = {"preprocessed_text", "original_text", "original_history", "prompt", "document_text_detokenized", "truncated_preprocessed_text"}
@@ -181,6 +182,7 @@ class DocumentProcessor:
                     results_written += 1
 
                 if results_written % 10 == 0:
+                    f.flush()
                     end_time = time.time()
                     elapsed_time = end_time - start_time
                     results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
