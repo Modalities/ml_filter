@@ -91,7 +91,7 @@ class OpenAITranslator(Translator):
 
     def _get_ignore_text(self, tag_to_ignore: str | None) -> str:
         if tag_to_ignore is not None:
-            closing_tag_to_ignore = re.sub(r"<(\w+)>", r"</\1>", self.tag_to_ignore)
+            closing_tag_to_ignore = re.sub(r"<(\w+)>", r"</\1>", tag_to_ignore)
             # Add whitespace at the beginning since the text is appended to the prompt
             ignore_text = (
                 f'. Text that is within "{self.tag_to_ignore} {closing_tag_to_ignore}" should not be translated:'
