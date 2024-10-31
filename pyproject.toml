@@ -13,6 +13,11 @@ dependencies = [
     "click",
     "click_pathlib",
     "Jinja2",
+    # this is only needed for MN5 as it has Keras 3 installed which is incompatible with the latest version of transformers. 
+    # When running mn_filters the transformers generally checks if keras is installed and if so if it is the correct version.
+    # This throws an error as the version of keras is not compatible with the transformers version.
+    # If Keras is not installed this check is just skipped.
+    "tf-keras==2.18.0"
 ]
 
 [project.optional-dependencies]
