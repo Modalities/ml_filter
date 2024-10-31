@@ -86,7 +86,6 @@ class OpenAITranslator(Translator):
                     {"role": "system", "content": "You are a translation assistant."},
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=100,
             )
             translated_data[lang] = response.choices[0].message
 
