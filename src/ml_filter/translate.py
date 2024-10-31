@@ -153,7 +153,7 @@ class OpenAITranslator(Translator):
     def client(self):
         return self._client
 
-    def translate(self):
+    def translate(self) -> dict[str, str]:
         """Translate the given text into multiple languages using the OpenAI API."""
         translated_data = {}
         data = self._load_data()
