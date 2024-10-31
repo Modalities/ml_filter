@@ -8,6 +8,8 @@ import yaml
 
 
 class Translator(ABC):
+    """An abstract class for translating text into multiple languages."""
+
     def __init__(
         self,
         api_key: str,
@@ -34,6 +36,12 @@ class Translator(ABC):
     @abstractmethod
     def translate(self) -> dict[str, str]:
         """Abstract method that performs translation and returns results."""
+        pass
+
+    @property
+    @abstractmethod
+    def client(self):
+        """An abstract property for the client."""
         pass
 
     def write_output(self, output_path: Path, data: dict[str, str]) -> None:
@@ -65,14 +73,30 @@ class Translator(ABC):
 
 
 class OpenAITranslator(Translator):
+    """A class to translate text into multiple languages using the OpenAI API."""
+
+    def __init__(
+        self,
+        api_key: str,
+        input_path: Path,
+        source_language: str,
+        languages: list[str],
+        tag_to_ignore: str | None,
+    ):
+        super().__init__(api_key, input_path, source_language, languages, tag_to_ignore)
+
+        self._client = openai.OpenAI()
+        openai.api_key = self.api_key
+
+    @property
+    def client(self):
+        return self._client
+
     def translate(self, text: str):
         """Translate the given text into multiple languages using the OpenAI API."""
         translated_data = {}
         data = self._load_data()
         text = data["prompt"]
-
-        client = openai.OpenAI()
-        openai.api_key = self.api_key
 
         ignore_text = self._get_ignore_text(tag_to_ignore=self.tag_to_ignore)
 
@@ -80,7 +104,7 @@ class OpenAITranslator(Translator):
             prompt = f"""Translate the following text into {lang}{ignore_text}:
             {text}."""
             # Call the API
-            response = client.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a translation assistant."},
@@ -102,19 +126,30 @@ class OpenAITranslator(Translator):
 
 
 class DeepLTranslator(Translator):
+    """A class to translate text into multiple languages using the DeepL API."""
+
+    def __init__(
+        self, api_key: str, input_path: Path, source_language: str, languages: list[str], tag_to_ignore: str | None
+    ):
+        super().__init__(api_key, input_path, source_language, languages, tag_to_ignore)
+        self._client = deepl.Translator(self.api_key)
+
+    @property
+    def client(self):
+        return self._client
+
     def translate(self) -> dict[str, str]:
         """Translate the given text into multiple languages using the DeepL API."""
         translated_data = {}
         data = self._load_data()
         text = data["prompt"]
 
-        translator = deepl.Translator(self.api_key)
         ignore_tags, tag_handling = (
             self._get_ignore_tags(tag_to_ignore=self.tag_to_ignore) if self.tag_to_ignore is not None else (None, None)
         )
 
         for lang in self.languages:
-            result = translator.translate_text(
+            result = self.client.translate_text(
                 text,
                 source_lang=self.source_language,
                 target_lang=lang,
