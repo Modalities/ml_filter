@@ -108,7 +108,7 @@ class DeepLTranslator(Translator):
             result = self.client.translate_text(
                 text,
                 source_lang=self.source_language_code,
-                target_lang=lang_code,
+                target_lang=target_lang_code,
                 tag_handling=tag_handling,
                 ignore_tags=ignore_tag,
             )
