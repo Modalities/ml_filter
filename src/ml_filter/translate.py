@@ -38,7 +38,7 @@ class Translator(ABC):
     @abstractmethod
     def translate(self) -> dict[str, str]:
         """Abstract method that performs translation and returns results."""
-        pass
+        raise not ImplementedError
 
     @property
     @abstractmethod
