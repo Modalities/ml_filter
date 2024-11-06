@@ -142,7 +142,7 @@ class OpenAITranslator(Translator):
         api_key: str,
         input_path: Path,
         source_language: str,
-        languages: list[str],
+        target_languages: list[str],
         tag_to_ignore: str | None,
     ):
         super().__init__(api_key, input_path, source_language, languages, tag_to_ignore)
