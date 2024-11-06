@@ -12,7 +12,7 @@ class TranslationClient(ABC):
 
     def __init__(self, api_key: str, target_language_codes: list[str], ignore_tag: str | None = None):
         self.api_key = api_key
-        self.target_langs = target_language_codes
+        self.target_language_codes = target_language_codes
         self.ignore_tag = ignore_tag
 
     @abstractmethod
@@ -53,7 +53,7 @@ class Translator:
         data = self._load_data()
         text = data["prompt"]
 
-        for target_lang_code in self.target_language_codes:
+        for target_lang_code in self.client.target_language_codes:
             translated_text = self.client.translate_text(text)
             translated_data[target_lang_code] = translated_text
 
@@ -108,7 +108,7 @@ class DeepLClient(TranslationClient):
         ignore_tag = self._get_ignore_tag(self.ignore_tag)
         tag_handling = "xml" if ignore_tag else None
 
-        for target_lang in self.target_langs:
+        for target_lang in self.target_language_codes:
             result = self.client.translate_text(
                 text,
                 source_lang=self.source_lang,
@@ -147,7 +147,7 @@ class OpenAIClient(TranslationClient):
         translated_data = {}
         ignore_text = self._get_ignore_text()
 
-        for target_lang in self.target_langs:
+        for target_lang in self.target_language_codes:
             language = EUROPEAN_LANGUAGES[target_lang]
             prompt = f"Translate the following text into {language}{ignore_text}: {self.source_text}"
             response = self.client.chat.completions.create(
