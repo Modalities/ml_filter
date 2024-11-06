@@ -17,7 +17,7 @@ class Translator(ABC):
         api_key: str,
         input_path: Path,
         source_language_code: str,
-        language_codes: list[str],
+        target_language_codes: list[str],
         ignore_tag: str | None,
     ):
         """Initialize the translation class with the given parameters.
