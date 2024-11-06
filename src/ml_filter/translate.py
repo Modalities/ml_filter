@@ -2,67 +2,66 @@ import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-import deepl
-import openai
 import yaml
 
 from constants import EUROPEAN_LANGUAGES
 
 
-class Translator(ABC):
-    """An abstract class for translating text into multiple languages."""
+class TranslationClient(ABC):
+    """An interface for translation clients."""
 
-    def __init__(
-        self,
-        api_key: str,
-        input_path: Path,
-        source_language_code: str,
-        target_language_codes: list[str],
-        ignore_tag: str | None,
-    ):
-        """Initialize the translation class with the given parameters.
-
-        Args:
-            api_key (str): The API key for the translation service.
-            input_path (Path): The path to the input file.
-            source_language (str): The source language code.
-            languages (list[str]): A list of target language codes.
-            tag_to_ignore (str | None): A tag to ignore during translation, if any.
-        """
+    def __init__(self, api_key: str, target_language_codes: list[str], ignore_tag: str | None = None):
         self.api_key = api_key
-        self.input_path = input_path
-        self.source_language_code = source_language_code
-        self.language_codes = language_codes
+        self.target_langs = target_language_codes
         self.ignore_tag = ignore_tag
 
     @abstractmethod
-    def translate(self) -> dict[str, str]:
-        """Abstract method that performs translation and returns results."""
-        raise not ImplementedError
-
-    @property
-    @abstractmethod
-    def client(self):
-        """An abstract property for the client."""
+    def translate_text(self, text: str) -> dict[str, str]:
+        """Translate the text and return results as a dictionary."""
         raise NotImplementedError
 
-    def write_output(self, output_path: Path, data: dict[str, str]) -> None:
-        """Writes the provided data to YAML files in the specified output directory.
-        This method ensures that the output directory exists and then writes each
-        entry in the data dictionary to a separate YAML file. The filename is
-        constructed using the key from the dictionary.
+    def assert_target_languages_are_available(self):
+        """Checks if all target languages are available in the predefined EUROPEAN_LANGUAGES set.
+        Raises a ValueError if any language in the target_languages list is not available.
 
         Args:
-            output_path (Path): The path to the directory where the output files
-                    will be written.
-            data (dict[str, str]): A dictionary where each key is a language code
-                       and each value is the corresponding text to be
-                       written to the file.
-        Returns:
-            None
-        """
+            super: The superclass or any required context for the method.
+            target_languages (list[str]): List of target languages to validate.
 
-        output_path.mkdir(parents=True, exist_ok=True)  # Ensure output directory exists
+        Raises:
+            ValueError: If any of the target languages is not available in EUROPEAN_LANGUAGES.
+        """
+        unavailable_languages = [
+            lang_code for lang_code in self.target_language_codes if lang_code not in EUROPEAN_LANGUAGES
+        ]
+
+        if unavailable_languages:
+            raise ValueError(f"The following target languages are not available: {', '.join(unavailable_languages)}")
+
+
+class Translator:
+    """A class for translating text into multiple languages using a specified client."""
+
+    def __init__(self, client: TranslationClient, input_path: Path):
+        """Initialize the translation class with the client and parameters."""
+        self.client = client
+        self.input_path = input_path
+
+    def translate(self) -> dict[str, str]:
+        """Translate the text into multiple languages using the specified client."""
+        translated_data = {}
+        data = self._load_data()
+        text = data["prompt"]
+
+        for target_lang_code in self.target_language_codes:
+            translated_text = self.client.translate_text(text)
+            translated_data[target_lang_code] = translated_text
+
+        return translated_data
+
+    def write_output(self, output_path: Path, data: dict[str, str]) -> None:
+        """Writes translated data to YAML files in the specified output directory."""
+        output_path.mkdir(parents=True, exist_ok=True)
         for lang, text in data.items():
             file_path = output_path / f"educational_prompt_{lang}.yaml"
             with file_path.open("w", encoding="utf-8") as file:
@@ -73,98 +72,84 @@ class Translator(ABC):
             data = yaml.safe_load(file)
         return data
 
-
-class DeepLTranslator(Translator):
-    """A class to translate text into multiple languages using the DeepL API."""
-
-    def __init__(
-        self,
-        api_key: str,
-        input_path: Path,
-        source_language_code: str,
-        language_codes: list[str],
-        tag_to_ignore: str | None,
-    ):
-        super().__init__(api_key, input_path, source_language_code, language_codes, tag_to_ignore)
-        self._client = deepl.Translator(self.api_key)
-
-    @property
-    def client(self):
-        return self._client
-
-    def translate(self) -> dict[str, str]:
-        """Translate the given text into multiple languages using the DeepL API."""
-        translated_data = {}
-        data = self._load_data()
-        text = data["prompt"]
-
-        ignore_tag = self._get_ignore_tag(ignore_tag=self.ignore_tag)
-        tag_handling = self._get_tag_handling_strategy(ignore_tag=self.ignore_tag)
-
-        if ignore_tag is not None:
-            ignore_tag = [ignore_tag]
-
-        for lang_code in self.language_codes:
-            result = self.client.translate_text(
-                text,
-                source_lang=self.source_language_code,
-                target_lang=target_lang_code,
-                tag_handling=tag_handling,
-                ignore_tags=ignore_tag,
-            )
-            translated_data[lang_code] = result.text
-
-        return translated_data
-
-    def _get_tag_handling_strategy(self, ignore_tag: str | None):
-        return "xml" if ignore_tag is not None else None
-
     def _get_ignore_tag(self, ignore_tag: str | None) -> str | None:
+        """Helper to extract the tag to ignore, if provided."""
         if ignore_tag is None:
             return None
 
         match = re.search(r"<(.*)>", ignore_tag)
-
         if match:
-            result = match.group(1)
-            ignore_tag = result
+            return match.group(1)
         else:
             raise ValueError("No tag found in the text.")
 
-        return ignore_tag
+    def _get_ignore_text(self, tag_to_ignore: str | None) -> str:
+        """Helper to create ignore text if an ignore tag is specified."""
+        if tag_to_ignore:
+            closing_tag = re.sub(r"<(\w+)>", r"</\1>", tag_to_ignore)
+            return f". Text within '{tag_to_ignore} {closing_tag}' should not be translated."
+        return ""
 
 
-class OpenAITranslator(Translator):
-    """A class to translate text into multiple languages using the OpenAI API."""
+class DeepLClient(TranslationClient):
+    """Client for the DeepL API."""
 
-    def __init__(
-        self,
-        api_key: str,
-        input_path: Path,
-        source_language: str,
-        target_languages: list[str],
-        tag_to_ignore: str | None,
-    ):
-        super().__init__(api_key, input_path, source_language, languages, tag_to_ignore)
+    def __init__(self, api_key: str, source_lang: str, target_langs: list[str], ignore_tag: str | None = None):
+        super().__init__(api_key=api_key, target_language_codes=target_langs, ignore_tag=ignore_tag)
+        import deepl
 
-        self._client = openai.OpenAI(api_key=api_key)
+        self.source_lang = source_lang
+        self.client = deepl.Translator(api_key)
 
-    @property
-    def client(self):
-        return self._client
-
-    def translate(self) -> dict[str, str]:
-        """Translate the given text into multiple languages using the OpenAI API."""
+    def translate_text(self, text: str) -> dict[str, str]:
+        """Translate text using the DeepL API without additional arguments."""
+        self.assert_target_languages_are_available()
         translated_data = {}
-        data = self._load_data()
-        text = data["prompt"]
+        ignore_tag = self._get_ignore_tag(self.ignore_tag)
+        tag_handling = "xml" if ignore_tag else None
 
-        ignore_text = self._get_ignore_text(tag_to_ignore=self.ignore_tag)
+        for target_lang in self.target_langs:
+            result = self.client.translate_text(
+                text,
+                source_lang=self.source_lang,
+                target_lang=target_lang,
+                tag_handling=tag_handling,
+                ignore_tags=[ignore_tag] if ignore_tag else None,
+            )
+            translated_data[target_lang] = result.text
 
-        for lang_code in self.language_codes:
-            language = EUROPEAN_LANGUAGES[lang_code]
-            prompt = f"""Translate the following text into {language}{ignore_text}: {text}."""
-            # Call the API
+        return translated_data
+
+    def _get_ignore_tag(self, ignore_tag: str | None) -> str | None:
+        """Extract the ignore tag if provided."""
+        if ignore_tag is None:
+            return None
+
+        match = re.search(r"<(.*)>", ignore_tag)
+        if match:
+            return match.group(1)
+        else:
+            raise ValueError("No tag found in the text.")
+
+
+class OpenAIClient(TranslationClient):
+    """Client for the OpenAI API."""
+
+    def __init__(self, api_key: str, target_langs: list[str], ignore_tag: str | None = None):
+        super().__init__(api_key=api_key, target_language_codes=target_langs, ignore_tag=ignore_tag)
+        import openai
+
+        self.client = openai.OpenAI(api_key=api_key)
+
+    def translate_text(self, text: str) -> dict[str, str]:
+        """Translate text using the OpenAI API."""
+        self.assert_target_languages_are_available()
+        translated_data = {}
+        ignore_text = self._get_ignore_text()
+
+        for target_lang in self.target_langs:
+            language = EUROPEAN_LANGUAGES[target_lang]
+            prompt = f"Translate the following text into {language}{ignore_text}: {self.source_text}"
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -172,15 +157,13 @@ class OpenAITranslator(Translator):
                     {"role": "user", "content": prompt},
                 ],
             )
-            translated_data[lang_code] = response.choices[0].message
+            translated_data[target_lang] = response.choices[0].message["content"]
 
         return translated_data
 
-    def _get_ignore_text(self, tag_to_ignore: str | None) -> str:
-        if tag_to_ignore is not None:
-            closing_tag_to_ignore = re.sub(r"<(\w+)>", r"</\1>", tag_to_ignore)
-            # Add whitespace at the beginning since the text is appended to the prompt
-            ignore_text = f". Text that is within '{self.ignore_tag} {closing_tag_to_ignore}' should not be translated"
-        else:
-            ignore_text = ""
-        return ignore_text
+    def _get_ignore_text(self) -> str:
+        """Helper to create ignore text if an ignore tag is specified."""
+        if self.ignore_tag:
+            closing_tag = re.sub(r"<(\w+)>", r"</\1>", self.ignore_tag)
+            return f". Text within '{self.ignore_tag} {closing_tag}' should not be translated."
+        return ""
