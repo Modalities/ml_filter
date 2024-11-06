@@ -44,7 +44,7 @@ class Translator(ABC):
     @abstractmethod
     def client(self):
         """An abstract property for the client."""
-        pass
+        raise NotImplementedError
 
     def write_output(self, output_path: Path, data: dict[str, str]) -> None:
         """Writes the provided data to YAML files in the specified output directory.
