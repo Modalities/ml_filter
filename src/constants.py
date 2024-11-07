@@ -1,8 +1,11 @@
 # Check
 EUROPEAN_LANGUAGES = {
     "sq": "Albanian",
+    "hy": "Armenian",
+    "eu": "Basque",
     "bg": "Bulgarian",
     "hr": "Croatian",
+    "ca": "Catalan",
     "cs": "Czech",
     "da": "Danish",
     "nl": "Dutch",
@@ -10,6 +13,7 @@ EUROPEAN_LANGUAGES = {
     "et": "Estonian",
     "fi": "Finnish",
     "fr": "French",
+    "gl": "Galician",
     "de": "German",
     "el": "Greek",
     "hu": "Hungarian",
@@ -18,12 +22,14 @@ EUROPEAN_LANGUAGES = {
     "it": "Italian",
     "lv": "Latvian",
     "lt": "Lithuanian",
+    "mk": "Macedonian",
     "mt": "Maltese",
-    "no": "Norwegian",
+    "nb": "Norwegian Bokmål",
+    "nn": "Norwegian Nynorsk",    
     "pl": "Polish",
     "pt": "Portuguese",
     "ro": "Romanian",
-    "ru": "Russian",
+    "sh": "Serbo-Croation",
     "sr": "Serbian",
     "sk": "Slovak",
     "sl": "Slovenian",
@@ -31,5 +37,5 @@ EUROPEAN_LANGUAGES = {
     "sv": "Swedish",
     "tr": "Turkish",
     "uk": "Ukrainian",
-    "cy": "Welsh",
 }
+
