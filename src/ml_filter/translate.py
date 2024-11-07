@@ -1,4 +1,3 @@
-import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -9,6 +8,10 @@ from constants import EUROPEAN_LANGUAGES
 
 class TranslationClient(ABC):
     """An interface for translation clients."""
+
+    def __init__(self, api_key: str, ignore_tag_text: str | None = None):
+        self.api_key = api_key
+        self.ignore_tag_text = ignore_tag_text
 
     @property
     @abstractmethod
@@ -22,12 +25,8 @@ class TranslationClient(ABC):
         """A property that should return a list of supported languages."""
         raise NotImplementedError
 
-    def __init__(self, api_key: str, ignore_tag_text: str | None = None):
-        self.api_key = api_key
-        self.ignore_tag_text = ignore_tag_text
-
     @abstractmethod
-    def translate_text(self, text: str) -> dict[str, str]:
+    def translate_text(self, text: str, source_language_code: str, target_language_codes: list[str]) -> dict[str, str]:
         """Translate the text and return results as a dictionary."""
         raise NotImplementedError
 
@@ -66,23 +65,14 @@ class TranslationClient(ABC):
 class Translator:
     """A class for translating text into multiple languages using a specified client."""
 
-    def __init__(self, client: TranslationClient, target_language_codes: list[str], input_path: Path):
+    def __init__(self, client: TranslationClient, input_path: Path):
         """Initialize the translation class with the client and parameters."""
-        self.target_language_codes = target_language_codes
         self.client = client
         self.input_path = input_path
 
-    def translate(self) -> dict[str, str]:
+    def translate_text(self, text: str, source_language_code: str, target_language_codes: list[str]) -> dict[str, str]:
         """Translate the text into multiple languages using the specified client."""
-        translated_data = {}
-        data = self._load_data()
-        text = data["prompt"]
-
-        for target_lang_code in self.target_language_codes:
-            translated_text = self.client.translate_text(text)
-            translated_data[target_lang_code] = translated_text
-
-        return translated_data
+        return self.client.translate_text(text, source_language_code, target_language_codes)
 
     def write_output(self, output_path: Path, data: dict[str, str]) -> None:
         """Writes translated data to YAML files in the specified output directory."""
@@ -92,38 +82,24 @@ class Translator:
             with file_path.open("w", encoding="utf-8") as file:
                 yaml.dump({"prompt": text}, file, default_flow_style=False, allow_unicode=True)
 
-    def _load_data(self) -> dict:
+    def load_data(self) -> dict:
+        """Loads data from a YAML file specified by the input path.
+
+        Returns:
+            dict: The data loaded from the YAML file.
+        """
         with open(self.input_path, "r") as file:
             data = yaml.safe_load(file)
         return data
-
-    def _get_ignore_tag(self, ignore_tag: str | None) -> str | None:
-        """Helper to extract the tag to ignore, if provided."""
-        if ignore_tag is None:
-            return None
-
-        match = re.search(r"<(.*)>", ignore_tag)
-        if match:
-            return match.group(1)
-        else:
-            raise ValueError("No tag found in the text.")
-
-    def _get_ignore_text(self, tag_to_ignore: str | None) -> str:
-        """Helper to create ignore text if an ignore tag is specified."""
-        if tag_to_ignore:
-            closing_tag = re.sub(r"<(\w+)>", r"</\1>", tag_to_ignore)
-            return f". Text within '{tag_to_ignore} {closing_tag}' should not be translated."
-        return ""
 
 
 class DeepLClient(TranslationClient):
     """Client for the DeepL API."""
 
-    def __init__(self, api_key: str, source_lang: str, ignore_tag: str | None = None):
-        super().__init__(api_key=api_key, ignore_tag_text=ignore_tag)
+    def __init__(self, api_key: str, ignore_tag_text: str | None = None):
+        super().__init__(api_key=api_key, ignore_tag_text=ignore_tag_text)
         import deepl
 
-        self.source_lang = source_lang
         self.client = deepl.Translator(api_key)
 
     @property
@@ -171,7 +147,7 @@ class DeepLClient(TranslationClient):
         for target_lang_code in target_language_codes:
             result = self.client.translate_text(
                 text,
-                source_lang=self.source_lang,
+                source_lang=source_language_code,
                 target_lang=target_lang_code,
                 tag_handling=tag_handling,
                 ignore_tags=[ignore_tag] if ignore_tag else None,
@@ -190,8 +166,8 @@ class DeepLClient(TranslationClient):
 class OpenAIClient(TranslationClient):
     """Client for the OpenAI API."""
 
-    def __init__(self, api_key: str, ignore_tag: str | None = None):
-        super().__init__(api_key=api_key, ignore_tag_text=ignore_tag)
+    def __init__(self, api_key: str, ignore_tag_text: str | None = None):
+        super().__init__(api_key=api_key, ignore_tag_text=ignore_tag_text)
         import openai
 
         self.client = openai.OpenAI(api_key=api_key)

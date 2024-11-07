@@ -1,25 +1,23 @@
+from pathlib import Path
+
 import pytest
 
-from ml_filter.translate import DeepLTranslator, OpenAITranslator
+from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
 @pytest.fixture
 def deepl_translator():
-    return DeepLTranslator(
-        api_key="fake_key",
-        language_codes=["de", "fr"],
-        source_language_code="en",
-        tag_to_ignore="<notranslate>",
-        input_path="tests/resources/data/translate_en.yaml",
+    deepl_client = DeepLClient(api_key="fake_key", ignore_tag_text="notranslate")
+    return Translator(
+        client=deepl_client,
+        input_path=Path("tests/resources/data/translate_en.yaml"),
     )
 
 
 @pytest.fixture
 def openai_translator():
-    return OpenAITranslator(
-        api_key="fake_key",
-        languages=["de", "fr"],
-        source_language="en",
-        tag_to_ignore="<notranslate>",
-        input_path="tests/resources/data/translate_en.yaml",
+    openai_client = OpenAIClient(api_key="fake_key", ignore_tag_text="notranslate")
+    return Translator(
+        client=openai_client,
+        input_path=Path("tests/resources/data/translate_en.yaml"),
     )

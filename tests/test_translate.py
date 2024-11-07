@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from unittest.mock import Mock
 
-from deepl import Translator as DeeepLTranslatorClient
-from openai import OpenAI
+import deepl
+import openai
+import pytest
+
+from ml_filter.translate import DeepLClient, Translator
 
 
 @dataclass
@@ -11,73 +14,95 @@ class Choice:
 
 
 @dataclass
+class Langauge:
+    code: str
+
+
+@dataclass
 class TextResult:
     text: str | None = None
     choices: list[Choice] | None = None
 
 
+def _test_raises_exception(text, translator: Translator):
+    for source_lang_code, target_lang_codes in zip(["xx2", "de"], [["xx2", "fr"], ["xx2", "fr"]]):
+        with pytest.raises(Exception):
+            translator.translate_text(
+                text=text,
+                source_language_code=source_lang_code,
+                target_language_codes=target_lang_codes,
+            )
+
+
 def test_deep_translate(deepl_translator):
     """Test the translation of text into multiple languages."""
-    data = deepl_translator._load_data()
+    data = deepl_translator.load_data()
+    text = data["prompt"]
+    source_lang = "en"
+    target_langs = ["de", "fr"]
 
-    deepl_client = Mock(spec=DeeepLTranslatorClient)
+    deepl_client = Mock(spec=deepl.Translator)
     deepl_client.translate_text = lambda text, source_lang, target_lang, tag_handling, ignore_tags: TextResult(
         text=text
     )
-    deepl_translator._client = deepl_client
+    deepl_client.get_source_languages = lambda: [Langauge("en"), Langauge("de"), Langauge("fr")]
+    deepl_client.get_target_languages = lambda: [Langauge("en"), Langauge("de"), Langauge("fr")]
 
-    translated_data = deepl_translator.translate()
+    deepl_translator.client.client = deepl_client
+
+    translated_data = deepl_translator.translate_text(
+        text=text,
+        source_language_code=source_lang,
+        target_language_codes=target_langs,
+    )
     assert translated_data == {
         "de": data["prompt"],
         "fr": data["prompt"],
     }
 
+    _test_raises_exception(text=text, translator=deepl_translator)
+
 
 def test_openai_translate(openai_translator):
-    data = openai_translator._load_data()
-    openai_client = Mock(spec=OpenAI)
+    data = openai_translator.load_data()
+    text = data["prompt"]
+    source_lang = "en"
+    target_langs = ["de", "fr"]
+    openai_client = Mock(spec=openai.OpenAI)
     openai_client.chat = Mock()
     openai_client.chat.completions = Mock()
+    openai_client.translate_text = lambda text, source_lang, target_lang, tag_handling, ignore_tags: TextResult(
+        text=text
+    )
     openai_client.chat.completions.create = lambda model, messages: TextResult(choices=[Choice(message=messages[1])])
-    openai_translator._client = openai_client
+    openai_translator.client.client = openai_client
 
-    translated_data = openai_translator.translate()
+    translated_data = openai_translator.translate_text(
+        text=text,
+        source_language_code=source_lang,
+        target_language_codes=target_langs,
+    )
     expected_data = {
-        "de": {
-            "role": "user",
-            "content": f"""Translate the following text into German. Text that is within '<notranslate> </notranslate>'
-            should not be translated: {data['prompt']}""",
-        },
-        "fr": {
-            "role": "user",
-            "content": f"""Translate the following text into French. Text that is within '<notranslate> </notranslate>'
-            should not be translated: {data['prompt']}""",
-        },
+        "de": (
+            f"Translate the following text into German. "
+            f"Text within '<notranslate> </notranslate>' should not be translated. "
+            f"The text: {data['prompt']}"
+        ),
+        "fr": (
+            f"Translate the following text into French. "
+            f"Text within '<notranslate> </notranslate>' should not be translated. "
+            f"The text: {data['prompt']}"
+        ),
     }
 
     assert translated_data == expected_data
 
-
-def test_deepl_get_ignore_tags(deepl_translator):
-    ignore_tag = "<notranslate>"
-    ignore_tag_text = deepl_translator._get_ignore_tag(ignore_tag=ignore_tag)
-
-    assert ignore_tag_text == "notranslate"
-
-    ignore_tag = "</notranslate>"
-    ignore_tag_text = deepl_translator._get_ignore_tag(ignore_tag=ignore_tag)
-
-    assert not ignore_tag_text == "notranslate"
-
-    ignore_tag = "<notranslate> <other>"
-    ignore_tag_text = deepl_translator._get_ignore_tag(ignore_tag=ignore_tag)
-
-    assert not ignore_tag_text == "notranslate"
+    _test_raises_exception(text=text, translator=openai_translator)
 
 
-def test_deepl_get_tag_handling_strategy(deepl_translator):
-    tag_handling_strategy = deepl_translator._get_tag_handling_strategy(ignore_tag=None)
-    assert tag_handling_strategy is None
+def test_deepl_get_ignore_tags():
+    deepl_client = DeepLClient(api_key="fake_key", ignore_tag_text="notranslate")
+    ignore_tag_text = "notranslate"
+    ignore_tag = deepl_client._get_ignore_tag(ignore_tag_text=ignore_tag_text)
 
-    tag_handling_strategy = deepl_translator._get_tag_handling_strategy(ignore_tag="<notranslate>")
-    assert tag_handling_strategy == "xml"
+    assert ignore_tag == "<notranslate>"
