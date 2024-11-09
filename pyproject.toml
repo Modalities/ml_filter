@@ -13,6 +13,7 @@ dependencies = [
     "click",
     "click_pathlib",
     "Jinja2",
+    "deepl",
     "accelerate>=0.21.0"
 ]
 
