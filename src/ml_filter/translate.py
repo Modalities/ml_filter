@@ -154,24 +154,16 @@ class DeepLClient(TranslationClient):
         """
         self.assert_source_language_available(source_language_code=source_language_code)
         self.assert_target_language_available(target_language_code=target_language_code)
-        ignore_tag = self._get_ignore_tag(self.ignore_tag_text)
-        tag_handling = "xml" if ignore_tag else None
-
+        tag_handling = "xml" if self.ignore_tag_text is not None else None
+        
         result = self.client.translate_text(
             text,
             source_lang=source_language_code,
             target_lang=target_language_code,
             tag_handling=tag_handling,
-            ignore_tags=[ignore_tag] if ignore_tag else None,
+            ignore_tags=[self.ignore_tag_text],
         )
         return result.text
-
-
-    def _get_ignore_tag(self, ignore_tag_text: str | None) -> str | None:
-        """Create the ignore tag if ignore tag text provided."""
-        if ignore_tag_text is None:
-            return None
-        return f"<{ignore_tag_text}>"
 
 
 class OpenAIClient(TranslationClient):
