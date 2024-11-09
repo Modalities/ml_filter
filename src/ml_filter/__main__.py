@@ -1,5 +1,6 @@
 from datetime import datetime
 import hashlib
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -9,7 +10,7 @@ import click_pathlib
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.utils.chunk_data import chunk_jsonl
-from translate import deepl_translate, write_output
+from ml_filter.translate import TranslatorFactory
 
 @click.group()
 def main() -> None:
@@ -78,54 +79,50 @@ def entry_train_classifier(config_file_path: Path):
 def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: int):
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
 
-@main.command(name="deepl_translate_cli")
+@main.command(name="deepl_translate_flat_yaml")
 @click.option(
-    "--input_path",
+    "--input_file_path",
     type=click_pathlib.Path(exists=False),
     required=True,
     help="Path to the input file.",
 )
 @click.option(
-    "--output_path",
+    "--output_folder_path",
     type=click_pathlib.Path(exists=False),
     required=True,
-    help="Path to the output file.",
+    help="Path to the output directory of the translated files.",
 )
 @click.option(
-    "--api_key",
-    type=str,
-    required=True,
-    help="Authentication key for DeepL.",
-)
-@click.option(
-    "--tag_to_ignore",
+    "--ignore_tag_text",
     type=str,
     required=False,
     help="Tag indicating which part of the translation should be ignored.",
 )
 @click.option(
-    "--source_language",
+    "--source_language_code",
     type=str,
     required=True,
-    help="Path to the output file.",
+    help="Language code of the source language.",
 )
-@click.argument("languages", nargs=-1)
+@click.option(
+    "--target_language_codes",
+    type=str,
+    required=True,
+    help='Comma-separated list of languages')
 def deepl_translate_cli(
-    input_path: Path,
-    output_path: Path,
-    api_key: str,
-    source_language: str,
-    languages: list[str],
-    tag_to_ignore: str | None,
-):
-    translated_data = deepl_translate(
-        input_path=input_path,
-        api_key=api_key,
-        source_language=source_language,
-        languages=languages,
-        tag_to_ignore=tag_to_ignore,
-    )
-    write_output(output_path=output_path, data=translated_data)
+    input_file_path: Path,
+    output_folder_path: Path,
+    source_language_code: str,
+    target_language_codes: list[str],
+    ignore_tag_text: Optional[str] = None,
+):  
+    target_language_codes_list = [l.strip() for l in target_language_codes.split(",")]
+
+    translator = TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
+    translator.translate_flat_yaml_to_multiple_languages(input_file_path=input_file_path, 
+                                                         output_folder_path=output_folder_path, 
+                                                         source_language_code=source_language_code, 
+                                                         target_language_codes=target_language_codes_list)
 
 if __name__ == "__main__":
     main()
