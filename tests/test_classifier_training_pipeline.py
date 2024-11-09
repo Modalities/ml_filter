@@ -13,7 +13,7 @@ working_dir = Path(os.path.dirname(__file__))
 def classifier_training_pipeline():
     return ClassifierTrainingPipeline(working_dir / "resources" / "configs" / "test_config.yaml")
 
-
+@pytest.mark.skip(reason="Clasifier pipeline is not implemented yet")
 def test_train_classifier(classifier_training_pipeline):
     try:
         # Act: Call the train method

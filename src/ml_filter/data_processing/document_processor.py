@@ -50,7 +50,8 @@ class DocumentProcessor:
 
         self.score_metric = score_metrics[score_metric_name]
 
-    def find_last_pattern(self, text: str, pattern: str) -> str | None:
+    @staticmethod
+    def find_last_pattern(text: str, pattern: str) -> str | None:
         """
         Find the last occurrence of a pattern in the given text.
 
@@ -100,7 +101,7 @@ class DocumentProcessor:
         processed_document = self.llm_rest_client.generate(processed_document=processed_document)
 
         # score filtering
-        score = self.find_last_pattern(processed_document.generated_text, pattern=self.score_metric.pattern)
+        score = DocumentProcessor.find_last_pattern(processed_document.generated_text, pattern=self.score_metric.pattern)
         if score is None:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
             processed_document.errors.append(f"Could not find the score metric '{self.score_metric.metric_name}' in the model response.")

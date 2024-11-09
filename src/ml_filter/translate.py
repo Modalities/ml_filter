@@ -112,6 +112,12 @@ class DeepLClient(TranslationClient):
     """Client for the DeepL API."""
 
     def __init__(self, api_key: str, ignore_tag_text: str | None = None):
+        """Initializes the DeepL client with the API key and optional ignore tag text.
+
+        Args:
+            api_key (str): The API key for the DeepL client.
+            ignore_tag_text (str | None, optional): The XML tag to ignore. Note that the tag must be specified with the <>. Defaults to None.
+        """
         super().__init__(api_key=api_key, ignore_tag_text=ignore_tag_text)
         import deepl
 
