@@ -1,18 +1,18 @@
 #Points to an endpoint where the model is running
-rest_endpoint: http://0.0.0.0:8090/
 
-data:
-  input_data:
-    path: data/lorem_ipsum.jsonl
-    split: train
+settings:
+  model_name: meta-llama/Meta-Llama-3.1-8B
+  tokenizer_name_or_path: ${settings.model_name}
+  paths:
+    raw_data_file_path: data/lorem_ipsum.jsonl
+    output_directory_path: data/output
+    prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
 
 llm_rest_client:
-  rest_endpoint: ${rest_endpoint}
   model_name: llama
   max_tokens: 60000
   max_new_tokens: 500
   temperature: 0.001
-  max_words: 30000
   max_pool_connections: 100
   max_pool_maxsize: 100 #TODO
   max_retries: 2
@@ -21,17 +21,21 @@ llm_rest_client:
   verbose: false
 
 tokenizer:
-  pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-8B
+  pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
   special_tokens: null
 
 prompt_builder:
-  prompt_path: data/prompts/fineweb_edu/prompt.yaml
+  prompt_template_file_path: ${settings.paths.prompt_template_file_path}
+  # The maximum length of the prompt
+  # Note that the maximum number of generated tokens is
+  # model_context_length - max_prompt_length
+  max_prompt_length: 3596
 
 document_processor:
-  output_file_path: data/output/lorem_ipsum.json
+  output_directory_path: ${settings.paths.output_directory_path}
   queue_size: 10
   batch_size: 2
-  num_processes: 4
+  num_processes: 3
   score_metric_name: educational_score
 
   strings_to_remove:

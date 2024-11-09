@@ -9,10 +9,16 @@ dependencies = [
     "tqdm",
     "datasets",
     "pydantic",
-    "transformers==4.42.3",
+    "transformers==4.46.1",
     "click",
     "click_pathlib",
     "Jinja2",
+    # this is only needed for MN5 as it has Keras 3 installed which is incompatible with the latest version of transformers. 
+    # When running mn_filters the transformers generally checks if keras is installed and if so if it is the correct version.
+    # This throws an error as the version of keras is not compatible with the transformers version.
+    # If Keras is not installed this check is just skipped.
+    "tf-keras==2.18.0"
+    "deepl",
     "accelerate>=0.21.0"
 ]
 
@@ -22,7 +28,7 @@ tests = ["pytest", "pytest-cov"]
 install_helper = ["ninja"]
 
 [project.scripts]
-modalities = "modalities.__main__:main"
+ml_filter = "ml_filter.__main__:main"
 
 [build-system]
 requires = ["setuptools >= 61.0.0"]

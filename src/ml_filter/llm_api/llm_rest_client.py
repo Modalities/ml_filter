@@ -1,11 +1,13 @@
+from http import HTTPStatus
 import logging
 import time
+import traceback
 from typing import Dict, List
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
 
-from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
+from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
 
 
 class LLMRestClient:
@@ -22,7 +24,6 @@ class LLMRestClient:
         timeout: int,
         session: Session,
         rest_endpoint: str,
-        tokenizer: TokenizerWrapper,
         max_pool_connections: int,
         max_pool_maxsize: int,
         max_tokens: int,
@@ -41,7 +42,6 @@ class LLMRestClient:
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
-        self.tokenizer = tokenizer
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
@@ -50,28 +50,19 @@ class LLMRestClient:
         )
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
 
-    def generate(self, prompt: List[Dict[str, str]]) -> Dict[str, str] | None:
+    def generate(self, processed_document: ProcessedDocument) -> ProcessedDocument:
         """Generates a response based on the given prompt.
 
         Args:
-            prompt (str): The prompt to generate a response for.
-            max_tokens (int): The maximum number of tokens in the generated response.
-            max_new_tokens (int): The maximum number of new tokens in the generated response.
-            temperature (float): The temperature value for controlling randomness in the generated response.
-            verbose (bool): Whether to include detailed information in the generated response.
+            processed_document (ProcessedDocument): The processed document.
 
         Returns:
             Dict[str, Any]: A dictionary containing the generated response.
-
-        Raises:
-            ValueError: If max_retries is set to 0.
         """
-
-        inputs = self.tokenizer.apply_tokenizer_chat_template(prompt, tokenize=False)
-
+ 
         request = dict(
             {
-                "inputs": inputs,
+                "inputs": processed_document.prompt,
                 "model": self.model_name,
                 "parameters": dict(
                     details=self.verbose,  # TODO: check if this is correct
@@ -82,9 +73,6 @@ class LLMRestClient:
             }
         )
 
-        if self.max_retries == 0:
-            raise ValueError("max_retries must be greater than 0.")
-
         for i in range(self.max_retries):
             try:
                 response = self.session.post(
@@ -92,10 +80,26 @@ class LLMRestClient:
                     json=request,
                     timeout=self.timeout,
                 )
-                return response.json()
+                break
             except RequestException as e:
+                traceback.print_exc()
                 print(f"Request failed with {e}, retrying...{i}")
                 time.sleep(self.backoff_factor * (2**i))
         
-        print(f"Request failed after {self.max_retries} retries.")
-        raise RequestException(f"Request failed after {self.max_retries} retries.")
+                if i == self.max_retries - 1:
+                    processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
+                    processed_document.errors.append(str(e))
+                    print(f"Request failed after {self.max_retries} retries.")
+                    return processed_document
+        
+        if response.status_code == HTTPStatus.OK:
+            response_dict = response.json()
+            if "generated_text" not in response_dict:
+                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
+                processed_document.errors.append(f"Response does not contain 'generated_text': {response_dict}")
+            else:
+                processed_document.generated_text = response_dict["generated_text"]
+        else: 
+            processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
+            processed_document.errors.append(f"Request failed with status code {response.status_code}: {response.text}")
+        return processed_document

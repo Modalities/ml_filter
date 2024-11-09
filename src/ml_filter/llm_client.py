@@ -1,9 +1,7 @@
 import logging
-import os
-import sys
 from pathlib import Path
+import shutil
 
-from datasets import load_dataset
 from omegaconf import OmegaConf
 from requests import Session
 
@@ -12,22 +10,28 @@ from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
-sys.path.append(os.path.join(os.getcwd(), "src"))
 
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
 class LLMClient:
-    def __init__(self, config_file_path: Path):
+    def __init__(self, config_file_path: Path, experiment_id: str, rest_endpoint: str):
         """Initializes the LLMService."""
+        self.experiment_id = experiment_id
+        self.rest_endpoint = rest_endpoint
+
         cfg = OmegaConf.load(config_file_path)
+        self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
+        # Create experiment directory and store the config as backup
+        self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
+        self.experiment_dir_path.mkdir(parents=True, exist_ok=True)
+        shutil.copy(config_file_path, self.experiment_dir_path / config_file_path.name)
+        shutil.copy(cfg.prompt_builder.prompt_template_file_path, self.experiment_dir_path / Path(self.prompt_template_file_path).name)
         # Dataset related variables
-        self.data_file_path = cfg.data.input_data.path
-        self.split = cfg.data.input_data.split
+        self.raw_data_file_path = Path(cfg.settings.paths.raw_data_file_path)
 
         # LLMRestClient related variables
-        self.rest_endpoint = cfg.llm_rest_client.rest_endpoint
         self.max_retries = cfg.llm_rest_client.max_retries
         self.backoff_factor = cfg.llm_rest_client.backoff_factor
         self.model_name = cfg.llm_rest_client.model_name
@@ -40,12 +44,11 @@ class LLMClient:
         self.verbose = cfg.llm_rest_client.verbose
 
         # Tokenizer related variables
-        self.pretrained_model_name_or_path = cfg.tokenizer.pretrained_model_name_or_path
+        self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
         self.special_tokens = cfg.tokenizer.special_tokens
 
         # DocumentProcessor related variables
-        self.output_file_path = cfg.document_processor.output_file_path
-        self.prompt_template_path = cfg.prompt_builder.prompt_path
+        self.max_prompt_length = cfg.prompt_builder.max_prompt_length
         self.queue_size = cfg.document_processor.queue_size
         self.batch_size = cfg.document_processor.batch_size
         self.num_processes = cfg.document_processor.num_processes
@@ -57,9 +60,6 @@ class LLMClient:
         This method loads the dataset, initializes the tokenizer, LLMRestClient, and DocumentProcessor,
         and then runs the document processing on the loaded data to obtain the model responses.
         """
-
-        # Get data
-        data = load_dataset("json", data_files=[self.data_file_path], split=self.split)
 
         # Get Tokenizer
         # This tokenizer is only used for applying the chat template, but is not applied within TGI.
@@ -79,7 +79,6 @@ class LLMClient:
             timeout=self.timeout,
             session=Session(),
             rest_endpoint=self.rest_endpoint,
-            tokenizer=tokenizer,
             max_pool_connections=self.max_pool_connections,
             max_pool_maxsize=self.max_pool_maxsize,
             max_tokens=self.max_tokens,
@@ -91,12 +90,13 @@ class LLMClient:
         # Get DocumentProcessor
         document_processor = DocumentProcessor(
             llm_rest_client=llm_rest_client,
-            prompt_builder=PromptBuilder(self.prompt_template_path),
+            prompt_builder=PromptBuilder(self.prompt_template_file_path, tokenizer=tokenizer, max_prompt_length=self.max_prompt_length),
             queue_size=self.queue_size,
             batch_size=self.batch_size,
-            output_file_path=self.output_file_path,
+            raw_data_file_path=self.raw_data_file_path,
+            experiment_dir_path=self.experiment_dir_path,
             num_processes=self.num_processes,
             score_metric_name=self.score_metric_name,
         )
 
-        document_processor.run(data)
+        document_processor.run()
