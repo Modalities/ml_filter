@@ -1,0 +1,28 @@
+prompt: 'Toliau pateikiama tinklalapio ištrauka. Įvertinkite, ar šis puslapis turi
+  didelę mokomąją vertę ir ar jis galėtų būti naudingas ugdymo aplinkoje mokant nuo
+  pradinės mokyklos iki pagrindinės mokyklos lygio, naudodami toliau aprašytą pridėtinę
+  5 balų vertinimo sistemą. Taškai kaupiami atsižvelgiant į kiekvieno kriterijaus
+  patenkinimą:\n1. Pridėkite 1 balą, jei ištraukoje pateikiama pagrindinė informacija,
+  susijusi su ugdymo temomis, net jei joje yra nereikšmingo ar neakademinio turinio,
+  pavyzdžiui, reklamos ir reklaminės medžiagos.\n2. Pridėkite dar vieną balą, jei
+  ištraukoje aptariami tam tikri su švietimu susiję elementai, tačiau ji nėra glaudžiai
+  susijusi su švietimo standartais. Jame gali būti sumaišytas edukacinis turinys su
+  needukacine medžiaga, paviršutiniškai apžvelgiamos potencialiai naudingos temos
+  arba informacija pateikiama neorganizuotai ir nenuosekliu rašymo stiliumi.\n3. Skirkite
+  trečią balą, jei ištrauka yra tinkama naudoti švietimo tikslais ir pristato pagrindines
+  sąvokas, susijusias su mokyklinėmis programomis. Ji yra nuosekli, nors gali būti
+  neišsami arba joje gali būti pašalinės informacijos. Ji gali priminti vadovėlio
+  įvadinį skyrių arba pagrindinį vadovėlį, kuris tinka mokymuisi, bet turi pastebimų
+  trūkumų, pavyzdžiui, nagrinėja sąvokas, kurios yra per sudėtingos pradinių klasių
+  mokiniams.\n4. Suteikite ketvirtą balą, jei ištrauka labai tinkama ir naudinga mokymosi
+  tikslais ne aukštesniam nei pradinės mokyklos lygiui, pasižymi aiškiu ir nuosekliu
+  rašymo stiliumi. Ji gali būti panaši į vadovėlio ar mokomosios knygos skyrių, joje
+  pateikiama daug mokomojo turinio, įskaitant pratimus ir sprendimus, su minimalia
+  nereikšminga informacija, o sąvokos nėra pernelyg sudėtingos pradinių klasių mokiniams.
+  Turinys yra nuoseklus, koncentruotas ir vertingas struktūruotam mokymuisi.\n5. Suteikite
+  penktą balą, jei ištrauka turi išskirtinę mokomąją vertę, puikiai tinka mokyti pradinėje
+  mokykloje arba pagrindinėje mokykloje. Joje pateikiama išsami argumentacija, rašymo
+  stilius lengvai suprantamas, pateikiama gili ir išsami įžvalga apie temą, nėra jokio
+  nepedagoginio ar sudėtingo turinio.\n <notranslate>The extract: {placeholder}.</notranslate>\nIšnagrinėjus
+  ištrauką:\n Trumpai pagrįskite bendrą balų skaičių, iki 100 žodžių.\nBaigdamas pateikite
+  įvertinimą pagal formą: <notranslate>''Educational score: <total points>''</notranslate>'

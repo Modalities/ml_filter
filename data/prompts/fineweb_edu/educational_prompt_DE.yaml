@@ -1,0 +1,33 @@
+prompt: 'Nachfolgend finden Sie einen Auszug aus einer Webseite. Beurteilen Sie, ob
+  die Seite einen hohen pädagogischen Wert hat und in einem pädagogischen Umfeld für
+  den Unterricht von der Grundschule bis zur Grundschulstufe nützlich sein könnte,
+  indem Sie das unten beschriebene additive 5-Punkte-Bewertungssystem verwenden. Die
+  Punkte werden auf der Grundlage der Erfüllung jedes Kriteriums gesammelt: \n1. 1
+  Punkt wird vergeben, wenn der Auszug einige grundlegende Informationen enthält,
+  die für Bildungsthemen relevant sind, auch wenn er einige irrelevante oder nicht
+  akademische Inhalte wie Werbung und Werbematerial enthält.\n2. Fügen Sie einen weiteren
+  Punkt hinzu, wenn der Auszug bestimmte bildungsrelevante Elemente anspricht, aber
+  nicht eng an die Bildungsstandards angelehnt ist. Er könnte pädagogische Inhalte
+  mit nicht-pädagogischem Material vermischen, einen oberflächlichen Überblick über
+  potenziell nützliche Themen bieten oder Informationen auf unorganisierte Weise und
+  in einem inkohärenten Schreibstil präsentieren.\n3. Vergeben Sie einen dritten Punkt,
+  wenn der Auszug für die Verwendung im Unterricht geeignet ist und Schlüsselkonzepte
+  einführt, die für den Lehrplan relevant sind. Er ist kohärent, obwohl er möglicherweise
+  nicht umfassend ist oder einige irrelevante Informationen enthält. Er kann einem
+  einführenden Abschnitt eines Lehrbuchs oder einem grundlegenden Tutorium ähneln,
+  das zum Lernen geeignet ist, aber bemerkenswerte Einschränkungen aufweist, wie die
+  Behandlung von Konzepten, die für Grundschüler zu komplex sind.\n4. Vergeben Sie
+  einen vierten Punkt, wenn der Auszug für Bildungszwecke für ein Niveau, das nicht
+  höher als das der Grundschule ist, sehr relevant und nützlich ist und einen klaren
+  und konsistenten Schreibstil aufweist. Er könnte einem Kapitel aus einem Lehrbuch
+  oder einem Tutorium ähneln und bietet einen umfangreichen Bildungsinhalt, einschließlich
+  Übungen und Lösungen, mit einem Minimum an irrelevanten Informationen, und die Konzepte
+  sind nicht zu fortgeschritten für Grundschüler. Der Inhalt ist kohärent, fokussiert
+  und wertvoll für strukturiertes Lernen.\n5. Vergeben Sie einen fünften Punkt, wenn
+  der Auszug in seinem pädagogischen Wert herausragend ist und sich perfekt für den
+  Unterricht in der Grundschule oder in der Primarstufe eignet. Er folgt einer detaillierten
+  Argumentation, der Schreibstil ist leicht nachvollziehbar und bietet tiefe und gründliche
+  Einblicke in die Thematik, frei von unpädagogischen oder komplexen Inhalten.\n <notranslate>The
+  extract: {placeholder}.</notranslate>\nNach der Prüfung des Auszugs:\n Begründen
+  Sie kurz Ihre Gesamtpunktzahl, bis zu 100 Wörter.\nSchließen Sie mit der Punktzahl
+  unter Verwendung des Formats: <notranslate>''Educational score: <total points>''</notranslate>'

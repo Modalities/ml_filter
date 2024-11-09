@@ -18,6 +18,8 @@ dependencies = [
     # This throws an error as the version of keras is not compatible with the transformers version.
     # If Keras is not installed this check is just skipped.
     "tf-keras==2.18.0"
+    "deepl",
+    "accelerate>=0.21.0"
 ]
 
 [project.optional-dependencies]

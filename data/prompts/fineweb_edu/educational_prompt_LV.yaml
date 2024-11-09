@@ -1,0 +1,29 @@
+prompt: 'Zemāk ir izvilkums no tīmekļa vietnes. Izvērtējiet, vai šai lapai ir augsta
+  izglītojošā vērtība un vai tā varētu būt noderīga mācību vidē, mācot no sākumskolas
+  līdz pamatskolas līmenim, izmantojot turpmāk aprakstīto piecu punktu aditīvo vērtēšanas
+  sistēmu. Punktu skaits tiek aprēķināts, pamatojoties uz katra kritērija izpildi:\n1.
+  Pievienojiet 1 punktu, ja izrakstā ir sniegta pamatinformācija, kas attiecas uz
+  mācību tēmām, pat tad, ja tajā ir ietverts kāds nebūtisks vai neakadēmisks saturs,
+  piemēram, reklāma un reklāmas materiāli.\n2. Pievienojiet vēl vienu punktu, ja izvilkumā
+  aplūkoti daži ar izglītību saistīti elementi, bet tas nav cieši saskaņots ar izglītības
+  standartiem. Tajā var būt sajaukts izglītojošs saturs ar neizglītojošu materiālu,
+  piedāvāts virspusējs pārskats par potenciāli noderīgām tēmām vai informācija pasniegta
+  neorganizēti un nesaskaņotā rakstīšanas stilā.\n3. Piešķiriet trešo punktu, ja izraksts
+  ir piemērots izmantošanai izglītībā un iepazīstina ar galvenajiem jēdzieniem, kas
+  attiecas uz skolu mācību programmām. Tas ir saskanīgs, lai gan var nebūt visaptverošs
+  vai tajā var būt iekļauta kāda sveša informācija. Tas var līdzināties mācību grāmatas
+  ievaddaļai vai pamata pamācībai, kas ir piemērota mācībām, bet tai ir ievērojami
+  ierobežojumi, piemēram, aplūkoti jēdzieni, kas ir pārāk sarežģīti pamatskolas skolēniem.\n4.
+  Piešķiriet ceturto punktu, ja izraksts ir ļoti atbilstošs un noderīgs mācību mērķiem
+  ne augstākam līmenim par pamatskolas līmeni, un tam piemīt skaidrs un konsekvents
+  rakstīšanas stils. Tas varētu būt līdzīgs mācību grāmatas nodaļai vai pamācībai,
+  piedāvājot būtisku izglītojošu saturu, tostarp uzdevumus un risinājumus, ar minimālu
+  nebūtiskas informācijas daudzumu, un jēdzieni nav pārāk sarežģīti pamatskolas skolēniem.
+  Saturs ir saskanīgs, koncentrēts un vērtīgs strukturētai mācīšanai.\n5. Piešķiriet
+  piekto punktu, ja izrakstam ir izcila izglītojošā vērtība, tas ir lieliski piemērots
+  mācīšanai sākumskolā vai pamatskolā. Tas ir detalizēti argumentēts, rakstīšanas
+  stils ir viegli uztverams un piedāvā padziļinātu un pamatīgu ieskatu mācību priekšmetā,
+  tajā nav nekāda neizglītojoša vai sarežģīta satura.\n <notranslate>The extract:
+  {placeholder}.</notranslate>\n Pēc izraksta izskatīšanas:\n Īsi pamatojiet savu
+  kopējo punktu skaitu, līdz 100 vārdiem.\nNoslēdziet, norādot punktu skaitu, izmantojot
+  šādu formātu: <notranslate>''Educational score: <total points>''</notranslate>'

@@ -9,6 +9,7 @@ import click_pathlib
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.utils.chunk_data import chunk_jsonl
+from translate import deepl_translate, write_output
 
 @click.group()
 def main() -> None:
@@ -76,6 +77,55 @@ def entry_train_classifier(config_file_path: Path):
 )
 def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: int):
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
+
+@main.command(name="deepl_translate_cli")
+@click.option(
+    "--input_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the input file.",
+)
+@click.option(
+    "--output_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the output file.",
+)
+@click.option(
+    "--api_key",
+    type=str,
+    required=True,
+    help="Authentication key for DeepL.",
+)
+@click.option(
+    "--tag_to_ignore",
+    type=str,
+    required=False,
+    help="Tag indicating which part of the translation should be ignored.",
+)
+@click.option(
+    "--source_language",
+    type=str,
+    required=True,
+    help="Path to the output file.",
+)
+@click.argument("languages", nargs=-1)
+def deepl_translate_cli(
+    input_path: Path,
+    output_path: Path,
+    api_key: str,
+    source_language: str,
+    languages: list[str],
+    tag_to_ignore: str | None,
+):
+    translated_data = deepl_translate(
+        input_path=input_path,
+        api_key=api_key,
+        source_language=source_language,
+        languages=languages,
+        tag_to_ignore=tag_to_ignore,
+    )
+    write_output(output_path=output_path, data=translated_data)
 
 if __name__ == "__main__":
     main()

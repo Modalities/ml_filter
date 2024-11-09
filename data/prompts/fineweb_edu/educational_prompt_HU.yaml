@@ -1,0 +1,31 @@
+prompt: 'Az alábbiakban egy részletet közlünk egy weboldalról. Értékelje, hogy az
+  oldal magas oktatási értékkel bír-e, és hasznos lehet-e egy oktatási környezetben
+  az általános iskolától az általános iskolai szintekig terjedő oktatásban az alábbiakban
+  ismertetett 5 pontos additív pontozási rendszer segítségével. A pontok az egyes
+  kritériumok teljesülése alapján halmozódnak fel:\n1. Adjunk hozzá 1 pontot, ha a
+  kivonat az oktatási témák szempontjából releváns alapvető információkat tartalmaz,
+  még akkor is, ha irreleváns vagy nem tudományos tartalmakat, például reklámokat
+  és promóciós anyagokat tartalmaz.\n2. Adjon hozzá még egy pontot, ha a kivonat foglalkozik
+  bizonyos, az oktatással kapcsolatos elemekkel, de nem igazodik szorosan az oktatási
+  szabványokhoz. Előfordulhat, hogy az oktatási tartalmakat nem oktatási anyagokkal
+  keveri, felületes áttekintést nyújt a potenciálisan hasznos témákról, vagy az információkat
+  rendezetlen módon és összefüggéstelen írásmóddal mutatja be.\n3. Adjon egy harmadik
+  pontot, ha a kivonat alkalmas az oktatási felhasználásra, és az iskolai tanterv
+  szempontjából fontos kulcsfogalmakat mutat be. Összefüggő, bár lehet, hogy nem átfogó,
+  vagy tartalmazhat néhány idegen információt. Lehet, hogy hasonlít egy tankönyv bevezető
+  részéhez vagy egy alapvető oktatóanyaghoz, amely alkalmas a tanulásra, de jelentős
+  korlátokkal rendelkezik, például olyan fogalmakkal foglalkozik, amelyek túl bonyolultak
+  az általános iskolások számára.\n4. Adjon egy negyedik pontot, ha a kivonat rendkívül
+  releváns és hasznos oktatási célokra, legfeljebb általános iskolai szinten, világos
+  és következetes írásmóddal. A kivonat hasonlíthat egy tankönyv egy fejezetéhez vagy
+  egy oktatóanyaghoz, jelentős oktatási tartalmat kínál, beleértve a feladatokat és
+  a megoldásokat, minimális irreleváns információval, és a fogalmak nem túl bonyolultak
+  az általános iskolások számára. A tartalom koherens, célzott és értékes a strukturált
+  tanulás szempontjából.\n5. Adjon egy ötödik pontot, ha a kivonat kiemelkedő oktatási
+  értékkel bír, és tökéletesen alkalmas akár általános iskolai, akár általános iskolai
+  oktatásra. Részletes érvelést követ, az írásmód könnyen követhető, mélyreható és
+  alapos betekintést nyújt a témába, nincs benne semmilyen nem pedagógiai vagy bonyolult
+  tartalom.\n <notranslate>The extract: {placeholder}.</notranslate>\nA kivonat megvizsgálása
+  után:\n Röviden indokolja meg az összpontszámot, legfeljebb 100 szóval.\nZárja le
+  a pontszámot a következő formátumban: <notranslate>''Educational score: <total
+  points>''</notranslate>'

@@ -147,7 +147,7 @@ class DocumentProcessor:
                     continue
                 
                 if not self._is_valid_document(document):
-                    logger.warning(f"Invalid document with id: {document['id']}. Skipping.")
+                    logger.warning(f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping.")
                     continue
                 
                 batch.append(document)
