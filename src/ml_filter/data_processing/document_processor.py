@@ -189,7 +189,8 @@ class DocumentProcessor:
                     results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
 
                     logger.info(f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}")
-
+        logger.info(f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}")
+ 
     def run(self):
         """Runs the document processor.
 
