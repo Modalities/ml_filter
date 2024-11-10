@@ -9,7 +9,7 @@ Key Features:
 ## Usage in Eurolingua-GPT
 In Eurolingua, we use this repository to filter out low-quality documents from the Common Crawl dataset. The filtered dataset is then used to train the Eurolingua GPT model(s). The following diagram illustrates the workflow, that is closely related to [Fineweb-EDU](https://arxiv.org/pdf/2406.17557): 
 
-1. We start with a Common Crawl (CC) subset (e.g., 200,000 documents per language) that we want to score e.g., w.r.t. the amount of educational content.We use an LLM to score these documents based on the instructios defined in a prompt.
+1. We start with a Common Crawl (CC) subset (e.g., 200,000 documents per language) that we want to score e.g., w.r.t. the amount of educational content. We use an LLM to score these documents based on the instructios defined in a prompt.
 
 ![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_prompt_based_annotation.svg)
 
