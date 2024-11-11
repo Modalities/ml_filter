@@ -25,7 +25,7 @@ EUROPEAN_LANGUAGES = {
     "mk": "Macedonian",
     "mt": "Maltese",
     "nb": "Norwegian Bokmål",
-    "nn": "Norwegian Nynorsk",    
+    "nn": "Norwegian Nynorsk",
     "pl": "Polish",
     "pt": "Portuguese",
     "ro": "Romanian",
@@ -38,4 +38,3 @@ EUROPEAN_LANGUAGES = {
     "tr": "Turkish",
     "uk": "Ukrainian",
 }
-

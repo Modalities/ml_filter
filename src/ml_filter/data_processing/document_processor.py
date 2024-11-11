@@ -1,22 +1,23 @@
 import json
+import logging
 import multiprocessing
 import re
-import logging
+import time
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 from tqdm import tqdm
-from dataclasses import asdict
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
-import time
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
 logger = logging.getLogger(__name__)  # Create a logger instance
+
 
 class DocumentProcessor:
     """A class representing a document processor that generates model responses for a given set of documents."""
@@ -87,15 +88,15 @@ class DocumentProcessor:
         text = re.sub(r"\s+", " ", text)
 
         return text
-    
+
     def _process_document(self, document: Dict[str, Any]) -> ProcessedDocument:
         processed_document = ProcessedDocument(document_id=document["id"], original_text=document["text"])
         # text preprocessing
         processed_document.preprocessed_text = self._remove_special_strings(processed_document.original_text)
-        
+
         # prompt building
         processed_document = self.prompt_builder.construct_prompt(processed_document)
-        
+
         # text generation
         processed_document = self.llm_rest_client.generate(processed_document=processed_document)
 
@@ -103,7 +104,9 @@ class DocumentProcessor:
         score = self.find_last_pattern(processed_document.generated_text, pattern=self.score_metric.pattern)
         if score is None:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
-            processed_document.errors.append(f"Could not find the score metric '{self.score_metric.metric_name}' in the model response.")
+            processed_document.errors.append(
+                f"Could not find the score metric '{self.score_metric.metric_name}' in the model response."
+            )
         else:
             processed_document.score = float(score)
             processed_document.score_type = self.score_metric.metric_name
@@ -113,7 +116,6 @@ class DocumentProcessor:
             error_string = " | ".join(processed_document.errors)
             logger.warning(f"Error processing document with id {document['id']}: {error_string}")
         return processed_document
-
 
     def _process_documents_batch(self):
         while True:
@@ -145,11 +147,13 @@ class DocumentProcessor:
                 except json.JSONDecodeError:
                     logger.warning(f"Error decoding document: {document_string}. Skipping.")
                     continue
-                
+
                 if not self._is_valid_document(document):
-                    logger.warning(f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping.")
+                    logger.warning(
+                        f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping."
+                    )
                     continue
-                
+
                 batch.append(document)
 
                 if len(batch) % self.batch_size == 0:
@@ -175,8 +179,17 @@ class DocumentProcessor:
                     f.flush()
                     break
                 for processed_document in processed_documents:
-                    rejected_keys = {"preprocessed_text", "original_text", "original_history", "prompt", "document_text_detokenized", "truncated_preprocessed_text"}
-                    processed_document_dict = {k:v for k,v in asdict(processed_document).items() if k not in rejected_keys}
+                    rejected_keys = {
+                        "preprocessed_text",
+                        "original_text",
+                        "original_history",
+                        "prompt",
+                        "document_text_detokenized",
+                        "truncated_preprocessed_text",
+                    }
+                    processed_document_dict = {
+                        k: v for k, v in asdict(processed_document).items() if k not in rejected_keys
+                    }
                     json.dump(processed_document_dict, f)
                     f.write("\n")
                     results_written += 1
@@ -187,7 +200,9 @@ class DocumentProcessor:
                     elapsed_time = end_time - start_time
                     results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
 
-                    logger.info(f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}")
+                    logger.info(
+                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}"
+                    )
 
     def run(self):
         """Runs the document processor.
@@ -206,7 +221,8 @@ class DocumentProcessor:
         writer.start()
 
         processor_threads = [
-            multiprocessing.Process(target=self._process_documents_batch) for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
+            multiprocessing.Process(target=self._process_documents_batch)
+            for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()

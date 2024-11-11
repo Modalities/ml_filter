@@ -1,15 +1,16 @@
-from datetime import datetime
 import hashlib
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import click
 import click_pathlib
+from translate import deepl_translate, write_output
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.utils.chunk_data import chunk_jsonl
-from translate import deepl_translate, write_output
+
 
 @click.group()
 def main() -> None:
@@ -35,7 +36,7 @@ def main() -> None:
     required=True,
     help="The endpoint for the LLM service.",
 )
-def entry_point_score_documents(config_file_path: Path, rest_endpoint: str,  experiment_id: Optional[str] = None):
+def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
     if experiment_id is None:
         with open(config_file_path, "rb") as f:
             hash_value = hashlib.file_digest(f, "sha256").hexdigest()[:8]
@@ -77,6 +78,7 @@ def entry_train_classifier(config_file_path: Path):
 )
 def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: int):
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
+
 
 @main.command(name="deepl_translate_cli")
 @click.option(
@@ -126,6 +128,7 @@ def deepl_translate_cli(
         tag_to_ignore=tag_to_ignore,
     )
     write_output(output_path=output_path, data=translated_data)
+
 
 if __name__ == "__main__":
     main()

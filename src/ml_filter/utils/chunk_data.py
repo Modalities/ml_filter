@@ -1,12 +1,14 @@
-import os
 import multiprocessing
+import os
 from typing import List
+
 
 def _write_chunk(lines: List[str], output_dir: str, base_filename: str, chunk_number: int) -> None:
     """Writes a list of lines to a JSONL chunk file."""
     chunk_filename = f"{base_filename}_chunk_{chunk_number}.jsonl"
-    with open(os.path.join(output_dir, chunk_filename), 'w') as outfile:
+    with open(os.path.join(output_dir, chunk_filename), "w") as outfile:
         outfile.writelines(lines)
+
 
 def chunk_jsonl(input_file_path: str, output_dir: str, lines_per_chunk: int) -> None:
     """
@@ -22,12 +24,12 @@ def chunk_jsonl(input_file_path: str, output_dir: str, lines_per_chunk: int) -> 
     chunk_number = 0
     pool = multiprocessing.Pool(processes=os.cpu_count())  # Use all CPU cores
 
-    with open(input_file_path, 'r') as infile:
+    with open(input_file_path, "r") as infile:
         lines: List[str] = []
 
         for line in infile:
             lines.append(line)
-            
+
             # Once we reach the chunk size, write to a new file in parallel
             if len(lines) == lines_per_chunk:
                 pool.apply_async(_write_chunk, (lines, output_dir, base_filename, chunk_number))
