@@ -6,8 +6,9 @@ from typing import Dict, List
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+
+from .tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
@@ -107,8 +108,8 @@ class ClassifierTrainingPipeline:
         trainer = Trainer(
             model=self.model,
             args=training_arguments,
-            train_dataset=train_dataset,
-            eval_dataset=val_dataset,
+            train_dataset=train_dataset["train"],
+            eval_dataset=val_dataset["train"],
             data_collator=data_collator,
         )
 
