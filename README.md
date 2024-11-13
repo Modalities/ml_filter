@@ -6,7 +6,12 @@ Key Features:
 
 - Training of Classifiers: MLFilter provides training functionalities allowing users to train and fine-tune classifiers based on the generated datasets. This feature enables the creation of specialized models tailored to specific needs and domains, enhancing the utility of the framework for a wide range of applications.
 
-## How to Use this Repo:
+## Installation and Development
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md)
+
+
+## Usage
 Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-face-models), you can proceed to score and the documents and trainer and classifier
 
 ### 1. How to Score Documents with LLM
