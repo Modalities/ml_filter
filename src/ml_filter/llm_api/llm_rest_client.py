@@ -1,8 +1,7 @@
-from http import HTTPStatus
 import logging
 import time
 import traceback
-from typing import Dict, List
+from http import HTTPStatus
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
@@ -59,7 +58,7 @@ class LLMRestClient:
         Returns:
             Dict[str, Any]: A dictionary containing the generated response.
         """
- 
+
         request = dict(
             {
                 "inputs": processed_document.prompt,
@@ -85,13 +84,13 @@ class LLMRestClient:
                 traceback.print_exc()
                 print(f"Request failed with {e}, retrying...{i}")
                 time.sleep(self.backoff_factor * (2**i))
-        
+
                 if i == self.max_retries - 1:
                     processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
                     processed_document.errors.append(str(e))
                     print(f"Request failed after {self.max_retries} retries.")
                     return processed_document
-        
+
         if response.status_code == HTTPStatus.OK:
             response_dict = response.json()
             if "generated_text" not in response_dict:
@@ -99,7 +98,7 @@ class LLMRestClient:
                 processed_document.errors.append(f"Response does not contain 'generated_text': {response_dict}")
             else:
                 processed_document.generated_text = response_dict["generated_text"]
-        else: 
+        else:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
             processed_document.errors.append(f"Request failed with status code {response.status_code}: {response.text}")
         return processed_document
