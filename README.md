@@ -22,7 +22,12 @@ In Eurolingua, we use this repository to filter out low-quality documents from t
 ![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_classifier_based_annotation.svg)
 
 
-## How to Use this Repo:
+## Installation and Development
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md)
+
+
+## Usage
 Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-face-models), you can proceed to score and the documents and trainer and classifier
 
 ### 1. How to Score Documents with LLM
