@@ -113,8 +113,6 @@ class ClassifierTrainingPipeline:
             gt_dataset = self._load_dataset(self.gt_data_file_path, split=self.gt_data_split)
             gt_dataset = self._map_dataset(gt_dataset)
             eval_datasets["gt"] = gt_dataset
-        else:
-            gt_dataset = None
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
 
