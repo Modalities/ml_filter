@@ -22,6 +22,8 @@ class ClassifierTrainingPipeline:
         self.train_data_split = cfg.data.train_file_split
         self.val_data_file_path = cfg.data.val_file_path
         self.val_data_split = cfg.data.val_file_split
+        self.gt_data_file_path = cfg.data.gt_file_path
+        self.gt_data_split = cfg.data.gt_file_split
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -78,6 +80,7 @@ class ClassifierTrainingPipeline:
             logging_dir=self.logging_dir,
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
+            metric_for_best_model="eval_val_loss",
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
         )
@@ -103,6 +106,14 @@ class ClassifierTrainingPipeline:
 
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)
+        
+        eval_datasets = {"val": val_dataset}
+        if self.gt_data_file_path:
+            gt_dataset = self._load_dataset(self.gt_data_file_path, split=self.gt_data_split)
+            gt_dataset = self._map_dataset(gt_dataset)
+            eval_datasets["gt"] = gt_dataset
+        else:
+            gt_dataset = None
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
 
@@ -110,7 +121,7 @@ class ClassifierTrainingPipeline:
             model=self.model,
             args=training_arguments,
             train_dataset=train_dataset,
-            eval_dataset=val_dataset,
+            eval_dataset=eval_datasets,
             data_collator=data_collator,
         )
 
