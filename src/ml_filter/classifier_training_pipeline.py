@@ -51,6 +51,7 @@ class ClassifierTrainingPipeline:
         self.save_strategy = cfg.training.save_strategy
         self.output_dir = cfg.training.output_dir_path
         self.greater_is_better = cfg.training.greater_is_better
+        self.metric_for_best_model = cfg.training.metric_for_best_model
 
         self.sample_key = cfg.data.text_column
         self.sample_label = cfg.data.label_column
@@ -80,7 +81,7 @@ class ClassifierTrainingPipeline:
             logging_dir=self.logging_dir,
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
-            metric_for_best_model="eval_val_loss",
+            metric_for_best_model=self.metric_for_best_model,
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
         )

@@ -33,5 +33,6 @@ training:
   save_strategy: epoch
   logging_steps: 100
   greater_is_better: false
+  metric_for_best_model: eval_val_loss
   logging_dir_path: data/output/lorem_ipsum_model
   output_dir_path: data/output/lorem_ipsum_model
