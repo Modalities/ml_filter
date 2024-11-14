@@ -6,8 +6,9 @@ from typing import Dict, List
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+
+from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 

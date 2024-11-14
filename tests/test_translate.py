@@ -6,7 +6,7 @@ import openai
 import pytest
 import yaml
 
-from ml_filter.translate import DeepLClient, Translator
+from ml_filter.translate import Translator
 
 
 @dataclass
@@ -67,7 +67,7 @@ def test_deepl_translate(deepl_translator):
 def test_openai_translate(openai_translator):
     with open("tests/resources/data/translate_en.yaml", "r") as file:
         data = yaml.safe_load(file)
-    
+
     text = data["prompt"]
     source_lang = "en"
     target_lang = "fr"
@@ -85,11 +85,12 @@ def test_openai_translate(openai_translator):
         source_language_code=source_lang,
         target_language_code=target_lang,
     )
-    expected_data = (f"Translate the following text into French. "
-            f"Text within '<notranslate> </notranslate>' should not be translated. "
-            f"The text: {data['prompt']}")
+    expected_data = (
+        f"Translate the following text into French. "
+        f"Text within '<notranslate> </notranslate>' should not be translated. "
+        f"The text: {data['prompt']}"
+    )
 
     assert translated_data == expected_data
 
     _test_raises_exception(text=text, translator=openai_translator)
-

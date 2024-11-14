@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -8,22 +9,20 @@ from ml_filter.data_processing.llm_score_metrics import EducationalScoreMetric
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
-import json
 
 
 def test_run(tmpdir: Path):
     llm_rest_client = Mock(spec=LLMRestClient)
     expected_score = 5
-    
+
     llm_rest_client.generate = lambda prompt: {
         "generated_text": f"{p['content']} score:{expected_score}" for p in prompt
     }
-    
+
     raw_data_path = tmpdir / "raw_data.jsonl"
     with open(raw_data_path, "w") as f:
         json.dump({"text": "some text"}, f)
         json.dump({"text": "some more text"}, f)
-
 
     llm_rest_client.tokenizer = Mock(spec=PreTrainedHFTokenizer)
     llm_rest_client.tokenizer.truncation = False
@@ -32,7 +31,7 @@ def test_run(tmpdir: Path):
 
     prompt_builder = Mock(spec=PromptBuilder)
     prompt_builder.construct_prompt = lambda text: [{"role": "user", "content": text}]
-    
+
     document_processor = DocumentProcessor(
         llm_rest_client=llm_rest_client,
         prompt_builder=prompt_builder,
@@ -53,7 +52,7 @@ def test_run(tmpdir: Path):
 def test_find_last_pattern():
     text = "Hello world! This is a test."
     score_metric = EducationalScoreMetric()
-   
+
     assert DocumentProcessor.find_last_pattern(text, score_metric.pattern) is None
 
     text = "Hello world! This is a test. score:5"

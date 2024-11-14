@@ -1,6 +1,5 @@
-from datetime import datetime
 import hashlib
-import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -9,8 +8,9 @@ import click_pathlib
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
-from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.translate import TranslatorFactory
+from ml_filter.utils.chunk_data import chunk_jsonl
+
 
 @click.group()
 def main() -> None:
@@ -36,7 +36,7 @@ def main() -> None:
     required=True,
     help="The endpoint for the LLM service.",
 )
-def entry_point_score_documents(config_file_path: Path, rest_endpoint: str,  experiment_id: Optional[str] = None):
+def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
     if experiment_id is None:
         with open(config_file_path, "rb") as f:
             hash_value = hashlib.file_digest(f, "sha256").hexdigest()[:8]
@@ -79,6 +79,7 @@ def entry_train_classifier(config_file_path: Path):
 def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: int):
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
 
+
 @main.command(name="deepl_translate_flat_yaml")
 @click.option(
     "--input_file_path",
@@ -104,25 +105,24 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     required=True,
     help="Language code of the source language.",
 )
-@click.option(
-    "--target_language_codes",
-    type=str,
-    required=True,
-    help='Comma-separated list of languages')
+@click.option("--target_language_codes", type=str, required=True, help="Comma-separated list of languages")
 def deepl_translate_cli(
     input_file_path: Path,
     output_folder_path: Path,
     source_language_code: str,
     target_language_codes: list[str],
     ignore_tag_text: Optional[str] = None,
-):  
-    target_language_codes_list = [l.strip() for l in target_language_codes.split(",")]
+):
+    target_language_codes_list = [lang_code.strip() for lang_code in target_language_codes.split(",")]
 
     translator = TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
-    translator.translate_flat_yaml_to_multiple_languages(input_file_path=input_file_path, 
-                                                         output_folder_path=output_folder_path, 
-                                                         source_language_code=source_language_code, 
-                                                         target_language_codes=target_language_codes_list)
+    translator.translate_flat_yaml_to_multiple_languages(
+        input_file_path=input_file_path,
+        output_folder_path=output_folder_path,
+        source_language_code=source_language_code,
+        target_language_codes=target_language_codes_list,
+    )
+
 
 if __name__ == "__main__":
     main()

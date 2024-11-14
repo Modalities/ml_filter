@@ -1,9 +1,9 @@
-from abc import ABC, abstractmethod
 import os
+from abc import ABC, abstractmethod
 from pathlib import Path
 
-from pydantic import FilePath
 import yaml
+from pydantic import FilePath
 
 from constants import EUROPEAN_LANGUAGES
 
@@ -55,7 +55,7 @@ class TranslationClient(ABC):
         Raises:
             ValueError: If the target language is not available in EUROPEAN_LANGUAGES.
         """
-        if target_language_code not in self.supported_target_languages: 
+        if target_language_code not in self.supported_target_languages:
             raise ValueError(f"The target language is not available: {target_language_code}.")
 
 
@@ -70,10 +70,17 @@ class Translator:
         """Translate the text into the target language using the specified client."""
         return self.client.translate_text(text, source_language_code, target_language_code)
 
-    def translate_flat_yaml_to_multiple_languages(self, input_file_path: FilePath, output_folder_path: Path, source_language_code: str, target_language_codes: list[str]) -> None:
-        """Translates the text (i.e., the value fields) in the input file into multiple languages using the specified client.
-        We create one file per target language, where the file contains the translated text. The file name is constructed as follows:
-        <original_file_name>_{language_code}.yaml. 
+    def translate_flat_yaml_to_multiple_languages(
+        self,
+        input_file_path: FilePath,
+        output_folder_path: Path,
+        source_language_code: str,
+        target_language_codes: list[str],
+    ) -> None:
+        """Translates the text (i.e., the value fields) in the input file into multiple
+        languages using the specified client. We create one file per target language, where
+        the file contains the translated text. The file name is constructed as follows:
+        <original_file_name>_{language_code}.yaml.
         Raises an error if the value fields are not strings."""
         data = self._load_yaml_data(input_file_path)
         translated_data = {}
@@ -82,12 +89,14 @@ class Translator:
             for key, value in data.items():
                 if not isinstance(value, str):
                     raise ValueError(f"Value for key '{key}' is not a string.")
-                translated_data[target_language_code][key] = self.translate_text(value, source_language_code, target_language_code)
-        
+                translated_data[target_language_code][key] = self.translate_text(
+                    value, source_language_code, target_language_code
+                )
+
         for language_code, data in translated_data.items():
             output_file_path = output_folder_path / f"{input_file_path.stem}_{language_code}.yaml"
             self._write_output(output_file_path, data)
-        
+
     @staticmethod
     def _load_yaml_data(input_path: Path) -> dict:
         """Loads data from a YAML file specified by the input path.
@@ -98,14 +107,13 @@ class Translator:
         with open(input_path, "r") as file:
             data = yaml.safe_load(file)
         return data
-    
+
     @staticmethod
     def _write_output(output_file_path: FilePath, data: dict[str, str]):
         """Writes translated data to YAML files in the specified output directory."""
         output_file_path.parent.mkdir(parents=True, exist_ok=True)
         with output_file_path.open("w", encoding="utf-8") as file:
             yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
-
 
 
 class DeepLClient(TranslationClient):
@@ -116,7 +124,8 @@ class DeepLClient(TranslationClient):
 
         Args:
             api_key (str): The API key for the DeepL client.
-            ignore_tag_text (str | None, optional): The XML tag to ignore. Note that the tag must be specified with the <>. Defaults to None.
+            ignore_tag_text (str | None, optional): The XML tag to ignore.
+            Note that the tag must be specified with the <>. Defaults to None.
         """
         super().__init__(api_key=api_key, ignore_tag_text=ignore_tag_text)
         import deepl
@@ -161,7 +170,7 @@ class DeepLClient(TranslationClient):
         self.assert_source_language_available(source_language_code=source_language_code)
         self.assert_target_language_available(target_language_code=target_language_code)
         tag_handling = "xml" if self.ignore_tag_text is not None else None
-        
+
         result = self.client.translate_text(
             text,
             source_lang=source_language_code,
@@ -242,25 +251,23 @@ class OpenAIClient(TranslationClient):
         return ""
 
 
-
-
 class TranslatorFactory:
-
     @staticmethod
     def get_openai_translator(ignore_tag_text: str | None = None) -> Translator:
         api_key = TranslatorFactory._get_api_key("OPENAI_API_KEY")
         client = OpenAIClient(api_key, ignore_tag_text)
         return Translator(client)
-    
+
     @staticmethod
     def get_deepl_translator(ignore_tag_text: str | None = None) -> Translator:
         api_key = TranslatorFactory._get_api_key("DEEPL_API_KEY")
         client = DeepLClient(api_key, ignore_tag_text)
         return Translator(client)
-    
 
     def _get_api_key(evn_variable_name: str):
         api_key = os.getenv(evn_variable_name)
         if api_key is None or api_key == "":
-            raise EnvironmentError(f"API key in environment variable '{evn_variable_name}' is not set. Please set it to continue.")
+            raise EnvironmentError(
+                f"API key in environment variable '{evn_variable_name}' is not set. Please set it to continue."
+            )
         return api_key
