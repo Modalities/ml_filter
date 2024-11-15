@@ -6,11 +6,21 @@ from typing import Dict, List
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
+from sklearn.metrics import accuracy_score, f1_score
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
+
+
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    # Convert logits to predicted class (if classification task)
+    preds = predictions.argmax(axis=-1)
+    accuracy = accuracy_score(labels, preds)
+    f1 = f1_score(labels, preds, average="weighted")
+    return {"accuracy": accuracy, "f1": f1}
 
 
 class ClassifierTrainingPipeline:
@@ -115,13 +125,14 @@ class ClassifierTrainingPipeline:
             eval_datasets["gt"] = gt_dataset
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
-
+        
         trainer = Trainer(
             model=self.model,
             args=training_arguments,
             train_dataset=train_dataset,
             eval_dataset=eval_datasets,
             data_collator=data_collator,
+            compute_metrics=compute_metrics,
         )
 
         trainer.train()
