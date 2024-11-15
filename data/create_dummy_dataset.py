@@ -21,7 +21,10 @@ with open(source_dataset_path, "r") as f:
 for record in data:
     record.pop("score", None)
     scores = [random.randint(0, 5) for _ in scoring_keys]
-    record["scores"] = {k: v for k, v in zip(scoring_keys, scores)}
+    record["labels"] = scores
+    # record["labels"] = {k: v for k, v in zip(scoring_keys, scores)}
+    # for k, v in zip(scoring_keys, scores):
+    #     record[k] = v
 
 with open(destination_path, "w") as f:
     for record in data:

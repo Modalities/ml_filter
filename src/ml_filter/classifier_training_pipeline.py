@@ -31,6 +31,12 @@ class ClassifierTrainingPipeline:
             output_hidden_states=cfg.model.output_hidden_states,
         )
 
+        self.max_num_labels_per_metric = cfg.model.max_num_labels_per_metric
+        self.num_metrics = cfg.model.num_metrics
+
+        self.model.num_labels = self.num_metrics * self.max_num_labels_per_metric
+        self.model.classifier = torch.nn.Linear(768, self.model.num_labels, bias=True)
+
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
@@ -82,12 +88,25 @@ class ClassifierTrainingPipeline:
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
+        # dataset.add_column("labels", [[x["edu_en"], x["edu_de"]] for x in dataset])
         return dataset.map(
             lambda x: {
                 **self._tokenize(x),  # tokenize the text
-                "labels": torch.tensor([int(score) for score in x[self.sample_label]], dtype=torch.long),
+                # "labels": torch.tensor([[x["edu_en"], x["edu_de"]]], dtype=torch.long),
             },
             batched=True,
+        )
+
+    def multi_target_cross_entropy_loss(
+        self,
+        input,
+        target,
+        num_items_in_batch,
+        **kwargs,
+    ):
+        return torch.nn.functional.cross_entropy(
+            input["logits"].view(-1, self.max_num_labels_per_metric, self.num_metrics),
+            target.view(-1, self.num_metrics),
         )
 
     def train_classifier(self):
@@ -97,8 +116,8 @@ class ClassifierTrainingPipeline:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # TODO
-        train_dataset = self._load_dataset(self.train_data_file_path)
-        val_dataset = self._load_dataset(self.val_data_file_path)
+        train_dataset = self._load_dataset(self.train_data_file_path)["train"]
+        val_dataset = self._load_dataset(self.val_data_file_path)["train"]
 
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)
@@ -108,9 +127,10 @@ class ClassifierTrainingPipeline:
         trainer = Trainer(
             model=self.model,
             args=training_arguments,
-            train_dataset=train_dataset["train"],
-            eval_dataset=val_dataset["train"],
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
             data_collator=data_collator,
+            compute_loss_func=self.multi_target_cross_entropy_loss,
         )
 
         trainer.train()

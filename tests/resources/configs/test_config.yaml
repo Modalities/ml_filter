@@ -4,28 +4,32 @@ model:
   classifier_dropout: 0.0
   hidden_dropout_prob: 0.0
   output_hidden_states: false
+  num_metrics: 4
+  max_num_labels_per_metric: 6
 
 tokenizer:
-    pretrained_model_name_or_path: ${model.name}
-    truncation: true
-    padding: true
-    max_length: 512
-    special_tokens: null
+  pretrained_model_name_or_path: ${model.name}
+  truncation: true
+  padding: true
+  max_length: 512
+  special_tokens: null
 
 data: 
-  train_file_path: tests/resources/data/lorem_ipsum.jsonl
-  test_file_path: tests/resources/data/lorem_ipsum.jsonl
-  val_file_path: tests/resources/data/lorem_ipsum.jsonl
-  label_column: score
+  train_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  test_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  val_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  label_column: edu_en
   text_column: text
   
 training:
   batch_size: 32
-  epochs: 1
+  epochs: 100
   use_bf16: true
   weight_decay: 0.01
-  eval_strategy: epoch
-  save_strategy: epoch
+  eval_strategy: steps
+  eval_steps: 10
+  save_strategy: steps
+  save_steps: 100
   logging_steps: 1
   greater_is_better: false
   logging_dir_path: tests/cache
