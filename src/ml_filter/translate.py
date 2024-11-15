@@ -139,7 +139,7 @@ class DeepLClient(TranslationClient):
         Returns:
             list[str]: A list of language codes representing the supported source languages.
         """
-        return [lang.code for lang in self.client.get_source_languages()]
+        return [lang.code.lower() for lang in self.client.get_source_languages()]
 
     @property
     def supported_target_languages(self) -> list[str]:
@@ -151,7 +151,7 @@ class DeepLClient(TranslationClient):
         Returns:
             list[str]: A list of language codes representing the supported target languages.
         """
-        return [lang.code for lang in self.client.get_target_languages()]
+        return [lang.code.lower() for lang in self.client.get_target_languages()]
 
     def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translates the given text from the source language to the specified target language using the DeepL client.
