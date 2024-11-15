@@ -171,12 +171,13 @@ class DeepLClient(TranslationClient):
         self.assert_target_language_available(target_language_code=target_language_code)
         tag_handling = "xml" if self.ignore_tag_text is not None else None
 
+        ignore_tags = None if self.ignore_tag_text is None else [self.ignore_tag_text]
         result = self.client.translate_text(
             text,
             source_lang=source_language_code,
             target_lang=target_language_code,
             tag_handling=tag_handling,
-            ignore_tags=[self.ignore_tag_text],
+            ignore_tags=ignore_tags,
         )
         return result.text
 
