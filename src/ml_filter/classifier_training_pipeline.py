@@ -6,7 +6,7 @@ from typing import Dict, List
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, mean_absolute_error
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
@@ -16,11 +16,18 @@ sys.path.append(os.path.join(os.getcwd(), "src"))
 
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
-    # Convert logits to predicted class (if classification task)
+    
+    # Convert logits to predicted class
     preds = predictions.argmax(axis=-1)
+    
+    # Compute classification metrics
     accuracy = accuracy_score(labels, preds)
     f1 = f1_score(labels, preds, average="weighted")
-    return {"accuracy": accuracy, "f1": f1}
+    
+    # Compute regression-like metrics
+    mse = mean_squared_error(labels, preds)
+    mae = mean_absolute_error(labels, preds)
+    return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
 
 
 class ClassifierTrainingPipeline:
