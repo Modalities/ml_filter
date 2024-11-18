@@ -19,7 +19,7 @@ data:
   label_column: scores
   text_column: text
   num_metrics: 4
-  max_num_labels_per_metric: 6
+  num_classes_per_metric: [6, 6, 2, 2]
   
 training:
   batch_size: 32

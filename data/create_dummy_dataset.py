@@ -20,7 +20,7 @@ with open(source_dataset_path, "r") as f:
 
 for record in data:
     record.pop("score", None)
-    scores = [random.randint(0, 5) for _ in scoring_keys]
+    scores = [random.randint(0, 5 if k.startswith('e') else 1) for k in scoring_keys]
     # record["labels"] = scores
     record["scores"] = {k: v for k, v in zip(scoring_keys, scores)}
     # for k, v in zip(scoring_keys, scores):

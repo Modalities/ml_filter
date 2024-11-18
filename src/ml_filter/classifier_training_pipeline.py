@@ -22,6 +22,7 @@ class ClassifierTrainingPipeline:
         self.val_data_file_path = cfg.data.val_file_path
         self.label_column = cfg.data.label_column
 
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
         self.model = AutoModelForSequenceClassification.from_pretrained(
@@ -33,12 +34,21 @@ class ClassifierTrainingPipeline:
         )
 
         # multilabel settings
-        self.max_num_labels_per_metric = cfg.data.max_num_labels_per_metric
         self.num_metrics = cfg.data.num_metrics
 
-        self.model.num_labels = self.num_metrics * self.max_num_labels_per_metric
         if self.num_metrics > 1:
+            self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
+            self.max_num_labels_per_metric = max(self.num_classes_per_metric)
+            self.model.num_labels = self.num_metrics * self.max_num_labels_per_metric
+
             self.model.classifier = torch.nn.Linear(768, self.model.num_labels, bias=True)
+            self.raw_logit_mask = (
+                torch.arange(self.max_num_labels_per_metric).repeat(self.num_metrics, 1).T < self.num_classes_per_metric
+            ).to(device)
+            self.logit_mask = (self.raw_logit_mask + 1e-45).log()
+        else:
+            self.max_num_labels_per_metric = cfg.model.num_labels
+            self.logit_mask = torch.zeros(self.max_num_labels_per_metric, self.num_metrics).to(device)
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
@@ -91,9 +101,9 @@ class ClassifierTrainingPipeline:
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
-        if self.num_metrics > 1:        
-            keys = dataset[self.label_column][0].keys()
-    
+        if self.num_metrics > 1:
+            keys = sorted(dataset[self.label_column][0].keys())
+
         def process_batch(batch):
             tokenized = self._tokenize(batch)
             if self.num_metrics > 1:
@@ -102,10 +112,13 @@ class ClassifierTrainingPipeline:
                     labels.append([item[k] for k in keys])
             else:
                 labels = batch[self.label_column]
-                
+
             return {**tokenized, "labels": labels}
-        
+
         return dataset.map(process_batch, batched=True)
+
+    def reshape_and_mask_logits(self, logits):
+        return logits.view(-1, self.max_num_labels_per_metric, self.num_metrics) + self.logit_mask
 
     def multi_target_cross_entropy_loss(
         self,
@@ -115,7 +128,7 @@ class ClassifierTrainingPipeline:
         **kwargs,
     ):
         return torch.nn.functional.cross_entropy(
-            input["logits"].view(-1, self.max_num_labels_per_metric, self.num_metrics),
+            self.reshape_and_mask_logits(input["logits"]),
             target.view(-1, self.num_metrics),
         )
 
