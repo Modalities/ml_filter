@@ -18,8 +18,9 @@ class ClassifierTrainingPipeline:
         cfg = OmegaConf.load(config_file_path)
 
         # Set seeds before loading the model etc.
-        self.seed = cfg.training.seed if "seed" in cfg.training else 42  # default seed
-        self._set_seeds()
+        self.seed = cfg.training.seed if "seed" in cfg.training else None  # default seed
+        if self.seed is not None:
+            self._set_seeds()
 
         # Data
         self.train_data_file_path = cfg.data.train_file_path
@@ -95,7 +96,7 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
-            seed=self.seed,
+            seed=self.seed if self.seed is not None else 42, # 42 is the default value in huggingface Trainer
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
             bf16=self.use_bf16,
