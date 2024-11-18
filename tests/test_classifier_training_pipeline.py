@@ -20,24 +20,6 @@ def classifier_training_pipeline_multiscore():
     return ClassifierTrainingPipeline(working_dir / "resources" / "configs" / "test_config_multiscore.yaml")
 
 
-def test_multiscore_logit_masking(classifier_training_pipeline_multiscore):
-    dummy_input_ids = torch.tensor([[1, 2, 3], [5, 6, 7]])
-    batch_size = dummy_input_ids.shape[0]
-
-    output = classifier_training_pipeline_multiscore.model(dummy_input_ids)
-    logits = output["logits"]
-
-    assert logits.shape == (
-        batch_size,
-        max(classifier_training_pipeline_multiscore.num_classes_per_metric),
-        classifier_training_pipeline_multiscore.num_metrics,
-    )
-    eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_metric):
-        assert (torch.softmax(logits, -1)[:, n_classes:, i] < eps).all()
-        assert (torch.softmax(logits, -1)[:, :n_classes, i] > eps).all()
-
-
 def test_train_classifier(classifier_training_pipeline):
     try:
         # Act: Call the train method
@@ -54,3 +36,19 @@ def test_train_classifier_multiscore(classifier_training_pipeline_multiscore):
     except Exception as e:
         # Fail the test if any exception occurs
         pytest.fail(f"Training raised an unexpected exception: {e}")
+
+    dummy_input_ids = torch.tensor([[1, 2, 3], [5, 6, 7]]).to(classifier_training_pipeline_multiscore.model.device)
+    batch_size = dummy_input_ids.shape[0]
+
+    output = classifier_training_pipeline_multiscore.model(dummy_input_ids)
+    logits = output["logits"]
+
+    assert logits.shape == (
+        batch_size,
+        max(classifier_training_pipeline_multiscore.num_classes_per_metric),
+        classifier_training_pipeline_multiscore.num_metrics,
+    )
+    eps = 1e-30
+    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_metric):
+        assert (torch.softmax(logits, -1)[:, n_classes:, i] < eps).all()
+        assert (torch.softmax(logits, -1)[:, :n_classes, i] > eps).all()
