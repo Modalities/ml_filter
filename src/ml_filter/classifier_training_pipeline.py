@@ -20,8 +20,9 @@ class ClassifierTrainingPipeline:
 
         # Data
         self.train_data_file_path = cfg.data.train_file_path
+        self.train_data_split = cfg.data.train_file_split
         self.val_data_file_path = cfg.data.val_file_path
-        self.label_column = cfg.data.label_column
+        self.val_data_split = cfg.data.val_file_split
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -77,8 +78,8 @@ class ClassifierTrainingPipeline:
             max_length=self.tokenizer.max_length,
         )
 
-    def _load_dataset(self, file_path: Path) -> Dataset:
-        return load_dataset("json", data_files=[file_path])
+    def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
+        return load_dataset("json", data_files=[file_path], split=split)
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -132,9 +133,8 @@ class ClassifierTrainingPipeline:
         if not self.tokenizer.pad_token:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # TODO
-        train_dataset = self._load_dataset(self.train_data_file_path)["train"]
-        val_dataset = self._load_dataset(self.val_data_file_path)["train"]
+        train_dataset = self._load_dataset(self.train_data_file_path, split=self.train_data_split)
+        val_dataset = self._load_dataset(self.val_data_file_path, split=self.val_data_split)
 
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)
