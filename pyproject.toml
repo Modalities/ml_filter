@@ -19,6 +19,7 @@ dependencies = [
     # If Keras is not installed this check is just skipped.
     "tf-keras==2.18.0",
     "deepl",
+    "openai",
     "accelerate>=0.21.0"
 ]
 
