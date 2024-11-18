@@ -20,6 +20,7 @@ class ClassifierTrainingPipeline:
         # Data
         self.train_data_file_path = cfg.data.train_file_path
         self.val_data_file_path = cfg.data.val_file_path
+        self.label_column = cfg.data.label_column
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -31,11 +32,13 @@ class ClassifierTrainingPipeline:
             output_hidden_states=cfg.model.output_hidden_states,
         )
 
-        self.max_num_labels_per_metric = cfg.model.max_num_labels_per_metric
-        self.num_metrics = cfg.model.num_metrics
+        # multilabel settings
+        self.max_num_labels_per_metric = cfg.data.max_num_labels_per_metric
+        self.num_metrics = cfg.data.num_metrics
 
         self.model.num_labels = self.num_metrics * self.max_num_labels_per_metric
-        self.model.classifier = torch.nn.Linear(768, self.model.num_labels, bias=True)
+        if self.num_metrics > 1:
+            self.model.classifier = torch.nn.Linear(768, self.model.num_labels, bias=True)
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
@@ -88,14 +91,21 @@ class ClassifierTrainingPipeline:
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
-        # dataset.add_column("labels", [[x["edu_en"], x["edu_de"]] for x in dataset])
-        return dataset.map(
-            lambda x: {
-                **self._tokenize(x),  # tokenize the text
-                # "labels": torch.tensor([[x["edu_en"], x["edu_de"]]], dtype=torch.long),
-            },
-            batched=True,
-        )
+        if self.num_metrics > 1:        
+            keys = dataset[self.label_column][0].keys()
+    
+        def process_batch(batch):
+            tokenized = self._tokenize(batch)
+            if self.num_metrics > 1:
+                labels = []
+                for item in batch[self.label_column]:
+                    labels.append([item[k] for k in keys])
+            else:
+                labels = batch[self.label_column]
+                
+            return {**tokenized, "labels": labels}
+        
+        return dataset.map(process_batch, batched=True)
 
     def multi_target_cross_entropy_loss(
         self,
