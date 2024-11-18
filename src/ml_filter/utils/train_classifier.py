@@ -60,3 +60,21 @@ class DocumentClassifier:
 
     def encode_documents(self, docs):
         return self.model.model.encode(docs, convert_to_tensor=True)
+
+
+class LogitMaskLayer(torch.nn.Module):
+    def __init__(self, num_classes_per_metric):
+        super().__init__()
+        self.num_classes_per_metric = num_classes_per_metric
+
+        self.max_num_labels_per_metric = int(max(self.num_classes_per_metric))
+        self.num_metrics = self.num_classes_per_metric.shape[0]
+
+        self.raw_logit_mask = (
+            torch.arange(self.max_num_labels_per_metric).repeat(self.num_metrics, 1).T < self.num_classes_per_metric
+        )
+        self.logit_mask = torch.nn.Parameter((self.raw_logit_mask + 1e-45).log(), requires_grad=False)
+        self.mask_shape = self.logit_mask.shape
+
+    def forward(self, x):
+        return x.view(-1, *self.mask_shape) + self.logit_mask

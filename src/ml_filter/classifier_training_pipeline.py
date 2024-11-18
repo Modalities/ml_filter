@@ -8,7 +8,8 @@ from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 
-from .tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.utils.train_classifier import LogitMaskLayer
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
@@ -22,7 +23,6 @@ class ClassifierTrainingPipeline:
         self.val_data_file_path = cfg.data.val_file_path
         self.label_column = cfg.data.label_column
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
         self.model = AutoModelForSequenceClassification.from_pretrained(
@@ -38,17 +38,14 @@ class ClassifierTrainingPipeline:
 
         if self.num_metrics > 1:
             self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
-            self.max_num_labels_per_metric = max(self.num_classes_per_metric)
-            self.model.num_labels = self.num_metrics * self.max_num_labels_per_metric
+        elif self.num_metrics == 1:
+            self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
+        self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
 
-            self.model.classifier = torch.nn.Linear(768, self.model.num_labels, bias=True)
-            self.raw_logit_mask = (
-                torch.arange(self.max_num_labels_per_metric).repeat(self.num_metrics, 1).T < self.num_classes_per_metric
-            ).to(device)
-            self.logit_mask = (self.raw_logit_mask + 1e-45).log()
-        else:
-            self.max_num_labels_per_metric = cfg.model.num_labels
-            self.logit_mask = torch.zeros(self.max_num_labels_per_metric, self.num_metrics).to(device)
+        self.model.classifier = torch.nn.Sequential(
+            torch.nn.Linear(768, self.model.num_labels, bias=True),
+            LogitMaskLayer(self.num_classes_per_metric),
+        )
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
@@ -117,9 +114,6 @@ class ClassifierTrainingPipeline:
 
         return dataset.map(process_batch, batched=True)
 
-    def reshape_and_mask_logits(self, logits):
-        return logits.view(-1, self.max_num_labels_per_metric, self.num_metrics) + self.logit_mask
-
     def multi_target_cross_entropy_loss(
         self,
         input,
@@ -128,7 +122,7 @@ class ClassifierTrainingPipeline:
         **kwargs,
     ):
         return torch.nn.functional.cross_entropy(
-            self.reshape_and_mask_logits(input["logits"]),
+            input["logits"],
             target.view(-1, self.num_metrics),
         )
 
