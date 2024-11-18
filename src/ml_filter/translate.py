@@ -33,27 +33,27 @@ class TranslationClient(ABC):
         raise NotImplementedError
 
     def assert_source_language_available(self, source_language_code: str) -> None:
-        """Checks if the source language is available in the predefined EUROPEAN_LANGUAGES set.
+        """Checks if the source language is available in the predefined supported source language set.
         Raises a ValueError if the source language is not available.
 
         Args:
             source_language (str): Source language to validate.
 
         Raises:
-            ValueError: If the source language is not available in EUROPEAN_LANGUAGES.
+            ValueError: If the source language is not available in the supported source language set.
         """
         if source_language_code not in self.supported_source_languages:
             raise ValueError(f"The source language {source_language_code} is not available.")
 
     def assert_target_language_available(self, target_language_code: list[str]) -> None:
-        """Checks if the target language is available in the predefined EUROPEAN_LANGUAGES set.
+        """Checks if the target language is available in the predefined supported target language set.
         Raises a ValueError if the language in the target_languages list is not available.
 
         Args:
             target_language_code (str): The target languages to validate.
 
         Raises:
-            ValueError: If the target language is not available in EUROPEAN_LANGUAGES.
+            ValueError: If the target language is not available in the supported target language set.
         """
         if target_language_code not in self.supported_target_languages:
             raise ValueError(f"The target language is not available: {target_language_code}.")
