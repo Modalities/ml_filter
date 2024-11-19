@@ -6,7 +6,42 @@ Key Features:
 
 - Training of Classifiers: MLFilter provides training functionalities allowing users to train and fine-tune classifiers based on the generated datasets. This feature enables the creation of specialized models tailored to specific needs and domains, enhancing the utility of the framework for a wide range of applications.
 
-## Running the TGI Container with Hugging Face Models
+## Usage in Eurolingua-GPT
+In Eurolingua, we use this repository to filter out low-quality documents from the Common Crawl dataset. The filtered dataset is then used to train the Eurolingua GPT model(s). The following diagram illustrates the workflow, that is closely related to [Fineweb-EDU](https://arxiv.org/pdf/2406.17557): 
+
+1. We start with a Common Crawl (CC) subset (e.g., 200,000 documents per language) that we want to score e.g., w.r.t. the amount of educational content. We use an LLM to score these documents based on the instructios defined in a prompt.
+
+![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_prompt_based_annotation.svg)
+
+2. The scored documents are then used to train a classifier (probably Roberta) that can be used to filter out low-quality / non-educational documents. 
+
+![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_classifier_training.svg)
+
+3. The classifier is used to filter out low-quality documents from the entire CC dataset. The filtered dataset is then used to train the Eurolingu GPT model(s).
+
+![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_classifier_based_annotation.svg)
+
+
+## Installation and Development
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md)
+
+
+## Usage
+Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-face-models), you can proceed to score and the documents and trainer and classifier
+
+### 1. How to Score Documents with LLM
+```script
+python cli.py score_documents --config_file_path path/to/your/config.yaml
+
+```
+### 2. How to Train a Classifier
+If you already have the score, you can train a classifier by running
+```script
+python cli.py train_classifier --config_file_path path/to/your/training_config.yaml
+```
+
+## Setting up the TGI Container with Hugging Face Models
 
 This service relies on **TGI containers** (Text Generation Inference), which can be downloaded from [Hugging Face](https://huggingface.co). Follow the steps below to download and run the TGI container.
 
@@ -23,51 +58,66 @@ First, you'll need to export some environment variables for the model's download
 
    You need an API token from Hugging Face. Replace ... with your actual token:
    ```bash
-   export API_TOKEN=your_huggingface_api_token_here
-   
+   export HF_TOKEN=your_huggingface_api_token_here
+   ```
 3. **Specify the model name:**
 
    Provide the full name of the model as it appears on Hugging Face (e.g., meta-llama/Llama-3.1-70B-Instruct):
    ```bash
    export MODEL_NAME=meta-llama/Meta-Llama-3.1-70B-Instruct
-
+   ```
 ### 2. Download and Run the TGI Container
 
 Use the following command to download the TGI container and run it. If the model weights are already in the specified path, the download step will be skipped.
-        
-        docker run -d --gpus all --shm-size 1g -p 8090:80 \
-        -v ${HUGGINGFACECACHE}:/data \
-        -e HF_TOKEN=$API_TOKEN \
-        ghcr.io/huggingface/text-generation-inference:2.2.0 \
-        --model-id $MODEL_NAME \
-        --num-shard 8 \
-        --max-input-length 65535 \
-        --max-total-tokens 65536 \
-        --max-batch-prefill-tokens 66536
+   
+   ```shell  
+  docker run -d --gpus all --shm-size 1g -p 8090:80 \
+  -v ${HUGGINGFACECACHE}:/data \
+  -e HF_TOKEN=$HF_TOKEN \
+  ghcr.io/huggingface/text-generation-inference:2.2.0 \
+  --model-id $MODEL_NAME \
+  --num-shard 8 \
+  --max-input-length 65535 \
+  --max-total-tokens 65536 \
+  --max-batch-prefill-tokens 66536
+   ```
+    
  ### 3. Optional: Restricting GPU Usage     
  By default, the container uses all available GPUs (--gpus all). If you want to limit the number of GPUs, you can define specific devices. For example, to restrict the container to 4 GPUs (e.g.,  devices 0, 1, 2, 3), use the following:
  
-     docker run -d --gpus '"device=0,1,2,3"' --shm-size 1g -p 8090:80 \
-    -v ${HUGGINGFACECACHE}:/data \
-    -e HF_TOKEN=$API_TOKEN \
-    ghcr.io/huggingface/text-generation-inference:2.2.0 \
-    --model-id $MODEL_NAME \
-    --num-shard 4 \
-    --max-input-length 65535 \
-    --max-total-tokens 65536 \
-    --max-batch-prefill-tokens 66536
-
+ ```shell
+ docker run -d --gpus '"device=0,1,2,3"' --shm-size 1g -p 8090:80 \
+ -v ${HUGGINGFACECACHE}:/data \
+ -e HF_TOKEN=$API_TOKEN \
+ ghcr.io/huggingface/text-generation-inference:2.2.0 \
+ --model-id $MODEL_NAME \
+ --num-shard 4 \
+ --max-input-length 65535 \
+ --max-total-tokens 65536 \
+ --max-batch-prefill-tokens 66536
+```
 Make sure to update --num-shard to match the number of GPUs you're using.
 
+### 4. Testing the docker setup
+Locate the your container, it will be named  ghcr.io/huggingface/text-generation-inference:2.2.0 
+```shell
+docker ps
+```
+You can now look into the logs
+```shell
+docker logs --follow your_container_id 
+```
+please note that tgi takes a little bit of time to start
 
+### 5. Testing TGI service
+Once the container has been successfully setup and started you can test by running 
+```bash
+curl 127.0.0.1:8080/generate_stream \
+    -X POST \
+    -d '{"inputs":"What is Deep Learning?","parameters":{"max_new_tokens":20}}' \
+    -H 'Content-Type: application/json'
+```
 
-## How To Score Documents:
-
-1. Define a model you want to run:
-   In the config/default values you can choose between mixtral and llama
-2. If you running your script from outside the machine which is hosting the LLM, create an ssh tunnel `ssh -o ServerAliveInterval=60 -L 8090:localhost:8090 user-name@85.215.1.201`   
-3. You can find the rest of other important parameters like data_file and temperature in the same file.
-4. Finall from script directly run: `python -m src.lms_run`
 
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)

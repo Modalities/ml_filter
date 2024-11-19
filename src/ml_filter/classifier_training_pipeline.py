@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -9,14 +10,23 @@ from transformers import AutoModelForSequenceClassification, DataCollatorWithPad
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
+sys.path.append(os.path.join(os.getcwd(), "src"))
+
 
 class ClassifierTrainingPipeline:
     def __init__(self, config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
 
+        # Set seeds before loading the model etc.
+        self.seed = cfg.training.seed if "seed" in cfg.training else None  # default seed
+        if self.seed is not None:
+            self._set_seeds()
+
         # Data
         self.train_data_file_path = cfg.data.train_file_path
+        self.train_data_split = cfg.data.train_file_split
         self.val_data_file_path = cfg.data.val_file_path
+        self.val_data_split = cfg.data.val_file_split
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -58,8 +68,25 @@ class ClassifierTrainingPipeline:
             max_length=self.tokenizer.max_length,
         )
 
-    def _load_dataset(self, file_path: Path) -> Dataset:
-        return load_dataset("json", data_files=[file_path], split="train")
+    def _set_seeds(self):
+        """Set seeds for reproducibility"""
+        import random
+        import numpy as np
+        
+        torch.manual_seed(self.seed)
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(self.seed)
+            torch.cuda.manual_seed_all(self.seed)
+
+            # the following are needed for exact reproducibility across GPUs and runs
+            # but slow things down. Don't use them in production.
+            #torch.backends.cudnn.deterministic = True
+            #torch.backends.cudnn.benchmark = False
+
+    def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
+        return load_dataset("json", data_files=[file_path], split=split)
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -71,6 +98,7 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
+            seed=self.seed if self.seed is not None else 42, # 42 is the default value in huggingface Trainer
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
             bf16=self.use_bf16,
@@ -93,9 +121,8 @@ class ClassifierTrainingPipeline:
         if not self.tokenizer.pad_token:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # TODO
-        train_dataset = self._load_dataset(self.train_data_file_path)
-        val_dataset = self._load_dataset(self.val_data_file_path)
+        train_dataset = self._load_dataset(self.train_data_file_path, split=self.train_data_split)
+        val_dataset = self._load_dataset(self.val_data_file_path, split=self.val_data_split)
 
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)

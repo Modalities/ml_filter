@@ -1,19 +1,22 @@
 import json
+import logging
 import multiprocessing
-import os
 import re
-import sys
-from logging import log
+import time
+from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 from tqdm import tqdm
 
+from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
 
-sys.path.append(os.path.join(os.getcwd(), "src"))
+# Set up logging
+logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
+logger = logging.getLogger(__name__)  # Create a logger instance
 
 
 class DocumentProcessor:
@@ -25,7 +28,8 @@ class DocumentProcessor:
         prompt_builder: PromptBuilder,
         queue_size: int,
         batch_size: int,
-        output_file_path: Path,
+        raw_data_file_path: Path,
+        experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
         strings_to_remove: Optional[List[str]] = [],
@@ -37,7 +41,9 @@ class DocumentProcessor:
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
         self.num_processes = num_processes
-        self.output_file_path = output_file_path
+        self.raw_data_file_path = raw_data_file_path
+        self.experiment_dir_path = experiment_dir_path
+        self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
         self.strings_to_remove = strings_to_remove
 
         if score_metric_name not in score_metrics:
@@ -45,7 +51,8 @@ class DocumentProcessor:
 
         self.score_metric = score_metrics[score_metric_name]
 
-    def find_last_pattern(self, text: str, pattern: str) -> str | None:
+    @staticmethod
+    def find_last_pattern(text: str, pattern: str) -> str | None:
         """
         Find the last occurrence of a pattern in the given text.
 
@@ -83,6 +90,36 @@ class DocumentProcessor:
 
         return text
 
+    def _process_document(self, document: Dict[str, Any]) -> ProcessedDocument:
+        processed_document = ProcessedDocument(document_id=document["id"], original_text=document["text"])
+        # text preprocessing
+        processed_document.preprocessed_text = self._remove_special_strings(processed_document.original_text)
+
+        # prompt building
+        processed_document = self.prompt_builder.construct_prompt(processed_document)
+
+        # text generation
+        processed_document = self.llm_rest_client.generate(processed_document=processed_document)
+
+        # score filtering
+        score = DocumentProcessor.find_last_pattern(
+            processed_document.generated_text, pattern=self.score_metric.pattern
+        )
+        if score is None:
+            processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
+            processed_document.errors.append(
+                f"Could not find the score metric '{self.score_metric.metric_name}' in the model response."
+            )
+        else:
+            processed_document.score = float(score)
+            processed_document.score_type = self.score_metric.metric_name
+            processed_document.document_processing_status = DocumentProcessingStatus.SUCCESS
+
+        if len(processed_document.errors) > 0:
+            error_string = " | ".join(processed_document.errors)
+            logger.warning(f"Error processing document with id {document['id']}: {error_string}")
+        return processed_document
+
     def _process_documents_batch(self):
         while True:
             batch_of_documents = self.documents_queue.get()
@@ -90,54 +127,41 @@ class DocumentProcessor:
             if batch_of_documents is None:
                 break
 
-            responses = []
+            processed_documents = []
 
             for document in batch_of_documents:
-                text = document["text"]
-                text = self._remove_special_strings(text)
-                prompt = self.prompt_builder.construct_prompt(text)
-                model_response = self.llm_rest_client.generate(prompt=prompt)
+                processed_document = self._process_document(document)
+                processed_documents.append(processed_document)
 
-                try:
-                    score = self.find_last_pattern(model_response["generated_text"], pattern=self.score_metric.pattern)
-                    if score is None:
-                        log.warning(
-                            f"Could not find the score metric '{self.score_metric.metric_name}' in the model response. "
-                            "Ignore document."
-                        )
-                        continue
-                    model_response[self.score_metric.metric_name] = float(score)
-                except Exception as e:
-                    model_response["error"] = e
-                finally:
-                    responses.append(model_response)
-
-            self.result_queue.put(responses)
+            self.result_queue.put(processed_documents)
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        is_valid_document = True
-        if len(document["text"]) == 0:
-            is_valid_document = False
-        if (
-            self.llm_rest_client.tokenizer.truncation is False
-            and len(document["text"]) > self.llm_rest_client.tokenizer.max_length
-            # TODO instead of len(document["text"]), we should take the number of tokens
-            # TODO check the length of the prompt + text, not only text
-        ):
-            is_valid_document = False
+        return len(document["text"]) > 0
 
-        return is_valid_document
-
-    def _create_batches(self, dataset: Iterable):
+    def _create_batches(self, raw_data_file_path: Path):
         batch = []
-        for document in tqdm(dataset, desc="Reading documents", disable=True):
-            if not self._is_valid_document(document):
-                continue
-            batch.append(document)
+        with open(raw_data_file_path, "r") as fin:
+            while True:
+                document_string = fin.readline()
+                if len(document_string) == 0:
+                    break
+                try:
+                    document = json.loads(document_string)
+                except json.JSONDecodeError:
+                    logger.warning(f"Error decoding document: {document_string}. Skipping.")
+                    continue
 
-            if len(batch) % self.batch_size == 0:
-                self.documents_queue.put(batch)
-                batch = []
+                if not self._is_valid_document(document):
+                    logger.warning(
+                        f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping."
+                    )
+                    continue
+
+                batch.append(document)
+
+                if len(batch) % self.batch_size == 0:
+                    self.documents_queue.put(batch)
+                    batch = []
 
         # If there are remaining documents that didn't fill up a batch
         if len(batch) > 0:
@@ -149,15 +173,46 @@ class DocumentProcessor:
 
     def _write_results(self, output_file: str):
         with open(output_file, "w") as f:
-            while True:
-                results = self.result_queue.get()
-                if results is None:
-                    break
-                for result in results:
-                    json.dump(result, f)
-                    f.write("\n")
+            start_time = time.time()
+            results_written = 0
 
-    def run(self, documents: Iterable):
+            while True:
+                processed_documents = self.result_queue.get()
+                if processed_documents is None:
+                    f.flush()
+                    break
+                for processed_document in processed_documents:
+                    rejected_keys = {
+                        "preprocessed_text",
+                        "original_text",
+                        "original_history",
+                        "prompt",
+                        "document_text_detokenized",
+                        "truncated_preprocessed_text",
+                    }
+                    processed_document_dict = {
+                        k: v for k, v in asdict(processed_document).items() if k not in rejected_keys
+                    }
+                    json.dump(processed_document_dict, f)
+                    f.write("\n")
+                    results_written += 1
+
+                if results_written % 10 == 0:
+                    f.flush()
+                    end_time = time.time()
+                    elapsed_time = end_time - start_time
+                    results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+
+                    logger.info(
+                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
+                        f" | Results per second: {results_per_second:.2f}"
+                    )
+        logger.info(
+            f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
+            f" | Results per second: {results_per_second:.2f}"
+        )
+
+    def run(self):
         """Runs the document processor.
 
         The documents are split into batches and processed in parallel using multiple processes.
@@ -167,16 +222,17 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(documents,))
+        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_path,))
         reader.start()
 
         writer = multiprocessing.Process(target=self._write_results, args=(self.output_file_path,))
         writer.start()
 
         processor_threads = [
-            multiprocessing.Process(target=self._process_documents_batch) for _ in range(self.num_processes)
+            multiprocessing.Process(target=self._process_documents_batch)
+            for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
-        for p in processor_threads:
+        for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()
         for p in processor_threads:
             p.join()

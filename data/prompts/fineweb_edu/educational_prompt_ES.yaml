@@ -1,0 +1,31 @@
+prompt: 'A continuación se muestra un extracto de una página web. Evalúe si la página
+  tiene un alto valor educativo y podría ser útil en un entorno educativo para la
+  enseñanza desde la escuela primaria hasta los niveles de grado utilizando el sistema
+  aditivo de puntuación de 5 puntos que se describe a continuación. Los puntos se
+  acumulan en función de la satisfacción de cada criterio:\n1. Añada 1 punto si el
+  extracto proporciona alguna información básica relevante para los temas educativos,
+  aunque incluya algún contenido irrelevante o no académico como anuncios y material
+  promocional. Añada otro punto si el extracto aborda ciertos elementos pertinentes
+  para la educación pero no se ajusta estrechamente a las normas educativas. Puede
+  mezclar contenido educativo con material no educativo, ofrecer una visión superficial
+  de temas potencialmente útiles o presentar la información de forma desorganizada
+  y con un estilo de redacción incoherente.\n3. Conceda un tercer punto si el extracto
+  es adecuado para uso educativo e introduce conceptos clave relevantes para los programas
+  escolares. Es coherente, aunque puede no ser exhaustivo o incluir información superflua.
+  Puede parecerse a una sección introductoria de un libro de texto o a un tutorial
+  básico adecuado para el aprendizaje, pero presenta limitaciones notables como el
+  tratamiento de conceptos demasiado complejos para alumnos de primaria.\n4. Conceda
+  un cuarto punto si el extracto es muy relevante y beneficioso para fines educativos
+  para un nivel no superior al de primaria, mostrando un estilo de redacción claro
+  y coherente. Podría ser similar a un capítulo de un libro de texto o un tutorial,
+  ofreciendo un contenido educativo sustancial, incluyendo ejercicios y soluciones,
+  con un mínimo de información irrelevante, y los conceptos no son demasiado avanzados
+  para los estudiantes de primaria. El contenido es coherente, centrado y valioso
+  para un aprendizaje estructurado.\n5. Conceda un quinto punto si el extracto destaca
+  por su valor educativo, perfectamente adecuado para la enseñanza en la escuela primaria
+  o en el grado. Sigue un razonamiento detallado, el estilo de redacción es fácil
+  de seguir y ofrece una visión profunda y minuciosa del tema tratado, desprovisto
+  de contenidos no didácticos o complejos.\n <notranslate>The extract: {placeholder}.</notranslate>\nDespués
+  de examinar el extracto:\n Justifique brevemente su puntuación total, con un máximo
+  de 100 palabras.\nConcluya con la puntuación utilizando el formato: <notranslate>''Educational
+  score: <total points>''</notranslate>'
