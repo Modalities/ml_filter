@@ -113,7 +113,7 @@ def deepl_translate_cli(
     target_language_codes: list[str],
     ignore_tag_text: Optional[str] = None,
 ):
-    target_language_codes_list = [lang_code.strip() for lang_code in target_language_codes.split(",")]
+    target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
     translator = TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
     translator.translate_flat_yaml_to_multiple_languages(

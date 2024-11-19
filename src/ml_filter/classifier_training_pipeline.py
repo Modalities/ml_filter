@@ -34,6 +34,11 @@ class ClassifierTrainingPipeline:
     def __init__(self, config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
 
+        # Set seeds before loading the model etc.
+        self.seed = cfg.training.seed if "seed" in cfg.training else None  # default seed
+        if self.seed is not None:
+            self._set_seeds()
+
         # Data
         self.train_data_file_path = cfg.data.train_file_path
         self.train_data_split = cfg.data.train_file_split
@@ -83,6 +88,23 @@ class ClassifierTrainingPipeline:
             max_length=self.tokenizer.max_length,
         )
 
+    def _set_seeds(self):
+        """Set seeds for reproducibility"""
+        import random
+        import numpy as np
+        
+        torch.manual_seed(self.seed)
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(self.seed)
+            torch.cuda.manual_seed_all(self.seed)
+
+            # the following are needed for exact reproducibility across GPUs and runs
+            # but slow things down. Don't use them in production.
+            #torch.backends.cudnn.deterministic = True
+            #torch.backends.cudnn.benchmark = False
+
     def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
         return load_dataset("json", data_files=[file_path], split=split)
 
@@ -96,6 +118,7 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
+            seed=self.seed if self.seed is not None else 42, # 42 is the default value in huggingface Trainer
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
             metric_for_best_model=self.metric_for_best_model,

@@ -33,27 +33,27 @@ class TranslationClient(ABC):
         raise NotImplementedError
 
     def assert_source_language_available(self, source_language_code: str) -> None:
-        """Checks if the source language is available in the predefined EUROPEAN_LANGUAGES set.
+        """Checks if the source language is available in the predefined supported source language set.
         Raises a ValueError if the source language is not available.
 
         Args:
             source_language (str): Source language to validate.
 
         Raises:
-            ValueError: If the source language is not available in EUROPEAN_LANGUAGES.
+            ValueError: If the source language is not available in the supported source language set.
         """
         if source_language_code not in self.supported_source_languages:
             raise ValueError(f"The source language {source_language_code} is not available.")
 
     def assert_target_language_available(self, target_language_code: list[str]) -> None:
-        """Checks if the target language is available in the predefined EUROPEAN_LANGUAGES set.
+        """Checks if the target language is available in the predefined supported target language set.
         Raises a ValueError if the language in the target_languages list is not available.
 
         Args:
             target_language_code (str): The target languages to validate.
 
         Raises:
-            ValueError: If the target language is not available in EUROPEAN_LANGUAGES.
+            ValueError: If the target language is not available in the supported target language set.
         """
         if target_language_code not in self.supported_target_languages:
             raise ValueError(f"The target language is not available: {target_language_code}.")
@@ -139,7 +139,7 @@ class DeepLClient(TranslationClient):
         Returns:
             list[str]: A list of language codes representing the supported source languages.
         """
-        return [lang.code for lang in self.client.get_source_languages()]
+        return [lang.code.lower() for lang in self.client.get_source_languages()]
 
     @property
     def supported_target_languages(self) -> list[str]:
@@ -151,7 +151,7 @@ class DeepLClient(TranslationClient):
         Returns:
             list[str]: A list of language codes representing the supported target languages.
         """
-        return [lang.code for lang in self.client.get_target_languages()]
+        return [lang.code.lower() for lang in self.client.get_target_languages()]
 
     def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translates the given text from the source language to the specified target language using the DeepL client.
@@ -171,12 +171,13 @@ class DeepLClient(TranslationClient):
         self.assert_target_language_available(target_language_code=target_language_code)
         tag_handling = "xml" if self.ignore_tag_text is not None else None
 
+        ignore_tags = None if self.ignore_tag_text is None else [self.ignore_tag_text]
         result = self.client.translate_text(
             text,
             source_lang=source_language_code,
             target_lang=target_language_code,
             tag_handling=tag_handling,
-            ignore_tags=[self.ignore_tag_text],
+            ignore_tags=ignore_tags,
         )
         return result.text
 
