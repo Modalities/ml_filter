@@ -55,7 +55,8 @@ class PromptBuilder:
             if len(document_text_tokenized) > self.max_prompt_length - chat_template_length:
                 document_text_tokenized = document_text_tokenized[: self.max_prompt_length - chat_template_length]
                 # detokenize the tokens
-                # we need to skip special tokens because they are not part of the original text e.g., begin of document token
+                # we need to skip special tokens because they are not part of the
+                # original text e.g., begin of document token
                 document_text_detokenized = self.tokenizer.tokenizer.decode(
                     document_text_tokenized, skip_special_tokens=True
                 )
@@ -68,7 +69,8 @@ class PromptBuilder:
                 if truncated_preprocessed_text != document_text_detokenized:
                     num_diff_chars = get_char_differences(truncated_preprocessed_text, document_text_detokenized)
                     logging.warning(
-                        f"document {processed_document.document_id}: The truncated and detokenized text does not match the original text. Number of different characters: {num_diff_chars}"
+                        f"document {processed_document.document_id}: The truncated and detokenized text does not"
+                        f" match the original text. Number of different characters: {num_diff_chars}"
                     )
                     processed_document.tags.append(DocumentProcessingTags.DETOKENIZATION_MISMATCH)
                     processed_document.errors.append(

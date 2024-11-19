@@ -51,7 +51,8 @@ class DocumentProcessor:
 
         self.score_metric = score_metrics[score_metric_name]
 
-    def find_last_pattern(self, text: str, pattern: str) -> str | None:
+    @staticmethod
+    def find_last_pattern(text: str, pattern: str) -> str | None:
         """
         Find the last occurrence of a pattern in the given text.
 
@@ -101,7 +102,9 @@ class DocumentProcessor:
         processed_document = self.llm_rest_client.generate(processed_document=processed_document)
 
         # score filtering
-        score = self.find_last_pattern(processed_document.generated_text, pattern=self.score_metric.pattern)
+        score = DocumentProcessor.find_last_pattern(
+            processed_document.generated_text, pattern=self.score_metric.pattern
+        )
         if score is None:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
             processed_document.errors.append(
@@ -201,8 +204,13 @@ class DocumentProcessor:
                     results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
 
                     logger.info(
-                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds | Results per second: {results_per_second:.2f}"
+                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
+                        f" | Results per second: {results_per_second:.2f}"
                     )
+        logger.info(
+            f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
+            f" | Results per second: {results_per_second:.2f}"
+        )
 
     def run(self):
         """Runs the document processor.

@@ -14,8 +14,11 @@ tokenizer:
 
 data: 
   train_file_path: tests/resources/data/lorem_ipsum.jsonl
-  test_file_path: tests/resources/data/lorem_ipsum.jsonl
+  train_file_split: train
+  test_file_path: tests/resources/data/lorem_ipsum.jsonl # currently not used
+  test_file_split: train # currently not used
   val_file_path: tests/resources/data/lorem_ipsum.jsonl
+  val_file_split: train
   label_column: score
   text_column: text
   
