@@ -13,16 +13,13 @@ tokenizer:
   special_tokens: null
 
 data: 
-  train_file_path: tests/resources/data/lorem_ipsum.jsonl
-  train_file_split: train
-  test_file_path: tests/resources/data/lorem_ipsum.jsonl # currently not used
-  test_file_split: train # currently not used
-  val_file_path: tests/resources/data/lorem_ipsum.jsonl
-  val_file_split: train
-  label_column: score
+  train_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  test_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  val_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  label_column: scores
   text_column: text
-  num_metrics: 1
-  max_num_labels_per_metric: 6
+  num_metrics: 4
+  num_classes_per_metric: [6, 6, 2, 2]
   
 training:
   batch_size: 32

@@ -9,6 +9,7 @@ from omegaconf import OmegaConf
 from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.utils.train_classifier import LogitMaskLayer
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
@@ -36,6 +37,20 @@ class ClassifierTrainingPipeline:
             classifier_dropout=cfg.model.classifier_dropout,
             hidden_dropout_prob=cfg.model.hidden_dropout_prob,
             output_hidden_states=cfg.model.output_hidden_states,
+        )
+
+        # multilabel settings
+        self.num_metrics = cfg.data.num_metrics
+
+        if self.num_metrics > 1:
+            self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
+        elif self.num_metrics == 1:
+            self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
+        self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+
+        self.model.classifier = torch.nn.Sequential(
+            torch.nn.Linear(768, self.model.num_labels, bias=True),
+            LogitMaskLayer(self.num_classes_per_metric),
         )
 
         # Tokenizer
@@ -107,12 +122,32 @@ class ClassifierTrainingPipeline:
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
-        return dataset.map(
-            lambda x: {
-                **self._tokenize(x),  # tokenize the text
-                "labels": torch.tensor([int(score) for score in x[self.sample_label]], dtype=torch.long),
-            },
-            batched=True,
+        if self.num_metrics > 1:
+            keys = sorted(dataset[self.label_column][0].keys())
+
+        def process_batch(batch):
+            tokenized = self._tokenize(batch)
+            if self.num_metrics > 1:
+                labels = []
+                for item in batch[self.label_column]:
+                    labels.append([item[k] for k in keys])
+            else:
+                labels = batch[self.label_column]
+
+            return {**tokenized, "labels": labels}
+
+        return dataset.map(process_batch, batched=True)
+
+    def multi_target_cross_entropy_loss(
+        self,
+        input,
+        target,
+        num_items_in_batch,
+        **kwargs,
+    ):
+        return torch.nn.functional.cross_entropy(
+            input["logits"],
+            target.view(-1, self.num_metrics),
         )
 
     def train_classifier(self):
@@ -135,6 +170,7 @@ class ClassifierTrainingPipeline:
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             data_collator=data_collator,
+            compute_loss_func=self.multi_target_cross_entropy_loss,
         )
 
         trainer.train()
