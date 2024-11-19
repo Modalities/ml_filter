@@ -132,8 +132,8 @@ class ClassifierTrainingPipeline:
         trainer = Trainer(
             model=self.model,
             args=training_arguments,
-            train_dataset=train_dataset["train"],
-            eval_dataset=val_dataset["train"],
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
             data_collator=data_collator,
         )
 
