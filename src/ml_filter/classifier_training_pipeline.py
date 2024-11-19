@@ -23,6 +23,8 @@ class ClassifierTrainingPipeline:
         self.train_data_split = cfg.data.train_file_split
         self.val_data_file_path = cfg.data.val_file_path
         self.val_data_split = cfg.data.val_file_split
+        self.dataset_sample = cfg.data.dataset_sample
+        self.dataset_hf_hosted = cfg.data.hf_hosted
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -64,6 +66,7 @@ class ClassifierTrainingPipeline:
         self.save_strategy = cfg.training.save_strategy
         self.output_dir = cfg.training.output_dir_path
         self.greater_is_better = cfg.training.greater_is_better
+        self.max_steps = cfg.training.max_steps
 
         self.sample_key = cfg.data.text_column
         self.sample_label = cfg.data.label_column
@@ -78,8 +81,11 @@ class ClassifierTrainingPipeline:
             max_length=self.tokenizer.max_length,
         )
 
-    def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
-        return load_dataset("json", data_files=[file_path], split=split)
+    def _load_dataset(self, file_path: Path | str, split: str = "train", hf_hosted: bool = False, **kwargs) -> Dataset:
+        if hf_hosted:
+            return load_dataset(file_path, split=split, streaming=True, **kwargs)
+        else:
+            return load_dataset("json", data_files=[file_path], split=split, **kwargs)
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -95,21 +101,22 @@ class ClassifierTrainingPipeline:
             load_best_model_at_end=True,
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
+            max_steps=self.max_steps,
         )
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
         if self.num_metrics > 1:
-            keys = sorted(dataset[self.label_column][0].keys())
+            keys = sorted(dataset[self.sample_label][0].keys())
 
         def process_batch(batch):
             tokenized = self._tokenize(batch)
             if self.num_metrics > 1:
                 labels = []
-                for item in batch[self.label_column]:
-                    labels.append([item[k] for k in keys])
+                for item in batch[self.sample_label]:
+                    labels.append([int(item[k]) for k in keys])
             else:
-                labels = batch[self.label_column]
+                labels = [int(x) for x in batch[self.sample_label]]
 
             return {**tokenized, "labels": labels}
 
@@ -133,8 +140,18 @@ class ClassifierTrainingPipeline:
         if not self.tokenizer.pad_token:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        train_dataset = self._load_dataset(self.train_data_file_path, split=self.train_data_split)
-        val_dataset = self._load_dataset(self.val_data_file_path, split=self.val_data_split)
+        train_dataset = self._load_dataset(
+            self.train_data_file_path,
+            split=self.train_data_split,
+            hf_hosted=self.dataset_hf_hosted,
+            name=self.dataset_sample,
+        )
+        val_dataset = self._load_dataset(
+            self.val_data_file_path,
+            split=self.val_data_split,
+            hf_hosted=self.dataset_hf_hosted,
+            name=self.dataset_sample,
+        )
 
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)
