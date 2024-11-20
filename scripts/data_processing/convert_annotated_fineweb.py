@@ -45,7 +45,7 @@ def multi_score_transform(transform_fns):
         raise ValueError("At least one transform function must be provided")
     
     # Always include original score first
-    transforms = [("score", lambda x: x)] + transform_fns
+    transforms = [("score", lambda x: int(round(x)))] + transform_fns
     
     input_file = Path("data/annotated_fineweb.jsonl")
     output_file = Path("data/annotated_fineweb_multi.jsonl")
@@ -122,8 +122,8 @@ def split_dataset(file_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, see
 if __name__ == "__main__":
     #   convert_to_jsonl()
     multi_score_transform(transform_fns=[
-        ("score_transform_1", lambda x: min(x * 2, 5)),  # Double score capped at 5
-        ("score_transform_2", lambda x: min(max(x * 1.5 + random.uniform(-0.2, 0.2) + math.sin(x/2), 0), 5)),  # Complex with randomness
-        ("score_transform_3", lambda x: 1 if math.sin(x*math.pi/2.5) + math.cos(x) + random.uniform(-0.1, 0.1) > 0.5 else 0)  # Complex binary transform
+        ("score_transform_1", lambda x: int(round(min(x * 2, 5)))),  # Double score capped at 5
+        ("score_transform_2", lambda x: int(round(min(max(x * 1.5 + random.uniform(-0.2, 0.2) + math.sin(x/2), 0), 5)))),  # Complex with randomness
+        ("score_transform_3", lambda x: int(math.sin(x*math.pi/2.5) + math.cos(x) + random.uniform(-0.1, 0.1) > 0.5))  # Complex binary transform
     ])
     split_dataset("data/annotated_fineweb_multi")
