@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -10,8 +9,6 @@ from transformers import AutoModelForSequenceClassification, DataCollatorWithPad
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer
-
-sys.path.append(os.path.join(os.getcwd(), "src"))
 
 
 class ClassifierTrainingPipeline:
