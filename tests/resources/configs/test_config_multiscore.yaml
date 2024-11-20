@@ -14,8 +14,11 @@ tokenizer:
 
 data: 
   train_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  train_file_split: train
   test_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  test_file_split: train
   val_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  val_file_split: train
   label_column: scores
   text_column: text
   num_metrics: 4

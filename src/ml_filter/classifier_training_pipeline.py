@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -10,8 +9,6 @@ from transformers import AutoModelForSequenceClassification, DataCollatorWithPad
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer
-
-sys.path.append(os.path.join(os.getcwd(), "src"))
 
 
 class ClassifierTrainingPipeline:
@@ -123,16 +120,16 @@ class ClassifierTrainingPipeline:
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
         if self.num_metrics > 1:
-            keys = sorted(dataset[self.label_column][0].keys())
+            keys = sorted(dataset[self.sample_label][0].keys())
 
         def process_batch(batch):
             tokenized = self._tokenize(batch)
             if self.num_metrics > 1:
                 labels = []
-                for item in batch[self.label_column]:
+                for item in batch[self.sample_label]:
                     labels.append([item[k] for k in keys])
             else:
-                labels = batch[self.label_column]
+                labels = batch[self.sample_label]
 
             return {**tokenized, "labels": labels}
 
