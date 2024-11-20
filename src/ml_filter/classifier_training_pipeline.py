@@ -7,14 +7,14 @@ import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, mean_absolute_error
-from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments, EvalPrediction
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
 sys.path.append(os.path.join(os.getcwd(), "src"))
 
 
-def compute_metrics(eval_pred):
+def compute_metrics(eval_pred: EvalPrediction):
     predictions, labels = eval_pred
     
     # Convert logits to predicted class
