@@ -3,6 +3,8 @@ import json
 import numpy as np
 from statsmodels.stats.inter_rater import fleiss_kappa
 from sklearn.metrics import cohen_kappa_score
+from scipy.stats import spearmanr, kendalltau
+import krippendorff
 
 
 # Load JSONL file
@@ -16,14 +18,36 @@ def load_jsonl(file_path):
 
 # Prepare data for Fleiss' Kappa
 def prepare_fleiss_data(scores_list):
-    # Convert the scores to frequency counts per category
-    # Example: If scores = [[1, 2, 3], [2, 2, 3]], transform to [[0, 1, 2], [0, 2, 1]]
     max_score = max(max(scores) for scores in scores_list)
     fleiss_data = np.zeros((len(scores_list), max_score + 1))
     for i, scores in enumerate(scores_list):
         for score in scores:
             fleiss_data[i, score] += 1
     return fleiss_data
+
+
+# Compute pairwise correlations
+def compute_pairwise_correlations(all_scores, metric):
+    n = len(all_scores[0])
+    results = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            rater1 = [scores[i] for scores in all_scores]
+            rater2 = [scores[j] for scores in all_scores]
+            if metric == 'spearman':
+                correlation, _ = spearmanr(rater1, rater2)
+            elif metric == 'kendall':
+                correlation, _ = kendalltau(rater1, rater2)
+            elif metric == "cohen":
+                correlation = cohen_kappa_score(rater1, rater2)
+            results.append(correlation)
+    return np.mean(results)  # Average of all pairwise correlations
+
+
+# Compute Krippendorff's Alpha
+def compute_krippendorffs_alpha(all_scores):
+    flattened_scores = np.array(all_scores).T  # Transpose for Krippendorff's input
+    return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
 
 
 # Main function to compute metrics
@@ -35,18 +59,28 @@ def compute_metrics(jsonl_path):
     fleiss_data = prepare_fleiss_data(all_scores)
     fk = fleiss_kappa(fleiss_data, method='fleiss')
 
-    # Cohen's Kappa (pairwise, as an example for Group 1 and Group 2)
-    ck = cohen_kappa_score(
-        [scores[0] for scores in all_scores],
-        [scores[1] for scores in all_scores]
-    )
+    # Spearman's Rank Correlation (average of all pairwise)
+    spearman_corr = compute_pairwise_correlations(all_scores, metric='spearman')
+
+    # Kendall's Tau (average of all pairwise)
+    kendall_corr = compute_pairwise_correlations(all_scores, metric='kendall')
+    
+    # Cohen's Kappa (average of all pairwise)
+    cohen_kappa = compute_pairwise_correlations(all_scores, metric='cohen')
+
+    # Krippendorff's Alpha
+    kripp_alpha = compute_krippendorffs_alpha(all_scores)
 
     return {
         'Fleiss Kappa': fk,
-        'Cohen Kappa (Group 1 & 2)': ck
+        'Cohen Kappa (avg pairwise)': cohen_kappa,
+        'Spearman Rank Correlation (avg pairwise)': spearman_corr,
+        'Kendall Tau (avg pairwise)': kendall_corr,
+        'Krippendorff Alpha': kripp_alpha
     }
+
 
 # Example Usage
 jsonl_file_path = '/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/human_annotations_eurolingua.jsonl'
 results = compute_metrics(jsonl_file_path)
-print(results)
+print("\n".join(f"{key}: {value}" for key, value in results.items()))
