@@ -13,12 +13,14 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: data/annotated_fineweb_multi_train_1k.jsonl
+  train_file_path: data/fineweb_test/annotated_fineweb_multi_train_1k.jsonl
   train_file_split: train
-  test_file_path: data/annotated_fineweb_multi_test_1k.jsonl # currently not used
+  test_file_path: data/fineweb_test/annotated_fineweb_multi_test_1k.jsonl # currently not used
   test_file_split: train # currently not used
-  val_file_path: data/annotated_fineweb_multi_val_1k.jsonl
+  val_file_path: data/fineweb_test/annotated_fineweb_multi_val_1k.jsonl
   val_file_split: train
+  gt_file_path: null # ground truth data; can be null (optional)
+  gt_file_split: train
   label_column: scores
   text_column: text
   num_metrics: 4
@@ -34,5 +36,6 @@ training:
   logging_steps: 100
   seed: 42
   greater_is_better: false
+  metric_for_best_model: eval_val_loss
   logging_dir_path: data/output/annotated_fineweb_model
   output_dir_path: data/output/annotated_fineweb_model
