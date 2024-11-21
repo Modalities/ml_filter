@@ -22,7 +22,6 @@ data:
   label_column: score
   text_column: text
   num_metrics: 1
-  max_num_labels_per_metric: 6
   
 training:
   batch_size: 32

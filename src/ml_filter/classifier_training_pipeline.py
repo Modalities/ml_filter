@@ -5,7 +5,17 @@ from typing import Dict, List
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+from torch import Tensor
+from transformers import (
+    AutoModelForSequenceClassification,
+    BertForSequenceClassification,
+    DataCollatorWithPadding,
+    RobertaForSequenceClassification,
+    Trainer,
+    TrainingArguments,
+    XLMRobertaForSequenceClassification,
+)
+from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer
@@ -40,8 +50,17 @@ class ClassifierTrainingPipeline:
             self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
         self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
 
+        if isinstance(self.model, BertForSequenceClassification):
+            self.embedding_size = self.model.classifier.in_features
+        elif isinstance(self.model, XLMRobertaForSequenceClassification) or isinstance(
+            self.model, RobertaForSequenceClassification
+        ):
+            self.embedding_size = self.model.classifier.dense.in_features
+        else:
+            raise NotImplementedError(f"Unsupported model type {type(self.model)}")
+
         self.model.classifier = torch.nn.Sequential(
-            torch.nn.Linear(768, self.model.num_labels, bias=True),
+            torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
             LogitMaskLayer(self.num_classes_per_metric),
         )
 
@@ -114,11 +133,14 @@ class ClassifierTrainingPipeline:
 
     def multi_target_cross_entropy_loss(
         self,
-        input,
-        target,
-        num_items_in_batch,
+        input: SequenceClassifierOutput,
+        target: Tensor,
+        num_items_in_batch: int,
         **kwargs,
     ):
+        """
+        The `num_items_in_batch` argument is unused, but this exact signature is required by `Trainer`.
+        """
         return torch.nn.functional.cross_entropy(
             input["logits"],
             target.view(-1, self.num_metrics),
