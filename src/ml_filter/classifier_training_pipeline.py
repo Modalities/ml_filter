@@ -23,22 +23,6 @@ from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer
 
 
-def compute_metrics(eval_pred: EvalPrediction):
-    predictions, labels = eval_pred
-
-    # Convert logits to predicted class
-    preds = predictions.argmax(axis=1)
-
-    # Compute classification metrics
-    accuracy = accuracy_score(labels, preds)
-    f1 = f1_score(labels, preds, average="weighted")
-
-    # Compute regression-like metrics
-    mse = mean_squared_error(labels, preds)
-    mae = mean_absolute_error(labels, preds)
-    return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
-
-
 class ClassifierTrainingPipeline:
     def __init__(self, config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
@@ -71,6 +55,7 @@ class ClassifierTrainingPipeline:
 
         if self.num_metrics > 1:
             self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
+            self.metric_names = cfg.data.metric_names
         elif self.num_metrics == 1:
             self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
         self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
@@ -161,15 +146,12 @@ class ClassifierTrainingPipeline:
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
-        if self.num_metrics > 1:
-            keys = sorted(dataset[self.sample_label][0].keys())
-
         def process_batch(batch):
             tokenized = self._tokenize(batch)
             if self.num_metrics > 1:
                 labels = []
                 for item in batch[self.sample_label]:
-                    labels.append([item[k] for k in keys])
+                    labels.append([item[k] for k in self.metric_names])
             else:
                 labels = batch[self.sample_label]
 
@@ -191,6 +173,35 @@ class ClassifierTrainingPipeline:
             input["logits"],
             target.view(-1, self.num_metrics),
         )
+
+    def compute_metrics(self, eval_pred: EvalPrediction):
+        predictions, labels = eval_pred
+
+        # Convert logits to predicted class
+        preds = predictions.argmax(axis=1)
+
+        if self.num_metrics == 1:
+            # Compute classification metrics
+            accuracy = accuracy_score(labels, preds)
+            f1 = f1_score(labels, preds, average="weighted")
+
+            # Compute regression-like metrics
+            mse = mean_squared_error(labels, preds)
+            mae = mean_absolute_error(labels, preds)
+            return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
+        else:
+            # TODO: implement macro and micro average
+            metric_dict = {}
+            for i, name in enumerate(self.metric_names):
+                accuracy = accuracy_score(labels[:, i], preds[:, i])
+                f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
+
+                mse = mean_squared_error(labels[:, i], preds[:, i])
+                mae = mean_absolute_error(labels[:, i], preds[:, i])
+                metric_dict.update(
+                    {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
+                )
+            return metric_dict
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
@@ -219,7 +230,7 @@ class ClassifierTrainingPipeline:
             eval_dataset=val_dataset,
             data_collator=data_collator,
             compute_loss_func=self.multi_target_cross_entropy_loss,
-            compute_metrics=compute_metrics if self.num_metrics == 1 else None,
+            compute_metrics=self.compute_metrics,
         )
 
         trainer.train()
