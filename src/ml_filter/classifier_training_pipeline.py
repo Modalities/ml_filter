@@ -5,11 +5,13 @@ from typing import Dict, List
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
 from torch import Tensor
 from transformers import (
     AutoModelForSequenceClassification,
     BertForSequenceClassification,
     DataCollatorWithPadding,
+    EvalPrediction,
     RobertaForSequenceClassification,
     Trainer,
     TrainingArguments,
@@ -21,15 +23,38 @@ from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer
 
 
+def compute_metrics(eval_pred: EvalPrediction):
+    predictions, labels = eval_pred
+
+    # Convert logits to predicted class
+    preds = predictions.argmax(axis=1)
+
+    # Compute classification metrics
+    accuracy = accuracy_score(labels, preds)
+    f1 = f1_score(labels, preds, average="weighted")
+
+    # Compute regression-like metrics
+    mse = mean_squared_error(labels, preds)
+    mae = mean_absolute_error(labels, preds)
+    return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
+
+
 class ClassifierTrainingPipeline:
     def __init__(self, config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
+
+        # Set seeds before loading the model etc.
+        self.seed = cfg.training.seed if "seed" in cfg.training else None  # default seed
+        if self.seed is not None:
+            self._set_seeds()
 
         # Data
         self.train_data_file_path = cfg.data.train_file_path
         self.train_data_split = cfg.data.train_file_split
         self.val_data_file_path = cfg.data.val_file_path
         self.val_data_split = cfg.data.val_file_split
+        self.gt_data_file_path = cfg.data.gt_file_path
+        self.gt_data_split = cfg.data.gt_file_split
 
         # Model
         # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
@@ -80,6 +105,7 @@ class ClassifierTrainingPipeline:
         self.save_strategy = cfg.training.save_strategy
         self.output_dir = cfg.training.output_dir_path
         self.greater_is_better = cfg.training.greater_is_better
+        self.metric_for_best_model = cfg.training.metric_for_best_model
 
         self.sample_key = cfg.data.text_column
         self.sample_label = cfg.data.label_column
@@ -94,6 +120,24 @@ class ClassifierTrainingPipeline:
             max_length=self.tokenizer.max_length,
         )
 
+    def _set_seeds(self):
+        """Set seeds for reproducibility"""
+        import random
+
+        import numpy as np
+
+        torch.manual_seed(self.seed)
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(self.seed)
+            torch.cuda.manual_seed_all(self.seed)
+
+            # the following are needed for exact reproducibility across GPUs and runs
+            # but slow things down. Don't use them in production.
+            # torch.backends.cudnn.deterministic = True
+            # torch.backends.cudnn.benchmark = False
+
     def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
         return load_dataset("json", data_files=[file_path], split=split)
 
@@ -107,8 +151,10 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
+            seed=self.seed if self.seed is not None else 42,  # 42 is the default value in huggingface Trainer
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
+            metric_for_best_model=self.metric_for_best_model,
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
         )
@@ -158,6 +204,12 @@ class ClassifierTrainingPipeline:
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)
 
+        eval_datasets = {"val": val_dataset}
+        if self.gt_data_file_path:
+            gt_dataset = self._load_dataset(self.gt_data_file_path, split=self.gt_data_split)
+            gt_dataset = self._map_dataset(gt_dataset)
+            eval_datasets["gt"] = gt_dataset
+
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
 
         trainer = Trainer(
@@ -167,6 +219,7 @@ class ClassifierTrainingPipeline:
             eval_dataset=val_dataset,
             data_collator=data_collator,
             compute_loss_func=self.multi_target_cross_entropy_loss,
+            compute_metrics=compute_metrics if self.num_metrics == 1 else None,
         )
 
         trainer.train()
