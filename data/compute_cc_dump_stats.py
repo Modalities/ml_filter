@@ -56,7 +56,7 @@ def plot_histogram(lengths_path: str, bins: int, save_path: str):
     plt.axvline(np.percentile(lengths, 95), color="k", linestyle=":", label="95th percentile of length")
     plt.xlabel("Document length (visible text tokens)")
     plt.ylabel("Count")
-    plt.title("Document length distribution for {lengths_path}}")
+    plt.title(f"Document length distribution for {lengths_path}")
     plt.xlim(-10, 5000)
     plt.legend()
     plt.savefig(save_path)
