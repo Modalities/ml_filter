@@ -53,3 +53,12 @@ sbatch run_inference.slurm
 ```bash
 cat outputs/output_task*.jsonl > combined_output.jsonl
 ```
+
+# Guesstimate of inference time
+```
+| Model                | Single GPU   | 64 GPUs (16 nodes x 4 GPUs) |
+|----------------------|--------------|-----------------------------|
+| BERT Base            | 430 days     | ~6.7 days                   |
+| DistilBERT           | 215 days     | ~3.4 days                   |
+| XLM-RoBERTa Large    | 2,150 days   | ~33.6 days                  |
+```
