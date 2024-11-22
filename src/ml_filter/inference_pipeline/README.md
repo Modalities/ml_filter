@@ -54,7 +54,7 @@ sbatch run_inference.slurm
 cat outputs/output_task*.jsonl > combined_output.jsonl
 ```
 
-# Guesstimate of inference time
+# Guesstimate of inference time for 93 CC dumps
 ```
 | Model                | Single GPU   | 64 GPUs (16 nodes x 4 GPUs) |
 |----------------------|--------------|-----------------------------|
