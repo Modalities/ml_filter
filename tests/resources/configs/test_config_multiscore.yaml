@@ -36,6 +36,7 @@ training:
   save_strategy: epoch
   logging_steps: 1
   seed: 42
+  regression_loss: false
   greater_is_better: false
   metric_for_best_model: eval_loss
   logging_dir_path: tests/cache
