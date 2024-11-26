@@ -1,5 +1,6 @@
 
 import json
+import statistics
 import numpy as np
 from statsmodels.stats.inter_rater import fleiss_kappa
 from sklearn.metrics import cohen_kappa_score
@@ -50,9 +51,22 @@ def compute_krippendorffs_alpha(all_scores):
     return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
 
 
+def compute_doc_level_variation(all_scores, all_document_ids):
+    score_vars = []
+    for scores in all_scores:
+        score_var = max(scores) - min(scores)
+        score_vars.append(score_var)
+        
+    results = {k: v for k, v in zip(all_document_ids, score_vars)}
+    results["mean"] = statistics.mean(score_vars)
+    results["stdev"] = statistics.stdev(score_vars)
+    return results
+
+
 # Main function to compute metrics
 def compute_metrics(jsonl_path):
     data = load_jsonl(jsonl_path)
+    all_document_ids = [item['document_id'] for item in data]
     all_scores = [[int(score) for score in item['scores']] for item in data]
 
     # Fleiss' Kappa
@@ -70,13 +84,17 @@ def compute_metrics(jsonl_path):
 
     # Krippendorff's Alpha
     kripp_alpha = compute_krippendorffs_alpha(all_scores)
+    
+    # variation per document
+    doc_vars = compute_doc_level_variation(all_scores=all_scores, all_document_ids=all_document_ids)
 
     return {
         'Fleiss Kappa': fk,
         'Cohen Kappa (avg pairwise)': cohen_kappa,
         'Spearman Rank Correlation (avg pairwise)': spearman_corr,
         'Kendall Tau (avg pairwise)': kendall_corr,
-        'Krippendorff Alpha': kripp_alpha
+        'Krippendorff Alpha': kripp_alpha,
+        "Variation per Document": doc_vars
     }
 
 
