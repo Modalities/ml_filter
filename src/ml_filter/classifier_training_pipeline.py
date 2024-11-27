@@ -56,11 +56,8 @@ class ClassifierTrainingPipeline:
         # multilabel settings
         self.num_metrics = cfg.data.num_metrics
 
-        if self.num_metrics > 1:
-            self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
-            self.metric_names = cfg.data.metric_names
-        elif self.num_metrics == 1:
-            self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
+        self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
+        self.metric_names = cfg.data.metric_names
 
         if isinstance(self.model, BertForSequenceClassification):
             self.embedding_size = self.model.classifier.in_features
@@ -157,17 +154,12 @@ class ClassifierTrainingPipeline:
         # Map both tokenization and label assignment
         def process_batch(batch):
             tokenized = self._tokenize(batch)
-            if self.num_metrics > 1:
-                labels = []
-                for item in batch[self.sample_label]:
-                    if self.regression_loss:
-                        labels.append([float(item[k]) for k in self.metric_names])
-                    else:
-                        labels.append([int(item[k]) for k in self.metric_names])
-            elif self.regression_loss:
-                labels = [float(x) for x in batch[self.sample_label]]
-            else:
-                labels = [int(x) for x in batch[self.sample_label]]
+            labels = []
+            for item in batch[self.sample_label]:
+                if self.regression_loss:
+                    labels.append([float(item[k]) for k in self.metric_names])
+                else:
+                    labels.append([int(item[k]) for k in self.metric_names])
 
             return {**tokenized, "labels": labels}
 
@@ -209,28 +201,18 @@ class ClassifierTrainingPipeline:
         else:
             preds = np.round(predictions)
 
-        if self.num_metrics == 1:
-            # Compute classification metrics
-            accuracy = accuracy_score(labels, preds)
-            f1 = f1_score(labels, preds, average="weighted")
+        # TODO: implement macro and micro average
+        metric_dict = {}
+        for i, name in enumerate(self.metric_names):
+            accuracy = accuracy_score(labels[:, i], preds[:, i])
+            f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
 
-            # Compute regression-like metrics
-            mse = mean_squared_error(labels, predictions)
-            mae = mean_absolute_error(labels, predictions)
-            return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
-        else:
-            # TODO: implement macro and micro average
-            metric_dict = {}
-            for i, name in enumerate(self.metric_names):
-                accuracy = accuracy_score(labels[:, i], preds[:, i])
-                f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
-
-                mse = mean_squared_error(labels[:, i], predictions[:, i])
-                mae = mean_absolute_error(labels[:, i], predictions[:, i])
-                metric_dict.update(
-                    {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
-                )
-            return metric_dict
+            mse = mean_squared_error(labels[:, i], predictions[:, i])
+            mae = mean_absolute_error(labels[:, i], predictions[:, i])
+            metric_dict.update(
+                {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
+            )
+        return metric_dict
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
