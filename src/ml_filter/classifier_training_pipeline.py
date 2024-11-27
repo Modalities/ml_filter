@@ -193,17 +193,29 @@ class ClassifierTrainingPipeline:
                 })
             return metric_dict
 
-    def _compute_metrics_for_single_score(self, labels, preds):
-        # TODO: implement macro and micro average
+    @staticmethod
+    def _compute_metrics_for_single_score(labels, preds):
         # Compute classification metrics
         accuracy = accuracy_score(labels, preds)
-        f1 = f1_score(labels, preds, average="weighted")
+        f1_weighted = f1_score(labels, preds, average="weighted")
+        f1_micro = f1_score(labels, preds, average="micro")
+        f1_macro = f1_score(labels, preds, average="macro")
+        f1_per_label = list(f1_score(labels, preds, average=None))
 
         # Compute regression-like metrics
         mse = mean_squared_error(labels, preds)
         mae = mean_absolute_error(labels, preds)
         
-        return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}        
+        metrics = {
+            "accuracy": accuracy,
+            "f1_weighted": f1_weighted,
+            "f1_micro": f1_micro,
+            "f1_macro": f1_macro,
+            "f1_per_label": f1_per_label,
+            "mse": mse,
+            "mae": mae
+        }
+        return metrics   
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
