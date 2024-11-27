@@ -198,8 +198,10 @@ class ClassifierTrainingPipeline:
         # Convert logits to predicted class
         if not self.regression_loss:
             preds = predictions.argmax(axis=1)
+            preds_raw = preds
         else:
             preds = np.round(predictions)
+            preds_raw = predictions
 
         # TODO: implement macro and micro average
         metric_dict = {}
@@ -207,8 +209,8 @@ class ClassifierTrainingPipeline:
             accuracy = accuracy_score(labels[:, i], preds[:, i])
             f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
 
-            mse = mean_squared_error(labels[:, i], predictions[:, i])
-            mae = mean_absolute_error(labels[:, i], predictions[:, i])
+            mse = mean_squared_error(labels[:, i], preds_raw[:, i])
+            mae = mean_absolute_error(labels[:, i], preds_raw[:, i])
             metric_dict.update(
                 {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
             )

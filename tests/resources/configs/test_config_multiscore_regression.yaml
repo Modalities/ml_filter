@@ -1,0 +1,43 @@
+model:
+  name: Snowflake/snowflake-arctic-embed-m
+  num_labels: 6
+  classifier_dropout: 0.0
+  hidden_dropout_prob: 0.0
+  output_hidden_states: false
+
+tokenizer:
+  pretrained_model_name_or_path: ${model.name}
+  truncation: true
+  padding: true
+  max_length: 512
+  special_tokens: null
+
+data: 
+  train_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  train_file_split: train
+  test_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  test_file_split: train
+  val_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  val_file_split: train
+  gt_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl # ground truth data; can be null (optional)
+  gt_file_split: train
+  label_column: scores
+  text_column: text
+  num_metrics: 4
+  num_classes_per_metric: [6, 6, 2, 2]
+  metric_names: ["edu_en", "edu_de", "toxicity_en", "toxicity_de"]
+  
+training:
+  batch_size: 32
+  epochs: 2
+  use_bf16: true
+  weight_decay: 0.01
+  eval_strategy: epoch
+  save_strategy: epoch
+  logging_steps: 1
+  seed: 42
+  regression_loss: true
+  greater_is_better: false
+  metric_for_best_model: eval_loss
+  logging_dir_path: tests/cache
+  output_dir_path: tests/cache

@@ -1,0 +1,41 @@
+model:
+  name: Snowflake/snowflake-arctic-embed-m
+  num_labels: 6
+  classifier_dropout: 0.0
+  hidden_dropout_prob: 0.0
+  output_hidden_states: false
+
+tokenizer:
+  pretrained_model_name_or_path: ${model.name}
+  truncation: true
+  padding: true
+  max_length: 512
+  special_tokens: null
+
+data: 
+  train_file_path: tests/resources/data/lorem_ipsum.jsonl
+  train_file_split: train
+  test_file_path: tests/resources/data/lorem_ipsum.jsonl # currently not used
+  test_file_split: train # currently not used
+  val_file_path: tests/resources/data/lorem_ipsum.jsonl
+  val_file_split: train
+  gt_file_path: tests/resources/data/lorem_ipsum.jsonl # ground truth data; can be null (optional)
+  gt_file_split: train
+  label_column: score
+  text_column: text
+  num_metrics: 1
+  
+training:
+  batch_size: 32
+  epochs: 2
+  use_bf16: true
+  weight_decay: 0.01
+  eval_strategy: epoch
+  save_strategy: epoch
+  logging_steps: 1
+  seed: 42
+  regression_loss: true
+  greater_is_better: false
+  metric_for_best_model: eval_loss
+  logging_dir_path: tests/cache
+  output_dir_path: tests/cache
