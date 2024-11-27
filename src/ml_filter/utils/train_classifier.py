@@ -102,9 +102,20 @@ class LogitMaskLayer(torch.nn.Module):
 
 
 class RegressionScalingLayer(torch.nn.Module):
+    """Clamps output values of regression head to be in [0, n_classes - 1] for each metric"""
+
     def __init__(self, scaling_constants: Tensor):
         super().__init__()
-        self.scaling_constants = torch.nn.Parameter(scaling_constants.detach().clone(), requires_grad=False)
+        self.scaling_constants = torch.nn.Parameter(scaling_constants.detach().clone() - 1.0, requires_grad=False)
 
     def forward(self, x: Tensor) -> Tensor:
-        return x * self.scaling_constants
+        """Clamp output values of regression head to be in [0, n_classes - 1] for each metric.
+        The last dimension of `x` must match the dimension of self.scaling_constants.
+
+        Args:
+            x (Tensor): shape (batch_size, num_metrics)
+
+        Returns:
+            Tensor: shape (batch_size, num_metrics)
+        """
+        return torch.clamp(x, 0.0, 1.0) * self.scaling_constants

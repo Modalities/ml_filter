@@ -197,7 +197,7 @@ class ClassifierTrainingPipeline:
     ):
         return torch.nn.functional.mse_loss(
             input["logits"],
-            target,
+            target.view(-1, self.num_metrics),
         )
 
     def compute_metrics(self, eval_pred: EvalPrediction):
@@ -258,9 +258,9 @@ class ClassifierTrainingPipeline:
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             data_collator=data_collator,
-            compute_loss_func=self.multi_target_mse_loss
-            if self.regression_loss
-            else self.multi_target_cross_entropy_loss,
+            compute_loss_func=(
+                self.multi_target_mse_loss if self.regression_loss else self.multi_target_cross_entropy_loss
+            ),
             compute_metrics=self.compute_metrics,
         )
 
