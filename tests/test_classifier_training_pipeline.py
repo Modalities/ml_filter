@@ -36,7 +36,7 @@ def test_train_classifier(classifier_training_pipeline):
 
     assert logits.shape == (batch_size, int(classifier_training_pipeline.model.num_labels), 1)
     eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline.num_classes_per_metric):
+    for i, n_classes in enumerate(classifier_training_pipeline.num_classes_per_score):
         assert (torch.softmax(logits, dim=-1)[:, :n_classes, i] > eps).all()
 
 
@@ -56,10 +56,10 @@ def test_train_classifier_multiscore(classifier_training_pipeline_multiscore):
 
     assert logits.shape == (
         batch_size,
-        max(classifier_training_pipeline_multiscore.num_classes_per_metric),
-        classifier_training_pipeline_multiscore.num_metrics,
+        max(classifier_training_pipeline_multiscore.num_classes_per_score),
+        classifier_training_pipeline_multiscore.num_scores,
     )
     eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_metric):
+    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_score):
         assert (torch.softmax(logits, dim=-1)[:, n_classes:, i] < eps).all()
         assert (torch.softmax(logits, dim=-1)[:, :n_classes, i] > eps).all()

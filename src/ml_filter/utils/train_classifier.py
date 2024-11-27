@@ -71,19 +71,19 @@ class LogitMaskLayer(torch.nn.Module):
     These are reshaped to (3, 2), and then a mask [[0, 0], [0, 0], [0, -inf]] is added to the logits.
     """
 
-    def __init__(self, num_classes_per_metric: Tensor):
+    def __init__(self, num_classes_per_score: Tensor):
         """
         Args:
-            num_classes_per_metric (Tensor): 1D int/long Tensor, number of classes for each target metric
+            num_classes_per_score (Tensor): 1D int/long Tensor, number of classes for each target score
         """
         super().__init__()
-        self.num_classes_per_metric = num_classes_per_metric
+        self.num_classes_per_score = num_classes_per_score
 
-        self.max_num_labels_per_metric = int(max(self.num_classes_per_metric))
-        self.num_metrics = self.num_classes_per_metric.shape[0]
+        self.max_num_labels_per_score = int(max(self.num_classes_per_score))
+        self.num_scores = self.num_classes_per_score.shape[0]
 
         self.raw_logit_mask = (
-            torch.arange(self.max_num_labels_per_metric).repeat(self.num_metrics, 1).T < self.num_classes_per_metric
+            torch.arange(self.max_num_labels_per_score).repeat(self.num_scores, 1).T < self.num_classes_per_score
         )
         # use a small value instead of -inf for numerical stability
         self.logit_mask = torch.nn.Parameter((self.raw_logit_mask + 1e-45).log(), requires_grad=False)
@@ -93,9 +93,9 @@ class LogitMaskLayer(torch.nn.Module):
         """Reshape logits from linear layer and apply mask.
 
         Args:
-            x (Tensor): shape (batch_size, max_num_labels_per_metric * num_metrics)
+            x (Tensor): shape (batch_size, max_num_labels_per_metric * num_scores)
 
         Returns:
-            Tensor: shape (batch_size, max_num_labels_per_metric, num_metrics)
+            Tensor: shape (batch_size, max_num_labels_per_metric, num_scores)
         """
         return x.view(-1, *self.mask_shape) + self.logit_mask

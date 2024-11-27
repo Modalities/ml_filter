@@ -51,14 +51,14 @@ class ClassifierTrainingPipeline:
         )
 
         # multilabel settings
-        self.num_metrics = cfg.data.num_metrics
+        self.num_scores = cfg.data.num_scores
 
-        if self.num_metrics > 1:
-            self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
-            self.metric_names = cfg.data.metric_names
-        elif self.num_metrics == 1:
-            self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
-        self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+        if self.num_scores > 1:
+            self.num_classes_per_score = torch.tensor(cfg.data.num_classes_per_score)
+            self.score_names = cfg.data.score_names
+        elif self.num_scores == 1:
+            self.num_classes_per_score = torch.tensor(cfg.model.num_labels).unsqueeze(0)
+        self.model.num_labels = self.num_scores * max(self.num_classes_per_score)
 
         if isinstance(self.model, BertForSequenceClassification):
             self.embedding_size = self.model.classifier.in_features
@@ -71,7 +71,7 @@ class ClassifierTrainingPipeline:
 
         self.model.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-            LogitMaskLayer(self.num_classes_per_metric),
+            LogitMaskLayer(self.num_classes_per_score),
         )
 
         # Tokenizer
@@ -148,10 +148,10 @@ class ClassifierTrainingPipeline:
         # Map both tokenization and label assignment
         def process_batch(batch):
             tokenized = self._tokenize(batch)
-            if self.num_metrics > 1:
+            if self.num_scores > 1:
                 labels = []
                 for item in batch[self.sample_label]:
-                    labels.append([item[k] for k in self.metric_names])
+                    labels.append([item[k] for k in self.score_names])
             else:
                 labels = batch[self.sample_label]
 
@@ -171,7 +171,7 @@ class ClassifierTrainingPipeline:
         """
         return torch.nn.functional.cross_entropy(
             input["logits"],
-            target.view(-1, self.num_metrics),
+            target.view(-1, self.num_scores),
         )
 
     def compute_metrics(self, eval_pred: EvalPrediction):
@@ -180,7 +180,7 @@ class ClassifierTrainingPipeline:
         # Convert logits to predicted class
         preds = predictions.argmax(axis=1)
 
-        if self.num_metrics == 1:
+        if self.num_scores == 1:
             # Compute classification metrics
             accuracy = accuracy_score(labels, preds)
             f1 = f1_score(labels, preds, average="weighted")
@@ -192,7 +192,7 @@ class ClassifierTrainingPipeline:
         else:
             # TODO: implement macro and micro average
             metric_dict = {}
-            for i, name in enumerate(self.metric_names):
+            for i, name in enumerate(self.score_names):
                 accuracy = accuracy_score(labels[:, i], preds[:, i])
                 f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
 

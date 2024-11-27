@@ -23,7 +23,7 @@ data:
   gt_file_split: train
   label_column: score
   text_column: text
-  num_metrics: 1
+  num_scores: 1
   
 training:
   batch_size: 32

@@ -23,9 +23,9 @@ data:
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_metrics: 4
-  num_classes_per_metric: [6, 6, 2, 2]
-  metric_names: ["edu_en", "edu_de", "toxicity_en", "toxicity_de"]
+  num_scores: 4
+  num_classes_per_score: [6, 6, 2, 2]
+  score_names: ["edu_en", "edu_de", "toxicity_en", "toxicity_de"]
   
 training:
   batch_size: 32
