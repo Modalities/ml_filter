@@ -215,8 +215,8 @@ class ClassifierTrainingPipeline:
             f1 = f1_score(labels, preds, average="weighted")
 
             # Compute regression-like metrics
-            mse = mean_squared_error(labels, preds)
-            mae = mean_absolute_error(labels, preds)
+            mse = mean_squared_error(labels, predictions)
+            mae = mean_absolute_error(labels, predictions)
             return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
         else:
             # TODO: implement macro and micro average
@@ -225,8 +225,8 @@ class ClassifierTrainingPipeline:
                 accuracy = accuracy_score(labels[:, i], preds[:, i])
                 f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
 
-                mse = mean_squared_error(labels[:, i], preds[:, i])
-                mae = mean_absolute_error(labels[:, i], preds[:, i])
+                mse = mean_squared_error(labels[:, i], predictions[:, i])
+                mae = mean_absolute_error(labels[:, i], predictions[:, i])
                 metric_dict.update(
                     {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
                 )
