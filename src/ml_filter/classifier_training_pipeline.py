@@ -181,27 +181,29 @@ class ClassifierTrainingPipeline:
         preds = predictions.argmax(axis=1)
 
         if self.num_scores == 1:
-            # Compute classification metrics
-            accuracy = accuracy_score(labels, preds)
-            f1 = f1_score(labels, preds, average="weighted")
-
-            # Compute regression-like metrics
-            mse = mean_squared_error(labels, preds)
-            mae = mean_absolute_error(labels, preds)
-            return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
+            return self._compute_metrics_for_single_score(labels=labels, preds=preds)
         else:
-            # TODO: implement macro and micro average
+            # compute metrics for each score
             metric_dict = {}
-            for i, name in enumerate(self.score_names):
-                accuracy = accuracy_score(labels[:, i], preds[:, i])
-                f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
-
-                mse = mean_squared_error(labels[:, i], preds[:, i])
-                mae = mean_absolute_error(labels[:, i], preds[:, i])
-                metric_dict.update(
-                    {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
-                )
+            for i, score_name in enumerate(self.score_names):
+                metrics = self._compute_metrics_for_single_score(labels=labels[:, i], preds=preds[:, i])
+                metric_dict.update({
+                    f"{score_name}_{metric}": metrics[metric]
+                    for metric in metrics
+                })
             return metric_dict
+
+    def _compute_metrics_for_single_score(self, labels, preds):
+        # TODO: implement macro and micro average
+        # Compute classification metrics
+        accuracy = accuracy_score(labels, preds)
+        f1 = f1_score(labels, preds, average="weighted")
+
+        # Compute regression-like metrics
+        mse = mean_squared_error(labels, preds)
+        mae = mean_absolute_error(labels, preds)
+        
+        return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}        
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
