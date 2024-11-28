@@ -66,8 +66,13 @@ def compute_doc_level_variation(all_scores, all_document_ids):
 # Main function to compute metrics
 def compute_metrics(jsonl_path):
     data = load_jsonl(jsonl_path)
-    all_document_ids = [item['document_id'] for item in data]
-    all_scores = [[int(score) for score in item['scores']] for item in data]
+    all_document_ids = []
+    all_scores = []
+    for item in data:
+        # filter out documents with missing annotations
+        if not float("-inf") in item["scores"]:
+            all_document_ids.append(item['document_id'])
+            all_scores.append([int(score) for score in item['scores']])
 
     # Fleiss' Kappa
     fleiss_data = prepare_fleiss_data(all_scores)
@@ -99,6 +104,6 @@ def compute_metrics(jsonl_path):
 
 
 # Example Usage
-jsonl_file_path = '/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/human_annotations_eurolingua.jsonl'
+jsonl_file_path = '/workspaces/data/ml_filter/annotations/annotations_20241128.jsonl'
 results = compute_metrics(jsonl_file_path)
 print("\n".join(f"{key}: {value}" for key, value in results.items()))
