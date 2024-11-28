@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from transformers import Trainer, TrainingArguments
-
+from transformers import XLMRobertaForSequenceClassification
 
 class DocumentClassifier:
     def __init__(self, model):
@@ -119,3 +119,22 @@ class RegressionScalingLayer(torch.nn.Module):
             Tensor: shape (batch_size, num_metrics)
         """
         return torch.clamp(x, 0.0, 1.0) * self.scaling_constants
+
+class XLMRobertaForMultiTargetClassification(XLMRobertaForSequenceClassification):
+    def __init__(self, config, num_metrics=1, num_classes_per_metric=None, regression=False):
+        super().__init__(config)
+        
+        # Get the embedding size from the dense layer
+        embedding_size = self.classifier.dense.in_features
+        
+        if regression:
+            self.classifier.out_proj = torch.nn.Sequential(
+                torch.nn.Linear(embedding_size, num_metrics, bias=True),
+                RegressionScalingLayer(num_classes_per_metric),
+            )
+        else:
+            self.num_labels = num_metrics * max(num_classes_per_metric)
+            self.classifier.out_proj = torch.nn.Sequential(
+                torch.nn.Linear(embedding_size, self.num_labels, bias=True),
+                LogitMaskLayer(num_classes_per_metric),
+            )
