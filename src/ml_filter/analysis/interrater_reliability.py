@@ -1,4 +1,5 @@
 
+from collections import Counter
 import json
 import statistics
 import numpy as np
@@ -58,8 +59,11 @@ def compute_doc_level_variation(all_scores, all_document_ids):
         score_vars.append(score_var)
         
     results = {k: v for k, v in zip(all_document_ids, score_vars)}
+    counter = Counter(results.values())
+    results["counts"] = {key: counter[key] for key in sorted(counter)}
     results["mean"] = statistics.mean(score_vars)
     results["stdev"] = statistics.stdev(score_vars)
+
     return results
 
 
