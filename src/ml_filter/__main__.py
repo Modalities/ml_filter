@@ -6,6 +6,7 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslatorFactory
@@ -122,6 +123,20 @@ def deepl_translate_cli(
         source_language_code=source_language_code,
         target_language_codes=target_language_codes_list,
     )
+
+
+@main.command(name="interrater_reliability")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the input jsonl file containing the annotations.",
+)
+def interrater_reliability_cli(
+    input_file_path: Path,
+):
+    results = compute_interrater_reliability_metrics(input_file_path)
+    print("\n".join(f"{key}: {value}" for key, value in results.items()))
 
 
 if __name__ == "__main__":

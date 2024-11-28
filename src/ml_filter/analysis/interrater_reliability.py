@@ -68,7 +68,7 @@ def compute_doc_level_variation(all_scores, all_document_ids):
 
 
 # Main function to compute metrics
-def compute_metrics(jsonl_path):
+def compute_interrater_reliability_metrics(jsonl_path):
     data = load_jsonl(jsonl_path)
     all_document_ids = []
     all_scores = []
@@ -105,9 +105,3 @@ def compute_metrics(jsonl_path):
         'Krippendorff Alpha': kripp_alpha,
         "Variation per Document": doc_vars
     }
-
-
-# Example Usage
-jsonl_file_path = '/workspaces/data/ml_filter/annotations/annotations_20241128.jsonl'
-results = compute_metrics(jsonl_file_path)
-print("\n".join(f"{key}: {value}" for key, value in results.items()))
