@@ -1,4 +1,5 @@
 import torch
+from torch import Tensor
 from transformers import Trainer, TrainingArguments
 
 
@@ -60,3 +61,41 @@ class DocumentClassifier:
 
     def encode_documents(self, docs):
         return self.model.model.encode(docs, convert_to_tensor=True)
+
+
+class LogitMaskLayer(torch.nn.Module):
+    """
+    Applies mask to multi-target classifier, for targets with different amounts of classes.
+    For example, if we have one target with 3 classes and one target with 2 classes,
+    the classifier Linear layer outputs 6 = max(3, 2) * len([3, 2]) logits.
+    These are reshaped to (3, 2), and then a mask [[0, 0], [0, 0], [0, -inf]] is added to the logits.
+    """
+
+    def __init__(self, num_classes_per_metric: Tensor):
+        """
+        Args:
+            num_classes_per_metric (Tensor): 1D int/long Tensor, number of classes for each target metric
+        """
+        super().__init__()
+        self.num_classes_per_metric = num_classes_per_metric
+
+        self.max_num_labels_per_metric = int(max(self.num_classes_per_metric))
+        self.num_metrics = self.num_classes_per_metric.shape[0]
+
+        self.raw_logit_mask = (
+            torch.arange(self.max_num_labels_per_metric).repeat(self.num_metrics, 1).T < self.num_classes_per_metric
+        )
+        # use a small value instead of -inf for numerical stability
+        self.logit_mask = torch.nn.Parameter((self.raw_logit_mask + 1e-45).log(), requires_grad=False)
+        self.mask_shape = self.logit_mask.shape
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Reshape logits from linear layer and apply mask.
+
+        Args:
+            x (Tensor): shape (batch_size, max_num_labels_per_metric * num_metrics)
+
+        Returns:
+            Tensor: shape (batch_size, max_num_labels_per_metric, num_metrics)
+        """
+        return x.view(-1, *self.mask_shape) + self.logit_mask
