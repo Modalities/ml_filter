@@ -195,7 +195,7 @@ class ClassifierTrainingPipeline:
             return metric_dict
 
     @staticmethod
-    def _compute_metrics_for_single_score(labels, preds):
+    def _compute_metrics_for_single_score(labels: np.ndarray, preds: np.ndarray):
         metrics = {}
         
         # Compute classification metrics
