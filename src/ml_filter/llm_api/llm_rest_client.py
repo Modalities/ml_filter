@@ -1,12 +1,18 @@
 import logging
 import time
 import traceback
+from enum import Enum
 from http import HTTPStatus
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
+
+
+class InferenceServerTypes(Enum):
+    vllm = "vllm"
+    tgi = "tgi"
 
 
 class LLMRestClient:
@@ -29,6 +35,7 @@ class LLMRestClient:
         max_new_tokens: int,
         temperature: float,
         verbose: bool,
+        inference_server_type: InferenceServerTypes = InferenceServerTypes.vllm,
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -44,9 +51,14 @@ class LLMRestClient:
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
-        self.rest_endpoint_generate = (
-            f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
-        )
+        if inference_server_type == InferenceServerTypes.vllm:
+            self.rest_endpoint_generate = (
+                f"{rest_endpoint}v1/completions" if rest_endpoint.endswith("/") else f"{rest_endpoint}/v1/completions"
+            )
+        elif inference_server_type == InferenceServerTypes.tgi:
+            self.rest_endpoint_generate = (
+                f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
+            )
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
 
     def generate(self, processed_document: ProcessedDocument) -> ProcessedDocument:
