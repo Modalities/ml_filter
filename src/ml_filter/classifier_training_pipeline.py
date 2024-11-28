@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
+import numpy as np
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
@@ -195,26 +196,25 @@ class ClassifierTrainingPipeline:
 
     @staticmethod
     def _compute_metrics_for_single_score(labels, preds):
+        metrics = {}
+        
         # Compute classification metrics
-        accuracy = accuracy_score(labels, preds)
-        f1_weighted = f1_score(labels, preds, average="weighted")
-        f1_micro = f1_score(labels, preds, average="micro")
-        f1_macro = f1_score(labels, preds, average="macro")
-        f1_per_label = list(f1_score(labels, preds, average=None))
+        metrics["accuracy"] = accuracy_score(labels, preds)
+        metrics["f1_weighted"] = f1_score(labels, preds, average="weighted")
+        metrics["f1_micro"] = f1_score(labels, preds, average="micro")
+        metrics["f1_macro"] = f1_score(labels, preds, average="macro")
 
         # Compute regression-like metrics
-        mse = mean_squared_error(labels, preds)
-        mae = mean_absolute_error(labels, preds)
+        metrics["mse"] = mean_squared_error(labels, preds)
+        metrics["mae"] = mean_absolute_error(labels, preds)
         
-        metrics = {
-            "accuracy": accuracy,
-            "f1_weighted": f1_weighted,
-            "f1_micro": f1_micro,
-            "f1_macro": f1_macro,
-            "f1_per_label": f1_per_label,
-            "mse": mse,
-            "mae": mae
-        }
+        # add f1 scores for each class
+        classes = np.unique(labels)
+        classes.sort()
+        f1_per_class = f1_score(labels, preds, average=None)
+        for i, c in enumerate(classes):
+            metrics[f"f1_class_{c}"] = f1_per_class[i]
+        
         return metrics   
 
     def train_classifier(self):
