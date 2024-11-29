@@ -119,19 +119,37 @@ curl 127.0.0.1:8080/generate_stream \
 ```
 
 ### 6. Testing VLLM service
-curl -X POST "http://localhost:8000/v1/completions" \
-	-H "Content-Type: application/json" \
-	--data '{
-		"model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
-		"messages": [
-			{
-				"role": "user",
-				"content": "What is the capital of France?"
-			}
-		]
-	}'
 
-For forward port 8000 and visit http://localhost:8000/metrics to see the tokens/s
+#### Host a Model with TGI
+```bash
+docker run -d --gpus '"device=6"' --shm-size 1g -p 8000:80 -v ${HUGGINGFACECACHE}:/data -e HF_TOKEN=$API_TOKEN ghcr.io/huggingface/text-generation-inference:2.2.0 --model-id mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated --num-shard 1 --max-input-length 4095 --max-total-tokens 4096 --max-batch-prefill-tokens 4096
+```
+
+`number-shards` and number of GPUs used should match (`--gpus`).
+
+#### Host a Model with VLLM (faster)
+```bash
+docker run --runtime nvidia --gpus '"device=5,6"'  --name vllm_container -v /raid/s3/opengptx/models/:/root/.cache/huggingface --env "HUGGING_FACE_HUB_TOKEN=$API_TOKEN" -p 9900:8000 --ipc=host vllm/vllm-openai:v0.6.3 --model Qwen/Qwen2.5-72B-Instruct-AWQ --tensor-parallel-size 2
+```
+
+Number of `tensor-parallel-size` and number of GPUs used should match (`--gpus`).
+
+#### Test the hosted model
+```bash
+curl http://localhost:port_number/v1/completions \
+-H "Content-Type: application/json" \
+-d '{
+"model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
+"prompt": "San Francisco is a",
+"max_tokens": 7,
+"temperature": 0
+}'
+```
+
+#### Look into metrics of the hosted model
+
+1. Forward port 8000 
+2. visit http://localhost:8000/metrics to see the tokens/s
 
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
