@@ -20,11 +20,11 @@ class LLMClient:
         self.rest_endpoint = rest_endpoint
 
         cfg = OmegaConf.load(config_file_path)
-        self.host_type = cfg.llm_rest_client.host_type
-        allowed_host_types = ["vllm", "tgi"]
+        self.inference_server_type = cfg.llm_rest_client.host_type
+        inference_server_type = ["vllm", "tgi"]
         assert (
-            self.host_type in allowed_host_types
-        ), f"Invalid host type: {self.host_type} must be in {allowed_host_types}"
+            self.inference_server_type in inference_server_type
+        ), f"Invalid host type: {self.inference_server_type} must be in {inference_server_type}"
 
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup
@@ -92,7 +92,7 @@ class LLMClient:
             max_new_tokens=self.max_new_tokens,
             temperature=self.temperature,
             verbose=self.verbose,
-            host_type=self.host_type,
+            inference_server_type=self.inference_server_type,
         )
 
         # Get DocumentProcessor

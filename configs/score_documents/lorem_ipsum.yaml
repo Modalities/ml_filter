@@ -19,7 +19,7 @@ llm_rest_client:
   backoff_factor: 0.4 
   timeout: 20
   verbose: false
-  host_type: vllm
+  inference_server_type: vllm
 
 tokenizer:
   pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
