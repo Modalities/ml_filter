@@ -28,7 +28,7 @@ class DocumentProcessor:
         prompt_builder: PromptBuilder,
         queue_size: int,
         batch_size: int,
-        raw_data_file_path: Path,
+        raw_data_file_paths: List[Path],
         experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
@@ -41,7 +41,7 @@ class DocumentProcessor:
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
         self.num_processes = num_processes
-        self.raw_data_file_path = raw_data_file_path
+        self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
         self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
         self.strings_to_remove = strings_to_remove
@@ -135,30 +135,32 @@ class DocumentProcessor:
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         return len(document["text"]) > 0
 
-    def _create_batches(self, raw_data_file_path: Path):
+    def _create_batches(self, raw_data_file_paths: List[Path]):
         batch = []
-        with open(raw_data_file_path, "r") as fin:
-            while True:
-                document_string = fin.readline()
-                if len(document_string) == 0:
-                    break
-                try:
-                    document = json.loads(document_string)
-                except json.JSONDecodeError:
-                    logger.warning(f"Error decoding document: {document_string}. Skipping.")
-                    continue
+        for raw_data_file_path in raw_data_file_paths:
+            with open(raw_data_file_path, "r") as fin:
+                while True:
+                    document_string = fin.readline()
+                    if len(document_string) == 0:
+                        break
+                    try:
+                        document = json.loads(document_string)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Error decoding document: {document_string}. Skipping.")
+                        continue
 
-                if not self._is_valid_document(document):
-                    logger.warning(
-                        f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping."
-                    )
-                    continue
+                    if not self._is_valid_document(document):
+                        logger.warning(
+                            f"Invalid document with id: {document['id']}. "
+                            + "Value of key 'text' has length of 0. Skipping."
+                        )
+                        continue
 
-                batch.append(document)
+                    batch.append(document)
 
-                if len(batch) % self.batch_size == 0:
-                    self.documents_queue.put(batch)
-                    batch = []
+                    if len(batch) % self.batch_size == 0:
+                        self.documents_queue.put(batch)
+                        batch = []
 
         # If there are remaining documents that didn't fill up a batch
         if len(batch) > 0:
@@ -219,7 +221,7 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_path,))
+        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_paths,))
         reader.start()
 
         writer = multiprocessing.Process(target=self._write_results, args=(self.output_file_path,))

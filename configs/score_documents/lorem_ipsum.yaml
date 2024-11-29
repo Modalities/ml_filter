@@ -4,7 +4,27 @@ settings:
   model_name: mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated
   tokenizer_name_or_path: ${settings.model_name}
   paths:
-    raw_data_file_path: data/lorem_ipsum.jsonl
+    raw_data_file_paths: 
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/fi/00040.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/hr/00063.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/eu/00004.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/ga/00061.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2019-26/sv/00118.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/bg/01692.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/da/01690.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/da/04285.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/da/04313.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/cs/01255.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/de/00225.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/01731.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/04749.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/03028.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/03328.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/03947.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/03213.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/00209.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/00786.jsonl
+    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/01365.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
 

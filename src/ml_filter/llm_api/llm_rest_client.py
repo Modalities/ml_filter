@@ -1,18 +1,12 @@
 import logging
 import time
 import traceback
-from enum import Enum
 from http import HTTPStatus
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
-
-
-class InferenceServerType(str, Enum):
-    VLLM = "VLLM"
-    TGI = "TGI"
 
 
 class LLMRestClient:
