@@ -20,6 +20,12 @@ class LLMClient:
         self.rest_endpoint = rest_endpoint
 
         cfg = OmegaConf.load(config_file_path)
+        self.host_type = cfg.llm_rest_client.host_type
+        allowed_host_types = ["vllm", "tgi"]
+        assert (
+            self.host_type in allowed_host_types
+        ), f"Invalid host type: {self.host_type} must be in {allowed_host_types}"
+
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
@@ -86,6 +92,7 @@ class LLMClient:
             max_new_tokens=self.max_new_tokens,
             temperature=self.temperature,
             verbose=self.verbose,
+            host_type=self.host_type,
         )
 
         # Get DocumentProcessor

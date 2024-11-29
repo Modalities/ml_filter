@@ -1,12 +1,18 @@
 import logging
 import time
 import traceback
+from enum import Enum
 from http import HTTPStatus
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
+
+
+class HostType(Enum):
+    VLLM = "vllm"
+    TGI = "tgi"
 
 
 class LLMRestClient:
@@ -29,6 +35,7 @@ class LLMRestClient:
         max_new_tokens: int,
         temperature: float,
         verbose: bool,
+        host_type: HostType | str,
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -41,6 +48,8 @@ class LLMRestClient:
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
+        self.host_type = HostType(host_type) if isinstance(host_type, str) else host_type
+
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
@@ -59,18 +68,7 @@ class LLMRestClient:
             Dict[str, Any]: A dictionary containing the generated response.
         """
 
-        request = dict(
-            {
-                "inputs": processed_document.prompt,
-                "model": self.model_name,
-                "parameters": dict(
-                    details=self.verbose,  # TODO: check if this is correct
-                    max_tokens=self.max_tokens,
-                    max_new_tokens=self.max_new_tokens,
-                    temperature=self.temperature,
-                ),
-            }
-        )
+        request = self.create_request_data(processed_document)
 
         for i in range(self.max_retries):
             try:
@@ -93,12 +91,58 @@ class LLMRestClient:
 
         if response.status_code == HTTPStatus.OK:
             response_dict = response.json()
-            if "generated_text" not in response_dict:
-                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
-                processed_document.errors.append(f"Response does not contain 'generated_text': {response_dict}")
+            if generated_text := self.parse_response(response_dict) is not None:
+                processed_document.generated_text = generated_text
             else:
-                processed_document.generated_text = response_dict["generated_text"]
+                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
+                processed_document.errors.append(f"Response could not be parsed: {response_dict}")
         else:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
             processed_document.errors.append(f"Request failed with status code {response.status_code}: {response.text}")
         return processed_document
+
+    def create_request_data(self, processed_document: ProcessedDocument) -> dict:
+        if self.host_type == HostType.VLLM:
+            request = dict(
+                model=self.model_name,
+                prompt=processed_document.prompt,
+                max_tokens=self.max_tokens,
+                max_new_tokens=self.max_new_tokens,
+                temperature=self.temperature,
+            )
+        elif self.host_type == HostType.TGI:
+            request = dict(
+                {
+                    "inputs": processed_document.prompt,
+                    "model": self.model_name,
+                    "parameters": dict(
+                        details=self.verbose,  # TODO: check if this is correct
+                        max_tokens=self.max_tokens,
+                        max_new_tokens=self.max_new_tokens,
+                        temperature=self.temperature,
+                    ),
+                }
+            )
+        else:
+            raise ValueError(f"Invalid host type: {self.host_type}")
+        return request
+
+    def parse_response(self, response_dict: dict) -> str | None:
+        """Parses the response from the LLM service.
+
+        Args:
+            response_dict (dict): The response dictionary.
+
+        Returns:
+            str: The generated text.
+        """
+        if self.host_type == HostType.VLLM:
+            choices = response_dict.get("choices")
+            if choices is None or len(choices) == 0:
+                return None
+            else:
+                choices[0].get("text")
+        elif self.host_type == HostType.TGI:
+            return response_dict.get("generated_text")
+        else:
+            raise ValueError(f"Invalid host type: {self.host_type}")
