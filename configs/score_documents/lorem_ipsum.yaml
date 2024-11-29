@@ -1,7 +1,7 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: google/gemma-2-9b-it
+  model_name: mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_path: data/lorem_ipsum.jsonl
@@ -19,7 +19,6 @@ llm_rest_client:
   backoff_factor: 0.4 
   timeout: 20
   verbose: false
-  inference_server_type: vllm
 
 tokenizer:
   pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}

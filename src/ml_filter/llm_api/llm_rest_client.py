@@ -35,7 +35,6 @@ class LLMRestClient:
         max_new_tokens: int,
         temperature: float,
         verbose: bool,
-        inference_server_type: InferenceServerType,
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -48,25 +47,14 @@ class LLMRestClient:
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
-        self.inference_server_type = (
-            InferenceServerType(inference_server_type)
-            if isinstance(inference_server_type, str)
-            else inference_server_type
-        )
 
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
-        if inference_server_type == InferenceServerType.VLLM:
-            self.rest_endpoint_generate = (
-                f"{rest_endpoint}v1/completions" if rest_endpoint.endswith("/") else f"{rest_endpoint}/v1/completions"
-            )
-        elif inference_server_type == InferenceServerType.TGI:
-            self.rest_endpoint_generate = (
-                f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
-            )
-        else:
-            raise ValueError(f"Invalid host type: {inference_server_type}")
+        self.rest_endpoint_generate = (
+            f"{rest_endpoint}v1/completions" if rest_endpoint.endswith("/") else f"{rest_endpoint}/v1/completions"
+        )
+
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
 
     def generate(self, processed_document: ProcessedDocument) -> ProcessedDocument:
@@ -79,7 +67,12 @@ class LLMRestClient:
             Dict[str, Any]: A dictionary containing the generated response.
         """
 
-        request = self.create_request_data(processed_document)
+        request = dict(
+            model=self.model_name,
+            prompt=processed_document.prompt,
+            max_tokens=self.max_new_tokens,
+            temperature=self.temperature,
+        )
 
         for i in range(self.max_retries):
             try:
@@ -113,31 +106,6 @@ class LLMRestClient:
             processed_document.errors.append(f"Request failed with status code {response.status_code}: {response.text}")
         return processed_document
 
-    def create_request_data(self, processed_document: ProcessedDocument) -> dict:
-        if self.inference_server_type == InferenceServerType.VLLM:
-            request = dict(
-                model=self.model_name,
-                prompt=processed_document.prompt,
-                max_tokens=self.max_new_tokens,
-                temperature=self.temperature,
-            )
-        elif self.inference_server_type == InferenceServerType.TGI:
-            request = dict(
-                {
-                    "inputs": processed_document.prompt,
-                    "model": self.model_name,
-                    "parameters": dict(
-                        details=self.verbose,  # TODO: check if this is correct
-                        max_tokens=self.max_tokens,
-                        max_new_tokens=self.max_new_tokens,
-                        temperature=self.temperature,
-                    ),
-                }
-            )
-        else:
-            raise ValueError(f"Invalid host type: {self.inference_server_type}")
-        return request
-
     def parse_response(self, response_dict: dict) -> str | None:
         """Parses the response from the LLM service.
 
@@ -147,13 +115,8 @@ class LLMRestClient:
         Returns:
             str: The generated text.
         """
-        if self.inference_server_type == InferenceServerType.VLLM:
-            choices = response_dict.get("choices")
-            if choices is None or len(choices) == 0:
-                return None
-            else:
-                return choices[0].get("text")
-        elif self.inference_server_type == InferenceServerType.TGI:
-            return response_dict.get("generated_text")
+        choices = response_dict.get("choices")
+        if choices is None or len(choices) == 0:
+            return None
         else:
-            raise ValueError(f"Invalid host type: {self.inference_server_type}")
+            return choices[0].get("text")
