@@ -1,30 +1,11 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated
+  model_name: Qwen/Qwen2.5-72B-Instruct-AWQ
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths: 
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/fi/00040.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/hr/00063.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/eu/00004.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2014-41/ga/00061.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2019-26/sv/00118.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/bg/01692.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/da/01690.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/da/04285.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/da/04313.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/cs/01255.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/de/00225.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/01731.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/04749.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/03028.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/03328.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/be/03947.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/03213.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/00209.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/00786.jsonl
-    - /raid/s3/opengptx/max_lue/data_quality_ablations/data_quality_ablations/data/cc_raw_subsets/cc_debug_400_docs/2023-50/af/01365.jsonl
+    - data/test_data_ml_filter_511.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
 
@@ -33,11 +14,11 @@ llm_rest_client:
   max_tokens: 4096
   max_new_tokens: 500
   temperature: 0.001
-  max_pool_connections: 100
-  max_pool_maxsize: 100 #TODO
+  max_pool_connections: 1000
+  max_pool_maxsize: 1000 #TODO
   max_retries: 2
   backoff_factor: 0.4 
-  timeout: 20
+  timeout: 100
   verbose: false
 
 tokenizer:

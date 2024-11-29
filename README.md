@@ -139,7 +139,7 @@ Number of `tensor-parallel-size` and number of GPUs used should match (`--gpus`)
 curl http://localhost:port_number/v1/completions \
 -H "Content-Type: application/json" \
 -d '{
-"model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
+"model": "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4",
 "prompt": "San Francisco is a",
 "max_tokens": 7,
 "temperature": 0
@@ -150,6 +150,17 @@ curl http://localhost:port_number/v1/completions \
 
 1. Forward port 8000 
 2. visit http://localhost:8000/metrics to see the tokens/s
+
+Or watch the output e.g. with `Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4` on two GPUs:
+```
+INFO:ml_filter.data_processing.document_processor:Results written final: 511 | Elapsed time: 215.89 seconds | Results per second: 2.22
+```
+
+#### Troubleshooting
+
+> Request failed with HTTPConnectionPool(host='localhost', port=9900): Read timed out. (read timeout=20), retrying...0
+
+With larger models increase the `llm_rest_client.timeout` config parameter.
 
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
