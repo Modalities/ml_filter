@@ -61,24 +61,34 @@ class ClassifierTrainingPipeline:
 
         if isinstance(self.model, BertForSequenceClassification):
             self.embedding_size = self.model.classifier.in_features
+            if self.regression_loss:
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_metrics, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_metric),
+                )
+            else:
+                self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_metric),
+                )
         elif isinstance(self.model, XLMRobertaForSequenceClassification) or isinstance(
             self.model, RobertaForSequenceClassification
         ):
             self.embedding_size = self.model.classifier.dense.in_features
+            if self.regression_loss:
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_metrics, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_metric),
+                )
+            else:
+                self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_metric),
+                )
         else:
             raise NotImplementedError(f"Unsupported model type {type(self.model)}")
-
-        if self.regression_loss:
-            self.model.classifier = torch.nn.Sequential(
-                torch.nn.Linear(self.embedding_size, self.num_metrics, bias=True),
-                RegressionScalingLayer(self.num_classes_per_metric),
-            )
-        else:
-            self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
-            self.model.classifier = torch.nn.Sequential(
-                torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                LogitMaskLayer(self.num_classes_per_metric),
-            )
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
