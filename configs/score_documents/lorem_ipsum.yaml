@@ -1,7 +1,7 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: meta-llama/Meta-Llama-3.1-8B-Instruct
+  model_name: google/gemma-2-9b-it
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_path: data/lorem_ipsum.jsonl
@@ -9,8 +9,8 @@ settings:
     prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
 
 llm_rest_client:
-  model_name: llama
-  max_tokens: 60000
+  model_name: ${settings.model_name}
+  max_tokens: 4096
   max_new_tokens: 500
   temperature: 0.001
   max_pool_connections: 100
@@ -30,7 +30,7 @@ prompt_builder:
   # The maximum length of the prompt
   # Note that the maximum number of generated tokens is
   # model_context_length - max_prompt_length
-  max_prompt_length: 3596
+  max_prompt_length: ${eval:'${llm_rest_client.max_tokens} - ${llm_rest_client.max_new_tokens}'}
 
 document_processor:
   output_directory_path: ${settings.paths.output_directory_path}

@@ -10,9 +10,9 @@ from requests.adapters import HTTPAdapter
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
 
 
-class InferenceServerType(Enum):
-    VLLM = "vllm"
-    TGI = "tgi"
+class InferenceServerType(str, Enum):
+    VLLM = "VLLM"
+    TGI = "TGI"
 
 
 class LLMRestClient:
@@ -35,7 +35,7 @@ class LLMRestClient:
         max_new_tokens: int,
         temperature: float,
         verbose: bool,
-        inference_server_type: InferenceServerType | str,
+        inference_server_type: InferenceServerType,
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -57,11 +57,11 @@ class LLMRestClient:
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
-        if inference_server_type == InferenceServerType.vllm:
+        if inference_server_type == InferenceServerType.VLLM:
             self.rest_endpoint_generate = (
                 f"{rest_endpoint}v1/completions" if rest_endpoint.endswith("/") else f"{rest_endpoint}/v1/completions"
             )
-        elif inference_server_type == InferenceServerType.tgi:
+        elif inference_server_type == InferenceServerType.TGI:
             self.rest_endpoint_generate = (
                 f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
             )
@@ -102,7 +102,8 @@ class LLMRestClient:
 
         if response.status_code == HTTPStatus.OK:
             response_dict = response.json()
-            if generated_text := self.parse_response(response_dict) is not None:
+            generated_text = self.parse_response(response_dict)
+            if generated_text is not None:
                 processed_document.generated_text = generated_text
             else:
                 processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
@@ -117,8 +118,7 @@ class LLMRestClient:
             request = dict(
                 model=self.model_name,
                 prompt=processed_document.prompt,
-                max_tokens=self.max_tokens,
-                max_new_tokens=self.max_new_tokens,
+                max_tokens=self.max_new_tokens,
                 temperature=self.temperature,
             )
         elif self.inference_server_type == InferenceServerType.TGI:
@@ -152,7 +152,7 @@ class LLMRestClient:
             if choices is None or len(choices) == 0:
                 return None
             else:
-                choices[0].get("text")
+                return choices[0].get("text")
         elif self.inference_server_type == InferenceServerType.TGI:
             return response_dict.get("generated_text")
         else:

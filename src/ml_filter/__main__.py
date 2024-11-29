@@ -39,7 +39,7 @@ def main() -> None:
 def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
     if experiment_id is None:
         with open(config_file_path, "rb") as f:
-            hash_value = hashlib.file_digest(f, "sha256").hexdigest()[:8]
+            hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
         experiment_id = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
     llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
     llm_service.run()

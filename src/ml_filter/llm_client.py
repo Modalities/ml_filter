@@ -7,7 +7,7 @@ from requests import Session
 
 from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.prompt_builder import PromptBuilder
-from ml_filter.llm_api.llm_rest_client import LLMRestClient
+from ml_filter.llm_api.llm_rest_client import InferenceServerType, LLMRestClient
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
@@ -19,12 +19,9 @@ class LLMClient:
         self.experiment_id = experiment_id
         self.rest_endpoint = rest_endpoint
 
+        OmegaConf.register_new_resolver("eval", eval)
         cfg = OmegaConf.load(config_file_path)
-        self.inference_server_type = cfg.llm_rest_client.host_type
-        inference_server_type = ["vllm", "tgi"]
-        assert (
-            self.inference_server_type in inference_server_type
-        ), f"Invalid host type: {self.inference_server_type} must be in {inference_server_type}"
+        self.inference_server_type = InferenceServerType(cfg.llm_rest_client.inference_server_type.upper())
 
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup

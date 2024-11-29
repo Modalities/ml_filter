@@ -107,9 +107,6 @@ class DocumentProcessor:
         )
         if score is None:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
-            processed_document.errors.append(
-                f"Could not find the score metric '{self.score_metric.metric_name}' in the model response."
-            )
         else:
             processed_document.score = float(score)
             processed_document.score_type = self.score_metric.metric_name
