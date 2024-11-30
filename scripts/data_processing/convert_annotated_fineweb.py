@@ -43,8 +43,6 @@ def multi_score_transform(base_path, transform_fns):
         transform_fns: List of tuples containing (name, transform_function) pairs.
                       The original score will always be kept.
     """
-    if not transform_fns:
-        raise ValueError("At least one transform function must be provided")
     
     # Always include original score first
     transforms = [("score", lambda x: int(round(x)))] + transform_fns
