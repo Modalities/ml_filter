@@ -107,6 +107,7 @@ class ClassifierTrainingPipeline:
         self.output_dir = cfg.training.output_dir_path
         self.greater_is_better = cfg.training.greater_is_better
         self.metric_for_best_model = cfg.training.metric_for_best_model
+        self.load_best_model_at_end = self.save_strategy != "no"
 
         self.sample_key = cfg.data.text_column
         self.sample_label = cfg.data.label_column
@@ -154,7 +155,7 @@ class ClassifierTrainingPipeline:
             logging_dir=self.logging_dir,
             seed=self.seed if self.seed is not None else 42,  # 42 is the default value in huggingface Trainer
             # Load best model at the end of training to save it after training in a separate directory
-            load_best_model_at_end=True,
+            load_best_model_at_end=self.load_best_model_at_end,
             metric_for_best_model=self.metric_for_best_model,
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
