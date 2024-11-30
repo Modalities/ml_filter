@@ -4,17 +4,18 @@ import os
 from pathlib import Path
 import random, math
 
-def convert_to_jsonl():
+def convert_to_jsonl(base_path):
     # Load the dataset
     print("Loading dataset...")
     dataset = load_dataset("HuggingFaceFW/fineweb-edu-llama3-annotations")
     
     # Create output directory if it doesn't exist
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(base_path, exist_ok=True)
     
     # Open output file
     print("Converting to JSONL format...")
-    with open("data/annotated_fineweb.jsonl", "w", encoding="utf-8") as f:
+    output_file = os.path.join(base_path, "annotated_fineweb.jsonl")
+    with open(output_file, "w", encoding="utf-8") as f:
         # Process each example
         for idx, example in enumerate(dataset['train']): # note: this dataset only has a "train" split
             # Create entry in desired format
@@ -27,17 +28,18 @@ def convert_to_jsonl():
             # Write to file
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     
-    print(f"Conversion complete! File saved to data/annotated_fineweb.jsonl")
+    print(f"Conversion complete! File saved to {output_file}")
     
     # Delete downloaded dataset cache
     print("Cleaning up downloaded data...")
     dataset.cleanup_cache_files()
     print("Done!")
 
-def multi_score_transform(transform_fns):
+def multi_score_transform(base_path, transform_fns):
     """Transform single scores into multiple scores using different transformations.
     
     Args:
+        base_path: Base directory path for data files
         transform_fns: List of tuples containing (name, transform_function) pairs.
                       The original score will always be kept.
     """
@@ -47,8 +49,8 @@ def multi_score_transform(transform_fns):
     # Always include original score first
     transforms = [("score", lambda x: int(round(x)))] + transform_fns
     
-    input_file = Path("data/annotated_fineweb.jsonl")
-    output_file = Path("data/annotated_fineweb_multi.jsonl")
+    input_file = Path(os.path.join(base_path, "annotated_fineweb.jsonl"))
+    output_file = Path(os.path.join(base_path, "annotated_fineweb_multi.jsonl"))
     
     print("Applying score transformations...")
     with open(input_file, 'r', encoding='utf-8') as in_f, \
@@ -72,9 +74,9 @@ def multi_score_transform(transform_fns):
     
     print(f"Score transformation complete! File saved to {output_file}")
 
-def split_dataset(file_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, seed=42):
+def split_dataset(base_path, file_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, seed=42):
     """Split the dataset into train, validation and test sets."""
-    input_file = Path(file_path + ".jsonl")
+    input_file = Path(os.path.join(base_path, file_path + ".jsonl"))
     
     # Count total number of samples
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -96,9 +98,9 @@ def split_dataset(file_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, see
     test_indices = set(indices[train_size + val_size:])
     
     # Create output files
-    train_file = Path(f"{file_path}_train.jsonl")
-    val_file = Path(f"{file_path}_val.jsonl")
-    test_file = Path(f"{file_path}_test.jsonl")
+    train_file = Path(os.path.join(base_path, f"{file_path}_train.jsonl"))
+    val_file = Path(os.path.join(base_path, f"{file_path}_val.jsonl"))
+    test_file = Path(os.path.join(base_path, f"{file_path}_test.jsonl"))
     
     # Open output files
     with open(train_file, 'w', encoding='utf-8') as train_f, \
@@ -120,10 +122,7 @@ def split_dataset(file_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, see
     print(f"Test ({test_size} samples): {test_file}")
 
 if __name__ == "__main__":
-    #   convert_to_jsonl()
-    multi_score_transform(transform_fns=[
-        ("score_transform_1", lambda x: int(round(min(x * 2, 5)))),  # Double score capped at 5
-        ("score_transform_2", lambda x: int(round(min(max(x * 1.5 + random.uniform(-0.2, 0.2) + math.sin(x/2), 0), 5)))),  # Complex with randomness
-        ("score_transform_3", lambda x: int(math.sin(x*math.pi/2.5) + math.cos(x) + random.uniform(-0.1, 0.1) > 0.5))  # Complex binary transform
-    ])
-    split_dataset("data/annotated_fineweb_multi")
+    base_path = "data"  # Can be changed to any desired path
+    convert_to_jsonl(base_path)
+    multi_score_transform(base_path, transform_fns=[])
+    split_dataset(base_path, "annotated_fineweb_multi")
