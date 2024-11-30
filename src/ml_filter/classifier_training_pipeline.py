@@ -100,6 +100,7 @@ class ClassifierTrainingPipeline:
         # Training
         self.batch_size = cfg.training.batch_size
         self.epochs = cfg.training.epochs
+        self.learning_rate = cfg.training.learning_rate
         self.use_bf16 = cfg.training.use_bf16
         self.weight_decay = cfg.training.weight_decay
         self.eval_strategy = cfg.training.eval_strategy
@@ -159,6 +160,7 @@ class ClassifierTrainingPipeline:
             metric_for_best_model=self.metric_for_best_model,
             bf16=self.use_bf16,
             greater_is_better=self.greater_is_better,
+            learning_rate=self.learning_rate,
         )
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
