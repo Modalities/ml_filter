@@ -10,7 +10,6 @@ def add_target_langauge_to_prompt(input_file_path: Path, output_dir: Path) -> No
 
     :param file_path: Path to the input YAML file.
     :param output_dir: Dir to save the updated YAML file.
-    :param replacement: The string to replace '{##TARGET_LANGUAGE##}' with. Default is 'X'.
     """
     for language_code, language in EUROPEAN_LANGUAGES.items():
         try:
@@ -34,5 +33,5 @@ def add_target_langauge_to_prompt(input_file_path: Path, output_dir: Path) -> No
             else:
                  print("Key 'prompt' not found in the YAML file.") 
         except Exception as e:
-            print(f"Teh following error occurred: {e}.")
+            print(f"The following error occurred: {e}.")
    
