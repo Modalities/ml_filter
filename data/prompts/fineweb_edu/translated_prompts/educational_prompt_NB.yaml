@@ -1,0 +1,28 @@
+prompt: 'Nedenfor er et utdrag fra en nettside. Vurder om siden har høy pedagogisk
+  verdi og kan være nyttig i en pedagogisk setting for undervisning fra barneskole-
+  til grunnskolenivå ved hjelp av det additive 5-punkts poengsystemet som er beskrevet
+  nedenfor. Poeng akkumuleres basert på oppfyllelsen av hvert kriterium:\n1. Legg
+  til 1 poeng hvis utdraget gir grunnleggende informasjon som er relevant for undervisningstemaer,
+  selv om det inneholder noe irrelevant eller ikke-akademisk innhold som reklame og
+  reklamemateriell.\n2. Legg til ett poeng til hvis utdraget tar opp visse elementer
+  som er relevante for utdanning, men ikke er helt i tråd med utdanningsstandardene.
+  Det kan være en blanding av pedagogisk innhold og ikke-pedagogisk materiale, en
+  overfladisk oversikt over potensielt nyttige emner eller en uorganisert og usammenhengende
+  skrivestil.\n3. Gi et tredje poeng hvis utdraget er egnet for bruk i undervisningen
+  og introduserer nøkkelbegreper som er relevante for skolens læreplaner. Det er sammenhengende,
+  selv om det kanskje ikke er omfattende eller kan inneholde noe uvedkommende informasjon.
+  Det kan minne om en introduksjonsdel i en lærebok eller en grunnleggende veiledning
+  som er egnet for læring, men som har betydelige begrensninger, for eksempel at det
+  behandler begreper som er for komplekse for elever i grunnskolen. 4. Gi et fjerde
+  poeng hvis utdraget er svært relevant og nyttig for undervisningsformål på et nivå
+  som ikke er høyere enn barneskolen, og har en klar og konsekvent skrivestil. Det
+  kan likne et kapittel fra en lærebok eller en veiledning, med et betydelig pedagogisk
+  innhold, inkludert oppgaver og løsninger, med minimalt med irrelevant informasjon,
+  og konseptene er ikke for avanserte for grunnskoleelever. Innholdet er sammenhengende,
+  fokusert og verdifullt for strukturert læring. 5. Gi et femte poeng hvis utdraget
+  er enestående i sin pedagogiske verdi, perfekt egnet for undervisning enten på barneskolen
+  eller i grunnskolen. Det følger et detaljert resonnement, skrivestilen er lett å
+  følge og gir dyp og grundig innsikt i emnet, uten noe ikke-pedagogisk eller komplekst
+  innhold.\n <notranslate>The extract: {placeholder}.</notranslate>\nEtter å ha lest
+  utdraget:\n Begrunn kort den totale poengsummen din, opptil 100 ord.\nSlutt med
+  poengsummen ved å bruke formatet: <notranslate>''Educational score: <total points>''</notranslate>'

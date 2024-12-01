@@ -1,0 +1,29 @@
+prompt: 'Alla on ote eräältä verkkosivulta. Arvioi, onko sivulla suuri pedagoginen
+  arvo ja voisiko se olla hyödyllinen opetusympäristössä alakoulun ja yläkoulun välillä
+  käyttäen alla kuvattua 5 pisteen additiivista pisteytysjärjestelmää. Pisteitä kertyy
+  kunkin kriteerin täyttymisen perusteella:\n1. Lisää 1 piste, jos ote tarjoaa joitakin
+  opetuskäyttöön liittyviä perustietoja, vaikka se sisältäisikin epäolennaista tai
+  ei-akatemiallista sisältöä, kuten mainoksia ja myynninedistämismateriaalia.\n2.
+  Lisää toinen piste, jos otteessa käsitellään joitakin koulutuksen kannalta olennaisia
+  seikkoja, mutta se ei vastaa tarkasti koulutusstandardeja. Ote saattaa sekoittaa
+  opetussisältöä muuhun kuin opetukseen liittyvään materiaaliin, tarjota pinnallisen
+  yleiskatsauksen mahdollisesti hyödyllisistä aiheista tai esittää tiedot epäjärjestyksessä
+  ja epäjohdonmukaisella kirjoitustyylillä.\n3. Anna kolmas piste, jos ote soveltuu
+  opetuskäyttöön ja siinä esitellään koulujen opetussuunnitelmien kannalta keskeisiä
+  käsitteitä. Ote on johdonmukainen, vaikka se ei ehkä olekaan kattava tai se voi
+  sisältää joitakin epäolennaisia tietoja. Ote voi muistuttaa oppikirjan johdanto-osaa
+  tai perusopetusta, joka soveltuu oppimiseen, mutta jossa on huomattavia rajoituksia,
+  kuten liian monimutkaisten käsitteiden käsitteleminen peruskoulun oppilaille.\n4.
+  Myönnetään neljäs piste, jos ote on erittäin merkityksellinen ja hyödyllinen opetustarkoituksiin
+  enintään peruskouluasteelle ja jos siinä on selkeä ja johdonmukainen kirjoitustyyli.
+  Ote voi olla oppikirjan tai opetusohjelman luvun kaltainen, tarjota merkittävää
+  opetussisältöä, mukaan lukien harjoitukset ja ratkaisut, ja siinä on mahdollisimman
+  vähän epäolennaista tietoa, eivätkä käsitteet ole liian kehittyneitä peruskoulun
+  oppilaille. Sisältö on johdonmukaista, kohdennettua ja arvokasta jäsennellyn oppimisen
+  kannalta.\n5. Anna viides piste, jos ote on pedagogiselta arvoltaan erinomainen
+  ja soveltuu erinomaisesti opetukseen joko peruskoulussa tai peruskoulun ala-asteella.
+  Se noudattaa yksityiskohtaisia perusteluja, kirjoitustyyli on helppotajuinen ja
+  tarjoaa syvällisen ja perusteellisen näkemyksen aiheesta, eikä siinä ole mitään
+  ei-opettavaista tai monimutkaista sisältöä.\n <notranslate>The extract: {placeholder}.</notranslate>\nKatsottuasi
+  otteen:\n Perustele lyhyesti kokonaispistemääräsi, enintään 100 sanaa.\nLopeta pistemäärän
+  antaminen muotoa käyttäen: <notranslate>''Educational score: <total points>''</notranslate>'
