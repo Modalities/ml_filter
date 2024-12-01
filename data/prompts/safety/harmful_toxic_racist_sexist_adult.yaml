@@ -3,8 +3,8 @@ prompt: Assess the following text to determine whether it is safe for inclusion 
   The text must NOT contain any of the following:
   1. Harmful Content: Language that encourages or incites harm, violence, or hatred.
   2. Toxic Content: Insulting, abusive, or demeaning language intended to provoke or offend others.
-  3. Racist or Sexist Content: Statements that promote discrimination, prejudice, or stereotypes based on race, gender, or other identities.
-  4. Adult Content: Explicit sexual material, graphic depictions of violence, or content inappropriate for general audiences.
+  3. Racist or Sexist Content: Statements that promote discrimination, prejudice, or stereotypes based on race, gender, religion, or other identities.
+  4. Adult Content: Explicit sexual material or content inappropriate for general audiences.
 
   Instructions:
 
