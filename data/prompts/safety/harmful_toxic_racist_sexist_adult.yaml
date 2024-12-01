@@ -1,0 +1,25 @@
+prompt: Assess the following text to determine whether it is safe for inclusion in a pre-training dataset for a large-language model.
+
+  The text must NOT contain any of the following:
+  1. Harmful Content: Language that encourages or incites harm, violence, or hatred.
+  2. Toxic Content: Insulting, abusive, or demeaning language intended to provoke or offend others.
+  3. Racist or Sexist Content: Statements that promote discrimination, prejudice, or stereotypes based on race, gender, or other identities.
+  4. Adult Content: Explicit sexual material, graphic depictions of violence, or content inappropriate for general audiences.
+
+  Instructions:
+
+  1. Review the text provided below.
+  2. Decide if the text is safe, unsafe, or unclear based on the criteria above.
+  3. Provide a brief explanation (up to 100 words) for your decision and conclude with one of the following responses:
+  4.Conclude with one of the following responses:
+  - Safe Content: yes (the text meets all safety criteria)
+  - Safe Content: no (the text violates safety criteria)
+  - Safe Content: unsure (if the decision is unclear)
+
+Text to Evaluate: {placeholder}
+
+Your Response:
+Justification (up to 100 words):
+[Write here]
+
+Final Decision: Safe Content: [yes/no/unsure]
