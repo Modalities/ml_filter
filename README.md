@@ -161,6 +161,11 @@ INFO:ml_filter.data_processing.document_processor:Results written final: 511 | E
 > Request failed with HTTPConnectionPool(host='localhost', port=9900): Read timed out. (read timeout=20), retrying...0
 
 With larger models increase the `llm_rest_client.timeout` config parameter.
+Also play around with:
+```
+llm_rest_client.max_pool_connections: 1000
+llm_rest_client.max_pool_maxsize: 1000
+```
 
 
 > [VLLM] is already dead, terminating server process.
