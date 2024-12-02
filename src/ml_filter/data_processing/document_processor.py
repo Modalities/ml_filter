@@ -47,10 +47,6 @@ class DocumentProcessor:
         self.experiment_dir_path = experiment_dir_path
         self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
         self.strings_to_remove = strings_to_remove
-        self.total_elapsed_time_s = 0
-        self.num_total_results_written = 0
-        self.results_per_second = 0
-        self.errors = []
 
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
