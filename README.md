@@ -179,3 +179,13 @@ export VLLM_RPC_TIMEOUT= 20000
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
 
 TGI internally uses a buffer and performs dynamic batching. To make sure we get the maximum numbers documents processed per request, As a work around, we create batches, where each batch is close to the the capcity of the buffer size and than run .generate via multiple threading. 
+
+
+## Config Advise
+
+add_generation_prompt (bool):  If this is set, a prompt with the token(s) that indicate
+                the start of an assistant message will be appended to the formatted output.
+                This is useful when you want to generate a response from the model.
+                Note that this argument will be passed to the chat template, and so it must be supported in the
+                template for this argument to have any effect.
+We expect it to work best, if set to true.
