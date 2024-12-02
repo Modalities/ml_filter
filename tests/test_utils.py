@@ -1,7 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
 import yaml
 
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
@@ -14,17 +13,6 @@ EUROPEAN_LANGUAGES = {
     "de": "German",
     "es": "Spanish",
 }
-
-
-@pytest.fixture
-def create_input_yaml():
-    """Creates a sample YAML file for testing."""
-    data = {"prompt": "Translate the text to {##TARGET_LANGUAGE##}."}
-    with TemporaryDirectory() as temp_dir:
-        input_file = Path(temp_dir) / "input.yaml"
-        with open(input_file, "w") as file:
-            yaml.safe_dump(data, file)
-        yield input_file
 
 
 def test_add_target_language_to_prompt(create_input_yaml):
