@@ -38,3 +38,5 @@ EUROPEAN_LANGUAGES = {
     "tr": "Turkish",
     "uk": "Ukrainian",
 }
+
+TARGET_LANGAUGE_PLACEHOLDER = '{##TARGET_LANGUAGE##}'
