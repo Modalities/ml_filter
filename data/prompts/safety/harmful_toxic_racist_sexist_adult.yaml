@@ -16,8 +16,8 @@ prompt: Assess the following text to determine whether it is safe for inclusion 
   - Safe Content: no (the text violates safety criteria)
   - Safe Content: unsure (if the decision is unclear)
 
-Text to Evaluate: {placeholder}
-
+Text to Evaluate: 
+{placeholder}
 Your Response:
 Justification (up to 100 words):
 [Write here]
