@@ -130,8 +130,8 @@ def translate_flat_yaml_cli(
     """
     target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
-    translator_instance = TranslatorFactory.get_translator(translator=translator, ignore_tag_text=ignore_tag_text)
-    translator_instance.translate_flat_yaml_to_multiple_languages(
+    translator = TranslatorFactory.get_translator(translator=translator, ignore_tag_text=ignore_tag_text)
+    translator.translate_flat_yaml_to_multiple_languages(
         input_file_path=input_file_path,
         output_folder_path=output_folder_path,
         source_language_code=source_language_code,
