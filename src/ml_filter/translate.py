@@ -269,9 +269,9 @@ class OpenAIClient(TranslationClient):
 class TranslatorFactory:
     @staticmethod
     def get_translator(translator: str, ignore_tag_text: str | None = None) -> Translator:
-        if translator.lower() == "deepl":
+        if translator.lower() == DEEPL:
             return TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
-        elif translator.lower() == "openai":
+        elif translator.lower() == OPENAI:
             return TranslatorFactory.get_openai_translator(ignore_tag_text=ignore_tag_text)
         else:
             raise ValueError("Invalid translator specified. Choose 'deepl' or 'openai'.")
