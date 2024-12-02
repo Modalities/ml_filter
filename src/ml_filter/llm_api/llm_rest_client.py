@@ -63,7 +63,7 @@ class LLMRestClient:
 
         request = dict(
             model=self.model_name,
-            prompt=processed_document.prompt + "<|start_header_id|>assistant<|end_header_id|>\n\n",
+            prompt=processed_document.prompt,
             max_tokens=self.max_new_tokens,
             temperature=self.temperature,
         )

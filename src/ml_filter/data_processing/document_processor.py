@@ -46,6 +46,10 @@ class DocumentProcessor:
         self.experiment_dir_path = experiment_dir_path
         self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
         self.strings_to_remove = strings_to_remove
+        self.total_elapsed_time_s = 0
+        self.num_total_results_written = 0
+        self.results_per_second = 0
+        self.errors = []
 
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
@@ -259,13 +263,15 @@ class DocumentProcessor:
 
         statistics_report = {
             "Predictor": self.llm_rest_client.model_name,
-            "Mean Absolute Error": df["score_mae"].describe(),
-            "Mean Squared Error": df["score_mse"].describe(),
-            "Standard Deviation": df["score_std"].describe(),
-            "Mean Difference": df["score_mean_diff"].describe(),
-            "Predicted scores value counts": df["score"].value_counts(),
-            "Original scores value counts": df["original_score"].value_counts(),
+            "Mean Absolute Error": float(df["score_mae"].mean()),
+            "Mean Squared Error": float(df["score_mse"].mean()),
+            "Standard Deviation": float(df["score_std"].mean()),
+            "Mean Difference": float(df["score_mean_diff"].mean()),
+            "Predicted scores value counts": df["score"].value_counts().sort_index().to_dict(),
+            "Original scores value counts": df["original_score"].value_counts().sort_index().to_dict(),
+            "Document Status Count": df["document_processing_status"].value_counts().to_dict(),
         }
+
         logger.info(json.dumps(statistics_report, indent=4))
         with open(self.experiment_dir_path / "statistics_report.json", "w") as f:
             json.dump(statistics_report, f, indent=4)
