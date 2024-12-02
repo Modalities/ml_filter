@@ -20,7 +20,7 @@ prompt: Assess the following text to determine whether it is safe for inclusion 
 Text to evaluate: 
 {placeholder}
 
-Your Response:
+Your response:
 
 Justification (up to 100 words):
 [Write here]
