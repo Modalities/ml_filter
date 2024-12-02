@@ -21,8 +21,11 @@ data:
   val_file_split: train
   gt_file_path: data/lorem_ipsum.jsonl # ground truth data; can be null (optional)
   gt_file_split: train
-  label_column: score
+  label_column: scores
   text_column: text
+  num_metrics: 1
+  num_classes_per_metric: [6]
+  metric_names: ["score"]
   
 training:
   batch_size: 32
