@@ -38,3 +38,6 @@ EUROPEAN_LANGUAGES = {
     "tr": "Turkish",
     "uk": "Ukrainian",
 }
+
+DEEPL = "deepl"
+OPENAI = "openai"
