@@ -53,12 +53,11 @@ class LLMRestClient:
 
     def generate(self, processed_document: ProcessedDocument) -> ProcessedDocument:
         """Generates a response based on the given prompt.
-        ti
-                Args:
-                    processed_document (ProcessedDocument): The processed document.
+        Args:
+            processed_document (ProcessedDocument): The processed document.
 
-                Returns:
-                    Dict[str, Any]: A dictionary containing the generated response.
+        Returns:
+            Dict[str, Any]: A dictionary containing the generated response.
         """
 
         request = dict(
