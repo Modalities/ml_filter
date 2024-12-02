@@ -53,7 +53,7 @@ class PromptBuilder:
             document_text_tokenized = self.tokenizer.tokenizer.encode(processed_document.preprocessed_text)
             # remove tokens that exceed max_prompt_length
             if len(document_text_tokenized) > self.max_prompt_length - chat_template_length:
-                document_text_tokenized = document_text_tokenized[: self.max_prompt_length - chat_template_length - 1]
+                document_text_tokenized = document_text_tokenized[: self.max_prompt_length - chat_template_length]
                 # detokenize the tokens
                 # we need to skip special tokens because they are not part of the
                 # original text e.g., begin of document token
