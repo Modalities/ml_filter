@@ -71,19 +71,20 @@ class LogitMaskLayer(torch.nn.Module):
     These are reshaped to (3, 2), and then a mask [[0, 0], [0, 0], [0, -inf]] is added to the logits.
     """
 
-    def __init__(self, num_classes_per_metric: Tensor):
+    def __init__(self, num_classes_per_output: Tensor):
         """
         Args:
-            num_classes_per_metric (Tensor): 1D int/long Tensor, number of classes for each target metric
+            num_classes_per_output (Tensor): 1D int/long Tensor, number of classes for each target
         """
         super().__init__()
-        self.num_classes_per_metric = num_classes_per_metric
+        self.num_classes_per_output = num_classes_per_output
 
-        self.max_num_labels_per_metric = int(max(self.num_classes_per_metric))
-        self.num_metrics = self.num_classes_per_metric.shape[0]
+        self.max_num_classes_per_output = int(max(self.num_classes_per_output))
+        self.num_regressor_outputs = self.num_classes_per_output.shape[0]
 
         self.raw_logit_mask = (
-            torch.arange(self.max_num_labels_per_metric).repeat(self.num_metrics, 1).T < self.num_classes_per_metric
+            torch.arange(self.max_num_classes_per_output).repeat(self.num_regressor_outputs, 1).T
+            < self.num_classes_per_output
         )
         # use a small value instead of -inf for numerical stability
         self.logit_mask = torch.nn.Parameter((self.raw_logit_mask + 1e-45).log(), requires_grad=False)
@@ -93,29 +94,29 @@ class LogitMaskLayer(torch.nn.Module):
         """Reshape logits from linear layer and apply mask.
 
         Args:
-            x (Tensor): shape (batch_size, max_num_labels_per_metric * num_metrics)
+            x (Tensor): shape (batch_size, max_num_classes_per_output * num_regressor_outputs)
 
         Returns:
-            Tensor: shape (batch_size, max_num_labels_per_metric, num_metrics)
+            Tensor: shape (batch_size, max_num_classes_per_output, num_regressor_outputs)
         """
         return x.view(-1, *self.mask_shape) + self.logit_mask
 
 
 class RegressionScalingLayer(torch.nn.Module):
-    """Clamps output values of regression head to be in [0, n_classes - 1] for each metric"""
+    """Clamps output values of regression head to be in [0, n_classes - 1] for each regression target"""
 
     def __init__(self, scaling_constants: Tensor):
         super().__init__()
         self.scaling_constants = torch.nn.Parameter(scaling_constants.detach().clone() - 1.0, requires_grad=False)
 
     def forward(self, x: Tensor) -> Tensor:
-        """Clamp output values of regression head to be in [0, n_classes - 1] for each metric.
+        """Clamp output values of regression head to be in [0, n_classes - 1] for each regression target.
         The last dimension of `x` must match the dimension of self.scaling_constants.
 
         Args:
-            x (Tensor): shape (batch_size, num_metrics)
+            x (Tensor): shape (batch_size, num_regressor_outputs)
 
         Returns:
-            Tensor: shape (batch_size, num_metrics)
+            Tensor: shape (batch_size, num_regressor_outputs)
         """
         return torch.clamp(x, 0.0, 1.0) * self.scaling_constants

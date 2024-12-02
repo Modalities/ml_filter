@@ -10,8 +10,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 working_dir = Path(os.path.dirname(__file__))
 
 
-def get_pipeline(config_path: str) -> ClassifierTrainingPipeline:
-    return ClassifierTrainingPipeline(working_dir / "resources" / "configs" / config_path)
+def get_pipeline(relative_config_file_path: str) -> ClassifierTrainingPipeline:
+    return ClassifierTrainingPipeline(working_dir / "resources" / "configs" / relative_config_file_path)
+
 
 def _train_and_test(classifier_training_pipeline: ClassifierTrainingPipeline):
     try:
@@ -26,13 +27,15 @@ def _train_and_test(classifier_training_pipeline: ClassifierTrainingPipeline):
     logits = output["logits"]
     return logits, batch_size
 
+
 def test_train_classifier():
     classifier_training_pipeline = get_pipeline("test_config.yaml")
     logits, batch_size = _train_and_test(classifier_training_pipeline)
 
     assert logits.shape == (batch_size, int(classifier_training_pipeline.model.num_labels), 1)
     eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline.num_classes_per_metric):
+    for i, n_classes in enumerate(classifier_training_pipeline.num_classes_per_output):
+        # nothing is masked
         assert (torch.softmax(logits, dim=-1)[:, :n_classes, i] > eps).all()
 
 
@@ -42,11 +45,12 @@ def test_train_classifier_multiscore():
 
     assert logits.shape == (
         batch_size,
-        max(classifier_training_pipeline_multiscore.num_classes_per_metric),
-        classifier_training_pipeline_multiscore.num_metrics,
+        max(classifier_training_pipeline_multiscore.num_classes_per_output),
+        classifier_training_pipeline_multiscore.num_regressor_outputs,
     )
     eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_metric):
+    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_output):
+        # logits are masked
         assert (torch.softmax(logits, dim=-1)[:, n_classes:, i] < eps).all()
         assert (torch.softmax(logits, dim=-1)[:, :n_classes, i] > eps).all()
 
@@ -56,6 +60,7 @@ def test_train_classifier_regression():
         classifier_training_pipeline_regression = get_pipeline(config_path)
         logits, batch_size = _train_and_test(classifier_training_pipeline_regression)
 
-        assert logits.shape == (batch_size, classifier_training_pipeline_regression.num_metrics)
-        for i, n_classes in enumerate(classifier_training_pipeline_regression.num_classes_per_metric):
+        assert logits.shape == (batch_size, classifier_training_pipeline_regression.num_regressor_outputs)
+        for i, n_classes in enumerate(classifier_training_pipeline_regression.num_classes_per_output):
+            # logits are clamped to (0, n_classes - 1)
             assert ((0 <= logits[:, i]) <= n_classes - 1).all()

@@ -54,23 +54,23 @@ class ClassifierTrainingPipeline:
         self.regression_loss = cfg.training.regression_loss
 
         # multilabel settings
-        self.num_metrics = cfg.data.num_metrics
+        self.num_regressor_outputs = cfg.data.num_regressor_outputs
 
-        self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
-        self.metric_names = cfg.data.metric_names
+        self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
+        self.output_names = cfg.data.output_names
 
         if isinstance(self.model, BertForSequenceClassification):
             self.embedding_size = self.model.classifier.in_features
             if self.regression_loss:
                 self.model.classifier = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.num_metrics, bias=True),
-                    RegressionScalingLayer(self.num_classes_per_metric),
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
                 )
             else:
-                self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
                 self.model.classifier = torch.nn.Sequential(
                     torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                    LogitMaskLayer(self.num_classes_per_metric),
+                    LogitMaskLayer(self.num_classes_per_output),
                 )
         elif isinstance(self.model, XLMRobertaForSequenceClassification) or isinstance(
             self.model, RobertaForSequenceClassification
@@ -78,14 +78,14 @@ class ClassifierTrainingPipeline:
             self.embedding_size = self.model.classifier.dense.in_features
             if self.regression_loss:
                 self.model.classifier.out_proj = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.num_metrics, bias=True),
-                    RegressionScalingLayer(self.num_classes_per_metric),
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
                 )
             else:
-                self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
                 self.model.classifier.out_proj = torch.nn.Sequential(
                     torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                    LogitMaskLayer(self.num_classes_per_metric),
+                    LogitMaskLayer(self.num_classes_per_output),
                 )
         else:
             raise NotImplementedError(f"Unsupported model type {type(self.model)}")
@@ -167,9 +167,9 @@ class ClassifierTrainingPipeline:
             labels = []
             for item in batch[self.sample_label]:
                 if self.regression_loss:
-                    labels.append([float(item[k]) for k in self.metric_names])
+                    labels.append([float(item[k]) for k in self.output_names])
                 else:
-                    labels.append([int(item[k]) for k in self.metric_names])
+                    labels.append([int(item[k]) for k in self.output_names])
 
             return {**tokenized, "labels": labels}
 
@@ -187,7 +187,7 @@ class ClassifierTrainingPipeline:
         """
         return torch.nn.functional.cross_entropy(
             input["logits"],
-            target.view(-1, self.num_metrics),
+            target.view(-1, self.num_regressor_outputs),
         )
 
     def multi_target_mse_loss(
@@ -197,9 +197,12 @@ class ClassifierTrainingPipeline:
         num_items_in_batch: int,
         **kwargs,
     ):
+        """
+        The `num_items_in_batch` argument is unused, but this exact signature is required by `Trainer`.
+        """
         return torch.nn.functional.mse_loss(
             input["logits"],
-            target.view(-1, self.num_metrics),
+            target.view(-1, self.num_regressor_outputs),
         )
 
     def compute_metrics(self, eval_pred: EvalPrediction):
@@ -210,20 +213,19 @@ class ClassifierTrainingPipeline:
             preds = predictions.argmax(axis=1)
             preds_raw = preds
         else:
+            # accuracy and F1 are not defined for float predictions
             preds = np.round(predictions)
             preds_raw = predictions
 
         # TODO: implement macro and micro average
         metric_dict = {}
-        for i, name in enumerate(self.metric_names):
+        for i, name in enumerate(self.output_names):
             accuracy = accuracy_score(labels[:, i], preds[:, i])
             f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
 
             mse = mean_squared_error(labels[:, i], preds_raw[:, i])
             mae = mean_absolute_error(labels[:, i], preds_raw[:, i])
-            metric_dict.update(
-                {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
-            )
+            metric_dict.update({f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae})
         return metric_dict
 
     def train_classifier(self):
