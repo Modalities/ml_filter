@@ -7,6 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from tqdm import tqdm
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
@@ -92,6 +93,8 @@ class DocumentProcessor:
 
     def _process_document(self, document: Dict[str, Any]) -> ProcessedDocument:
         processed_document = ProcessedDocument(document_id=document["id"], original_text=document["text"])
+        if "score" in document:
+            processed_document.original_score = float(document["score"])
         # text preprocessing
         processed_document.preprocessed_text = self._remove_special_strings(processed_document.original_text)
 
@@ -241,3 +244,28 @@ class DocumentProcessor:
         self.result_queue.put(None)
 
         writer.join()
+
+        self._report_statistics()
+
+    def _report_statistics(self):
+        """Show the comparison between the original and generated score."""
+        df = pd.read_json(self.output_file_path, lines=True)
+        df.original_score = df.original_score.astype(float)
+        df.score = df.score.astype(float)
+        df["score_mae"] = (df["original_score"] - df["score"]).abs().mean()
+        df["score_mse"] = ((df["original_score"] - df["score"]) ** 2).mean()
+        df["score_std"] = (df["original_score"] - df["score"]).std()
+        df["score_mean_diff"] = (df["original_score"] - df["score"]).mean()
+
+        statistics_report = {
+            "Predictor": self.llm_rest_client.model_name,
+            "Mean Absolute Error": df["score_mae"].describe(),
+            "Mean Squared Error": df["score_mse"].describe(),
+            "Standard Deviation": df["score_std"].describe(),
+            "Mean Difference": df["score_mean_diff"].describe(),
+            "Predicted scores value counts": df["score"].value_counts(),
+            "Original scores value counts": df["original_score"].value_counts(),
+        }
+        logger.info(json.dumps(statistics_report, indent=4))
+        with open(self.experiment_dir_path / "statistics_report.json", "w") as f:
+            json.dump(statistics_report, f, indent=4)

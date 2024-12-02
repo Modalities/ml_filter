@@ -49,6 +49,7 @@ class LLMClient:
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
         self.special_tokens = cfg.tokenizer.special_tokens
+        self.add_generation_prompt = cfg.tokenizer.add_generation_prompt
 
         # DocumentProcessor related variables
         self.max_prompt_length = cfg.prompt_builder.max_prompt_length
@@ -72,6 +73,7 @@ class LLMClient:
             padding=False,
             max_length=None,
             special_tokens=self.special_tokens,
+            add_generation_prompt=self.add_generation_prompt,
         )
 
         # Get LLMRestClient
