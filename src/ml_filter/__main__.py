@@ -80,7 +80,7 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
 
 
-@main.command(name="deepl_translate_flat_yaml")
+@main.command(name="translate_flat_yaml")
 @click.option(
     "--input_file_path",
     type=click_pathlib.Path(exists=False),
@@ -105,18 +105,33 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     required=True,
     help="Language code of the source language.",
 )
-@click.option("--target_language_codes", type=str, required=True, help="Comma-separated list of languages")
-def deepl_translate_cli(
+@click.option(
+    "--target_language_codes",
+    type=str,
+    required=True,
+    help="Comma-separated list of languages.",
+)
+@click.option(
+    "--translator",
+    type=click.Choice(["deepl", "openai"], case_sensitive=False),
+    required=True,
+    help="Translator to use (deepl or openai).",
+)
+def translate_flat_yaml_cli(
     input_file_path: Path,
     output_folder_path: Path,
     source_language_code: str,
     target_language_codes: list[str],
+    translator: str,
     ignore_tag_text: Optional[str] = None,
 ):
+    """
+    CLI command to translate flat YAML files using either DeepL or OpenAI.
+    """
     target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
-    translator = TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
-    translator.translate_flat_yaml_to_multiple_languages(
+    translator_instance = TranslatorFactory.get_translator(translator=translator, ignore_tag_text=ignore_tag_text)
+    translator_instance.translate_flat_yaml_to_multiple_languages(
         input_file_path=input_file_path,
         output_folder_path=output_folder_path,
         source_language_code=source_language_code,
