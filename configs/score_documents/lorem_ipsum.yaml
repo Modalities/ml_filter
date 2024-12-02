@@ -1,7 +1,7 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: google/gemma-2-9b-it
+  model_name: Qwen/Qwen2.5-14B-Instruct
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths: 
@@ -24,7 +24,7 @@ llm_rest_client:
 tokenizer:
   pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
   special_tokens: null
-  add_generation_prompt: true
+  add_generation_prompt: false
 
 prompt_builder:
   prompt_template_file_path: ${settings.paths.prompt_template_file_path}

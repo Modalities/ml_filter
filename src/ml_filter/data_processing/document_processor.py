@@ -3,6 +3,7 @@ import logging
 import multiprocessing
 import re
 import time
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -252,26 +253,34 @@ class DocumentProcessor:
         self._report_statistics()
 
     def _report_statistics(self):
-        """Show the comparison between the original and generated score."""
-        df = pd.read_json(self.output_file_path, lines=True)
-        df.original_score = df.original_score.astype(float)
-        df.score = df.score.astype(float)
-        df["score_mae"] = (df["original_score"] - df["score"]).abs().mean()
-        df["score_mse"] = ((df["original_score"] - df["score"]) ** 2).mean()
-        df["score_std"] = (df["original_score"] - df["score"]).std()
-        df["score_mean_diff"] = (df["original_score"] - df["score"]).mean()
+        report_statistics(results_file_path=self.output_file_path, output_dir_path=self.experiment_dir_path)
 
-        statistics_report = {
-            "Predictor": self.llm_rest_client.model_name,
-            "Mean Absolute Error": float(df["score_mae"].mean()),
-            "Mean Squared Error": float(df["score_mse"].mean()),
-            "Standard Deviation": float(df["score_std"].mean()),
-            "Mean Difference": float(df["score_mean_diff"].mean()),
-            "Predicted scores value counts": df["score"].value_counts().sort_index().to_dict(),
-            "Original scores value counts": df["original_score"].value_counts().sort_index().to_dict(),
-            "Document Status Count": df["document_processing_status"].value_counts().to_dict(),
-        }
 
-        logger.info(json.dumps(statistics_report, indent=4))
-        with open(self.experiment_dir_path / "statistics_report.json", "w") as f:
+def report_statistics(results_file_path: Path, output_dir_path: Path | None = None) -> Dict[str, Any]:
+    """Show the comparison between the original and generated score."""
+    df = pd.read_json(results_file_path, lines=True)
+    df.original_score = df.original_score.astype(float)
+    df.score = df.score.astype(float)
+    df["score_mae"] = (df["original_score"] - df["score"]).abs().mean()
+    df["score_mse"] = ((df["original_score"] - df["score"]) ** 2).mean()
+    df["score_std"] = (df["original_score"] - df["score"]).std()
+    df["accuracy"] = (df["original_score"] == df["score"]).mean()
+
+    statistics_report = {
+        "mae": float(df["score_mae"].mean()),
+        "mse": float(df["score_mse"].mean()),
+        "std": float(df["score_std"].mean()),
+        "acc": float(df["accuracy"].mean()),
+        "confusion_matrix": pd.crosstab(df["original_score"], df["score"]).to_dict(),
+        "predicted_score_counts": df["score"].value_counts().sort_index().to_dict(),
+        "original_score_counts": df["original_score"].value_counts().sort_index().to_dict(),
+        "document_status_counts": df["document_processing_status"].value_counts().to_dict(),
+        "error_counts": dict(Counter([error for errors in df["errors"].tolist() for error in errors])),
+    }
+    logger.info(json.dumps(statistics_report, indent=4))
+
+    if output_dir_path is not None:
+        with open(output_dir_path / "statistics_report.json", "w") as f:
             json.dump(statistics_report, f, indent=4)
+
+    return statistics_report

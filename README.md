@@ -162,6 +162,14 @@ INFO:ml_filter.data_processing.document_processor:Results written final: 511 | E
 
 With larger models increase the `llm_rest_client.timeout` config parameter.
 
+
+> [VLLM] is already dead, terminating server process.
+
+Solustion as by https://github.com/vllm-project/vllm/issues/10024
+```
+export VLLM_RPC_TIMEOUT= 20000
+```
+
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
 

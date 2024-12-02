@@ -7,6 +7,7 @@ import click
 import click_pathlib
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
+from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
@@ -43,6 +44,17 @@ def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, expe
         experiment_id = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
     llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
     llm_service.run()
+
+
+@main.command(name="compare_experiments")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_point_compare_experiments(config_file_path: Path):
+    compare_experiments(config_file_path)
 
 
 @main.command(name="train_classifier")
