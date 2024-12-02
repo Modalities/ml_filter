@@ -11,7 +11,7 @@ prompt: Assess the following text to determine whether it is safe for inclusion 
   1. Review the text provided below.
   2. Decide if the text is safe, unsafe, or unclear based on the criteria above.
   3. Provide a brief explanation (up to 100 words) for your decision and conclude with one of the following responses:
-  4.Conclude with one of the following responses:
+  4. Conclude with one of the following responses:
   - Safe Content: yes (the text meets all safety criteria)
   - Safe Content: no (the text violates safety criteria)
   - Safe Content: unsure (if the decision is unclear)
