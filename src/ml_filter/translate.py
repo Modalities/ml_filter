@@ -12,7 +12,7 @@ from constants import DEEPL, EUROPEAN_LANGUAGES, OPENAI
 logging.basicConfig(level=logging.WARNING)
 
 
-class TranslationService(Enum):
+class TranslationServiceTypes(Enum):
     DEEPL = "deepl"
     OPENAI = "openai"
 
@@ -284,9 +284,9 @@ class OpenAIClient(TranslationClient):
 class TranslatorFactory:
     @staticmethod
     def get_translator(translation_service: str, ignore_tag_text: str | None = None) -> Translator:
-        if translation_service.lower() == TranslationService.DEEPL.value:
+        if translation_service.lower() == TranslationServiceTypes.DEEPL.value:
             return TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
-        elif translation_service.lower() == TranslationService.OPENAI.value:
+        elif translation_service.lower() == TranslationServiceTypes.OPENAI.value:
             return TranslatorFactory.get_openai_translator(ignore_tag_text=ignore_tag_text)
         else:
             raise ValueError("Invalid translator specified. Choose 'deepl' or 'openai'.")
