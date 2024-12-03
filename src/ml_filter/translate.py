@@ -12,7 +12,7 @@ from constants import DEEPL, EUROPEAN_LANGUAGES, OPENAI
 logging.basicConfig(level=logging.WARNING)
 
 
-class TranslationServiceTypes(Enum):
+class TranslationServiceType(Enum):
     DEEPL = "deepl"
     OPENAI = "openai"
 
@@ -43,7 +43,7 @@ class TranslationClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> dict[str, str]:
+    def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text and return results as a dictionary."""
         raise NotImplementedError
 
@@ -90,6 +90,7 @@ class Translator:
                 f"This may indicate an issue with the translation process. "
                 f"Source language: {source_language_code}, Target language: {target_language_code}."
             )
+        return translated_text
 
     def translate_flat_yaml_to_multiple_languages(
         self,
@@ -283,13 +284,16 @@ class OpenAIClient(TranslationClient):
 
 class TranslatorFactory:
     @staticmethod
-    def get_translator(translation_service: str, ignore_tag_text: str | None = None) -> Translator:
-        if translation_service.lower() == TranslationServiceTypes.DEEPL.value:
+    def get_translator(
+        translation_service_type: TranslationServiceType, ignore_tag_text: str | None = None
+    ) -> Translator:
+        if translation_service_type == TranslationServiceType.DEEPL:
             return TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
-        elif translation_service.lower() == TranslationServiceTypes.OPENAI.value:
+        elif translation_service_type == TranslationServiceType.OPENAI:
             return TranslatorFactory.get_openai_translator(ignore_tag_text=ignore_tag_text)
         else:
-            raise ValueError("Invalid translator specified. Choose 'deepl' or 'openai'.")
+            valid_translators = ", ".join([service.value for service in TranslationServiceType])
+            raise ValueError(f"Invalid translator specified. Choose from: {valid_translators}.")
 
     @staticmethod
     def get_openai_translator(ignore_tag_text: str | None = None) -> Translator:

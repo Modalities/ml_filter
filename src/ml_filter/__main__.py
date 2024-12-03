@@ -8,7 +8,7 @@ import click_pathlib
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
-from ml_filter.translate import TranslationServiceTypes, TranslatorFactory
+from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
 
@@ -131,9 +131,9 @@ def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
 )
 @click.option(
     "--translation_service",
-    type=click.Choice([service.value for service in TranslationServiceTypes], case_sensitive=False),
+    type=click.Choice([service.value for service in TranslationServiceType], case_sensitive=False),
     required=True,
-    help=f"Translator to use ({', '.join(service.value for service in TranslationServiceTypes)}).",
+    help=f"Translator to use ({', '.join(service.value for service in TranslationServiceType)}).",
 )
 def translate_flat_yaml_cli(
     input_file_path: Path,
@@ -147,11 +147,11 @@ def translate_flat_yaml_cli(
     CLI command to translate flat YAML files using either DeepL or OpenAI.
     """
     target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
-
-    translation_service = TranslatorFactory.get_translator(
-        translation_service=translation_service, ignore_tag_text=ignore_tag_text
+    translation_service_type = TranslationServiceType[translation_service]
+    translator = TranslatorFactory.get_translator(
+        translation_service_type=translation_service_type, ignore_tag_text=ignore_tag_text
     )
-    translation_service.translate_flat_yaml_to_multiple_languages(
+    translator.translate_flat_yaml_to_multiple_languages(
         input_file_path=input_file_path,
         output_folder_path=output_folder_path,
         source_language_code=source_language_code,
