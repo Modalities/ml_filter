@@ -1,16 +1,15 @@
-import os
+
 import json
+import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from pathlib import Path
 import seaborn as sns
 
-import os
-import pandas as pd
-import matplotlib.pyplot as plt
 
-
-def plot_scores(path_to_files: list[str], output_dir: str) -> None:
+def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
     document_scores = _get_document_scores(path_to_files)
     # TODO iterate over different combinations of annotators
     for prompt in document_scores:
@@ -39,12 +38,13 @@ def plot_scores(path_to_files: list[str], output_dir: str) -> None:
         )
 
         # Save and close the plot
-        plt.savefig(os.path.join(output_dir, prompt, 'score_distributions.png'))
+        output_file = output_dir / (prompt + '_score_distributions.png')
+        plt.savefig(output_file)
         plt.close()
 
 
 
-def plot_scores_differences(path_to_files: list[str], output_dir: str) -> None:
+def plot_scores_differences(path_to_files: list[str], output_dir: Path) -> None:
     # Initialize a dictionary to store educational_score by id across files
     document_scores = _get_document_scores(path_to_files)
     df = _prepare_df(document_scores)

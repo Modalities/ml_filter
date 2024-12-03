@@ -146,7 +146,7 @@ def interrater_reliability_cli(
 def plot_differences_in_scores_cli(path_to_files: tuple[str], output_dir:str) -> None:
     """Plot the differences in scores."""
     files = list(path_to_files)
-    plot_scores_differences(path_to_files=files, output_dir=output_dir)
+    plot_scores_differences(path_to_files=files, output_dir=Path(output_dir))
 
 
 @main.command(name="plot_scores")
@@ -155,7 +155,7 @@ def plot_differences_in_scores_cli(path_to_files: tuple[str], output_dir:str) ->
 def plot_scores_cli(path_to_files: tuple[str], output_dir:str) -> None:
     """Plot the differences in scores."""
     files = list(path_to_files)
-    plot_scores(path_to_files=files, output_dir=output_dir)
+    plot_scores(path_to_files=files, output_dir=Path(output_dir))
     
 
 if __name__ == "__main__":
