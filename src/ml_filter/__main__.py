@@ -27,7 +27,7 @@ output_folder_path_option = click.option(
 )
 translation_service_option = click.option(
     "--translation_service",
-    type=click.Choice([service.value for service in TranslationServiceType], case_sensitive=False),
+    type=click.Choice([service.value.upper() for service in TranslationServiceType], case_sensitive=False),
     required=True,
     help=f"Translator to use ({', '.join(service.value for service in TranslationServiceType)}).",
 )
