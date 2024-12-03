@@ -1,3 +1,4 @@
+import json
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -69,6 +70,63 @@ class Translator:
     def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text into the target language using the specified client."""
         return self.client.translate_text(text, source_language_code, target_language_code)
+
+    def translate_jsonl_to_multiple_languages(
+        self,
+        input_file_path: FilePath,
+        output_folder_path: Path,
+        source_language_code: str,
+        target_language_codes: list[str],
+    ) -> None:
+        """
+        Translates the 'text' field in each JSON document from a JSONL input file into
+        multiple target languages using a generator for data loading. Creates one JSONL file
+        per target language, processing the input file in a single pass for efficiency.
+
+        Args:
+            input_file_path (FilePath): Path to the JSONL input file.
+            output_folder_path (Path): Path to the folder for output files.
+            source_language_code (str): The source language code.
+            target_language_codes (list[str]): List of target language codes.
+        """
+        # Ensure output folder exists
+        output_folder_path.mkdir(parents=True, exist_ok=True)
+
+        def read_jsonl(file_path):
+            """Generator to yield JSON objects from a JSONL file."""
+            with open(file_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    yield json.loads(line)
+
+        # Open output files for all target languages
+        output_files = {
+            language_code: open(
+                output_folder_path / f"{input_file_path.stem}_{language_code}.jsonl", "w", encoding="utf-8"
+            )
+            for language_code in target_language_codes
+        }
+
+        try:
+            # Use the generator to read and process the input JSONL file
+            for document in read_jsonl(input_file_path):
+                text = document.get("text")
+                if not isinstance(text, str):
+                    raise ValueError("Each document must have a 'text' field with a string value.")
+
+                # Translate the text to all target languages
+                translated_documents = {
+                    lang: {**document, "text": self.translate_text(text, source_language_code, lang)}
+                    for lang in target_language_codes
+                }
+
+                # Write the translated documents to their respective files
+                for lang, translated_doc in translated_documents.items():
+                    json.dump(translated_doc, output_files[lang], ensure_ascii=False)
+                    output_files[lang].write("\n")
+        finally:
+            # Ensure all output files are properly closed
+            for file in output_files.values():
+                file.close()
 
     def translate_flat_yaml_to_multiple_languages(
         self,
