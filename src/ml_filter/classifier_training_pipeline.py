@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
+import numpy as np
+
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
@@ -20,7 +22,7 @@ from transformers import (
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
-from ml_filter.utils.train_classifier import LogitMaskLayer
+from ml_filter.utils.train_classifier import LogitMaskLayer, RegressionScalingLayer
 
 
 class ClassifierTrainingPipeline:
@@ -49,30 +51,45 @@ class ClassifierTrainingPipeline:
             hidden_dropout_prob=cfg.model.hidden_dropout_prob,
             output_hidden_states=cfg.model.output_hidden_states,
         )
+        # loss function
+        self.regression_loss = cfg.training.regression_loss
 
         # multilabel settings
-        self.num_metrics = cfg.data.num_metrics
+        self.num_regressor_outputs = cfg.data.num_regressor_outputs
 
-        if self.num_metrics > 1:
-            self.num_classes_per_metric = torch.tensor(cfg.data.num_classes_per_metric)
-            self.metric_names = cfg.data.metric_names
-        elif self.num_metrics == 1:
-            self.num_classes_per_metric = torch.tensor(cfg.model.num_labels).unsqueeze(0)
-        self.model.num_labels = self.num_metrics * max(self.num_classes_per_metric)
+        self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
+        self.output_names = cfg.data.output_names
 
         if isinstance(self.model, BertForSequenceClassification):
             self.embedding_size = self.model.classifier.in_features
+            if self.regression_loss:
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
+                )
+            else:
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_output),
+                )
         elif isinstance(self.model, XLMRobertaForSequenceClassification) or isinstance(
             self.model, RobertaForSequenceClassification
         ):
             self.embedding_size = self.model.classifier.dense.in_features
+            if self.regression_loss:
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
+                )
+            else:
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_output),
+                )
         else:
             raise NotImplementedError(f"Unsupported model type {type(self.model)}")
-
-        self.model.classifier = torch.nn.Sequential(
-            torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-            LogitMaskLayer(self.num_classes_per_metric),
-        )
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
@@ -80,6 +97,7 @@ class ClassifierTrainingPipeline:
             truncation=cfg.tokenizer.truncation,
             padding=cfg.tokenizer.padding,
             max_length=cfg.tokenizer.max_length,
+            add_generation_prompt=False
         )
         # Training
         self.batch_size = cfg.training.batch_size
@@ -148,12 +166,12 @@ class ClassifierTrainingPipeline:
         # Map both tokenization and label assignment
         def process_batch(batch):
             tokenized = self._tokenize(batch)
-            if self.num_metrics > 1:
-                labels = []
-                for item in batch[self.sample_label]:
-                    labels.append([item[k] for k in self.metric_names])
-            else:
-                labels = batch[self.sample_label]
+            labels = []
+            for item in batch[self.sample_label]:
+                if self.regression_loss:
+                    labels.append([float(item[k]) for k in self.output_names])
+                else:
+                    labels.append([int(item[k]) for k in self.output_names])
 
             return {**tokenized, "labels": labels}
 
@@ -171,37 +189,77 @@ class ClassifierTrainingPipeline:
         """
         return torch.nn.functional.cross_entropy(
             input["logits"],
-            target.view(-1, self.num_metrics),
+            target.view(-1, self.num_regressor_outputs),
         )
 
-    def compute_metrics(self, eval_pred: EvalPrediction):
+    def multi_target_mse_loss(
+        self,
+        input: SequenceClassifierOutput,
+        target: Tensor,
+        num_items_in_batch: int,
+        **kwargs,
+    ):
+        """
+        The `num_items_in_batch` argument is unused, but this exact signature is required by `Trainer`.
+        """
+        return torch.nn.functional.mse_loss(
+            input["logits"],
+            target.view(-1, self.num_regressor_outputs),
+        )
+
+    def compute_metrics(self, eval_pred: EvalPrediction) -> dict:
+        """
+        Computes evaluation metrics for all outputs.
+        
+        Returns a dictionary containing an entry for every output with different evaluation metrics.
+        """
         predictions, labels = eval_pred
 
         # Convert logits to predicted class
-        preds = predictions.argmax(axis=1)
-
-        if self.num_metrics == 1:
-            # Compute classification metrics
-            accuracy = accuracy_score(labels, preds)
-            f1 = f1_score(labels, preds, average="weighted")
-
-            # Compute regression-like metrics
-            mse = mean_squared_error(labels, preds)
-            mae = mean_absolute_error(labels, preds)
-            return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
+        if not self.regression_loss:
+            preds = predictions.argmax(axis=1)
+            preds_raw = preds
         else:
-            # TODO: implement macro and micro average
-            metric_dict = {}
-            for i, name in enumerate(self.metric_names):
-                accuracy = accuracy_score(labels[:, i], preds[:, i])
-                f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
+            # accuracy and F1 are not defined for float predictions
+            preds = np.round(predictions)
+            preds_raw = predictions
+            
+        metric_dict = {}
+        for i, output_name in enumerate(self.output_names):
+            metrics = self._compute_metrics_for_single_output(labels=labels[:, i], preds=preds[:, i], preds_raw=preds_raw[:, i])
+            metric_dict.update({
+                f"{output_name}_{metric}": metrics[metric]
+                for metric in metrics
+            })
+        return metric_dict
 
-                mse = mean_squared_error(labels[:, i], preds[:, i])
-                mae = mean_absolute_error(labels[:, i], preds[:, i])
-                metric_dict.update(
-                    {f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae}
-                )
-            return metric_dict
+    @staticmethod
+    def _compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray) -> dict:
+        """
+        Computes evaluation metrics for a specific output
+        
+        Returns a dictionary containing an entry for every evaluation metrics.
+        """
+        metrics = {}
+        
+        # Compute classification metrics
+        metrics["accuracy"] = accuracy_score(labels, preds)
+        metrics["f1_weighted"] = f1_score(labels, preds, average="weighted")
+        metrics["f1_micro"] = f1_score(labels, preds, average="micro")
+        metrics["f1_macro"] = f1_score(labels, preds, average="macro")
+
+        # Compute regression-like metrics
+        metrics["mse"] = mean_squared_error(labels, preds_raw)
+        metrics["mae"] = mean_absolute_error(labels, preds_raw)
+        
+        # add f1 scores for each class
+        classes = np.unique(labels)
+        classes.sort()
+        f1_per_class = f1_score(labels, preds, average=None)
+        for i, c in enumerate(classes):
+            metrics[f"f1_class_{c}"] = f1_per_class[i]
+        
+        return metrics   
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
@@ -229,7 +287,9 @@ class ClassifierTrainingPipeline:
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             data_collator=data_collator,
-            compute_loss_func=self.multi_target_cross_entropy_loss,
+            compute_loss_func=(
+                self.multi_target_mse_loss if self.regression_loss else self.multi_target_cross_entropy_loss
+            ),
             compute_metrics=self.compute_metrics,
         )
 

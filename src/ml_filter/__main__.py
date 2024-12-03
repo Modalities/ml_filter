@@ -7,8 +7,9 @@ import click
 import click_pathlib
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
+from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
-from ml_filter.translate import TranslatorFactory
+from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
 
@@ -40,10 +41,21 @@ def main() -> None:
 def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
     if experiment_id is None:
         with open(config_file_path, "rb") as f:
-            hash_value = hashlib.file_digest(f, "sha256").hexdigest()[:8]
+            hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
         experiment_id = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
     llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
     llm_service.run()
+
+
+@main.command(name="compare_experiments")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_point_compare_experiments(config_file_path: Path):
+    compare_experiments(config_file_path)
 
 
 @main.command(name="train_classifier")
@@ -98,7 +110,7 @@ def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
     add_target_langauge_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
 
 
-@main.command(name="deepl_translate_flat_yaml")
+@main.command(name="translate_flat_yaml")
 @click.option(
     "--input_file_path",
     type=click_pathlib.Path(exists=False),
@@ -123,17 +135,34 @@ def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
     required=True,
     help="Language code of the source language.",
 )
-@click.option("--target_language_codes", type=str, required=True, help="Comma-separated list of languages")
-def deepl_translate_cli(
+@click.option(
+    "--target_language_codes",
+    type=str,
+    required=True,
+    help="Comma-separated list of languages.",
+)
+@click.option(
+    "--translation_service",
+    type=click.Choice([service.value for service in TranslationServiceType], case_sensitive=False),
+    required=True,
+    help=f"Translator to use ({', '.join(service.value for service in TranslationServiceType)}).",
+)
+def translate_flat_yaml_cli(
     input_file_path: Path,
     output_folder_path: Path,
     source_language_code: str,
     target_language_codes: list[str],
+    translation_service: str,
     ignore_tag_text: Optional[str] = None,
 ):
+    """
+    CLI command to translate flat YAML files using either DeepL or OpenAI.
+    """
     target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
-
-    translator = TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
+    translation_service_type = TranslationServiceType[translation_service]
+    translator = TranslatorFactory.get_translator(
+        translation_service_type=translation_service_type, ignore_tag_text=ignore_tag_text
+    )
     translator.translate_flat_yaml_to_multiple_languages(
         input_file_path=input_file_path,
         output_folder_path=output_folder_path,

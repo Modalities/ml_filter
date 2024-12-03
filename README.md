@@ -118,8 +118,74 @@ curl 127.0.0.1:8080/generate_stream \
     -H 'Content-Type: application/json'
 ```
 
+### 6. Testing VLLM service
+
+#### Host a Model with TGI
+```bash
+docker run -d --gpus '"device=6"' --shm-size 1g -p 8000:80 -v ${HUGGINGFACECACHE}:/data -e HF_TOKEN=$API_TOKEN ghcr.io/huggingface/text-generation-inference:2.2.0 --model-id mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated --num-shard 1 --max-input-length 4095 --max-total-tokens 4096 --max-batch-prefill-tokens 4096
+```
+
+`number-shards` and number of GPUs used should match (`--gpus`).
+
+#### Host a Model with VLLM (faster)
+```bash
+docker run --runtime nvidia --gpus '"device=5,6"'  --name vllm_container -v /raid/s3/opengptx/models/:/root/.cache/huggingface --env "HUGGING_FACE_HUB_TOKEN=$API_TOKEN" -p 9900:8000 --ipc=host vllm/vllm-openai:v0.6.3 --model Qwen/Qwen2.5-72B-Instruct-AWQ --tensor-parallel-size 2
+```
+
+Number of `tensor-parallel-size` and number of GPUs used should match (`--gpus`).
+
+#### Test the hosted model
+```bash
+curl http://localhost:port_number/v1/completions \
+-H "Content-Type: application/json" \
+-d '{
+"model": "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4",
+"prompt": "San Francisco is a",
+"max_tokens": 7,
+"temperature": 0
+}'
+```
+
+#### Look into metrics of the hosted model
+
+1. Forward port 8000 
+2. visit http://localhost:8000/metrics to see the tokens/s
+
+Or watch the output e.g. with `Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4` on two GPUs:
+```
+INFO:ml_filter.data_processing.document_processor:Results written final: 511 | Elapsed time: 215.89 seconds | Results per second: 2.22
+```
+
+#### Troubleshooting
+
+> Request failed with HTTPConnectionPool(host='localhost', port=9900): Read timed out. (read timeout=20), retrying...0
+
+With larger models increase the `llm_rest_client.timeout` config parameter.
+Also play around with:
+```
+llm_rest_client.max_pool_connections: 1000
+llm_rest_client.max_pool_maxsize: 1000
+```
+
+
+> [VLLM] is already dead, terminating server process.
+
+Solustion as by https://github.com/vllm-project/vllm/issues/10024
+```
+export VLLM_RPC_TIMEOUT= 20000
+```
 
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
 
 TGI internally uses a buffer and performs dynamic batching. To make sure we get the maximum numbers documents processed per request, As a work around, we create batches, where each batch is close to the the capcity of the buffer size and than run .generate via multiple threading. 
+
+
+## Config Advise
+
+add_generation_prompt (bool):  If this is set, a prompt with the token(s) that indicate
+                the start of an assistant message will be appended to the formatted output.
+                This is useful when you want to generate a response from the model.
+                Note that this argument will be passed to the chat template, and so it must be supported in the
+                template for this argument to have any effect.
+We expect it to work best, if set to true.

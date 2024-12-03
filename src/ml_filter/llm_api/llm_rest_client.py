@@ -41,17 +41,18 @@ class LLMRestClient:
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
+
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
 
         self.rest_endpoint_generate = (
-            f"{rest_endpoint}generate" if rest_endpoint.endswith("/") else f"{rest_endpoint}/generate"
+            f"{rest_endpoint}v1/completions" if rest_endpoint.endswith("/") else f"{rest_endpoint}/v1/completions"
         )
+
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
 
     def generate(self, processed_document: ProcessedDocument) -> ProcessedDocument:
         """Generates a response based on the given prompt.
-
         Args:
             processed_document (ProcessedDocument): The processed document.
 
@@ -60,16 +61,10 @@ class LLMRestClient:
         """
 
         request = dict(
-            {
-                "inputs": processed_document.prompt,
-                "model": self.model_name,
-                "parameters": dict(
-                    details=self.verbose,  # TODO: check if this is correct
-                    max_tokens=self.max_tokens,
-                    max_new_tokens=self.max_new_tokens,
-                    temperature=self.temperature,
-                ),
-            }
+            model=self.model_name,
+            prompt=processed_document.prompt,
+            max_tokens=self.max_new_tokens,
+            temperature=self.temperature,
         )
 
         for i in range(self.max_retries):
@@ -93,12 +88,28 @@ class LLMRestClient:
 
         if response.status_code == HTTPStatus.OK:
             response_dict = response.json()
-            if "generated_text" not in response_dict:
-                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
-                processed_document.errors.append(f"Response does not contain 'generated_text': {response_dict}")
+            generated_text = self.parse_response(response_dict)
+            if generated_text is not None:
+                processed_document.generated_text = generated_text
             else:
-                processed_document.generated_text = response_dict["generated_text"]
+                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
+                processed_document.errors.append(f"Response could not be parsed: {response_dict}")
         else:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
             processed_document.errors.append(f"Request failed with status code {response.status_code}: {response.text}")
         return processed_document
+
+    def parse_response(self, response_dict: dict) -> str | None:
+        """Parses the response from the LLM service.
+
+        Args:
+            response_dict (dict): The response dictionary.
+
+        Returns:
+            str: The generated text.
+        """
+        choices = response_dict.get("choices")
+        if choices is None or len(choices) == 0:
+            return None
+        else:
+            return choices[0].get("text")

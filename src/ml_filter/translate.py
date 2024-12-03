@@ -1,12 +1,21 @@
 import json
+import logging
 import os
 from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
 
 import yaml
 from pydantic import FilePath
 
-from constants import EUROPEAN_LANGUAGES
+from constants import DEEPL, EUROPEAN_LANGUAGES, OPENAI
+
+logging.basicConfig(level=logging.WARNING)
+
+
+class TranslationServiceType(Enum):
+    DEEPL = "deepl"
+    OPENAI = "openai"
 
 
 class TranslationClient(ABC):
@@ -15,6 +24,12 @@ class TranslationClient(ABC):
     def __init__(self, api_key: str, ignore_tag_text: str | None = None):
         self.api_key = api_key
         self.ignore_tag_text = ignore_tag_text
+
+    @property
+    @abstractmethod
+    def name(self) -> list[str]:
+        """A property that returns the name of the translation client."""
+        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -29,7 +44,7 @@ class TranslationClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> dict[str, str]:
+    def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text and return results as a dictionary."""
         raise NotImplementedError
 
@@ -69,7 +84,14 @@ class Translator:
 
     def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text into the target language using the specified client."""
-        return self.client.translate_text(text, source_language_code, target_language_code)
+        translated_text = self.client.translate_text(text, source_language_code, target_language_code)
+        if translated_text == text:
+            logging.warning(
+                "The translated text is identical to the source text. "
+                f"This may indicate an issue with the translation process. "
+                f"Source language: {source_language_code}, Target language: {target_language_code}."
+            )
+        return translated_text
 
     def translate_jsonl_to_multiple_languages(
         self,
@@ -152,7 +174,7 @@ class Translator:
                 )
 
         for language_code, data in translated_data.items():
-            output_file_path = output_folder_path / f"{input_file_path.stem}_{language_code}.yaml"
+            output_file_path = output_folder_path / f"{input_file_path.stem}_{language_code}_{self.client.name}.yaml"
             self._write_output(output_file_path, data)
 
     @staticmethod
@@ -239,6 +261,10 @@ class DeepLClient(TranslationClient):
         )
         return result.text
 
+    @property
+    def name(self) -> str:
+        return DEEPL
+
 
 class OpenAIClient(TranslationClient):
     """Client for the OpenAI API."""
@@ -248,6 +274,10 @@ class OpenAIClient(TranslationClient):
         import openai
 
         self.client = openai.OpenAI(api_key=api_key)
+
+    @property
+    def name(self) -> str:
+        return OPENAI
 
     @property
     def supported_source_languages(self) -> list[str]:
@@ -298,7 +328,7 @@ class OpenAIClient(TranslationClient):
                 {"role": "user", "content": prompt},
             ],
         )
-        translated_text = response.choices[0].message["content"]
+        translated_text = response.choices[0].message.content
         return translated_text
 
     def _get_ignore_text(self) -> str:
@@ -312,6 +342,18 @@ class OpenAIClient(TranslationClient):
 
 class TranslatorFactory:
     @staticmethod
+    def get_translator(
+        translation_service_type: TranslationServiceType, ignore_tag_text: str | None = None
+    ) -> Translator:
+        if translation_service_type == TranslationServiceType.DEEPL:
+            return TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
+        elif translation_service_type == TranslationServiceType.OPENAI:
+            return TranslatorFactory.get_openai_translator(ignore_tag_text=ignore_tag_text)
+        else:
+            valid_translators = ", ".join([service.value for service in TranslationServiceType])
+            raise ValueError(f"Invalid translator specified. Choose from: {valid_translators}.")
+
+    @staticmethod
     def get_openai_translator(ignore_tag_text: str | None = None) -> Translator:
         api_key = TranslatorFactory._get_api_key("OPENAI_API_KEY")
         client = OpenAIClient(api_key, ignore_tag_text)
@@ -323,7 +365,7 @@ class TranslatorFactory:
         client = DeepLClient(api_key, ignore_tag_text)
         return Translator(client)
 
-    def _get_api_key(evn_variable_name: str):
+    def _get_api_key(evn_variable_name: str) -> str:
         api_key = os.getenv(evn_variable_name)
         if api_key is None or api_key == "":
             raise EnvironmentError(
