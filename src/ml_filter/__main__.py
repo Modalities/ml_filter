@@ -10,6 +10,7 @@ from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationService, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
+from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
 
 
 @click.group()
@@ -78,6 +79,23 @@ def entry_train_classifier(config_file_path: Path):
 )
 def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: int):
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
+
+
+@main.command(name="add_target_langauge_to_prompt_yaml")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the input prompt (yaml).",
+)
+@click.option(
+    "--output_dir",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Directory where chunk files will be saved.",
+)
+def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
+    add_target_langauge_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
 
 
 @main.command(name="translate_flat_yaml")
