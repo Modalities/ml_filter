@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from pydantic import BaseModel, ConfigDict
 from tqdm import tqdm
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
@@ -252,6 +253,15 @@ class DocumentProcessor:
         report_statistics(results_file_path=self.output_file_path, output_dir_path=self.experiment_dir_path)
 
 
+class ReportStats(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    mae: float
+    mse: float
+    std: float
+    acc: float
+    confusion_matrix: Dict
+
+
 def report_statistics(results_file_path: Path, output_dir_path: Path | None = None) -> Dict[str, Any]:
     """Show the comparison between the original and generated score."""
     df = pd.read_json(results_file_path, lines=True)
@@ -263,11 +273,13 @@ def report_statistics(results_file_path: Path, output_dir_path: Path | None = No
     df["accuracy"] = (df["original_score"] == df["score"]).mean()
 
     statistics_report = {
-        "mae": float(df["score_mae"].mean()),
-        "mse": float(df["score_mse"].mean()),
-        "std": float(df["score_std"].mean()),
-        "acc": float(df["accuracy"].mean()),
-        "confusion_matrix": pd.crosstab(df["original_score"], df["score"]).to_dict(),
+        **ReportStats(
+            mae=df["score_mae"].mean(),
+            mse=df["score_mse"].mean(),
+            std=df["score_std"].mean(),
+            acc=df["accuracy"].mean(),
+            confusion_matrix=pd.crosstab(df["original_score"], df["score"]).to_dict(),
+        ).model_dump(),
         "predicted_score_counts": df["score"].value_counts().sort_index().to_dict(),
         "original_score_counts": df["original_score"].value_counts().sort_index().to_dict(),
         "document_status_counts": df["document_processing_status"].value_counts().to_dict(),
