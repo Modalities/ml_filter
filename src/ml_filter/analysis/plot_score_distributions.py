@@ -1,4 +1,5 @@
 
+from itertools import combinations
 import json
 import os
 
@@ -53,28 +54,27 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> No
         
 
         # Initialize a list to store the differences for each consecutive version pair
-        score_differences = []
+        score_differences = {}
 
         # Compute differences for consecutive versions for each document
-        for i in range(len(df.columns) - 1):
-            version1 = df.columns[i]
-            version2 = df.columns[i + 1]
-        
+        # TODO why only consecutive versions? Use arbitrary pairs of versions instead
+        for (version1, version2) in combinations(df.columns, 2):
             # Compute the difference between the two versions for all documents that have scores in both versions
             differences = df[version2] - df[version1]
-            score_differences.append(differences)
+            score_differences[(version1, version2)] = differences
 
         sns.set_theme(style='whitegrid')
         # Plotting the differences as histograms where x-axis represents the difference and y-axis represents the frequency
         plt.figure(figsize=(12, 8))
         
         # Loop through the computed differences and plot histograms for each consecutive version pair
-        for i, differences in enumerate(score_differences):
+        for i, (version1, version2) in enumerate(score_differences):
+            differences = score_differences[(version1, version2)]
             plt.subplot(len(score_differences), 1, i + 1)
             plt.hist(differences, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
             plt.xlabel('Score Difference')
             plt.ylabel('Frequency')
-            plt.title(f'Histogram of Educational Score Differences ({df.columns[i]} to {df.columns[i + 1]})')
+            plt.title(f'Histogram of Educational Score Differences ({version2} - {version1})')
             plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
 
@@ -86,14 +86,16 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> No
         # Plot boxplot of the score differences
         sns.reset_defaults()
         plt.figure(figsize=(12, 8))
-        plt.boxplot(score_differences, labels=[f'{df.columns[i]} to {df.columns[i + 1]}' for i in range(len(df.columns) - 1)], showmeans=True, meanprops=dict(marker='x', markerfacecolor='red', markeredgecolor='red'))
+        labels = [f'{version2} - {version1}' for (version1, version2) in score_differences]
+        score_differences_values = list(score_differences.values())
+        plt.boxplot(score_differences_values, labels=labels, showmeans=True, meanprops=dict(marker='x', markerfacecolor='red', markeredgecolor='red'))
         
         plt.figure(figsize=(10, 6))
-        plt.boxplot(score_differences, labels=[f'{df.columns[i]} to {df.columns[i + 1]}' for i in range(len(df.columns) - 1)], showmeans=True)
-        mean_value = np.mean(score_differences)
-        median_value = np.median(score_differences)
-        q1 = np.percentile(differences, 25)
-        q3 = np.percentile(score_differences, 75)
+        plt.boxplot(score_differences_values, labels=labels, showmeans=True)
+        mean_value = np.mean(score_differences_values)
+        median_value = np.median(score_differences_values)
+        q1 = np.percentile(score_differences_values, 25)
+        q3 = np.percentile(score_differences_values, 75)
 
         plt.annotate(f'Median: {median_value:.2f}', xy=(i + 1, median_value), xytext=(i + 1.1, median_value),
                         fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='black', arrowstyle='->'))
