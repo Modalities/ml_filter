@@ -103,20 +103,44 @@ class LogitMaskLayer(torch.nn.Module):
 
 
 class RegressionScalingLayer(torch.nn.Module):
-    """Clamps output values of regression head to be in [0, n_classes - 1] for each regression target"""
+    """
+    A PyTorch module that scales regression outputs with clamping during evaluation.
+
+    This layer performs two main functions:
+    1. During training: Scales the input tensor without clamping to preserve gradients
+    2. During evaluation: Clamps the input tensor to [0, 1] and then scales it
+
+    Attributes:
+        scaling_constants (torch.nn.Parameter): A tensor of scaling constants,
+            initialized by subtracting 1.0 from the input and set as non-trainable
+    """
 
     def __init__(self, scaling_constants: Tensor):
+        """
+        Initialize the RegressionScalingLayer.
+
+        Args:
+            scaling_constants (Tensor): Tensor used for scaling regression outputs (non-trainable).
+                The values are detached, cloned, and adjusted by subtracting 1.0.
+                For a target with n_classes classes, valid ground truth values are the integers 0, 1, ..., n_classes-1
+        """
         super().__init__()
         self.scaling_constants = torch.nn.Parameter(scaling_constants.detach().clone() - 1.0, requires_grad=False)
 
     def forward(self, x: Tensor) -> Tensor:
-        """Clamp output values of regression head to be in [0, n_classes - 1] for each regression target.
-        The last dimension of `x` must match the dimension of self.scaling_constants.
+        """
+        Apply scaling to the input tensor, with different behavior in training and evaluation modes.
+
+        During training, simply multiplies the input by scaling constants.
+        During evaluation, clamps the input to [0, 1] before scaling.
 
         Args:
-            x (Tensor): shape (batch_size, num_regressor_outputs)
+            x (Tensor): Input tensor of shape (batch_size, num_regressor_outputs)
 
         Returns:
-            Tensor: shape (batch_size, num_regressor_outputs)
+            Tensor: Scaled output tensor of shape (batch_size, num_regressor_outputs)
         """
-        return torch.clamp(x, 0.0, 1.0) * self.scaling_constants
+        if self.training:  # if training, don't clamp to preserve gradient
+            return x * self.scaling_constants
+        else:  # clamp to [0, 1] during eval
+            return torch.clamp(x, 0.0, 1.0) * self.scaling_constants
