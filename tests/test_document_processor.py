@@ -37,7 +37,7 @@ def test_run(tmpdir: Path):
         prompt_builder=prompt_builder,
         queue_size=2,
         batch_size=2,
-        raw_data_file_path=raw_data_path,
+        raw_data_file_paths=raw_data_path,
         experiment_dir_path=tmpdir / "experiment",
         num_processes=1,
         score_metric_name="educational_score",

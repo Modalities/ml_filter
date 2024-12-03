@@ -1,113 +1,42 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: meta-llama/Meta-Llama-3.1-8B-Instruct
+  model_name: Qwen/Qwen2.5-14B-Instruct
   tokenizer_name_or_path: ${settings.model_name}
   paths:
-    raw_data_file_path: data/lorem_ipsum.jsonl
+    raw_data_file_paths: 
+    - data/test_data_ml_filter_511.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
 
 llm_rest_client:
-  model_name: llama
-  max_tokens: 60000
+  model_name: ${settings.model_name}
+  max_tokens: 4096
   max_new_tokens: 500
   temperature: 0.001
-  max_pool_connections: 100
-  max_pool_maxsize: 100 #TODO
+  max_pool_connections: 1000
+  max_pool_maxsize: 1000 #TODO
   max_retries: 2
   backoff_factor: 0.4 
-  timeout: 20
+  timeout: 100
   verbose: false
 
 tokenizer:
   pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
   special_tokens: null
+  add_generation_prompt: false
 
 prompt_builder:
   prompt_template_file_path: ${settings.paths.prompt_template_file_path}
   # The maximum length of the prompt
   # Note that the maximum number of generated tokens is
   # model_context_length - max_prompt_length
-  max_prompt_length: 3596
+  max_prompt_length: ${eval:'${llm_rest_client.max_tokens} - ${llm_rest_client.max_new_tokens}'}
 
 document_processor:
   output_directory_path: ${settings.paths.output_directory_path}
-  queue_size: 10
-  batch_size: 2
-  num_processes: 3
+  queue_size: 100
+  batch_size: 16
+  num_processes: 10
   score_metric_name: educational_score
-
-  strings_to_remove:
-    - "<"
-    - "|"
-    - "begin_of_text"
-    - ">"
-    - "<"
-    - "|"
-    - "start_header_id"
-    - "|"
-    - ">"
-    - "<"
-    - "|"
-    - "end_header_id"
-    - "|"
-    - ">"
-    - "["
-    - "…"
-    - "]"
-    - "„"
-    - "“"
-    - "–"
-    - "‘"
-    - ";"
-    - ":"
-    - "/"
-    - "-"
-    - '"'
-    - "{"
-    - "}"
-    - "\\"
-    - "”"
-    - ")"
-    - "("
-    - "www."
-    - "%"
-    - "→"
-    - "!"
-    - "*"
-    - "#"
-    - "’"
-    - ".."
-    - ".com"
-    - "[INST]"
-    - "</s>"
-    - "<s>"
-    - ">"
-    - "["
-    - "…"
-    - "]"
-    - "„"
-    - "“"
-    - "–"
-    - "‘"
-    - ";"
-    - ":"
-    - "/"
-    - "-"
-    - '"'
-    - "{"
-    - "}"
-    - "\\"
-    - "”"
-    - ")"
-    - "("
-    - "www."
-    - "%"
-    - "→"
-    - "!"
-    - "*"
-    - "#"
-    - "’"
-    - ".."
-    - ".com"
+  strings_to_remove: []

@@ -34,6 +34,7 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
     def __init__(
         self,
         pretrained_model_name_or_path: str,
+        add_generation_prompt: bool,
         truncation: Optional[bool] = False,
         padding: Optional[bool | str] = False,
         max_length: Optional[int] = None,
@@ -43,6 +44,11 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
 
         Args:
             pretrained_model_name_or_path (str): Name or path of the pretrained model.
+            add_generation_prompt (bool):  If this is set, a prompt with the token(s) that indicate
+                the start of an assistant message will be appended to the formatted output.
+                This is useful when you want to generate a response from the model.
+                Note that this argument will be passed to the chat template, and so it must be supported in the
+                template for this argument to have any effect.
             truncation (bool, optional): Flag whether to apply truncation. Defaults to False.
             padding (bool | str, optional): Defines the padding strategy. Defaults to False.
             max_length (int, optional): Maximum length of the tokenization output. Defaults to None.
@@ -67,6 +73,7 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
         self.max_length = max_length
         self.truncation = truncation
         self.padding = padding
+        self.add_generation_prompt = add_generation_prompt
 
     @property
     def pad_token(self) -> str:
@@ -76,6 +83,16 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
     def eos_token(self) -> str:
         return self.tokenizer.eos_token
 
-    def apply_tokenizer_chat_template(self, prompt: List[Dict[str, str]], tokenize: bool) -> str:
-        # TODO: check return type
-        return self.tokenizer.apply_chat_template(prompt, tokenize=tokenize)
+    def apply_tokenizer_chat_template(self, prompt: List[Dict[str, str]], tokenize: bool) -> str | List[int]:
+        """Applies a chat template to the given prompt.
+
+        Args:
+            prompt (List[Dict[str, str]]): The prompt
+            tokenize (bool): Wether to tokenize the prompt or just apply the chat template
+
+        Returns:
+            str | List[int]: The chat-tempalte-applied prompt as list of int if tokenize is True otherwise str.
+        """
+        return self.tokenizer.apply_chat_template(
+            prompt, tokenize=tokenize, add_generation_prompt=self.add_generation_prompt
+        )

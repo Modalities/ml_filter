@@ -31,6 +31,7 @@ class ProcessedDocument:
     generated_text: str = ""
     score_type: str = ""
     score: float = None
+    original_score: float = None
     document_processing_status: DocumentProcessingStatus = None
     errors: List[str] = field(default_factory=list)
     tags: List[DocumentProcessingTags] = field(default_factory=list)
