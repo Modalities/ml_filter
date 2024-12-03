@@ -7,7 +7,7 @@ import click
 import click_pathlib
 
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
-from ml_filter.analysis.plot_score_distributions import plot_scores, plot_scores_differences
+from ml_filter.analysis.plot_score_distributions import plot_scores, plot_differences_in_scores
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslatorFactory
@@ -146,7 +146,7 @@ def interrater_reliability_cli(
 def plot_differences_in_scores_cli(path_to_files: tuple[str], output_dir:str) -> None:
     """Plot the differences in scores."""
     files = list(path_to_files)
-    plot_scores_differences(path_to_files=files, output_dir=Path(output_dir))
+    plot_differences_in_scores(path_to_files=files, output_dir=Path(output_dir))
 
 
 @main.command(name="plot_scores")

@@ -11,7 +11,7 @@ import seaborn as sns
 
 def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
     document_scores = _get_document_scores(path_to_files)
-    # TODO iterate over different combinations of annotators
+    # iterate over different prompts
     for prompt in document_scores:
         df = _prepare_df(document_scores[prompt])
 
@@ -38,79 +38,81 @@ def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
         )
 
         # Save and close the plot
-        output_file = output_dir / (prompt + '_score_distributions.png')
-        plt.savefig(output_file)
+        plt.savefig(output_dir / (prompt + '_score_distributions.png'))
         plt.close()
 
 
 
-def plot_scores_differences(path_to_files: list[str], output_dir: Path) -> None:
+def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> None:
     # Initialize a dictionary to store educational_score by id across files
     document_scores = _get_document_scores(path_to_files)
-    df = _prepare_df(document_scores)
     
+    # iterate over different prompts
+    for prompt in document_scores:
+        df = _prepare_df(document_scores[prompt])
+        
 
-    # Initialize a list to store the differences for each consecutive version pair
-    score_differences = []
+        # Initialize a list to store the differences for each consecutive version pair
+        score_differences = []
 
-    # Compute differences for consecutive versions for each document
-    for i in range(len(df.columns) - 1):
-        version1 = df.columns[i]
-        version2 = df.columns[i + 1]
-    
-        # Compute the difference between the two versions for all documents that have scores in both versions
-        differences = df[version2] - df[version1]
-        score_differences.append(differences)
+        # Compute differences for consecutive versions for each document
+        for i in range(len(df.columns) - 1):
+            version1 = df.columns[i]
+            version2 = df.columns[i + 1]
+        
+            # Compute the difference between the two versions for all documents that have scores in both versions
+            differences = df[version2] - df[version1]
+            score_differences.append(differences)
 
-    sns.set_theme(style='whitegrid')
-    # Plotting the differences as histograms where x-axis represents the difference and y-axis represents the frequency
-    plt.figure(figsize=(12, 8))
-    
-    # Loop through the computed differences and plot histograms for each consecutive version pair
-    for i, differences in enumerate(score_differences):
-        plt.subplot(len(score_differences), 1, i + 1)
-        plt.hist(differences, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
-        plt.xlabel('Score Difference')
-        plt.ylabel('Frequency')
-        plt.title(f'Histogram of Educational Score Differences ({df.columns[i]} to {df.columns[i + 1]})')
+        sns.set_theme(style='whitegrid')
+        # Plotting the differences as histograms where x-axis represents the difference and y-axis represents the frequency
+        plt.figure(figsize=(12, 8))
+        
+        # Loop through the computed differences and plot histograms for each consecutive version pair
+        for i, differences in enumerate(score_differences):
+            plt.subplot(len(score_differences), 1, i + 1)
+            plt.hist(differences, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
+            plt.xlabel('Score Difference')
+            plt.ylabel('Frequency')
+            plt.title(f'Histogram of Educational Score Differences ({df.columns[i]} to {df.columns[i + 1]})')
+            plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
+                    fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
+
+        plt.tight_layout()
+        # Save histogram plot
+        plt.savefig(output_dir / (prompt + '_score_distributions_difference_histogram.png'))
+        plt.close()
+
+        # Plot boxplot of the score differences
+        sns.reset_defaults()
+        plt.figure(figsize=(12, 8))
+        plt.boxplot(score_differences, labels=[f'{df.columns[i]} to {df.columns[i + 1]}' for i in range(len(df.columns) - 1)], showmeans=True, meanprops=dict(marker='x', markerfacecolor='red', markeredgecolor='red'))
+        
+        plt.figure(figsize=(10, 6))
+        plt.boxplot(score_differences, labels=[f'{df.columns[i]} to {df.columns[i + 1]}' for i in range(len(df.columns) - 1)], showmeans=True)
+        mean_value = np.mean(score_differences)
+        median_value = np.median(score_differences)
+        q1 = np.percentile(differences, 25)
+        q3 = np.percentile(score_differences, 75)
+
+        plt.annotate(f'Median: {median_value:.2f}', xy=(i + 1, median_value), xytext=(i + 1.1, median_value),
+                        fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='black', arrowstyle='->'))
+        plt.annotate(f'Mean: {mean_value:.2f}', xy=(i + 1, mean_value), xytext=(i + 0.9, mean_value),
+                        fontsize=9, ha='right', va='center', arrowprops=dict(facecolor='red', arrowstyle='->'))
+        plt.annotate(f'Q1: {q1:.2f}', xy=(i + 1, q1), xytext=(i + 1.1, q1 - 0.5),
+                        fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='blue', arrowstyle='->'))
+        plt.annotate(f'Q3: {q3:.2f}', xy=(i + 1, q3), xytext=(i + 1.1, q3 + 0.5),
+                        fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='green', arrowstyle='->'))
+
+        plt.ylabel('Score Differences')
+        plt.title('Boxplot of Educational Score Differences Between Versions')
         plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
-                 fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
-
-    plt.tight_layout()
-    # Save histogram plot
-    plt.savefig(os.path.join(output_dir, 'score_distributions_difference_histogram.png'))
-    plt.close()
-
-    # Plot boxplot of the score differences
-    sns.reset_defaults()
-    plt.figure(figsize=(12, 8))
-    plt.boxplot(score_differences, labels=[f'{df.columns[i]} to {df.columns[i + 1]}' for i in range(len(df.columns) - 1)], showmeans=True, meanprops=dict(marker='x', markerfacecolor='red', markeredgecolor='red'))
-    
-    plt.figure(figsize=(10, 6))
-    plt.boxplot(score_differences, labels=[f'{df.columns[i]} to {df.columns[i + 1]}' for i in range(len(df.columns) - 1)], showmeans=True)
-    mean_value = np.mean(score_differences)
-    median_value = np.median(score_differences)
-    q1 = np.percentile(differences, 25)
-    q3 = np.percentile(score_differences, 75)
-
-    plt.annotate(f'Median: {median_value:.2f}', xy=(i + 1, median_value), xytext=(i + 1.1, median_value),
-                     fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='black', arrowstyle='->'))
-    plt.annotate(f'Mean: {mean_value:.2f}', xy=(i + 1, mean_value), xytext=(i + 0.9, mean_value),
-                     fontsize=9, ha='right', va='center', arrowprops=dict(facecolor='red', arrowstyle='->'))
-    plt.annotate(f'Q1: {q1:.2f}', xy=(i + 1, q1), xytext=(i + 1.1, q1 - 0.5),
-                     fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='blue', arrowstyle='->'))
-    plt.annotate(f'Q3: {q3:.2f}', xy=(i + 1, q3), xytext=(i + 1.1, q3 + 0.5),
-                     fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='green', arrowstyle='->'))
-
-    plt.ylabel('Score Differences')
-    plt.title('Boxplot of Educational Score Differences Between Versions')
-    plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
-                 fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
-    
-    
-    # Save boxplot
-    plt.savefig(os.path.join(output_dir, 'score_distributions_difference_boxplot.png'))
-    plt.close()
+                    fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
+        
+        
+        # Save boxplot
+        plt.savefig(output_dir / (prompt + '_score_distributions_difference_boxplot.png'))
+        plt.close()
 
 def _get_document_scores(path_to_files: list[str]) -> dict[str, dict[str, float]]:
     document_scores = {}
