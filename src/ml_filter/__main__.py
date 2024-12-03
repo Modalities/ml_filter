@@ -174,7 +174,7 @@ def translate_flat_yaml_cli(
 @main.command(name="translate_jsonl_to_multiple_languages_cli")
 @click.option(
     "--input_file_path",
-    type=click_pathlib.Path(exists=False),
+    type=click_pathlib.Path(exists=True),
     required=True,
     help="Path to the input file.",
 )

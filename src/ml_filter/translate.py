@@ -114,7 +114,7 @@ class Translator:
         # Ensure output folder exists
         output_folder_path.mkdir(parents=True, exist_ok=True)
 
-        def read_jsonl(file_path):
+        def _read_jsonl(file_path: Path):
             """Generator to yield JSON objects from a JSONL file."""
             with open(file_path, "r", encoding="utf-8") as f:
                 for line in f:
