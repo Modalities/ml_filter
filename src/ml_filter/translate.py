@@ -1,3 +1,4 @@
+import logging
 import os
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -7,6 +8,8 @@ import yaml
 from pydantic import FilePath
 
 from constants import DEEPL, EUROPEAN_LANGUAGES, OPENAI
+
+logging.basicConfig(level=logging.WARNING)
 
 
 class TranslationService(Enum):
@@ -80,7 +83,13 @@ class Translator:
 
     def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text into the target language using the specified client."""
-        return self.client.translate_text(text, source_language_code, target_language_code)
+        translated_text = self.client.translate_text(text, source_language_code, target_language_code)
+        if translated_text == text:
+            logging.warning(
+                "The translated text is identical to the source text. "
+                f"This may indicate an issue with the translation process. "
+                f"Source language: {source_language_code}, Target language: {target_language_code}."
+            )
 
     def translate_flat_yaml_to_multiple_languages(
         self,
