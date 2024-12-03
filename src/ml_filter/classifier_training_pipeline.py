@@ -209,6 +209,16 @@ class ClassifierTrainingPipeline:
         )
 
     def compute_metrics(self, eval_pred: EvalPrediction):
+        """
+        Compute metrics for multi-target classification or regression.
+        Args:
+            eval_pred (EvalPrediction): Contains predictions and labels from evaluation.
+                predictions: numpy array of shape (batch_size, num_classes, num_regressor_outputs) for classification
+                           or (batch_size, num_regressor_outputs) for regression
+                labels: numpy array of shape (batch_size, num_regressor_outputs)
+        Returns:
+            dict: Dictionary containing computed metrics
+        """
         predictions, labels = eval_pred
 
         # Convert logits to predicted class
@@ -225,6 +235,21 @@ class ClassifierTrainingPipeline:
         for i, name in enumerate(self.output_names):
             accuracy = accuracy_score(labels[:, i], preds[:, i])
             f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
+
+            # Calculate binary metrics for different thresholds
+            thresholds = np.arange(self.num_classes_per_output[i])
+            for threshold in thresholds:
+                # Convert to binary predictions using threshold
+                binary_preds = (preds[:, i] >= threshold).astype(int)
+                binary_labels = (labels[:, i] >= threshold).astype(int)
+                
+                binary_accuracy = accuracy_score(binary_labels, binary_preds)
+                binary_f1 = f1_score(binary_labels, binary_preds, average="weighted")
+                
+                metric_dict.update({
+                    f"{name}_binary_accuracy_t{threshold}": binary_accuracy,
+                    f"{name}_binary_f1_t{threshold}": binary_f1
+                })
 
             mse = mean_squared_error(labels[:, i], preds_raw[:, i])
             mae = mean_absolute_error(labels[:, i], preds_raw[:, i])
