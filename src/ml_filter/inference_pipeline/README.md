@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ### 4. Prepare Input Files List
 
 Create a text file named input_files.txt containing the paths to your input JSONL files, one per line.
-The jsonl files assumes the data is at the "text" key.
+The jsonl files assume the data is at the "text" key.
 
 ```bash
 /data/jsonl/file1.jsonl
