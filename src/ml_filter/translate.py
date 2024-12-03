@@ -120,15 +120,16 @@ class Translator:
                 for line in f:
                     yield json.loads(line)
 
-        # Open output files for all target languages
-        output_files = {
-            language_code: open(
-                output_folder_path / f"{input_file_path.stem}_{language_code}.jsonl", "w", encoding="utf-8"
-            )
-            for language_code in target_language_codes
-        }
-
+        output_files = {}
         try:
+            # Open output files for all target languages
+            output_files = {
+                language_code: open(
+                    output_folder_path / f"{input_file_path.stem}_{language_code}.jsonl", "w", encoding="utf-8"
+                )
+                for language_code in target_language_codes
+            }
+
             # Use the generator to read and process the input JSONL file
             for document in _read_jsonl(input_file_path):
                 text = document.get("text")
