@@ -175,7 +175,13 @@ class ClassifierTrainingPipeline:
             target.view(-1, self.num_scores),
         )
 
-    def compute_metrics(self, eval_pred: EvalPrediction):
+    @staticmethod
+    def compute_metrics(self, eval_pred: EvalPrediction) -> dict:
+        """
+        Computes evaluation metrics for all scores.
+        
+        Returns a dictionary containing an entry for every score with different evaluation metrics.
+        """
         predictions, labels = eval_pred
 
         # Convert logits to predicted class
@@ -195,7 +201,12 @@ class ClassifierTrainingPipeline:
             return metric_dict
 
     @staticmethod
-    def _compute_metrics_for_single_score(labels: np.ndarray, preds: np.ndarray):
+    def _compute_metrics_for_single_score(labels: np.ndarray, preds: np.ndarray) -> dict:
+        """
+        Computes evaluation metrics for a specific score
+        
+        Returns a dictionary containing an entry for every evaluation metrics.
+        """
         metrics = {}
         
         # Compute classification metrics
