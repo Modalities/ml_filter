@@ -101,9 +101,13 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> No
                         fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='black', arrowstyle='->'))
         plt.annotate(f'Mean: {mean_value:.2f}', xy=(i + 1, mean_value), xytext=(i + 0.9, mean_value),
                         fontsize=9, ha='right', va='center', arrowprops=dict(facecolor='red', arrowstyle='->'))
-        plt.annotate(f'Q1: {q1:.2f}', xy=(i + 1, q1), xytext=(i + 1.1, q1 - 0.5),
+        # Get the current y-axis limits
+        y_min, y_max = plt.ylim()
+        q1_text_y = max(y_min, min(q1 - 0.5, y_max))
+        plt.annotate(f'Q1: {q1:.2f}', xy=(i + 1, q1), xytext=(i + 1.1, q1_text_y),
                         fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='blue', arrowstyle='->'))
-        plt.annotate(f'Q3: {q3:.2f}', xy=(i + 1, q3), xytext=(i + 1.1, q3 + 0.5),
+        q3_text_y = max(y_min, min(q3 + 0.5, y_max))
+        plt.annotate(f'Q3: {q3:.2f}', xy=(i + 1, q3), xytext=(i + 1.1, q3_text_y),
                         fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='green', arrowstyle='->'))
 
         plt.ylabel('Score Differences')
