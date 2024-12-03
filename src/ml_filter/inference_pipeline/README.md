@@ -15,7 +15,7 @@ cd ml_filter/src/ml_filter/inference_pipeline
 ### 2. Create and Activate a Conda Environment
 
 ```bash
-conda create -n bert-env python=3.10.0
+conda create -n bert-env python=3.11
 conda activate bert-env
 ```
 
