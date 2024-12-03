@@ -8,7 +8,7 @@ import click_pathlib
 
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.llm_client import LLMClient
-from ml_filter.translate import TranslatorFactory
+from ml_filter.translate import TranslationService, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 
 
@@ -112,17 +112,17 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     help="Comma-separated list of languages.",
 )
 @click.option(
-    "--translator",
-    type=click.Choice(["deepl", "openai"], case_sensitive=False),
+    "--translation_service",
+    type=click.Choice([service.value for service in TranslationService], case_sensitive=False),
     required=True,
-    help="Translator to use (deepl or openai).",
+    help=f"Translator to use ({', '.join(service.value for service in TranslationService)}).",
 )
 def translate_flat_yaml_cli(
     input_file_path: Path,
     output_folder_path: Path,
     source_language_code: str,
     target_language_codes: list[str],
-    translator: str,
+    translation_service: str,
     ignore_tag_text: Optional[str] = None,
 ):
     """
@@ -130,8 +130,10 @@ def translate_flat_yaml_cli(
     """
     target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
-    translator = TranslatorFactory.get_translator(translator=translator, ignore_tag_text=ignore_tag_text)
-    translator.translate_flat_yaml_to_multiple_languages(
+    translation_service = TranslatorFactory.get_translator(
+        translation_service=translation_service, ignore_tag_text=ignore_tag_text
+    )
+    translation_service.translate_flat_yaml_to_multiple_languages(
         input_file_path=input_file_path,
         output_folder_path=output_folder_path,
         source_language_code=source_language_code,

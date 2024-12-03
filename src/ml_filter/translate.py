@@ -1,11 +1,17 @@
 import os
 from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
 
 import yaml
 from pydantic import FilePath
 
 from constants import DEEPL, EUROPEAN_LANGUAGES, OPENAI
+
+
+class TranslationService(Enum):
+    DEEPL = "deepl"
+    OPENAI = "openai"
 
 
 class TranslationClient(ABC):
@@ -268,10 +274,10 @@ class OpenAIClient(TranslationClient):
 
 class TranslatorFactory:
     @staticmethod
-    def get_translator(translator: str, ignore_tag_text: str | None = None) -> Translator:
-        if translator.lower() == DEEPL:
+    def get_translator(translation_service: str, ignore_tag_text: str | None = None) -> Translator:
+        if translation_service.lower() == TranslationService.DEEPL.value:
             return TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
-        elif translator.lower() == OPENAI:
+        elif translation_service.lower() == TranslationService.OPENAI.value:
             return TranslatorFactory.get_openai_translator(ignore_tag_text=ignore_tag_text)
         else:
             raise ValueError("Invalid translator specified. Choose 'deepl' or 'openai'.")
