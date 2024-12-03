@@ -125,7 +125,9 @@ class Translator:
             # Open output files for all target languages
             output_files = {
                 language_code: open(
-                    output_folder_path / f"{input_file_path.stem}_{language_code}.jsonl", "w", encoding="utf-8"
+                    output_folder_path / f"{input_file_path.stem}_{language_code}_{self.client.name}.jsonl",
+                    "w",
+                    encoding="utf-8",
                 )
                 for language_code in target_language_codes
             }
