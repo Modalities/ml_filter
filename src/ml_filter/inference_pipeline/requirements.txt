@@ -1,0 +1,3 @@
+transformers==4.45.2
+optimum==1.23.3
+#torch #shall be loaded from modules
