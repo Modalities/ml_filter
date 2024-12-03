@@ -13,6 +13,38 @@ from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
 
+input_file_path_option = click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the input file.",
+)
+output_folder_path_option = click.option(
+    "--output_folder_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the output directory of the translated files.",
+)
+translation_service_option = click.option(
+    "--translation_service",
+    type=click.Choice([service.value for service in TranslationServiceType], case_sensitive=False),
+    required=True,
+    help=f"Translator to use ({', '.join(service.value for service in TranslationServiceType)}).",
+)
+source_language_code_option = click.option(
+    "--source_language_code",
+    type=str,
+    required=True,
+    help="Language code of the source language.",
+)
+
+target_language_codes_option = click.option(
+    "--target_language_codes",
+    type=str,
+    required=True,
+    help="Comma-separated list of languages.",
+)
+
 
 @click.group()
 def main() -> None:
@@ -111,58 +143,30 @@ def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
 
 
 @main.command(name="translate_flat_yaml")
-@click.option(
-    "--input_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the input file.",
-)
-@click.option(
-    "--output_folder_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the output directory of the translated files.",
-)
+@input_file_path_option
+@output_folder_path_option
 @click.option(
     "--ignore_tag_text",
     type=str,
     required=False,
     help="Tag indicating which part of the translation should be ignored.",
 )
-@click.option(
-    "--source_language_code",
-    type=str,
-    required=True,
-    help="Language code of the source language.",
-)
-@click.option(
-    "--target_language_codes",
-    type=str,
-    required=True,
-    help="Comma-separated list of languages.",
-)
-@click.option(
-    "--translation_service",
-    type=click.Choice([service.value for service in TranslationServiceType], case_sensitive=False),
-    required=True,
-    help=f"Translator to use ({', '.join(service.value for service in TranslationServiceType)}).",
-)
+@source_language_code_option
+@target_language_codes_option
+@translation_service_option
 def translate_flat_yaml_cli(
     input_file_path: Path,
     output_folder_path: Path,
     source_language_code: str,
-    target_language_codes: list[str],
+    target_language_codes: str,
     translation_service: str,
     ignore_tag_text: Optional[str] = None,
 ):
     """
     CLI command to translate flat YAML files using either DeepL or OpenAI.
     """
-    target_language_codes_list = [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
-    translation_service_type = TranslationServiceType[translation_service]
-    translator = TranslatorFactory.get_translator(
-        translation_service_type=translation_service_type, ignore_tag_text=ignore_tag_text
-    )
+    target_language_codes_list = _get_target_language_codes_list_helper(target_language_codes=target_language_codes)
+    translator = _get_translator_helper(translation_service=translation_service)
     translator.translate_flat_yaml_to_multiple_languages(
         input_file_path=input_file_path,
         output_folder_path=output_folder_path,
@@ -172,40 +176,37 @@ def translate_flat_yaml_cli(
 
 
 @main.command(name="translate_jsonl_to_multiple_languages_cli")
-@click.option(
-    "--input_file_path",
-    type=click_pathlib.Path(exists=True),
-    required=True,
-    help="Path to the input file.",
-)
-@click.option(
-    "--output_folder_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the output directory of the translated files.",
-)
-@click.option(
-    "--translator",
-    type=click.Choice(["deepl", "openai"], case_sensitive=False),
-    required=True,
-    help="Translator to use (deepl or openai).",
-)
-@click.option(
-    "--source_language_code",
-    type=str,
-    required=True,
-    help="Language code of the source language.",
-)
-@click.option("--target_language_codes", type=str, required=True, help="Comma-separated list of languages")
+@input_file_path_option
+@output_folder_path_option
+@source_language_code_option
+@target_language_codes_option
+@translation_service_option
 def translate_jsonl_to_multiple_languages_cli(
     input_file_path: Path,
     output_folder_path: Path,
     source_language_code: str,
-    target_language_codes: list[str],
-    translator: str,
+    target_language_codes: str,
+    translation_service: str,
 ):
-    # TODO
-    pass
+    target_language_codes_list = _get_target_language_codes_list_helper(target_language_codes=target_language_codes)
+    translator = _get_translator_helper(translation_service=translation_service)
+    translator.translate_jsonl_to_multiple_languages(
+        input_file_path=input_file_path,
+        output_folder_path=output_folder_path,
+        source_language_code=source_language_code,
+        target_language_codes=target_language_codes_list,
+    )
+
+
+def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
+    translation_service_type = TranslationServiceType[translation_service]
+    return TranslatorFactory.get_translator(
+        translation_service_type=translation_service_type, ignore_tag_text=ignore_tag_text
+    )
+
+
+def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
+    return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
 
 if __name__ == "__main__":
