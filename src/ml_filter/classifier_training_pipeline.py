@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
+
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
@@ -96,6 +97,7 @@ class ClassifierTrainingPipeline:
             truncation=cfg.tokenizer.truncation,
             padding=cfg.tokenizer.padding,
             max_length=cfg.tokenizer.max_length,
+            add_generation_prompt=False
         )
         # Training
         self.batch_size = cfg.training.batch_size
@@ -205,7 +207,12 @@ class ClassifierTrainingPipeline:
             target.view(-1, self.num_regressor_outputs),
         )
 
-    def compute_metrics(self, eval_pred: EvalPrediction):
+    def compute_metrics(self, eval_pred: EvalPrediction) -> dict:
+        """
+        Computes evaluation metrics for all outputs.
+        
+        Returns a dictionary containing an entry for every output with different evaluation metrics.
+        """
         predictions, labels = eval_pred
 
         # Convert logits to predicted class
@@ -216,17 +223,43 @@ class ClassifierTrainingPipeline:
             # accuracy and F1 are not defined for float predictions
             preds = np.round(predictions)
             preds_raw = predictions
-
-        # TODO: implement macro and micro average
+            
         metric_dict = {}
-        for i, name in enumerate(self.output_names):
-            accuracy = accuracy_score(labels[:, i], preds[:, i])
-            f1 = f1_score(labels[:, i], preds[:, i], average="weighted")
-
-            mse = mean_squared_error(labels[:, i], preds_raw[:, i])
-            mae = mean_absolute_error(labels[:, i], preds_raw[:, i])
-            metric_dict.update({f"{name}_accuracy": accuracy, f"{name}_f1": f1, f"{name}_mse": mse, f"{name}_mae": mae})
+        for i, output_name in enumerate(self.output_names):
+            metrics = self._compute_metrics_for_single_output(labels=labels[:, i], preds=preds[:, i], preds_raw=preds_raw[:, i])
+            metric_dict.update({
+                f"{output_name}_{metric}": metrics[metric]
+                for metric in metrics
+            })
         return metric_dict
+
+    @staticmethod
+    def _compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray) -> dict:
+        """
+        Computes evaluation metrics for a specific output
+        
+        Returns a dictionary containing an entry for every evaluation metrics.
+        """
+        metrics = {}
+        
+        # Compute classification metrics
+        metrics["accuracy"] = accuracy_score(labels, preds)
+        metrics["f1_weighted"] = f1_score(labels, preds, average="weighted")
+        metrics["f1_micro"] = f1_score(labels, preds, average="micro")
+        metrics["f1_macro"] = f1_score(labels, preds, average="macro")
+
+        # Compute regression-like metrics
+        metrics["mse"] = mean_squared_error(labels, preds_raw)
+        metrics["mae"] = mean_absolute_error(labels, preds_raw)
+        
+        # add f1 scores for each class
+        classes = np.unique(labels)
+        classes.sort()
+        f1_per_class = f1_score(labels, preds, average=None)
+        for i, c in enumerate(classes):
+            metrics[f"f1_class_{c}"] = f1_per_class[i]
+        
+        return metrics   
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
