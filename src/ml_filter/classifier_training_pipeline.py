@@ -91,17 +91,13 @@ class ClassifierTrainingPipeline:
         else:
             raise NotImplementedError(f"Unsupported model type {type(self.model)}")
 
-        self.model.classifier = torch.nn.Sequential(
-            torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-            LogitMaskLayer(self.num_classes_per_metric),
-        )
-
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
             truncation=cfg.tokenizer.truncation,
             padding=cfg.tokenizer.padding,
             max_length=cfg.tokenizer.max_length,
+            add_generation_prompt=False
         )
         # Training
         self.batch_size = cfg.training.batch_size
@@ -211,12 +207,11 @@ class ClassifierTrainingPipeline:
             target.view(-1, self.num_regressor_outputs),
         )
 
-    @staticmethod
     def compute_metrics(self, eval_pred: EvalPrediction) -> dict:
         """
-        Computes evaluation metrics for all scores.
+        Computes evaluation metrics for all outputs.
         
-        Returns a dictionary containing an entry for every score with different evaluation metrics.
+        Returns a dictionary containing an entry for every output with different evaluation metrics.
         """
         predictions, labels = eval_pred
 
@@ -228,20 +223,20 @@ class ClassifierTrainingPipeline:
             # accuracy and F1 are not defined for float predictions
             preds = np.round(predictions)
             preds_raw = predictions
-            # TODO: implement macro and micro average
-            metric_dict = {}
-            for i, score_name in enumerate(self.score_names):
-                metrics = self._compute_metrics_for_single_score(labels=labels[:, i], preds=preds[:, i], preds_raw=preds_raw[:, i])
-                metric_dict.update({
-                    f"{score_name}_{metric}": metrics[metric]
-                    for metric in metrics
-                })
-            return metric_dict
+            
+        metric_dict = {}
+        for i, output_name in enumerate(self.output_names):
+            metrics = self._compute_metrics_for_single_output(labels=labels[:, i], preds=preds[:, i], preds_raw=preds_raw[:, i])
+            metric_dict.update({
+                f"{output_name}_{metric}": metrics[metric]
+                for metric in metrics
+            })
+        return metric_dict
 
     @staticmethod
-    def _compute_metrics_for_single_score(labels: np.ndarray, preds: np.ndarray) -> dict:
+    def _compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray) -> dict:
         """
-        Computes evaluation metrics for a specific score
+        Computes evaluation metrics for a specific output
         
         Returns a dictionary containing an entry for every evaluation metrics.
         """
@@ -254,8 +249,8 @@ class ClassifierTrainingPipeline:
         metrics["f1_macro"] = f1_score(labels, preds, average="macro")
 
         # Compute regression-like metrics
-        metrics["mse"] = mean_squared_error(labels, preds)
-        metrics["mae"] = mean_absolute_error(labels, preds)
+        metrics["mse"] = mean_squared_error(labels, preds_raw)
+        metrics["mae"] = mean_absolute_error(labels, preds_raw)
         
         # add f1 scores for each class
         classes = np.unique(labels)
