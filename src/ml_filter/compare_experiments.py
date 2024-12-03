@@ -13,7 +13,8 @@ def compare_experiments(config_file_path: Path):
     paths = [Path(path) for path in cfg.experiment_dir_paths]
     path_exists = [path.exists() for path in paths]
 
-    assert all(path_exists), f"Paths do not exist: {zip(paths, path_exists)}"
+    if not all(path_exists):
+        raise AssertionError(f"Paths do not exist: {zip(paths, path_exists)}")
 
     results = []
     for path in paths:
@@ -32,7 +33,7 @@ def compare_experiments(config_file_path: Path):
     df = pd.DataFrame(results)
     df = df.sort_values(by=["mae"]).reset_index(drop=True)
 
-    with paths[0].parent / "comparison_report.csv" as f:
+    with open(paths[0].parent / "comparison_report.csv", "w") as f:
         df.to_csv(f, index=False)
 
     print("Comparison Report:")
