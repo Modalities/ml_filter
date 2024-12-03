@@ -61,7 +61,7 @@ class TranslationClient(ABC):
         if source_language_code not in self.supported_source_languages:
             raise ValueError(f"The source language {source_language_code} is not available.")
 
-    def assert_target_language_available(self, target_language_code: list[str]) -> None:
+    def assert_target_language_available(self, target_language_code: str) -> None:
         """Checks if the target language is available in the predefined supported target language set.
         Raises a ValueError if the language in the target_languages list is not available.
 
@@ -130,7 +130,7 @@ class Translator:
 
         try:
             # Use the generator to read and process the input JSONL file
-            for document in read_jsonl(input_file_path):
+            for document in _read_jsonl(input_file_path):
                 text = document.get("text")
                 if not isinstance(text, str):
                     raise ValueError("Each document must have a 'text' field with a string value.")
