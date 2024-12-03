@@ -80,6 +80,7 @@ def entry_train_classifier(config_file_path: Path):
 def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: int):
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
 
+
 @main.command(name="add_target_langauge_to_prompt_yaml")
 @click.option(
     "--input_file_path",
@@ -139,6 +140,43 @@ def deepl_translate_cli(
         source_language_code=source_language_code,
         target_language_codes=target_language_codes_list,
     )
+
+
+@main.command(name="translate_jsonl_to_multiple_languages_cli")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the input file.",
+)
+@click.option(
+    "--output_folder_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the output directory of the translated files.",
+)
+@click.option(
+    "--translator",
+    type=click.Choice(["deepl", "openai"], case_sensitive=False),
+    required=True,
+    help="Translator to use (deepl or openai).",
+)
+@click.option(
+    "--source_language_code",
+    type=str,
+    required=True,
+    help="Language code of the source language.",
+)
+@click.option("--target_language_codes", type=str, required=True, help="Comma-separated list of languages")
+def translate_jsonl_to_multiple_languages_cli(
+    input_file_path: Path,
+    output_folder_path: Path,
+    source_language_code: str,
+    target_language_codes: list[str],
+    translator: str,
+):
+    # TODO
+    pass
 
 
 if __name__ == "__main__":
