@@ -1,9 +1,11 @@
 
 import json
 from pathlib import Path
+from statistics import mean
+from typing import Union
 
 
-def get_document_scores(path_to_files: list[Path]) -> dict[str, dict[str, float]]:
+def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]) -> dict[str, dict[str, float]]:
     document_scores = {}
 
     # Loop through each file
@@ -34,9 +36,17 @@ def get_document_scores(path_to_files: list[Path]) -> dict[str, dict[str, float]
                     raise ValueError(f"Found duplicate score for {annotator_id}")
                 
                 # aggregate scores
-                # TODO add different types of aggregation
                 scores = json_obj["scores"]
-                aggr_score = min(scores)
+                if aggregation is None:
+                    aggr_score = scores
+                elif aggregation == "min":
+                    aggr_score = min(scores)
+                elif aggregation == "max":
+                    aggr_score = max(scores)
+                elif aggregation == "mean":
+                    aggr_score = mean(scores)
+                else:
+                    raise NotImplementedError(f"Aggregation type {aggregation} is not supported.")
                 document_scores[prompt][doc_id][version] = aggr_score
     
     return document_scores
