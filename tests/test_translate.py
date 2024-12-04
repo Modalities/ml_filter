@@ -1,5 +1,7 @@
 import json
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
 from unittest.mock import Mock
 
 import deepl
@@ -31,7 +33,9 @@ class TextResult:
     choices: list[Choice] | None = None
 
 
-def test_translate_jsonl_to_multiple_languages(mock_translate_text, temporary_jsonl_file, output_folder):
+def test_translate_jsonl_to_multiple_languages(
+    mock_translate_text: Callable, temporary_jsonl_file: Path, output_folder: Path
+):
     """Test the translate_jsonl_to_multiple_languages method."""
 
     class MockTranslationClient:
@@ -96,7 +100,7 @@ def test_translate_jsonl_to_multiple_languages(mock_translate_text, temporary_js
                 assert doc["id"] == i + 1
 
 
-def _test_raises_exception(text, translator: Translator):
+def _test_raises_exception(text: str, translator: Translator):
     for source_lang_code, target_lang_code in zip(["xx2", "de"], [["xx2", "fr"], ["xx2", "fr"]]):
         with pytest.raises(Exception):
             translator.translate_text(
@@ -106,7 +110,7 @@ def _test_raises_exception(text, translator: Translator):
             )
 
 
-def test_deepl_translate(deepl_translator):
+def test_deepl_translate(deepl_translator: Translator):
     """Test the translation of text into multiple languages."""
 
     with open("tests/resources/data/translate_en.yaml", "r") as file:
@@ -135,7 +139,7 @@ def test_deepl_translate(deepl_translator):
     _test_raises_exception(text=text, translator=deepl_translator)
 
 
-def test_openai_translate(openai_translator):
+def test_openai_translate(openai_translator: Translator):
     with open("tests/resources/data/translate_en.yaml", "r") as file:
         data = yaml.safe_load(file)
 

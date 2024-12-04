@@ -17,7 +17,7 @@ EUROPEAN_LANGUAGES = {
 }
 
 
-def test_add_target_language_to_prompt(create_input_yaml):
+def test_add_target_language_to_prompt(create_input_yaml: Path):
     """Tests the add_target_langauge_to_prompt function."""
     input_file_path = create_input_yaml
 
@@ -39,7 +39,7 @@ def test_add_target_language_to_prompt(create_input_yaml):
             assert output_data["prompt"] == expected_prompt, f"Prompt content for {lang_name} is incorrect."
 
 
-def test_compute_num_words_in_jsonl(tmp_input_file, tmp_output_file):
+def test_compute_num_words_in_jsonl(tmp_input_file: Path, tmp_output_file: Path):
     # Call the function to compute the statistics
     compute_num_words_in_jsonl(input_file_path=tmp_input_file, output_file_path=tmp_output_file)
 
