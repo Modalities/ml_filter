@@ -39,5 +39,6 @@ training:
   regression_loss: false
   greater_is_better: false # save model with lowest loss
   metric_for_best_model: eval_loss
+  learning_rate: 0.00001
   logging_dir_path: data/output/lorem_ipsum_model
   output_dir_path: data/output/lorem_ipsum_model
