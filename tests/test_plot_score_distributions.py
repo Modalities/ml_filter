@@ -1,6 +1,6 @@
-import pytest
-from unittest.mock import MagicMock
+
 import matplotlib.pyplot as plt
+import pytest
 
 from ml_filter.analysis.plot_score_distributions import plot_scores, plot_differences_in_scores
 
