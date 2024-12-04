@@ -1,20 +1,26 @@
 
 import json
-import os
+from pathlib import Path
 
 
-def get_document_scores(path_to_files: list[str]) -> dict[str, dict[str, float]]:
+def get_document_scores(path_to_files: list[Path]) -> dict[str, dict[str, float]]:
     document_scores = {}
 
     # Loop through each file
     for file_path in path_to_files:
         # Extract the first part of the filename for labeling (e.g., the version)
-        prompt, prompt_lang, model = os.path.basename(file_path).split('_')[1:4]
+        prompt, prompt_lang, model = file_path.stem.split('_')[1:4]
         annotator_id = "_".join([model, prompt, prompt_lang])
         # Read the JSONL file and extract scores for each document
         with open(file_path, 'r') as f:
             for line in f:
                 json_obj = json.loads(line)
+                
+                # filter out documents with missing annotations
+                if float("-inf") in json_obj["scores"]:
+                    continue
+                
+                
                 doc_id = json_obj.get('document_id')
                 
                 if not prompt in document_scores:
