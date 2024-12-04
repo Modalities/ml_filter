@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import yaml
 
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
-from ml_filter.utils.statistics import compute_num_words_in_jsonl
+from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 # Mock constants
 TARGET_LANGAUGE_PLACEHOLDER = "{##TARGET_LANGUAGE##}"
@@ -39,9 +39,9 @@ def test_add_target_language_to_prompt(create_input_yaml: Path):
             assert output_data["prompt"] == expected_prompt, f"Prompt content for {lang_name} is incorrect."
 
 
-def test_compute_num_words_in_jsonl(tmp_input_file: Path, tmp_output_file: Path):
+def test_compute_num_words_and_chars_in_jsonl(tmp_input_file: Path, tmp_output_file: Path):
     # Call the function to compute the statistics
-    compute_num_words_in_jsonl(input_file_path=tmp_input_file, output_file_path=tmp_output_file)
+    compute_num_words_and_chars_in_jsonl(input_file_path=tmp_input_file, output_file_path=tmp_output_file)
 
     # Verify the output file exists
     assert tmp_output_file.exists(), "Output file was not created."
@@ -56,7 +56,14 @@ def test_compute_num_words_in_jsonl(tmp_input_file: Path, tmp_output_file: Path)
         2: 2,  # "Another test.", "Short one." (2 words)
         9: 1,  # "Yet another example of a document with more words." (9 words)
     }
+    expected_char_counts = {
+        24: 1,  # "This is a test document." (27 characters)
+        13: 1,  # "Another test." (12 characters)
+        10: 1,  # "Short one." (10 characters)
+        50: 1,  # "Yet another example of a document with more words." (48 characters)
+    }
     expected_total_num_words = sum(key * value for key, value in expected_word_counts.items())
+    expected_total_num_chars = sum([key for key in expected_char_counts.keys()])
     # output_data["total_num_words"] is saved as json, i.e., the keys are strings.
     # Therefore, we need to convert the keys to strings.
     expected_word_counts = {str(key): value for key, value in expected_word_counts.items()}
@@ -66,3 +73,6 @@ def test_compute_num_words_in_jsonl(tmp_input_file: Path, tmp_output_file: Path)
 
     # Validate total word count
     assert output_data["total_num_words"] == expected_total_num_words, "Total word count does not match expected value."
+
+    # Validate total char count
+    assert output_data["total_num_chars"] == expected_total_num_chars, "Total char count does not match expected value."

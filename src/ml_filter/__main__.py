@@ -12,7 +12,7 @@ from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
-from ml_filter.utils.statistics import compute_num_words_in_jsonl
+from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -211,7 +211,7 @@ def compute_num_words_in_jsonl_cli(
     input_file_path: Path,
     output_file_path: Path,
 ):
-    compute_num_words_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+    compute_num_words_and_chars_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
