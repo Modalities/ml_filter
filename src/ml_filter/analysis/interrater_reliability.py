@@ -16,8 +16,6 @@ from ml_filter.analysis.utils import get_document_scores
 
 # Prepare data for Fleiss' Kappa
 def prepare_fleiss_data(scores_list: List[list]):
-    # Fleiss' Kappa is designed for categories, so convert floats to integers
-    scores_list = [[round(score) for score in scores] for scores in scores_list]
     max_score = max(max(scores) for scores in scores_list)
     fleiss_data = np.zeros((len(scores_list), max_score + 1))
     for i, scores in enumerate(scores_list):
@@ -97,8 +95,11 @@ def compute_interrater_reliability_metrics(path_to_files: List[Path], single_ann
                 all_scores.append(scores)
             all_document_ids.append(document_id)
 
+        # some metrics accept only categories, not continuous values
+        all_scores_rounded = [[round(val) for val in scores] for scores in all_scores]
+        
         # Fleiss' Kappa
-        fleiss_data = prepare_fleiss_data(all_scores)
+        fleiss_data = prepare_fleiss_data(all_scores_rounded)
         fk = fleiss_kappa(fleiss_data, method='fleiss')
 
         # Spearman's Rank Correlation (average of all pairwise)
@@ -108,13 +109,13 @@ def compute_interrater_reliability_metrics(path_to_files: List[Path], single_ann
         kendall_corr = compute_pairwise_correlations(all_scores, metric='kendall')
         
         # Cohen's Kappa (average of all pairwise)
-        cohen_kappa = compute_pairwise_correlations(all_scores, metric='cohen')
+        cohen_kappa = compute_pairwise_correlations(all_scores_rounded, metric='cohen')
 
         # Krippendorff's Alpha
         kripp_alpha = compute_krippendorffs_alpha(all_scores)
         
         # variation per document
-        doc_vars = compute_doc_level_variation(all_scores=all_scores, all_document_ids=all_document_ids)
+        doc_vars = compute_doc_level_variation(all_scores=all_scores_rounded, all_document_ids=all_document_ids)
 
         metrics[prompt] = {
             'Fleiss Kappa': fk,
