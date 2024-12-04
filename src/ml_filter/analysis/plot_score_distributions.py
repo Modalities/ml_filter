@@ -25,9 +25,9 @@ def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
             plt.hist(scores, bins=30, alpha=0.5, label=model_name, edgecolor='black')
 
         # Add labels and title
-        plt.xlabel('Educational Score')
+        plt.xlabel(f'{prompt} Score')
         plt.ylabel('Frequency')
-        plt.title('Educational Score Distributions')
+        plt.title(f'{prompt} Score Distributions')
 
         # Place annotation below the legend in the upper right corner
         plt.legend(loc='upper right')
@@ -45,7 +45,7 @@ def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
 
 
 def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> None:
-    # Initialize a dictionary to store educational_score by id across files
+    # Initialize a dictionary to store scores by id across files
     document_scores = _get_document_scores(path_to_files)
     
     # iterate over different prompts
@@ -74,7 +74,7 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> No
             plt.hist(differences, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
             plt.xlabel('Score Difference')
             plt.ylabel('Frequency')
-            plt.title(f'Histogram of Educational Score Differences ({version2} - {version1})')
+            plt.title(f'Histogram of {prompt} Score Differences ({version2} - {version1})')
             plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
 
@@ -111,7 +111,7 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> No
                         fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='green', arrowstyle='->'))
 
         plt.ylabel('Score Differences')
-        plt.title('Boxplot of Educational Score Differences Between Versions')
+        plt.title(f'Boxplot of {prompt} Score Differences Between Versions')
         plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
         
@@ -128,7 +128,7 @@ def _get_document_scores(path_to_files: list[str]) -> dict[str, dict[str, float]
         # Extract the first part of the filename for labeling (e.g., the version)
         prompt, prompt_lang, model = os.path.basename(file_path).split('_')[1:4]
         annotator_id = "_".join([model, prompt, prompt_lang])
-        # Read the JSONL file and extract educational_score for each document
+        # Read the JSONL file and extract scores for each document
         with open(file_path, 'r') as f:
             for line in f:
                 json_obj = json.loads(line)
