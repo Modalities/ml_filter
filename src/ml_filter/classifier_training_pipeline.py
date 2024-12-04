@@ -47,8 +47,8 @@ class ClassifierTrainingPipeline:
         if isinstance(cfg.model.name, str) and "xlm-roberta" in cfg.model.name.lower():
             self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
                 cfg.model.name,
-                num_metrics=cfg.data.num_metrics,
-                num_classes_per_metric=torch.tensor(cfg.data.num_classes_per_metric),
+                num_regressor_outputs=cfg.data.num_regressor_outputs,
+                num_classes_per_output=torch.tensor(cfg.data.num_classes_per_output),
                 regression=cfg.training.regression_loss
             )
         else:
