@@ -57,7 +57,7 @@ class Annotation(BaseModel):
     """A class representing the output document from the model."""
 
     document_id: str
-    scores: List[float] = []
+    scores: List[float | None] = []
     explanations: List[str] = []
     errors: List[List[str]] = []
     time_stamps: List[int] = []

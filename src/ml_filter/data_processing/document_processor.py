@@ -31,7 +31,9 @@ class DocumentProcessor:
         queue_size: int,
         batch_size: int,
         raw_data_file_paths: List[Path],
+        gold_annotations_file_path: Path,
         experiment_dir_path: Path,
+        out_file_path: Path,
         num_processes: int,
         score_metric_name: str,
         strings_to_remove: Optional[List[str]] = [],
@@ -46,6 +48,8 @@ class DocumentProcessor:
         self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
         self.strings_to_remove = strings_to_remove
+        self.out_file_path = out_file_path
+        self.gold_annotations_file_path = gold_annotations_file_path
 
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
@@ -202,12 +206,9 @@ class DocumentProcessor:
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
 
-    def _write_results(self, experiment_dir_path: Path):
+    def _write_results(self, out_file_path: Path):
         start_time = time.time()
         results_written = 0
-        out_dir_path = experiment_dir_path / "annotations"
-        out_dir_path.mkdir(parents=True, exist_ok=True)
-        out_file_path = out_dir_path / "processed_documents.jsonl"
 
         with out_file_path.open("w") as f:
             while True:
@@ -250,7 +251,7 @@ class DocumentProcessor:
         reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_paths,))
         reader.start()
 
-        writer = multiprocessing.Process(target=self._write_results, args=(self.experiment_dir_path,))
+        writer = multiprocessing.Process(target=self._write_results, args=(self.out_file_path,))
         writer.start()
 
         processor_threads = [
@@ -268,10 +269,13 @@ class DocumentProcessor:
 
         writer.join()
 
-        # self._report_statistics()
+        self._report_statistics()
 
     def _report_statistics(self):
-        report_statistics(output_dir_path=self.experiment_dir_path)
+        report_statistics(
+            results_file_path=self.out_file_path,
+            gold_annotations_file_path=self.gold_annotations_file_path,
+        )
 
 
 class ReportStats(BaseModel):
@@ -283,40 +287,84 @@ class ReportStats(BaseModel):
     confusion_matrix: Dict
 
 
-def report_statistics(results_file_path: Path, output_dir_path: Path | None = None) -> Dict[str, Any]:
+def report_statistics(results_file_path: Path, gold_annotations_file_path: Path) -> Dict[str, Any]:
     """Show the comparison between the original and generated score."""
 
-    annotations = []
-    with open(results_file_path, "r") as f:
-        for line in f:
-            annotations.append(Annotation.model_validate_json(line))
-    # TODO use gold_annotation_paths and adapt to Annotation fields
-    df = pd.read_json(results_file_path, lines=True)
+    logger.info("Computing statistics...")
 
-    df.original_score = df.original_score.astype(float)
-    df.score = df.score.astype(float)
-    df["score_mae"] = (df["original_score"] - df["score"]).abs().mean()
-    df["score_mse"] = ((df["original_score"] - df["score"]) ** 2).mean()
-    df["score_std"] = (df["original_score"] - df["score"]).std()
-    df["accuracy"] = (df["original_score"] == df["score"]).mean()
+    df = _load_and_validate_as_df(results_file_path)
+    df_gold = _load_and_validate_as_df(gold_annotations_file_path)
+
+    # Merge both dataframes on document_id
+    stats = df.merge(df_gold, on="document_id", suffixes=("_pred", "_gold"))
+
+    # Check for missing documents after merge
+    if len(stats) != len(df_gold):
+        raise ValueError("Mismatch in document counts after merging. Some documents are missing.")
+
+    stats["score_mae"] = (stats["score_pred"] - stats["score_gold"]).abs().mean()
+    stats["score_mse"] = ((stats["score_pred"] - stats["score_gold"]) ** 2).mean()
+    stats["score_std"] = (stats["score_pred"] - stats["score_gold"]).std()
+    stats["accuracy"] = (stats["score_pred"] == stats["score_gold"]).mean()
+
+    # Transform the list of document_processing_status to individual columns and perform value_counts on each column
+    status_counts = (
+        pd.DataFrame(df["document_processing_status"].tolist()).apply(pd.Series.value_counts).fillna(0).astype(int)
+    )
+    status_counts.index = status_counts.index.astype(str)
+    # dict(Counter([error for errors in df["errors"].tolist() for error in errors]))
+    error_counts = pd.DataFrame(df["errors"].tolist()).apply(pd.Series.value_counts)  #
+    error_counts.index = error_counts.index.astype(str)
 
     statistics_report = {
         **ReportStats(
-            mae=df["score_mae"].mean(),
-            mse=df["score_mse"].mean(),
-            std=df["score_std"].mean(),
-            acc=df["accuracy"].mean(),
-            confusion_matrix=pd.crosstab(df["original_score"], df["score"]).to_dict(),
+            mae=stats["score_mae"].mean(),
+            mse=stats["score_mse"].mean(),
+            std=stats["score_std"].mean(),
+            acc=stats["accuracy"].mean(),
+            confusion_matrix=pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
         ).model_dump(),
-        "predicted_score_counts": df["score"].value_counts().sort_index().to_dict(),
-        "original_score_counts": df["original_score"].value_counts().sort_index().to_dict(),
-        "document_status_counts": df["document_processing_status"].value_counts().to_dict(),
-        "error_counts": dict(Counter([error for errors in df["errors"].tolist() for error in errors])),
+        "predicted_score_counts": stats["score_pred"].value_counts().sort_index().to_dict(),
+        "gold_score_counts": stats["score_gold"].value_counts().sort_index().to_dict(),
+        "document_status_counts": status_counts.to_dict(),
+        "error_counts": error_counts.to_dict(),
+        "gold_annotations_file_path": str(gold_annotations_file_path),
+        "predicted_annotations_file_path": str(results_file_path),
     }
     logger.info(json.dumps(statistics_report, indent=4))
 
-    if output_dir_path is not None:
-        with open(output_dir_path / "statistics_report.json", "w") as f:
-            json.dump(statistics_report, f, indent=4)
+    output_dir_path = results_file_path.parent
+    with open(output_dir_path / "statistics_report.json", "w") as f:
+        json.dump(statistics_report, f, indent=4)
 
     return statistics_report
+
+
+def _load_and_validate_as_df(jsonl_file_path: Path) -> pd.DataFrame:
+    annotations = []
+    with open(jsonl_file_path, "r") as f:
+        for line in f:
+            try:
+                annotation = Annotation.model_validate_json(line).model_dump()
+            except Exception as e:
+                # try to convert single scores to list of scores
+                if "id" in line and "score" in line:
+                    json_line = json.loads(line)
+                    annotation = {"document_id": json_line["id"], "scores": [json_line["score"]]}
+                else:
+                    raise ValueError(
+                        f"Abort statistic computations. Error while parsing annotations from {jsonl_file_path}: {e}"
+                    )
+            annotations.append(annotation)
+    df = pd.DataFrame(annotations)
+    df["score"] = df.scores.apply(_get_most_common_score)
+    return df
+
+
+def _get_most_common_score(scores: List[float | None]) -> float | None:
+    """Get the most common score from a list of scores."""
+    most_common_score = Counter([float(score) for score in scores if score is not None]).most_common(1)
+    if most_common_score:
+        return most_common_score[0][0]
+    else:
+        return None

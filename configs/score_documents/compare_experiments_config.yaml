@@ -1,14 +1,8 @@
 experiment_dir_paths:
-  - data/output/2024-12-02__14-42-07__81c90c85
-  - data/output/2024-12-02__14-47-50__61953d5b
-  - data/output/2024-12-02__16-37-50__47dd2df8
-  - data/output/2024-12-02__16-48-44__ae8abaca
-  - data/output/2024-12-02__17-02-05__b75c583c
-  - data/output/2024-12-02__17-23-58__6c4ca293
-  - data/output/2024-12-02__17-58-15__90665c41
-gold_annoations_file_paths:
-  # tries to convert the format into the output annotation format
-  - data/test_data_ml_filter_511.jsonl
+  - data/output/2024-12-04__18-05-15__29f6940d
+  - data/output/2024-12-04__18-08-49__29f6940d
+
+gold_annotations_file_path: data/dev_data_ml_filter_511_head_100.jsonl
 config_file_name: lorem_ipsum.yaml
 output_format:
   - sort_by_metric:  mae
