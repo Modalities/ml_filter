@@ -150,7 +150,11 @@ def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
     "--ignore_tag_text",
     type=str,
     required=False,
-    help="Tag indicating which part of the translation should be ignored.",
+    help=(
+        "Tag name, e.g. notranslate, indicating which part of the translation "
+        "should be ignored. The tag name is internally converted to the full tag, "
+        "i.e. <notranslate> for the given example."
+    ),
 )
 @source_language_code_option
 @target_language_codes_option
