@@ -38,3 +38,7 @@ EUROPEAN_LANGUAGES = {
     "tr": "Turkish",
     "uk": "Ukrainian",
 }
+
+DEEPL = "deepl"
+OPENAI = "openai"
+TARGET_LANGAUGE_PLACEHOLDER = '{##TARGET_LANGUAGE##}'

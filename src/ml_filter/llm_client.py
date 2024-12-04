@@ -19,7 +19,9 @@ class LLMClient:
         self.experiment_id = experiment_id
         self.rest_endpoint = rest_endpoint
 
+        OmegaConf.register_new_resolver("eval", eval)
         cfg = OmegaConf.load(config_file_path)
+
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
@@ -30,7 +32,7 @@ class LLMClient:
             self.experiment_dir_path / Path(self.prompt_template_file_path).name,
         )
         # Dataset related variables
-        self.raw_data_file_path = Path(cfg.settings.paths.raw_data_file_path)
+        self.raw_data_file_paths = [Path(path) for path in cfg.settings.paths.raw_data_file_paths]
 
         # LLMRestClient related variables
         self.max_retries = cfg.llm_rest_client.max_retries
@@ -47,6 +49,7 @@ class LLMClient:
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
         self.special_tokens = cfg.tokenizer.special_tokens
+        self.add_generation_prompt = cfg.tokenizer.add_generation_prompt
 
         # DocumentProcessor related variables
         self.max_prompt_length = cfg.prompt_builder.max_prompt_length
@@ -70,6 +73,7 @@ class LLMClient:
             padding=False,
             max_length=None,
             special_tokens=self.special_tokens,
+            add_generation_prompt=self.add_generation_prompt,
         )
 
         # Get LLMRestClient
@@ -96,7 +100,7 @@ class LLMClient:
             ),
             queue_size=self.queue_size,
             batch_size=self.batch_size,
-            raw_data_file_path=self.raw_data_file_path,
+            raw_data_file_paths=self.raw_data_file_paths,
             experiment_dir_path=self.experiment_dir_path,
             num_processes=self.num_processes,
             score_metric_name=self.score_metric_name,

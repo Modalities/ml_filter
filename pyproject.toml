@@ -23,7 +23,8 @@ dependencies = [
     "openai",
     "accelerate>=0.34.2",
     "statsmodels",
-    "krippendorff"
+    "krippendorff",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]

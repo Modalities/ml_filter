@@ -3,10 +3,13 @@ import logging
 import multiprocessing
 import re
 import time
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
+from pydantic import BaseModel, ConfigDict
 from tqdm import tqdm
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
@@ -28,7 +31,7 @@ class DocumentProcessor:
         prompt_builder: PromptBuilder,
         queue_size: int,
         batch_size: int,
-        raw_data_file_path: Path,
+        raw_data_file_paths: List[Path],
         experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
@@ -41,7 +44,7 @@ class DocumentProcessor:
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.batch_size = batch_size
         self.num_processes = num_processes
-        self.raw_data_file_path = raw_data_file_path
+        self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
         self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
         self.strings_to_remove = strings_to_remove
@@ -92,6 +95,8 @@ class DocumentProcessor:
 
     def _process_document(self, document: Dict[str, Any]) -> ProcessedDocument:
         processed_document = ProcessedDocument(document_id=document["id"], original_text=document["text"])
+        if "score" in document:
+            processed_document.original_score = float(document["score"])
         # text preprocessing
         processed_document.preprocessed_text = self._remove_special_strings(processed_document.original_text)
 
@@ -107,9 +112,6 @@ class DocumentProcessor:
         )
         if score is None:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
-            processed_document.errors.append(
-                f"Could not find the score metric '{self.score_metric.metric_name}' in the model response."
-            )
         else:
             processed_document.score = float(score)
             processed_document.score_type = self.score_metric.metric_name
@@ -138,30 +140,32 @@ class DocumentProcessor:
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         return len(document["text"]) > 0
 
-    def _create_batches(self, raw_data_file_path: Path):
+    def _create_batches(self, raw_data_file_paths: List[Path]):
         batch = []
-        with open(raw_data_file_path, "r") as fin:
-            while True:
-                document_string = fin.readline()
-                if len(document_string) == 0:
-                    break
-                try:
-                    document = json.loads(document_string)
-                except json.JSONDecodeError:
-                    logger.warning(f"Error decoding document: {document_string}. Skipping.")
-                    continue
+        for raw_data_file_path in raw_data_file_paths:
+            with open(raw_data_file_path, "r") as fin:
+                while True:
+                    document_string = fin.readline()
+                    if len(document_string) == 0:
+                        break
+                    try:
+                        document = json.loads(document_string)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Error decoding document: {document_string}. Skipping.")
+                        continue
 
-                if not self._is_valid_document(document):
-                    logger.warning(
-                        f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping."
-                    )
-                    continue
+                    if not self._is_valid_document(document):
+                        logger.warning(
+                            f"Invalid document with id: {document['id']}. "
+                            + "Value of key 'text' has length of 0. Skipping."
+                        )
+                        continue
 
-                batch.append(document)
+                    batch.append(document)
 
-                if len(batch) % self.batch_size == 0:
-                    self.documents_queue.put(batch)
-                    batch = []
+                    if len(batch) % self.batch_size == 0:
+                        self.documents_queue.put(batch)
+                        batch = []
 
         # If there are remaining documents that didn't fill up a batch
         if len(batch) > 0:
@@ -222,7 +226,7 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_path,))
+        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_paths,))
         reader.start()
 
         writer = multiprocessing.Process(target=self._write_results, args=(self.output_file_path,))
@@ -242,3 +246,49 @@ class DocumentProcessor:
         self.result_queue.put(None)
 
         writer.join()
+
+        self._report_statistics()
+
+    def _report_statistics(self):
+        report_statistics(results_file_path=self.output_file_path, output_dir_path=self.experiment_dir_path)
+
+
+class ReportStats(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    mae: float
+    mse: float
+    std: float
+    acc: float
+    confusion_matrix: Dict
+
+
+def report_statistics(results_file_path: Path, output_dir_path: Path | None = None) -> Dict[str, Any]:
+    """Show the comparison between the original and generated score."""
+    df = pd.read_json(results_file_path, lines=True)
+    df.original_score = df.original_score.astype(float)
+    df.score = df.score.astype(float)
+    df["score_mae"] = (df["original_score"] - df["score"]).abs().mean()
+    df["score_mse"] = ((df["original_score"] - df["score"]) ** 2).mean()
+    df["score_std"] = (df["original_score"] - df["score"]).std()
+    df["accuracy"] = (df["original_score"] == df["score"]).mean()
+
+    statistics_report = {
+        **ReportStats(
+            mae=df["score_mae"].mean(),
+            mse=df["score_mse"].mean(),
+            std=df["score_std"].mean(),
+            acc=df["accuracy"].mean(),
+            confusion_matrix=pd.crosstab(df["original_score"], df["score"]).to_dict(),
+        ).model_dump(),
+        "predicted_score_counts": df["score"].value_counts().sort_index().to_dict(),
+        "original_score_counts": df["original_score"].value_counts().sort_index().to_dict(),
+        "document_status_counts": df["document_processing_status"].value_counts().to_dict(),
+        "error_counts": dict(Counter([error for errors in df["errors"].tolist() for error in errors])),
+    }
+    logger.info(json.dumps(statistics_report, indent=4))
+
+    if output_dir_path is not None:
+        with open(output_dir_path / "statistics_report.json", "w") as f:
+            json.dump(statistics_report, f, indent=4)
+
+    return statistics_report
