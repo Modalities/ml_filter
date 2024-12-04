@@ -56,8 +56,34 @@ def temporary_jsonl_file(tmp_path):
 
 
 @pytest.fixture
+def tmp_input_file(tmp_path):
+    """
+    Creates a temporary input JSONL file for testing.
+    """
+    input_file = tmp_path / "test_input.jsonl"
+    content = [
+        {"text": "This is a test document."},
+        {"text": "Another test."},
+        {"text": "Yet another example of a document with more words."},
+        {"text": "Short one."},
+    ]
+    with input_file.open("w", encoding="utf-8") as f:
+        for entry in content:
+            f.write(json.dumps(entry) + "\n")
+    return input_file
+
+
+@pytest.fixture
 def output_folder(tmp_path):
     """Fixture to create a temporary output folder."""
     output_path = tmp_path / "output"
     output_path.mkdir()
     return output_path
+
+
+@pytest.fixture
+def tmp_output_file(tmp_path):
+    """
+    Provides a temporary output file path.
+    """
+    return tmp_path / "test_output.json"

@@ -12,6 +12,7 @@ from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
+from ml_filter.utils.statistics import compute_num_words_in_jsonl
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -196,6 +197,21 @@ def translate_jsonl_to_multiple_languages_cli(
         source_language_code=source_language_code,
         target_language_codes=target_language_codes_list,
     )
+
+
+@main.command(name="translate_jsonl_to_multiple_languages_cli")
+@input_file_path_option
+@click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the output file.",
+)
+def compute_num_words_in_jsonl_cli(
+    input_file_path: Path,
+    output_file_path: Path,
+):
+    compute_num_words_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
