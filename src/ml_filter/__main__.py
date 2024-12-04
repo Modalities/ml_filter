@@ -199,11 +199,11 @@ def translate_jsonl_to_multiple_languages_cli(
     )
 
 
-@main.command(name="translate_jsonl_to_multiple_languages_cli")
+@main.command(name="compute_num_words_in_jsonl_cli")
 @input_file_path_option
 @click.option(
     "--output_file_path",
-    type=click_pathlib.Path(exists=True),
+    type=click_pathlib.Path(exists=False),
     required=True,
     help="Path to the output file.",
 )
