@@ -74,3 +74,6 @@ Desktop.ini
 outputs/
 data/output
 .devcontainer
+
+# ignore wandb files
+wandb/
