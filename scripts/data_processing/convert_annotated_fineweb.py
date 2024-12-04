@@ -1,3 +1,6 @@
+# This script converts the HuggingFaceFW/fineweb-edu-llama3-annotations dataset into a JSONL format that is compatible with the ML Filter Classifier.
+# It also creates a multi-score version of the dataset by applying various transformations to the original score.
+
 import json
 from datasets import load_dataset
 import os
@@ -22,7 +25,9 @@ def convert_to_jsonl(base_path):
             entry = {
                 "id": str(idx),
                 "text": example['text'],
-                "score": example['score']
+                "scores": {
+                    "score": example['score']
+                }
             }
             
             # Write to file
@@ -56,7 +61,7 @@ def multi_score_transform(base_path, transform_fns):
         
         for line in in_f:
             entry = json.loads(line)
-            original_score = entry['score']
+            original_score = entry['scores']['score']
             
             # Apply all transformations
             entry['scores'] = {
@@ -65,7 +70,7 @@ def multi_score_transform(base_path, transform_fns):
             }
             
             # Remove the original single score field
-            del entry['score']
+            del entry['scores']['score']
             
             # Write transformed entry
             out_f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -121,6 +126,15 @@ def split_dataset(base_path, file_path, train_ratio=0.8, val_ratio=0.1, test_rat
 
 if __name__ == "__main__":
     base_path = "data"  # Can be changed to any desired path
+
+    # download data and create single score file
     convert_to_jsonl(base_path)
-    multi_score_transform(base_path, transform_fns=[])
+    split_dataset(base_path, "annotated_fineweb")
+
+    # create multi-score file
+    multi_score_transform(base_path, transform_fns=[
+        ("transform_1", lambda x: min(x + 1, 5)),  # shift up by 1, cap at 5
+        ("transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # add random noise between -0.5 and 0.5, clamp to [0,5]
+        ("transform_3", lambda x: 1 if x >= 3 else 0)  # binary threshold at 3
+    ])
     split_dataset(base_path, "annotated_fineweb_multi")

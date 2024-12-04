@@ -23,10 +23,10 @@ data:
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_metrics: 4
-  num_classes_per_metric: [6, 6, 6, 2]
-  metric_names: ["score", "score_transform_1", "score_transform_2", "score_transform_3"]
-  
+  num_regressor_outputs: 4
+  num_classes_per_output: [6, 6, 6, 2]
+  output_names: ["score", "score_transform_1", "score_transform_2", "score_transform_3"]
+
 training:
   batch_size: 32
   epochs: 10
@@ -36,7 +36,9 @@ training:
   save_strategy: epoch
   logging_steps: 100
   seed: 42
+  regression_loss: false
   greater_is_better: false
+  learning_rate: 0.00001
   metric_for_best_model: eval_loss
   logging_dir_path: data/output/annotated_fineweb_model
   output_dir_path: data/output/annotated_fineweb_model
