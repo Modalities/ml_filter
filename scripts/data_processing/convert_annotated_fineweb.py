@@ -69,9 +69,6 @@ def multi_score_transform(base_path, transform_fns):
                 for name, transform_fn in transforms
             }
             
-            # Remove the original single score field
-            del entry['scores']['score']
-            
             # Write transformed entry
             out_f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     
@@ -133,8 +130,8 @@ if __name__ == "__main__":
 
     # create multi-score file
     multi_score_transform(base_path, transform_fns=[
-        ("transform_1", lambda x: min(x + 1, 5)),  # shift up by 1, cap at 5
-        ("transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # add random noise between -0.5 and 0.5, clamp to [0,5]
-        ("transform_3", lambda x: 1 if x >= 3 else 0)  # binary threshold at 3
+        ("score_transform_1", lambda x: min(x + 1, 5)),  # shift up by 1, cap at 5
+        ("score_transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # add random noise between -0.5 and 0.5, clamp to [0,5]
+        ("score_transform_3", lambda x: 1 if x >= 3 else 0)  # binary threshold at 3
     ])
     split_dataset(base_path, "annotated_fineweb_multi")
