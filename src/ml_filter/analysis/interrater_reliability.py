@@ -64,7 +64,12 @@ def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[s
 
 
 # Main function to compute metrics
-def compute_interrater_reliability_metrics(path_to_files: List[Path], single_annotator: bool = False, aggregation: Union[None, str] = None):
+def compute_interrater_reliability_metrics(
+    path_to_files: List[Path],
+    output_file_path: Path,    
+    single_annotator: bool = False,
+    aggregation: Union[None, str] = None
+) -> None:
     # check parameters
     if single_annotator and aggregation is not None:
         raise ValueError("aggregation types other than None are only valid when comparing multiple annotators")
@@ -126,4 +131,8 @@ def compute_interrater_reliability_metrics(path_to_files: List[Path], single_ann
             "Variation per Document": doc_vars
         }
 
-    return metrics
+    # print results and write them to the output file
+    print("\n".join(f"{key}: {value}" for key, value in metrics.items()))
+    
+    with output_file_path.open("w") as f:
+        json.dump(metrics, f, indent=4)

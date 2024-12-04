@@ -134,23 +134,31 @@ def deepl_translate_cli(
     help="Set this in case of analyzing the scores of a single annotator"
 )
 @click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Write the computed metrics to this json-file.",
+)
+@click.option(
     "--aggregation",
     type=str,
     required=False,
     help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
 )
+
 def interrater_reliability_cli(
     path_to_files: tuple[str],
     single_annotator: bool,
+    output_file_path: Path,
     aggregation: Optional[str] = None
 ):
     path_to_files = [Path(p) for p in path_to_files]
-    results = compute_interrater_reliability_metrics(
+    compute_interrater_reliability_metrics(
         path_to_files=path_to_files,
         single_annotator=single_annotator,
-        aggregation=aggregation
+        aggregation=aggregation,
+        output_file_path=output_file_path
     )
-    print("\n".join(f"{key}: {value}" for key, value in results.items()))
 
 
 @main.command(name="plot_differences_in_scores")
