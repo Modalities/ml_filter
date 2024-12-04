@@ -1,25 +1,26 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: Qwen/Qwen2.5-14B-Instruct
+  model_name: meta-llama/Llama-3.1-8B-Instruct
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths: 
-    - data/test_data_ml_filter_511.jsonl
+    - data/dev_data_ml_filter_511_head_10.jsonl
     output_directory_path: data/output
-    prompt_template_file_path: data/prompts/fineweb_edu/prompt.yaml
+    prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
 
 llm_rest_client:
   model_name: ${settings.model_name}
   max_tokens: 4096
   max_new_tokens: 500
-  temperature: 0.001
+  temperature: 0.9
   max_pool_connections: 1000
   max_pool_maxsize: 1000 #TODO
   max_retries: 2
   backoff_factor: 0.4 
   timeout: 100
   verbose: false
+  num_return_sequences: 2
 
 tokenizer:
   pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
@@ -35,8 +36,8 @@ prompt_builder:
 
 document_processor:
   output_directory_path: ${settings.paths.output_directory_path}
-  queue_size: 100
-  batch_size: 16
-  num_processes: 10
+  queue_size: 3
+  batch_size: 3
+  num_processes: 2
   score_metric_name: educational_score
   strings_to_remove: []

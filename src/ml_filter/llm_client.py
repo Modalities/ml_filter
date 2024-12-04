@@ -45,6 +45,7 @@ class LLMClient:
         self.max_new_tokens = cfg.llm_rest_client.max_new_tokens
         self.temperature = cfg.llm_rest_client.temperature
         self.verbose = cfg.llm_rest_client.verbose
+        self.num_return_sequences = cfg.llm_rest_client.num_return_sequences
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
@@ -90,6 +91,7 @@ class LLMClient:
             max_new_tokens=self.max_new_tokens,
             temperature=self.temperature,
             verbose=self.verbose,
+            num_return_sequences=self.num_return_sequences,
         )
 
         # Get DocumentProcessor
