@@ -26,6 +26,7 @@ data:
   num_regressor_outputs: 1
   num_classes_per_output: [6]
   output_names: ["score"]
+  binary_classification_threshold: 3
   
 training:
   batch_size: 32
