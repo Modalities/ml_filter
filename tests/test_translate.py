@@ -10,8 +10,13 @@ from ml_filter.translate import Translator
 
 
 @dataclass
+class Message:
+    content: str
+
+
+@dataclass
 class Choice:
-    message: str
+    message: Message
 
 
 @dataclass
@@ -77,7 +82,9 @@ def test_openai_translate(openai_translator):
     openai_client.translate_text = lambda text, source_lang, target_lang, tag_handling, ignore_tags: TextResult(
         text=text
     )
-    openai_client.chat.completions.create = lambda model, messages: TextResult(choices=[Choice(message=messages[1])])
+    openai_client.chat.completions.create = lambda model, messages: TextResult(
+        choices=[Choice(message=Message(messages[1]["content"]))]
+    )
     openai_translator.client.client = openai_client
 
     translated_data = openai_translator.translate_text(
