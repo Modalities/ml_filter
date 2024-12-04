@@ -1,4 +1,3 @@
-
 from collections import Counter
 import json
 from pathlib import Path
@@ -14,8 +13,16 @@ from statsmodels.stats.inter_rater import fleiss_kappa
 from ml_filter.analysis.utils import get_document_scores
 
 
-# Prepare data for Fleiss' Kappa
-def prepare_fleiss_data(scores_list: List[list]):
+def prepare_fleiss_data(scores_list: List[list]) -> np.ndarray:
+    """
+    Prepares data for computing Fleiss' Kappa by transforming scores into a matrix format.
+
+    Args:
+        scores_list (List[list]): A list where each sublist contains scores assigned by raters.
+
+    Returns:
+        np.ndarray: A 2D matrix where rows correspond to items and columns represent score frequencies.
+    """
     max_score = max(max(scores) for scores in scores_list)
     fleiss_data = np.zeros((len(scores_list), max_score + 1))
     for i, scores in enumerate(scores_list):
@@ -24,8 +31,17 @@ def prepare_fleiss_data(scores_list: List[list]):
     return fleiss_data
 
 
-# Compute pairwise correlations
-def compute_pairwise_correlations(all_scores: List[list], metric: str):
+def compute_pairwise_correlations(all_scores: List[list], metric: str) -> float:
+    """
+    Computes the average pairwise correlation between raters' scores.
+
+    Args:
+        all_scores (List[list]): A list where each sublist contains scores from all raters for one item.
+        metric (str): The correlation metric to use ("spearman", "kendall", or "cohen").
+
+    Returns:
+        float: The average pairwise correlation score.
+    """
     n = len(all_scores[0])
     results = []
     for i in range(n):
@@ -39,16 +55,34 @@ def compute_pairwise_correlations(all_scores: List[list], metric: str):
             elif metric == "cohen":
                 correlation = cohen_kappa_score(rater1, rater2)
             results.append(correlation)
-    return np.mean(results)  # Average of all pairwise correlations
+    return np.mean(results)
 
 
-# Compute Krippendorff's Alpha
-def compute_krippendorffs_alpha(all_scores: List[list]):
+def compute_krippendorffs_alpha(all_scores: List[list]) -> float:
+    """
+    Computes Krippendorff's Alpha, a measure of inter-rater reliability.
+
+    Args:
+        all_scores (List[list]): A list where each sublist contains scores assigned by all raters for one item.
+
+    Returns:
+        float: The Krippendorff's Alpha score.
+    """
     flattened_scores = np.array(all_scores).T  # Transpose for Krippendorff's input
     return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
 
 
-def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[str]):
+def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[str]) -> dict:
+    """
+    Computes variation in scores at the document level.
+
+    Args:
+        all_scores (List[list]): A list where each sublist contains scores for a single document.
+        all_document_ids (List[str]): A list of document IDs corresponding to `all_scores`.
+
+    Returns:
+        dict: A dictionary containing variation statistics (mean, standard deviation, counts, etc.).
+    """
     score_vars = []
     for scores in all_scores:
         score_var = max(scores) - min(scores)
@@ -63,18 +97,32 @@ def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[s
     return results
 
 
-# Main function to compute metrics
 def compute_interrater_reliability_metrics(
     path_to_files: List[Path],
-    output_file_path: Path,    
+    output_file_path: Path,
     single_annotator: bool = False,
     aggregation: Union[None, str] = None
 ) -> None:
-    # check parameters
+    """
+    Computes various inter-rater reliability metrics and writes results to a JSON file.
+
+    Args:
+        path_to_files (List[Path]): A list of file paths containing annotation scores in JSONL format.
+        output_file_path (Path): The output path to save computed metrics as a JSON file.
+        single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
+        aggregation (Union[None, str], optional): Aggregation method ("min", "max", "mean", or None). Defaults to None.
+
+    Raises:
+        ValueError: If invalid parameter combinations are provided.
+
+    Returns:
+        None
+    """
+    # Check parameters
     if single_annotator and aggregation is not None:
-        raise ValueError("aggregation types other than None are only valid when comparing multiple annotators")
+        raise ValueError("Aggregation types other than None are only valid when comparing multiple annotators.")
     if not single_annotator and aggregation is None:
-        raise ValueError("aggregation type must not be None when comparing multiple annotators")
+        raise ValueError("Aggregation type must not be None when comparing multiple annotators.")
     
     document_scores = get_document_scores(path_to_files, aggregation=aggregation)
     metrics = {}
@@ -86,42 +134,36 @@ def compute_interrater_reliability_metrics(
         for document_id, scores_per_version in document_scores[prompt].items():
             if single_annotator:
                 if len(scores_per_version) != 1:
-                    raise ValueError(f"There should be only one annotator if single_annotator is set to true, but found multiple for document id {document_id}: {list(scores_per_version.keys())}")
+                    raise ValueError(
+                        f"There should be only one annotator if single_annotator is set to true, "
+                        f"but found multiple for document ID {document_id}: {list(scores_per_version.keys())}"
+                    )
                 all_scores.append(next(iter(scores_per_version.values())))
             else:
                 scores = []
                 for version in scores_per_version:
                     scores.append(scores_per_version[version])
 
-                # skip documents where not a score for each version exists
+                # Skip documents where not all versions have scores
                 if len(scores) != num_versions:
                     continue
                 
                 all_scores.append(scores)
             all_document_ids.append(document_id)
 
-        # some metrics accept only categories, not continuous values
+        # Metrics for rounded scores
         all_scores_rounded = [[round(val) for val in scores] for scores in all_scores]
         
-        # Fleiss' Kappa
+        # Compute metrics
         fleiss_data = prepare_fleiss_data(all_scores_rounded)
         fk = fleiss_kappa(fleiss_data, method='fleiss')
-
-        # Spearman's Rank Correlation (average of all pairwise)
         spearman_corr = compute_pairwise_correlations(all_scores, metric='spearman')
-
-        # Kendall's Tau (average of all pairwise)
         kendall_corr = compute_pairwise_correlations(all_scores, metric='kendall')
-        
-        # Cohen's Kappa (average of all pairwise)
         cohen_kappa = compute_pairwise_correlations(all_scores_rounded, metric='cohen')
-
-        # Krippendorff's Alpha
         kripp_alpha = compute_krippendorffs_alpha(all_scores)
-        
-        # variation per document
-        doc_vars = compute_doc_level_variation(all_scores=all_scores_rounded, all_document_ids=all_document_ids)
+        doc_vars = compute_doc_level_variation(all_scores_rounded, all_document_ids)
 
+        # Store results
         metrics[prompt] = {
             'Fleiss Kappa': fk,
             'Cohen Kappa (avg pairwise)': cohen_kappa,
@@ -131,8 +173,7 @@ def compute_interrater_reliability_metrics(
             "Variation per Document": doc_vars
         }
 
-    # print results and write them to the output file
+    # Print results and save them to file
     print("\n".join(f"{key}: {value}" for key, value in metrics.items()))
-    
     with output_file_path.open("w") as f:
         json.dump(metrics, f, indent=4)
