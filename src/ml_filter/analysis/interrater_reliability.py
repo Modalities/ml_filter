@@ -67,7 +67,6 @@ def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[s
 
 # Main function to compute metrics
 def compute_interrater_reliability_metrics(path_to_files: List[Path], single_annotator: bool = False, aggregation: Union[None, str] = None):
-    # TODO allow multiple jsonl_files
     # check parameters
     if single_annotator and aggregation is not None:
         raise ValueError("aggregation types other than None are only valid when comparing multiple annotators")
@@ -79,6 +78,8 @@ def compute_interrater_reliability_metrics(path_to_files: List[Path], single_ann
     for prompt in document_scores:
         all_document_ids = []
         all_scores = []
+        
+        num_versions = 1 if single_annotator else max(len(versions) for versions in document_scores[prompt].values())
         for document_id, scores_per_version in document_scores[prompt].items():
             if single_annotator:
                 if len(scores_per_version) != 1:
@@ -88,6 +89,11 @@ def compute_interrater_reliability_metrics(path_to_files: List[Path], single_ann
                 scores = []
                 for version in scores_per_version:
                     scores.append(scores_per_version[version])
+
+                # skip documents where not a score for each version exists
+                if len(scores) != num_versions:
+                    continue
+                
                 all_scores.append(scores)
             all_document_ids.append(document_id)
 
