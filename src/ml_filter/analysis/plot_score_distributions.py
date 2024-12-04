@@ -1,23 +1,31 @@
-
 from itertools import combinations
 from typing import Union
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pathlib import Path
 import seaborn as sns
-
 from ml_filter.analysis.utils import get_document_scores
 
 
 def plot_scores(path_to_files: list[str], output_dir: Path, aggregation: Union[None, str]) -> None:
+    """
+    Plots score distributions for each prompt based on the input JSONL files.
+
+    Args:
+        path_to_files (list[str]): A list of paths to JSONL files containing document scores.
+        output_dir (Path): The directory to save the generated plots.
+        aggregation (Union[None, str]): Aggregation method for scores ("min", "max", "mean", or None).
+
+    Returns:
+        None
+    """
     document_scores = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation
     )
     
-    # iterate over different prompts
+    # Iterate over different prompts
     for prompt in document_scores:
         df = _prepare_df(document_scores[prompt])
 
@@ -29,7 +37,7 @@ def plot_scores(path_to_files: list[str], output_dir: Path, aggregation: Union[N
             # Create a histogram for each file's scores
             plt.hist(scores, bins=30, alpha=0.5, label=model_name, edgecolor='black')
 
-        # Add labels and title
+        # Add labels, title, and annotations
         plt.xlabel(f'{prompt} Score')
         plt.ylabel('Frequency')
         plt.title(f'{prompt} Score Distributions')
@@ -48,15 +56,24 @@ def plot_scores(path_to_files: list[str], output_dir: Path, aggregation: Union[N
         plt.close()
 
 
-
 def plot_differences_in_scores(path_to_files: list[str], output_dir: Path, aggregation: Union[None, str]) -> None:
-    # Initialize a dictionary to store scores by id across files
+    """
+    Plots histograms and boxplots of score differences between different versions of models.
+
+    Args:
+        path_to_files (list[str]): A list of paths to JSONL files containing document scores.
+        output_dir (Path): The directory to save the generated plots.
+        aggregation (Union[None, str]): Aggregation method for scores ("min", "max", "mean", or None).
+
+    Returns:
+        None
+    """
     document_scores = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation
     )
     
-    # iterate over different prompts
+    # Iterate over different prompts
     for prompt in document_scores:
         df = _prepare_df(document_scores[prompt])
         
@@ -64,8 +81,7 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path, aggre
         # Initialize a list to store the differences for each consecutive version pair
         score_differences = {}
 
-        # Compute differences for consecutive versions for each document
-        # TODO why only consecutive versions? Use arbitrary pairs of versions instead
+        # Compute differences for each document for all pairs of versions 
         for (version1, version2) in combinations(df.columns, 2):
             # Compute the difference between the two versions for all documents that have scores in both versions
             differences = df[version2] - df[version1]
@@ -87,7 +103,6 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path, aggre
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
 
         plt.tight_layout()
-        # Save histogram plot
         plt.savefig(output_dir / (prompt + '_score_distributions_difference_histogram.png'))
         plt.close()
 
@@ -130,11 +145,16 @@ def plot_differences_in_scores(path_to_files: list[str], output_dir: Path, aggre
 
 
 def _prepare_df(document_scores: dict[str, dict[str, float]]) -> pd.DataFrame:
-    # Convert the dictionary into a DataFrame for easier processing
-    df = pd.DataFrame(document_scores).T  # Transpose for better structure (rows are ids, columns are versions)
+    """
+    Prepares a DataFrame from the document scores dictionary, filtering out incomplete rows.
 
-    # Sort the columns to ensure the versions are in order
-    df = df[sorted(df.columns)]
+    Args:
+        document_scores (dict[str, dict[str, float]]): A dictionary where keys are document IDs and 
+                                                       values are dictionaries of version-to-score mappings.
 
-    # Filter documents that are available across all versions
-    return df.dropna()
+    Returns:
+        pd.DataFrame: A DataFrame with rows as document IDs and columns as versions, containing valid scores only.
+    """
+    df = pd.DataFrame(document_scores).T  # Transpose for better structure (rows are IDs, columns are versions)
+    df = df[sorted(df.columns)]  # Sort columns by version
+    return df.dropna()  # Filter out documents not present in all versions
