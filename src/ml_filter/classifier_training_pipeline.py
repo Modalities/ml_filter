@@ -23,6 +23,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer, RegressionScalingLayer
+from ml_filter.utils.train_classifier import XLMRobertaForMultiTargetClassification
 
 
 class ClassifierTrainingPipeline:
@@ -43,14 +44,22 @@ class ClassifierTrainingPipeline:
         self.gt_data_split = cfg.data.gt_file_split
 
         # Model
-        # TODO: Check, whetehr AutoModelForSequenceClassification is general enough
-        self.model = AutoModelForSequenceClassification.from_pretrained(
-            cfg.model.name,
-            num_labels=cfg.model.num_labels,
-            classifier_dropout=cfg.model.classifier_dropout,
-            hidden_dropout_prob=cfg.model.hidden_dropout_prob,
-            output_hidden_states=cfg.model.output_hidden_states,
-        )
+        if isinstance(cfg.model.name, str) and "xlm-roberta" in cfg.model.name.lower():
+            self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
+                cfg.model.name,
+                num_metrics=cfg.data.num_metrics,
+                num_classes_per_metric=torch.tensor(cfg.data.num_classes_per_metric),
+                regression=cfg.training.regression_loss
+            )
+        else:
+            # Fall back to current initialization for other model types
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                cfg.model.name,
+                num_labels=cfg.model.num_labels,
+                classifier_dropout=cfg.model.classifier_dropout,
+                hidden_dropout_prob=cfg.model.hidden_dropout_prob,
+                output_hidden_states=cfg.model.output_hidden_states,
+            )
         # loss function
         self.regression_loss = cfg.training.regression_loss
 
