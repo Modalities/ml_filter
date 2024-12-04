@@ -104,7 +104,11 @@ def compute_interrater_reliability_metrics(
     aggregation: Union[None, str] = None
 ) -> None:
     """
-    Computes various inter-rater reliability metrics and writes results to a JSON file.
+    Computes various inter-rater reliability metrics and writes results to a JSON file. 
+    
+    The different annotators can be placed in separate files or in a single file. 
+    In the first case, the scores for each document in each file have to be aggregated first, as they all represent the same annotator.
+    In the second case, there should no aggregation happen, which is specified by setting the parameter "aggregation" to None.
 
     Args:
         path_to_files (List[Path]): A list of file paths containing annotation scores in JSONL format.
