@@ -90,15 +90,6 @@ def compute_interrater_reliability_metrics(path_to_files: List[Path], single_ann
                     scores.append(scores_per_version[version])
                 all_scores.append(scores)
             all_document_ids.append(document_id)
-            
-        # data = load_jsonl(jsonl_path)
-        # all_document_ids = []
-        # all_scores = []
-        # for item in data:
-        #     # filter out documents with missing annotations
-        #     if not float("-inf") in item["scores"]:
-        #         all_document_ids.append(item['document_id'])
-        #         all_scores.append([int(score) for score in item['scores']])
 
         # Fleiss' Kappa
         fleiss_data = prepare_fleiss_data(all_scores)
