@@ -1,5 +1,6 @@
 
 from itertools import combinations
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,8 +11,12 @@ import seaborn as sns
 from ml_filter.analysis.utils import get_document_scores
 
 
-def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
-    document_scores = get_document_scores(path_to_files)
+def plot_scores(path_to_files: list[str], output_dir: Path, aggregation: Union[None, str]) -> None:
+    document_scores = get_document_scores(
+        path_to_files=path_to_files,
+        aggregation=aggregation
+    )
+    
     # iterate over different prompts
     for prompt in document_scores:
         df = _prepare_df(document_scores[prompt])
@@ -44,9 +49,12 @@ def plot_scores(path_to_files: list[str], output_dir: Path) -> None:
 
 
 
-def plot_differences_in_scores(path_to_files: list[str], output_dir: Path) -> None:
+def plot_differences_in_scores(path_to_files: list[str], output_dir: Path, aggregation: Union[None, str]) -> None:
     # Initialize a dictionary to store scores by id across files
-    document_scores = get_document_scores(path_to_files)
+    document_scores = get_document_scores(
+        path_to_files=path_to_files,
+        aggregation=aggregation
+    )
     
     # iterate over different prompts
     for prompt in document_scores:

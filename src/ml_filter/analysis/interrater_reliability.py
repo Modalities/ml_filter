@@ -3,7 +3,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import statistics
-from typing import List
+from typing import List, Union
 
 import krippendorff
 import numpy as np
@@ -11,18 +11,13 @@ from scipy.stats import spearmanr, kendalltau
 from sklearn.metrics import cohen_kappa_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
-
-# Load JSONL file
-def load_jsonl(file_path: Path):
-    data = []
-    with open(file_path, 'r') as f:
-        for line in f:
-            data.append(json.loads(line))
-    return data
+from ml_filter.analysis.utils import get_document_scores
 
 
 # Prepare data for Fleiss' Kappa
 def prepare_fleiss_data(scores_list: List[list]):
+    # Fleiss' Kappa is designed for categories, so convert floats to integers
+    scores_list = [[round(score) for score in scores] for scores in scores_list]
     max_score = max(max(scores) for scores in scores_list)
     fleiss_data = np.zeros((len(scores_list), max_score + 1))
     for i, scores in enumerate(scores_list):
@@ -71,40 +66,66 @@ def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[s
 
 
 # Main function to compute metrics
-def compute_interrater_reliability_metrics(jsonl_path: Path):
-    data = load_jsonl(jsonl_path)
-    all_document_ids = []
-    all_scores = []
-    for item in data:
-        # filter out documents with missing annotations
-        if not float("-inf") in item["scores"]:
-            all_document_ids.append(item['document_id'])
-            all_scores.append([int(score) for score in item['scores']])
-
-    # Fleiss' Kappa
-    fleiss_data = prepare_fleiss_data(all_scores)
-    fk = fleiss_kappa(fleiss_data, method='fleiss')
-
-    # Spearman's Rank Correlation (average of all pairwise)
-    spearman_corr = compute_pairwise_correlations(all_scores, metric='spearman')
-
-    # Kendall's Tau (average of all pairwise)
-    kendall_corr = compute_pairwise_correlations(all_scores, metric='kendall')
+def compute_interrater_reliability_metrics(path_to_files: List[Path], single_annotator: bool = False, aggregation: Union[None, str] = None):
+    # TODO allow multiple jsonl_files
+    # check parameters
+    if single_annotator and aggregation is not None:
+        raise ValueError("aggregation types other than None are only valid when comparing multiple annotators")
+    if not single_annotator and aggregation is None:
+        raise ValueError("aggregation type must not be None when comparing multiple annotators")
     
-    # Cohen's Kappa (average of all pairwise)
-    cohen_kappa = compute_pairwise_correlations(all_scores, metric='cohen')
+    document_scores = get_document_scores(path_to_files, aggregation=aggregation)
+    metrics = {}
+    for prompt in document_scores:
+        all_document_ids = []
+        all_scores = []
+        for document_id, scores_per_version in document_scores[prompt].items():
+            if single_annotator:
+                if len(scores_per_version) != 1:
+                    raise ValueError(f"There should be only one annotator if single_annotator is set to true, but found multiple for document id {document_id}: {list(scores_per_version.keys())}")
+                all_scores.append(next(iter(scores_per_version.values())))
+            else:
+                scores = []
+                for version in scores_per_version:
+                    scores.append(scores_per_version[version])
+                all_scores.append(scores)
+            all_document_ids.append(document_id)
+            
+        # data = load_jsonl(jsonl_path)
+        # all_document_ids = []
+        # all_scores = []
+        # for item in data:
+        #     # filter out documents with missing annotations
+        #     if not float("-inf") in item["scores"]:
+        #         all_document_ids.append(item['document_id'])
+        #         all_scores.append([int(score) for score in item['scores']])
 
-    # Krippendorff's Alpha
-    kripp_alpha = compute_krippendorffs_alpha(all_scores)
-    
-    # variation per document
-    doc_vars = compute_doc_level_variation(all_scores=all_scores, all_document_ids=all_document_ids)
+        # Fleiss' Kappa
+        fleiss_data = prepare_fleiss_data(all_scores)
+        fk = fleiss_kappa(fleiss_data, method='fleiss')
 
-    return {
-        'Fleiss Kappa': fk,
-        'Cohen Kappa (avg pairwise)': cohen_kappa,
-        'Spearman Rank Correlation (avg pairwise)': spearman_corr,
-        'Kendall Tau (avg pairwise)': kendall_corr,
-        'Krippendorff Alpha': kripp_alpha,
-        "Variation per Document": doc_vars
-    }
+        # Spearman's Rank Correlation (average of all pairwise)
+        spearman_corr = compute_pairwise_correlations(all_scores, metric='spearman')
+
+        # Kendall's Tau (average of all pairwise)
+        kendall_corr = compute_pairwise_correlations(all_scores, metric='kendall')
+        
+        # Cohen's Kappa (average of all pairwise)
+        cohen_kappa = compute_pairwise_correlations(all_scores, metric='cohen')
+
+        # Krippendorff's Alpha
+        kripp_alpha = compute_krippendorffs_alpha(all_scores)
+        
+        # variation per document
+        doc_vars = compute_doc_level_variation(all_scores=all_scores, all_document_ids=all_document_ids)
+
+        metrics[prompt] = {
+            'Fleiss Kappa': fk,
+            'Cohen Kappa (avg pairwise)': cohen_kappa,
+            'Spearman Rank Correlation (avg pairwise)': spearman_corr,
+            'Kendall Tau (avg pairwise)': kendall_corr,
+            'Krippendorff Alpha': kripp_alpha,
+            "Variation per Document": doc_vars
+        }
+
+    return metrics

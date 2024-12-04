@@ -127,35 +127,76 @@ def deepl_translate_cli(
 
 
 @main.command(name="interrater_reliability")
+@click.argument('path_to_files', nargs=-1)
 @click.option(
-    "--input_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the input jsonl file containing the annotations.",
+    "--single_annotator",
+    is_flag=True,
+    help="Set this in case of analyzing the scores of a single annotator"
+)
+@click.option(
+    "--aggregation",
+    type=str,
+    required=False,
+    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
 )
 def interrater_reliability_cli(
-    input_file_path: Path,
+    path_to_files: tuple[str],
+    single_annotator: bool,
+    aggregation: Optional[str] = None
 ):
-    results = compute_interrater_reliability_metrics(input_file_path)
+    path_to_files = [Path(p) for p in path_to_files]
+    results = compute_interrater_reliability_metrics(
+        path_to_files=path_to_files,
+        single_annotator=single_annotator,
+        aggregation=aggregation
+    )
     print("\n".join(f"{key}: {value}" for key, value in results.items()))
 
 
 @main.command(name="plot_differences_in_scores")
 @click.argument('path_to_files', nargs=-1)
 @click.option('--output_dir', type=str)
-def plot_differences_in_scores_cli(path_to_files: tuple[str], output_dir:str) -> None:
+@click.option(
+    "--aggregation",
+    type=str,
+    required=False,
+    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
+)
+def plot_differences_in_scores_cli(
+    path_to_files: tuple[str],
+    output_dir: str,
+    aggregation: Optional[str] = None
+) -> None:
     """Plot the differences in scores."""
-    files = list(path_to_files)
-    plot_differences_in_scores(path_to_files=files, output_dir=Path(output_dir))
+    path_to_files = [Path(p) for p in path_to_files]
+    plot_differences_in_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation
+    )
 
 
 @main.command(name="plot_scores")
 @click.argument('path_to_files', nargs=-1)
 @click.option('--output_dir', type=str)
-def plot_scores_cli(path_to_files: tuple[str], output_dir:str) -> None:
+@click.option(
+    "--aggregation",
+    type=str,
+    required=False,
+    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
+)
+def plot_scores_cli(
+    path_to_files: tuple[str],
+    output_dir: str,
+    aggregation: Optional[str] = None
+) -> None:
     """Plot the differences in scores."""
-    files = list(path_to_files)
-    plot_scores(path_to_files=files, output_dir=Path(output_dir))
+    path_to_files = [Path(p) for p in path_to_files]
+    plot_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation
+    )
     
 
 if __name__ == "__main__":
