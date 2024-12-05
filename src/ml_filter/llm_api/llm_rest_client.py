@@ -1,7 +1,9 @@
+import copy
 import logging
 import time
 import traceback
 from http import HTTPStatus
+from typing import List
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
@@ -53,7 +55,7 @@ class LLMRestClient:
 
         self.logger.info(f"Using rest endpoint at {self.rest_endpoint_generate}")
 
-    def generate(self, processed_document: ProcessedDocument) -> ProcessedDocument:
+    def generate(self, processed_document: ProcessedDocument) -> List[ProcessedDocument]:
         """Generates a response based on the given prompt.
         Args:
             processed_document (ProcessedDocument): The processed document.
@@ -67,6 +69,7 @@ class LLMRestClient:
             prompt=processed_document.prompt,
             max_tokens=self.max_new_tokens,
             temperature=self.temperature,
+            n=self.num_return_sequences,
         )
 
         for i in range(self.max_retries):
@@ -86,23 +89,30 @@ class LLMRestClient:
                     processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
                     processed_document.errors.append(str(e))
                     print(f"Request failed after {self.max_retries} retries.")
-                    return processed_document
+                    return [processed_document]
 
+        new_documents = []
         if response.status_code == HTTPStatus.OK:
             response_dict = response.json()
-            generated_text = self.parse_response(response_dict)
-            if generated_text is not None:
-                processed_document.generated_text = generated_text
-            else:
-                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
-                processed_document.errors.append(f"Response could not be parsed: {response_dict}")
+            generated_texts = self.parse_response(response_dict)
+            for generated_text in generated_texts:
+                new_document = copy.deepcopy(processed_document)
+                if generated_text is not None:
+                    new_document.generated_text = generated_text
+                else:
+                    new_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
+                    new_document.errors.append(f"Response could not be parsed: {response_dict}")
+                new_document.timestamp = int(time.time())
+                new_documents.append(new_document)
         else:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER
             processed_document.errors.append(f"Request failed with status code {response.status_code}: {response.text}")
-        processed_document.timestamp = int(time.time())
-        return processed_document
+            processed_document.timestamp = int(time.time())
+            new_documents.append(processed_document)
 
-    def parse_response(self, response_dict: dict) -> str | None:
+        return new_documents
+
+    def parse_response(self, response_dict: dict) -> List[str] | None:
         """Parses the response from the LLM service.
 
         Args:
@@ -115,4 +125,4 @@ class LLMRestClient:
         if choices is None or len(choices) == 0:
             return None
         else:
-            return choices[0].get("text")
+            return [choice.get("text") for choice in choices]

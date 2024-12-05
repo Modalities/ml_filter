@@ -109,11 +109,10 @@ class DocumentProcessor:
         # prompt building
         processed_document = self.prompt_builder.construct_prompt(processed_document)
 
-        processed_documents = []
         # text generation
-        for _ in range(self.llm_rest_client.num_return_sequences):
-            processed_document = self.llm_rest_client.generate(processed_document=processed_document)
-
+        all_processed_documents = []
+        processed_documents = self.llm_rest_client.generate(processed_document=processed_document)
+        for processed_document in processed_documents:
             # score filtering
             score = DocumentProcessor.find_last_pattern(
                 processed_document.generated_text, pattern=self.score_metric.pattern
@@ -128,8 +127,8 @@ class DocumentProcessor:
             if len(processed_document.errors) > 0:
                 error_string = " | ".join(processed_document.errors)
                 logger.warning(f"Error processing document with id {document['id']}: {error_string}")
-            processed_documents.append(processed_document)
-        return processed_documents
+            all_processed_documents.append(processed_document)
+        return all_processed_documents
 
     def _process_documents_batch(self):
         while True:

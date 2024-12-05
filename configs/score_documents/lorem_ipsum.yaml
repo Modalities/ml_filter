@@ -5,7 +5,7 @@ settings:
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths: 
-    - data/dev_data_ml_filter_511_head_100.jsonl
+    - data/dev_data_ml_filter_511_head_10.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
     gold_annotations_file_path: ${settings.paths.raw_data_file_paths[0]}
@@ -14,14 +14,14 @@ llm_rest_client:
   model_name: ${settings.model_name}
   max_tokens: 4096
   max_new_tokens: 500
-  temperature: 0.9
+  temperature: 1.0
   max_pool_connections: 1000
   max_pool_maxsize: 1000 #TODO
   max_retries: 2
   backoff_factor: 0.4 
   timeout: 100
   verbose: false
-  num_return_sequences: 2
+  num_return_sequences: 5
 
 tokenizer:
   pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
@@ -37,8 +37,8 @@ prompt_builder:
 
 document_processor:
   output_directory_path: ${settings.paths.output_directory_path}
-  queue_size: 100
-  batch_size: 10
+  queue_size: 1000
+  batch_size: 20
   num_processes: 10
   score_metric_name: educational_score
   strings_to_remove: []
