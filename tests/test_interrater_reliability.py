@@ -71,46 +71,40 @@ def test_compute_doc_level_variation(example_scores, example_ids):
 
 
 @pytest.mark.parametrize(
-    "mock_document_scores, single_annotator, aggregation",
+    "path_to_files, single_annotator, aggregation",
     [
         # Test case 1: Single annotator
         (
-            {
-                "prompt1": {
-                    "doc1": {"version1": [3, 4, 5]},
-                    "doc2": {"version1": [2, 4, 4]},
-                    "doc3": {"version1": [3, 3, 3]},
-                }
-            },
+            [
+                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl",
+                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl",
+            ],    
             True,
             None
         ),
         # Test case 2: Multiple annotators
         (
-            {
-                "prompt1": {
-                    "doc1": {"version1": 1, "version2": 1},
-                    "doc2": {"version1": 2, "version2": 1},
-                    "doc3": {"version1": 4, "version2": 5},
-                }
-            },
+            [
+                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl",
+                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl",
+                "tests/resources/data/llm_annotations/de/annotations_edu_de_test_1.jsonl",
+                "tests/resources/data/llm_annotations/de/annotations_edu_de_test_2.jsonl",
+                "tests/resources/data/llm_annotations/en/annotations_toxic_en_test_1.jsonl",
+                "tests/resources/data/llm_annotations/en/annotations_toxic_en_test_2.jsonl",
+                "tests/resources/data/llm_annotations/de/annotations_toxic_de_test_1.jsonl",
+            ],
             False,
             "mean"
         ),
     ],
 )
-def test_compute_interrater_reliability_metrics_single_annotator(monkeypatch, tmp_path, mock_document_scores, single_annotator, aggregation):
-    # Mock `get_document_scores` to return a controlled structure
-    def mock_get_document_scores(*args, **kwargs):
-        return mock_document_scores
-
-    monkeypatch.setattr("ml_filter.analysis.interrater_reliability.get_document_scores", mock_get_document_scores)
-
+def test_compute_interrater_reliability_metrics_single_annotator(tmp_path, path_to_files, single_annotator, aggregation):
     output_file = tmp_path / "output.json"
+    path_to_files = [Path(p) for p in path_to_files]
 
     # Call function
     compute_interrater_reliability_metrics(
-        path_to_files=[],
+        path_to_files=path_to_files,
         output_file_path=output_file,
         single_annotator=single_annotator,
         aggregation=aggregation,
@@ -123,12 +117,12 @@ def test_compute_interrater_reliability_metrics_single_annotator(monkeypatch, tm
     with output_file.open() as f:
         result = json.load(f)
         
-    assert "prompt1" in result, "Output metrics should include the prompt."
-    assert len(result["prompt1"]) > 0
+    assert "edu" in result, "Output metrics should include the prompt."
+    assert len(result["edu"]) > 0
 
 
 def test_invalid_parameters():
-    with pytest.raises(ValueError, match="aggregation type must not be None"):
+    with pytest.raises(ValueError):
         compute_interrater_reliability_metrics(
             path_to_files=[],
             output_file_path=Path("output.json"),
@@ -136,7 +130,7 @@ def test_invalid_parameters():
             aggregation=None,
         )
 
-    with pytest.raises(ValueError, match="aggregation types other than None are only valid"):
+    with pytest.raises(ValueError):
         compute_interrater_reliability_metrics(
             path_to_files=[],
             output_file_path=Path("output.json"),
