@@ -9,6 +9,7 @@ import click_pathlib
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
+from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
@@ -216,6 +217,88 @@ def compute_num_words_in_jsonl_cli(
     output_file_path: Path,
 ):
     compute_num_words_and_chars_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+
+
+@main.command(name="sample_from_hf_dataset")
+@click.option(
+    "--dataset_name",
+    required=True,
+    type=str,
+    help="Name of the Hugging Face dataset to sample from (e.g., 'HuggingFaceFW/fineweb-edu-llama3-annotations')."
+)
+@click.option(
+    "--dataset_split",
+    required=True,
+    type=str,
+    help="The split of the Hugging Face dataset that is used for sampling (e.g., 'train')."
+)
+@click.option(
+    "--output_file_path",
+    required=True,
+    type=click.Path(),
+    help="Path to save the sampled data as a JSON file (e.g., 'output.json')."
+)
+@click.option(
+    "--hf_repo_path",
+    required=True,
+    type=str,
+    help="Path in the Hugging Face Hub repository where the file will be stored (e.g., 'dataset/output.json')."
+)
+@click.option(
+    "--hf_repo_id",
+    required=True,
+    type=str,
+    help="Hugging Face repository ID (e.g., 'username/repository')."
+)
+@click.option(
+    "--column_name",
+    required=True,
+    type=str,
+    help="Column in the dataset used for filtering (e.g., 'score')."
+)
+@click.option(
+    "--relevant_classes",
+    required=True,
+    type=str,
+    help="Comma-separated list of relevant class values to sample.",
+)
+@click.option(
+    "--num_docs_per_class",
+    required=True,
+    type=int,
+    help="Number of documents to sample for each class (e.g., 100)."
+)
+@click.option(
+    "--seed",
+    default=42,
+    type=int,
+    show_default=True,
+    help="Seed value for random operations to ensure reproducibility."
+)
+def sample_from_hf_dataset_cli(
+    dataset_name: str,
+    dataset_split: str,
+    output_file_path: str,
+    hf_repo_id: str,
+    hf_repo_path: str,
+    column_name: str,
+    relevant_classes: tuple[int],
+    num_docs_per_class: int,
+    seed: int
+):
+    relevant_classes_list = [int(x.strip()) for x in relevant_classes.split(",")]
+    sample_from_hf_dataset(
+        dataset_name=dataset_name,
+        dataset_split=dataset_split,
+        output_file_path=output_file_path,
+        hf_repo_path=hf_repo_path,
+        hf_repo_id=hf_repo_id,
+        column_name=column_name,
+        relevant_classes=relevant_classes_list,
+        num_docs_per_class=num_docs_per_class,
+        seed=seed,
+    )
+
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
