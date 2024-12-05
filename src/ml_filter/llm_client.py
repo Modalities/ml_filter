@@ -57,12 +57,7 @@ class LLMClient:
         self.queue_size = cfg.document_processor.queue_size
         self.num_processes = cfg.document_processor.num_processes
         self.score_metric_name = cfg.document_processor.score_metric_name
-        self.gold_annotations_file_path = cfg.settings.paths.gold_annotations_file_path
         self.jq_language_pattern = cfg.document_processor.jq_language_pattern
-
-        out_dir_path = self.experiment_dir_path / "annotations"
-        out_dir_path.mkdir(parents=True, exist_ok=True)
-        self.out_file_path = out_dir_path / "processed_documents.jsonl"
 
     def run(self):
         """Runs the LLM service.
@@ -107,8 +102,6 @@ class LLMClient:
             ),
             queue_size=self.queue_size,
             raw_data_file_paths=self.raw_data_file_paths,
-            out_file_path=self.out_file_path,
-            gold_annotations_file_path=self.gold_annotations_file_path,
             experiment_dir_path=self.experiment_dir_path,
             num_processes=self.num_processes,
             score_metric_name=self.score_metric_name,

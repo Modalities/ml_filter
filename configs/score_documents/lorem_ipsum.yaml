@@ -5,10 +5,12 @@ settings:
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths: 
-    - data/dev_data_ml_filter_511_head_100.jsonl
+    # TODO test with single file
+    # TODO check if tests pass
+    - data/dev_dump/a/dev_data_ml_filter_511_head_10.jsonl
+    - data/dev_dump/b/dev_data_ml_filter_511_tail_10.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
-    gold_annotations_file_path: ${settings.paths.raw_data_file_paths[0]}
 
 llm_rest_client:
   model_name: ${settings.model_name}

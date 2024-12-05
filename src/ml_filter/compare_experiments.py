@@ -5,7 +5,7 @@ import pandas as pd
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 
-from ml_filter.data_processing.document_processor import ReportStats, report_statistics
+from ml_filter.data_processing.report_statistics import ReportStats, report_statistics
 
 
 class StatisticConfig(BaseModel):
@@ -39,7 +39,7 @@ def compare_experiments(config_file_path: Path):
     for path in paths:
         exp_config = OmegaConf.load(path / config_filename)
         stats = report_statistics(
-            results_file_path=path / "annotations" / "processed_documents.jsonl",
+            out_dir_path=path / "annotations" / "processed_documents.jsonl",
             gold_annotations_file_path=Path(config.gold_annotations_file_path),
         )
         stats["model_name"] = exp_config.settings.model_name

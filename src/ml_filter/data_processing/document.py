@@ -32,6 +32,7 @@ class ProcessedDocument:
     original_history: List[Dict[str, str]] = field(default_factory=list)
     preprocessed_text: str = ""
     prompt: str = ""
+    prompt_name: str = ""
     generated_text: str = ""
     language: str = ""
     score_type: str = ""
@@ -48,7 +49,7 @@ class ProcessedDocument:
 class MetaInformation(BaseModel):
     """A class representing the meta information for a given document."""
 
-    prompt: str
+    prompt_name: str
     prompt_lang: str
     model: str
     raw_data_file_path: str
