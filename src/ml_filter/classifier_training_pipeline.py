@@ -130,8 +130,17 @@ class ClassifierTrainingPipeline:
             param.requires_grad = False
 
         # Unfreeze classifier parameters
-        for param in self.model.classifier.parameters():
-            param.requires_grad = True
+        if isinstance(self.model, XLMRobertaForSequenceClassification):
+            for param in self.model.classifier.parameters():
+                param.requires_grad = True
+        elif isinstance(self.model, BertForSequenceClassification):
+            # For BERT models, unfreeze both classifier and pooler
+            for param in self.model.classifier.parameters():
+                param.requires_grad = True
+            for param in self.model.bert.pooler.parameters():
+                param.requires_grad = True
+        else:
+            raise NotImplementedError(f"Freezing encoder not implemented for model type {type(self.model)}")
 
     def _tokenize(self, documents: Dict[str, List[str]]):
         return self.tokenizer.tokenizer(
