@@ -13,30 +13,30 @@ from statsmodels.stats.inter_rater import fleiss_kappa
 from ml_filter.analysis.utils import get_document_scores
 
 
-def prepare_fleiss_data(scores_list: List[list]) -> np.ndarray:
+def prepare_fleiss_data(all_scores: List[List[int]]) -> np.ndarray:
     """
     Prepares data for computing Fleiss' Kappa by transforming scores into a matrix format.
 
     Args:
-        scores_list (List[list]): A list where each sublist contains scores assigned by raters.
+        all_scores (List[List[int]]): A list where each sublist contains scores assigned by raters.
 
     Returns:
         np.ndarray: A 2D matrix where rows correspond to items and columns represent score frequencies.
     """
-    max_score = max(max(scores) for scores in scores_list)
-    fleiss_data = np.zeros((len(scores_list), max_score + 1))
-    for i, scores in enumerate(scores_list):
+    max_score = max(max(scores) for scores in all_scores)
+    fleiss_data = np.zeros((len(all_scores), max_score + 1))
+    for i, scores in enumerate(all_scores):
         for score in scores:
             fleiss_data[i, score] += 1
     return fleiss_data
 
 
-def compute_pairwise_correlations(all_scores: List[list], metric: str) -> float:
+def compute_pairwise_correlations(all_scores: List[List[float]], metric: str) -> float:
     """
     Computes the average pairwise correlation between raters' scores.
 
     Args:
-        all_scores (List[list]): A list where each sublist contains scores from all raters for one item.
+        all_scores (List[List[float]]): A list where each sublist contains scores from all raters for one item.
         metric (str): The correlation metric to use ("spearman", "kendall", or "cohen").
 
     Returns:
@@ -58,12 +58,12 @@ def compute_pairwise_correlations(all_scores: List[list], metric: str) -> float:
     return np.mean(results)
 
 
-def compute_krippendorffs_alpha(all_scores: List[list]) -> float:
+def compute_krippendorffs_alpha(all_scores: List[List[float]]) -> float:
     """
     Computes Krippendorff's Alpha, a measure of inter-rater reliability.
 
     Args:
-        all_scores (List[list]): A list where each sublist contains scores assigned by all raters for one item.
+        all_scores (List[List[float]]): A list where each sublist contains scores assigned by all raters for one item.
 
     Returns:
         float: The Krippendorff's Alpha score.
@@ -72,12 +72,12 @@ def compute_krippendorffs_alpha(all_scores: List[list]) -> float:
     return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
 
 
-def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[str]) -> dict:
+def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: List[str]) -> dict:
     """
     Computes variation in scores at the document level.
 
     Args:
-        all_scores (List[list]): A list where each sublist contains scores for a single document.
+        all_scores (List[List[int]]): A list where each sublist contains scores for a single document.
         all_document_ids (List[str]): A list of document IDs corresponding to `all_scores`.
 
     Returns:
@@ -114,7 +114,12 @@ def compute_interrater_reliability_metrics(
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
         output_file_path (Path): The output path to save computed metrics as a JSON file.
         single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
-        aggregation (Union[None, str], optional): Aggregation method ("min", "max", "mean", or None). Defaults to None.
+        aggregation (Union[None, str], optional): Specifies how scores for a document from the same file are aggregated.
+            Supported values:
+            - "mean": Compute the average score.
+            - "max": Use the maximum score.
+            - "min": Use the minimum score.
+            - None: No aggregation (used for individual annotator analysis).
 
     Raises:
         ValueError: If invalid parameter combinations are provided.
