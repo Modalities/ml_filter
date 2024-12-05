@@ -55,7 +55,6 @@ class LLMClient:
         # DocumentProcessor related variables
         self.max_prompt_length = cfg.prompt_builder.max_prompt_length
         self.queue_size = cfg.document_processor.queue_size
-        self.batch_size = cfg.document_processor.batch_size
         self.num_processes = cfg.document_processor.num_processes
         self.score_metric_name = cfg.document_processor.score_metric_name
         self.gold_annotations_file_path = cfg.settings.paths.gold_annotations_file_path
@@ -106,7 +105,6 @@ class LLMClient:
                 self.prompt_template_file_path, tokenizer=tokenizer, max_prompt_length=self.max_prompt_length
             ),
             queue_size=self.queue_size,
-            batch_size=self.batch_size,
             raw_data_file_paths=self.raw_data_file_paths,
             out_file_path=self.out_file_path,
             gold_annotations_file_path=self.gold_annotations_file_path,

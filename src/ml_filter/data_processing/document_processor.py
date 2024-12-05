@@ -29,7 +29,6 @@ class DocumentProcessor:
         llm_rest_client: LLMRestClient,
         prompt_builder: PromptBuilder,
         queue_size: int,
-        batch_size: int,
         raw_data_file_paths: List[Path],
         gold_annotations_file_path: Path | None,
         experiment_dir_path: Path,
@@ -43,7 +42,6 @@ class DocumentProcessor:
         self.prompt_builder = prompt_builder
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
-        self.batch_size = batch_size
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
@@ -130,19 +128,17 @@ class DocumentProcessor:
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
-    def _process_documents_batch(self):
+    def _process_documents(self):
         while True:
-            batch_of_documents = self.documents_queue.get()
+            document = self.documents_queue.get()
 
-            if batch_of_documents is None:
+            if document is None:
                 break
 
             annotations = []
-
-            for document in batch_of_documents:
-                processed_document_variations = self._process_document(document)
-                annotation = self._convert_to_annotation(processed_document_variations)
-                annotations.append(annotation)
+            processed_document_variations = self._process_document(document)
+            annotation = self._convert_to_annotation(processed_document_variations)
+            annotations.append(annotation)
 
             self.result_queue.put(annotations)
 
@@ -169,8 +165,7 @@ class DocumentProcessor:
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         return len(document["text"]) > 0 and len(document["id"]) > 0
 
-    def _create_batches(self, raw_data_file_paths: List[Path]):
-        batch = []
+    def _load_documents(self, raw_data_file_paths: List[Path]):
         for raw_data_file_path in raw_data_file_paths:
             with open(raw_data_file_path, "r") as fin:
                 while True:
@@ -190,18 +185,9 @@ class DocumentProcessor:
                             + "Value of key 'text' has length of 0. Skipping."
                         )
                         continue
+                    self.documents_queue.put(document)
 
-                    batch.append(document)
-
-                    if len(batch) % self.batch_size == 0:
-                        self.documents_queue.put(batch)
-                        batch = []
-
-        # If there are remaining documents that didn't fill up a batch
-        if len(batch) > 0:
-            self.documents_queue.put(batch)
-
-        # Add termination signal (None) once all batches are in the queue
+        # Add termination signal (None) once all documents are in the queue
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
 
@@ -247,14 +233,14 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_paths,))
+        reader = multiprocessing.Process(target=self._load_documents, args=(self.raw_data_file_paths,))
         reader.start()
 
         writer = multiprocessing.Process(target=self._write_results, args=(self.out_file_path,))
         writer.start()
 
         processor_threads = [
-            multiprocessing.Process(target=self._process_documents_batch)
+            multiprocessing.Process(target=self._process_documents)
             for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
