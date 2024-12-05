@@ -13,11 +13,11 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: data/annotated_fineweb_multi_train_new.jsonl
+  train_file_path: data/annotated_fineweb_multi_train.jsonl
   train_file_split: train
-  test_file_path: data/annotated_fineweb_multi_test_new.jsonl # currently not used
+  test_file_path: data/annotated_fineweb_multi_test.jsonl # currently not used
   test_file_split: train # currently not used
-  val_file_path: data/annotated_fineweb_multi_val_new.jsonl
+  val_file_path: data/annotated_fineweb_multi_val.jsonl
   val_file_split: train
   gt_file_path: null # ground truth data; can be null (optional)
   gt_file_split: train
@@ -40,5 +40,5 @@ training:
   greater_is_better: false
   metric_for_best_model: eval_loss
   learning_rate: 0.00001
-  logging_dir_path: data/output/preliminary_xlm_roberta_base-single-target
-  output_dir_path: data/output/preliminary_xlm_roberta_base-single-target
+  logging_dir_path: data/output/preliminary_snowflake-arctic-single-target
+  output_dir_path: data/output/preliminary_snowflake-arctic-single-target

@@ -1,10 +1,10 @@
 model:
-  name: FacebookAI/xlm-roberta-base
+  name: Snowflake/snowflake-arctic-embed-m
   num_labels: 6
   classifier_dropout: 0.0
   hidden_dropout_prob: 0.0
   output_hidden_states: false
-
+  freeze_encoder: true
 tokenizer:
     pretrained_model_name_or_path: ${model.name}
     truncation: true
@@ -40,5 +40,5 @@ training:
   greater_is_better: false
   metric_for_best_model: eval_loss
   learning_rate: 0.00001
-  logging_dir_path: data/output/preliminary_xlm_roberta_base-single-target
-  output_dir_path: data/output/preliminary_xlm_roberta_base-single-target
+  logging_dir_path: data/output/preliminary_snowflake-arctic-single-target-frozen-encoder
+  output_dir_path: data/output/preliminary_snowflake-arctic-single-target-frozen-encoder

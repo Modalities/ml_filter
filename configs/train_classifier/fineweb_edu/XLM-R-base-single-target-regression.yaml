@@ -13,11 +13,11 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: data/annotated_fineweb_multi_train_new.jsonl
+  train_file_path: data/annotated_fineweb_multi_train.jsonl
   train_file_split: train
-  test_file_path: data/annotated_fineweb_multi_test_new.jsonl # currently not used
+  test_file_path: data/annotated_fineweb_multi_test.jsonl # currently not used
   test_file_split: train # currently not used
-  val_file_path: data/annotated_fineweb_multi_val_new.jsonl
+  val_file_path: data/annotated_fineweb_multi_val.jsonl
   val_file_split: train
   gt_file_path: null # ground truth data; can be null (optional)
   gt_file_split: train
