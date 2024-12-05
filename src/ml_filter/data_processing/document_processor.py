@@ -324,6 +324,7 @@ def report_statistics(results_file_path: Path, gold_annotations_file_path: Path)
             acc=stats["accuracy"].mean(),
             confusion_matrix=pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
         ).model_dump(),
+        "predicted_scores_mean_std_var": stats["scores_pred"].apply(lambda x: pd.Series(x).std()).mean(),
         "predicted_score_counts": stats["score_pred"].value_counts().sort_index().to_dict(),
         "gold_score_counts": stats["score_gold"].value_counts().sort_index().to_dict(),
         "document_status_counts": status_counts.to_dict(),
