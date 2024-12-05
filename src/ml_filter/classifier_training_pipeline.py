@@ -241,7 +241,7 @@ class ClassifierTrainingPipeline:
                 thresholds=list(range(1, self.num_classes_per_output[i]))
             )
             metric_dict.update({
-                f"{output_name}_{metric}": metrics[metric]
+                f"{output_name}/{metric}": metrics[metric]
                 for metric in metrics
             })
         return metric_dict
@@ -274,10 +274,10 @@ class ClassifierTrainingPipeline:
         metrics = {}
         
         # Compute classification metrics
-        metrics["accuracy"] = accuracy_score(labels, preds)
-        metrics["f1_weighted"] = f1_score(labels, preds, average="weighted")
-        metrics["f1_micro"] = f1_score(labels, preds, average="micro")
-        metrics["f1_macro"] = f1_score(labels, preds, average="macro")
+        metrics["classification/accuracy"] = accuracy_score(labels, preds)
+        metrics["classification/f1_weighted"] = f1_score(labels, preds, average="weighted")
+        metrics["classification/f1_micro"] = f1_score(labels, preds, average="micro")
+        metrics["classification/f1_macro"] = f1_score(labels, preds, average="macro")
 
         # Calculate binary metrics for different thresholds
         for threshold in thresholds:
@@ -285,23 +285,23 @@ class ClassifierTrainingPipeline:
             binary_preds = np.where(preds >= threshold, 1, 0)
             binary_labels = np.where(labels >= threshold, 1, 0)
             
-            metrics[f"binary_accuracy_t{threshold}"] = accuracy_score(binary_labels, binary_preds)
-            metrics[f"binary_f1_weighted_t{threshold}"] = f1_score(binary_labels, binary_preds, average="weighted")
-            metrics[f"binary_f1_micro_t{threshold}"] = f1_score(binary_labels, binary_preds, average="micro")
-            metrics[f"binary_f1_macro_t{threshold}"] = f1_score(binary_labels, binary_preds, average="macro")
+            metrics[f"binary/t{threshold}/accuracy"] = accuracy_score(binary_labels, binary_preds)
+            metrics[f"binary/t{threshold}/f1_weighted"] = f1_score(binary_labels, binary_preds, average="weighted")
+            metrics[f"binary/t{threshold}/f1_micro"] = f1_score(binary_labels, binary_preds, average="micro")
+            metrics[f"binary/t{threshold}/f1_macro"] = f1_score(binary_labels, binary_preds, average="macro")
 
         # Compute regression-like metrics
-        metrics["mse"] = mean_squared_error(labels, preds_raw)
-        metrics["mae"] = mean_absolute_error(labels, preds_raw)
+        metrics["regression/mse"] = mean_squared_error(labels, preds_raw)
+        metrics["regression/mae"] = mean_absolute_error(labels, preds_raw)
         
-        # add f1 scores for each class
+        # Add f1 scores for each class
         classes = np.unique(labels)
         classes.sort()
         f1_per_class = f1_score(labels, preds, average=None)
         for i, c in enumerate(classes):
-            metrics[f"f1_class_{c}"] = f1_per_class[i]
+            metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
         
-        return metrics   
+        return metrics
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
