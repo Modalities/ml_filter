@@ -48,6 +48,8 @@ target_language_codes_option = click.option(
     help="Comma-separated list of languages.",
 )
 
+path_to_files_argument = click.argument('path_to_files', nargs=-1, type=click.Path(path_type=Path))
+
 
 @click.group()
 def main() -> None:
@@ -183,7 +185,7 @@ def translate_flat_yaml_cli(
 
 
 @main.command(name="interrater_reliability")
-@click.argument('path_to_files', nargs=-1)
+@path_to_files_argument
 @click.option(
     "--single_annotator",
     is_flag=True,
@@ -203,12 +205,11 @@ def translate_flat_yaml_cli(
 )
 
 def interrater_reliability_cli(
-    path_to_files: tuple[str],
+    path_to_files: tuple[Path],
     single_annotator: bool,
     output_file_path: Path,
     aggregation: Optional[str] = None
 ):
-    path_to_files = [Path(p) for p in path_to_files]
     compute_interrater_reliability_metrics(
         path_to_files=path_to_files,
         single_annotator=single_annotator,
@@ -218,7 +219,7 @@ def interrater_reliability_cli(
 
 
 @main.command(name="plot_scores")
-@click.argument('path_to_files', nargs=-1)
+@path_to_files_argument
 @click.option('--output_dir', type=str)
 @click.option(
     "--aggregation",
