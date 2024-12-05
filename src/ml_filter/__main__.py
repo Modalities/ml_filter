@@ -48,6 +48,13 @@ target_language_codes_option = click.option(
     help="Comma-separated list of languages.",
 )
 
+aggregation_option = click.option(
+    "--aggregation",
+    type=str,
+    required=False,
+    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
+)
+
 path_to_files_argument = click.argument('path_to_files', nargs=-1, type=click.Path(path_type=Path))
 
 
@@ -197,12 +204,7 @@ def translate_flat_yaml_cli(
     required=True,
     help="Write the computed metrics to this json-file.",
 )
-@click.option(
-    "--aggregation",
-    type=str,
-    required=False,
-    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
-)
+@aggregation_option
 
 def interrater_reliability_cli(
     path_to_files: tuple[Path],
@@ -221,12 +223,7 @@ def interrater_reliability_cli(
 @main.command(name="plot_scores")
 @path_to_files_argument
 @click.option('--output_dir', type=str)
-@click.option(
-    "--aggregation",
-    type=str,
-    required=False,
-    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
-)
+@aggregation_option
 def plot_scores_cli(
     path_to_files: tuple[Path],
     output_dir: str,
