@@ -228,7 +228,7 @@ def interrater_reliability_cli(
     help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
 )
 def plot_scores_cli(
-    path_to_files: tuple[str],
+    path_to_files: tuple[Path],
     output_dir: str,
     aggregation: Optional[str] = None
 ) -> None:

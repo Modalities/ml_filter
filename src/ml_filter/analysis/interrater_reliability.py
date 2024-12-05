@@ -2,7 +2,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import statistics
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import krippendorff
 import numpy as np
@@ -98,7 +98,7 @@ def compute_doc_level_variation(all_scores: List[list], all_document_ids: List[s
 
 
 def compute_interrater_reliability_metrics(
-    path_to_files: List[Path],
+    path_to_files: Tuple[Path],
     output_file_path: Path,
     single_annotator: bool = False,
     aggregation: Union[None, str] = None
@@ -111,7 +111,7 @@ def compute_interrater_reliability_metrics(
     In the second case, there should no aggregation happen, which is specified by setting the parameter "aggregation" to None.
 
     Args:
-        path_to_files (List[Path]): A list of file paths containing annotation scores in JSONL format.
+        path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
         output_file_path (Path): The output path to save computed metrics as a JSON file.
         single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
         aggregation (Union[None, str], optional): Aggregation method ("min", "max", "mean", or None). Defaults to None.

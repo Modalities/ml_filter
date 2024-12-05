@@ -1,5 +1,5 @@
 from itertools import combinations
-from typing import Union
+from typing import Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ import seaborn as sns
 from ml_filter.analysis.utils import get_document_scores
 
 
-def plot_scores(path_to_files: list[Path], output_dir: Path, aggregation: Union[None, str]) -> None:
+def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union[None, str]) -> None:
     """
     Plots score distributions for each prompt based on the input JSONL files.
 
@@ -56,7 +56,7 @@ def plot_scores(path_to_files: list[Path], output_dir: Path, aggregation: Union[
         plt.close()
 
 
-def plot_differences_in_scores(path_to_files: list[Path], output_dir: Path, aggregation: Union[None, str]) -> None:
+def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union[None, str]) -> None:
     """
     Plots histograms and boxplots of score differences between different versions of models.
 
