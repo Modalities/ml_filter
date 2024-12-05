@@ -27,7 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 linting = ["pre-commit"]
-tests = ["pytest", "pytest-cov"]
+tests = ["pytest", "pytest-cov", "pytest-dotenv"]
 install_helper = ["ninja"]
 
 [project.scripts]

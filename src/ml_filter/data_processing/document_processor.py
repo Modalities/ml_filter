@@ -31,7 +31,7 @@ class DocumentProcessor:
         queue_size: int,
         batch_size: int,
         raw_data_file_paths: List[Path],
-        gold_annotations_file_path: Path,
+        gold_annotations_file_path: Path | None,
         experiment_dir_path: Path,
         out_file_path: Path,
         num_processes: int,
@@ -271,10 +271,11 @@ class DocumentProcessor:
         self._report_statistics()
 
     def _report_statistics(self):
-        report_statistics(
-            results_file_path=self.out_file_path,
-            gold_annotations_file_path=self.gold_annotations_file_path,
-        )
+        if self.gold_annotations_file_path is not None:
+            report_statistics(
+                results_file_path=self.out_file_path,
+                gold_annotations_file_path=self.gold_annotations_file_path,
+            )
 
 
 class ReportStats(BaseModel):
