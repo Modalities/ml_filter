@@ -13,7 +13,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
     Plots score distributions for each prompt based on the input JSONL files.
 
     Args:
-        path_to_files (list[str]): A list of paths to JSONL files containing document scores.
+        path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
         output_dir (Path): The directory to save the generated plots.
         aggregation (Union[None, str]): Aggregation method for scores ("min", "max", "mean", or None).
 
@@ -61,7 +61,7 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
     Plots histograms and boxplots of score differences between different versions of models.
 
     Args:
-        path_to_files (list[str]): A list of paths to JSONL files containing document scores.
+        path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
         output_dir (Path): The directory to save the generated plots.
         aggregation (Union[None, str]): Aggregation method for scores ("min", "max", "mean", or None).
 
