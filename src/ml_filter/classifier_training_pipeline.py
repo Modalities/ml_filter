@@ -91,6 +91,10 @@ class ClassifierTrainingPipeline:
         else:
             raise NotImplementedError(f"Unsupported model type {type(self.model)}")
 
+        # Check if freeze_encoder is set to true
+        if cfg.model.get("freeze_encoder", False):
+            self._freeze_encoder()
+
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
@@ -116,6 +120,18 @@ class ClassifierTrainingPipeline:
         self.sample_label = cfg.data.label_column
         self.logging_steps = cfg.training.logging_steps
         self.logging_dir = cfg.training.logging_dir_path
+
+
+    def _freeze_encoder(self):
+        """Freezes all encoder parameters, so that only the classifier is trained."""
+        
+        # Freeze all parameters
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        # Unfreeze classifier parameters
+        for param in self.model.classifier.parameters():
+            param.requires_grad = True
 
     def _tokenize(self, documents: Dict[str, List[str]]):
         return self.tokenizer.tokenizer(
