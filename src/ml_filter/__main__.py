@@ -217,29 +217,6 @@ def interrater_reliability_cli(
     )
 
 
-@main.command(name="plot_differences_in_scores")
-@click.argument('path_to_files', nargs=-1)
-@click.option('--output_dir', type=str)
-@click.option(
-    "--aggregation",
-    type=str,
-    required=False,
-    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
-)
-def plot_differences_in_scores_cli(
-    path_to_files: tuple[str],
-    output_dir: str,
-    aggregation: Optional[str] = None
-) -> None:
-    """Plot the differences in scores."""
-    path_to_files = [Path(p) for p in path_to_files]
-    plot_differences_in_scores(
-        path_to_files=path_to_files,
-        output_dir=Path(output_dir),
-        aggregation=aggregation
-    )
-
-
 @main.command(name="plot_scores")
 @click.argument('path_to_files', nargs=-1)
 @click.option('--output_dir', type=str)
@@ -257,6 +234,11 @@ def plot_scores_cli(
     """Plot the differences in scores."""
     path_to_files = [Path(p) for p in path_to_files]
     plot_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation
+    )
+    plot_differences_in_scores(
         path_to_files=path_to_files,
         output_dir=Path(output_dir),
         aggregation=aggregation
