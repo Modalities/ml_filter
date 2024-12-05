@@ -33,6 +33,7 @@ class ProcessedDocument:
     preprocessed_text: str = ""
     prompt: str = ""
     generated_text: str = ""
+    language: str = ""
     score_type: str = ""
     score: float = None
     original_score: float = None

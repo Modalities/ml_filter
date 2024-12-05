@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import jq
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
 from tqdm import tqdm
@@ -35,6 +36,7 @@ class DocumentProcessor:
         out_file_path: Path,
         num_processes: int,
         score_metric_name: str,
+        jq_language_pattern: str,
         strings_to_remove: Optional[List[str]] = [],
     ):
         """Initializes the DocumentProcessor."""
@@ -48,6 +50,7 @@ class DocumentProcessor:
         self.strings_to_remove = strings_to_remove
         self.out_file_path = out_file_path
         self.gold_annotations_file_path = gold_annotations_file_path
+        self.jq_language_pattern = jq.compile(jq_language_pattern)
 
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
@@ -147,8 +150,7 @@ class DocumentProcessor:
             document_id=processed_document_variations[0].document_id,
             meta_information=MetaInformation(
                 prompt=processed_document_variations[0].prompt,
-                # TODO
-                prompt_lang="en",
+                prompt_lang=processed_document_variations[0].language,
                 model=self.llm_rest_client.model_name,
                 raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
             ),
@@ -163,7 +165,7 @@ class DocumentProcessor:
         return annotation
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        return len(document["text"]) > 0 and len(document["id"]) > 0
+        return len(document["text"]) > 0 and len(document["id"]) > 0 and len(document["language"]) > 0
 
     def _load_documents(self, raw_data_file_paths: List[Path]):
         for raw_data_file_path in raw_data_file_paths:
@@ -174,10 +176,14 @@ class DocumentProcessor:
                         break
                     try:
                         document = json.loads(document_string)
-                        document["raw_data_file_path"] = raw_data_file_path
                     except json.JSONDecodeError:
                         logger.warning(f"Error decoding document: {document_string}. Skipping.")
                         continue
+
+                    # Add langauge to document based on jq pattern
+                    langauge = self.jq_language_pattern.input(document).first()
+                    document["language"] = langauge
+                    document["raw_data_file_path"] = raw_data_file_path
 
                     if not self._is_valid_document(document):
                         logger.warning(
@@ -268,7 +274,7 @@ class ReportStats(BaseModel):
     model_config = ConfigDict(extra="allow")
     mae: float
     mse: float
-    std: float
+    error_mean_std: float
     acc: float
     confusion_matrix: Dict
 
@@ -306,7 +312,7 @@ def report_statistics(results_file_path: Path, gold_annotations_file_path: Path)
         **ReportStats(
             mae=stats["score_mae"].mean(),
             mse=stats["score_mse"].mean(),
-            std=stats["score_std"].mean(),
+            error_mean_std=stats["score_std"].mean(),
             acc=stats["accuracy"].mean(),
             confusion_matrix=pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
         ).model_dump(),

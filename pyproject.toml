@@ -23,6 +23,7 @@ dependencies = [
     "openai",
     "accelerate>=0.21.0",
     "python-dotenv",
+    "jq",
 ]
 
 [project.optional-dependencies]
