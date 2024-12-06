@@ -23,11 +23,12 @@ dependencies = [
     "openai",
     "accelerate>=0.21.0",
     "python-dotenv",
+    "jq",
 ]
 
 [project.optional-dependencies]
 linting = ["pre-commit"]
-tests = ["pytest", "pytest-cov"]
+tests = ["pytest", "pytest-cov", "pytest-dotenv"]
 install_helper = ["ninja"]
 
 [project.scripts]
