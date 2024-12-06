@@ -194,29 +194,29 @@ def translate_flat_yaml_cli(
 @main.command(name="interrater_reliability")
 @path_to_files_argument
 @click.option(
-    "--single_annotator",
-    is_flag=True,
-    help="Set this in case of analyzing the scores of a single annotator"
-)
-@click.option(
     "--output_file_path",
     type=click_pathlib.Path(exists=False),
     required=True,
     help="Write the computed metrics to this json-file.",
 )
+@click.option(
+    "--single_annotator",
+    is_flag=True,
+    help="Set this in case of analyzing the scores of a single annotator"
+)
 @aggregation_option
 
 def interrater_reliability_cli(
     path_to_files: tuple[Path],
-    single_annotator: bool,
     output_file_path: Path,
+    single_annotator: bool,
     aggregation: Optional[str] = None
 ):
     compute_interrater_reliability_metrics(
         path_to_files=path_to_files,
+        output_file_path=output_file_path,
         single_annotator=single_annotator,
         aggregation=aggregation,
-        output_file_path=output_file_path
     )
 
 

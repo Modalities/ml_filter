@@ -114,7 +114,7 @@ def compute_interrater_reliability_metrics(
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
         output_file_path (Path): The output path to save computed metrics as a JSON file.
         single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
-        aggregation (Union[None, str], optional): Specifies how scores for a document from the same file are aggregated.
+        aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
             - "max": Use the maximum score.
