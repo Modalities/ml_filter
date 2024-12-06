@@ -16,7 +16,7 @@ class ReportStats(BaseModel):
     mse: float
     error_mean_std: float
     acc: float
-    confusion_matrix: Dict
+    predicted_scores_mean_std_var: float
 
 
 def _get_most_common_score(scores: List[float | None]) -> float | None:
@@ -49,22 +49,18 @@ def _load_and_validate_as_df(jsonl_file_path: Path) -> pd.DataFrame:
     return df
 
 
-def report_statistics(out_dir_path: Path, gold_annotations_file_path: Path) -> Dict[str, Any]:
+def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[Path]) -> Dict[str, Any]:
     """Show the comparison between the original and generated score."""
 
     logger.info(
         "Computing statistics by selecting the most common score when multiple scores per document "
         + "were predicted..."
     )
-
-    df_gold = _load_and_validate_as_df(gold_annotations_file_path)
+    # Load all gold annotations across multiple files
+    df_gold = pd.concat(list(map(_load_and_validate_as_df, gold_annotations_file_paths)))
 
     # Load all annotated results across multiple files
-    prediction_data = []
-    for out_file_path in out_dir_path.glob("*.jsonl"):
-        df = _load_and_validate_as_df(out_file_path)
-        prediction_data.append(df)
-    df = pd.concat(prediction_data)
+    df = pd.concat(list(map(_load_and_validate_as_df, result_dir_path.glob("**/*__annotations_*.jsonl"))))
 
     # Merge both dataframes on document_id
     stats = df.merge(df_gold, on="document_id", suffixes=("_pred", "_gold"))
@@ -92,19 +88,19 @@ def report_statistics(out_dir_path: Path, gold_annotations_file_path: Path) -> D
             mse=stats["score_mse"].mean(),
             error_mean_std=stats["score_std"].mean(),
             acc=stats["accuracy"].mean(),
-            confusion_matrix=pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
+            predicted_scores_mean_std_var=stats["scores_pred"].apply(lambda x: pd.Series(x).std()).mean(),
         ).model_dump(),
-        "predicted_scores_mean_std_var": stats["scores_pred"].apply(lambda x: pd.Series(x).std()).mean(),
+        "confusion_matrix": pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
         "predicted_score_counts": stats["score_pred"].value_counts().sort_index().to_dict(),
         "gold_score_counts": stats["score_gold"].value_counts().sort_index().to_dict(),
         "document_status_counts": status_counts.to_dict(),
         "error_counts": error_counts.to_dict(),
-        "gold_annotations_file_path": str(gold_annotations_file_path),
-        "predicted_annotations_file_path": str(out_dir_path),
+        "gold_annotations_file_path": str(gold_annotations_file_paths),
+        "predicted_annotations_file_path": str(result_dir_path),
     }
     logger.info(json.dumps(statistics_report, indent=4))
 
-    output_dir_path = out_dir_path.parent
+    output_dir_path = result_dir_path.parent
     with open(output_dir_path / "statistics_report.json", "w") as f:
         json.dump(statistics_report, f, indent=4)
 

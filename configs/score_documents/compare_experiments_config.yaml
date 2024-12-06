@@ -1,9 +1,9 @@
 experiment_dir_paths:
-  - data/output/2024-12-04__18-05-15__29f6940d
-  - data/output/2024-12-04__18-08-49__29f6940d
-
-gold_annotations_file_path: data/dev_data_ml_filter_511_head_100.jsonl
-config_file_name: lorem_ipsum.yaml
+  - data/output/2024-12-06__09-12-39__e5a9206d
+  - data/output/2024-12-05__18-05-14__eabd8b7b
+experiment_config_file_name: lorem_ipsum.yaml
+gold_annotations_file_paths: 
+- data/dev_dump/a/dev_data_ml_filter_511_head_10.jsonl
 output_format:
   - sort_by_metric:  mae
     ascending: false

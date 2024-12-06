@@ -6,7 +6,7 @@ settings:
   paths:
     raw_data_file_paths: 
     - data/dev_dump/a/dev_data_ml_filter_511_head_10.jsonl
-    - data/dev_dump/b/dev_data_ml_filter_511_tail_10.jsonl
+    # - data/dev_dump/b/dev_data_ml_filter_511_tail_10.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
 
