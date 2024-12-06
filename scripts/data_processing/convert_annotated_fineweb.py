@@ -6,8 +6,9 @@ from datasets import load_dataset
 import os
 from pathlib import Path
 import random, math
+from typing import List, Tuple, Callable, Union
 
-def convert_to_jsonl(base_path):
+def convert_to_jsonl(base_path: str):
     # Load the dataset
     print("Loading dataset...")
     dataset = load_dataset("HuggingFaceFW/fineweb-edu-llama3-annotations")
@@ -40,7 +41,7 @@ def convert_to_jsonl(base_path):
     dataset.cleanup_cache_files()
     print("Done!")
 
-def multi_score_transform(base_path, transform_fns):
+def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callable[[float], Union[int, float]]]]):
     """Transform single scores into multiple scores using different transformations.
     
     Args:
@@ -74,7 +75,7 @@ def multi_score_transform(base_path, transform_fns):
     
     print(f"Score transformation complete! File saved to {output_file}")
 
-def split_dataset(base_path, file_path, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, seed=42):
+def split_dataset(base_path: str, file_path: str, train_ratio: float = 0.8, val_ratio: float = 0.1, test_ratio: float = 0.1, seed: int = 42):
     """Split the dataset into train, validation and test sets."""
     input_file = Path(os.path.join(base_path, file_path + ".jsonl"))
     
