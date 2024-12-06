@@ -22,7 +22,6 @@ def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]
                 if float("-inf") in json_obj["scores"]:
                     continue
                 
-                
                 doc_id = json_obj.get('document_id')
                 
                 if not prompt in document_scores:
