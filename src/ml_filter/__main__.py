@@ -222,7 +222,7 @@ def interrater_reliability_cli(
 
 @main.command(name="plot_scores")
 @path_to_files_argument
-@click.option('--output_dir', type=str)
+@click.option('--output_dir', type=str, required=True)
 @aggregation_option
 def plot_scores_cli(
     path_to_files: tuple[Path],
