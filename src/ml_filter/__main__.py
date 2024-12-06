@@ -11,7 +11,7 @@ from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
-from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
+from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 input_file_path_option = click.option(
