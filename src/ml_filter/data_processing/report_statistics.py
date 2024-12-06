@@ -28,7 +28,19 @@ def _get_most_common_score(scores: List[float | None]) -> float | None:
         return None
 
 
-def _load_and_validate_as_df(jsonl_file_path: Path) -> pd.DataFrame:
+def _load_validated_jsonl_as_dataframe(jsonl_file_path: Path) -> pd.DataFrame:
+    """Load a jsonl file as a pandas DataFrame.
+    If the JSON entries are not valid, try to convert single scores to the minimum required format.
+
+    Args:
+        jsonl_file_path (Path): The path to the jsonl file.
+
+    Raises:
+        ValueError: If the JSON entries are not valid.
+
+    Returns:
+        pd.DataFrame: The DataFrame containing the annotations.
+    """
     annotations = []
     with open(jsonl_file_path, "r") as f:
         for line in f:
@@ -57,10 +69,10 @@ def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[P
         + "were predicted..."
     )
     # Load all gold annotations across multiple files
-    df_gold = pd.concat(list(map(_load_and_validate_as_df, gold_annotations_file_paths)))
+    df_gold = pd.concat(list(map(_load_validated_jsonl_as_dataframe, gold_annotations_file_paths)))
 
     # Load all annotated results across multiple files
-    df = pd.concat(list(map(_load_and_validate_as_df, result_dir_path.glob("**/*__annotations_*.jsonl"))))
+    df = pd.concat(list(map(_load_validated_jsonl_as_dataframe, result_dir_path.glob("**/*__annotations_*.jsonl"))))
 
     # Merge both dataframes on document_id
     stats = df.merge(df_gold, on="document_id", suffixes=("_pred", "_gold"))
