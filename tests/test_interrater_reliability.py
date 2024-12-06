@@ -45,14 +45,14 @@ def test_compute_pairwise_correlations(example_scores):
     cohen_corr = compute_pairwise_correlations(example_scores, metric="cohen")
 
     # Verify values
-    assert isinstance(spearman_corr, float), "Spearman correlation should return a float."
-    assert isinstance(kendall_corr, float), "Kendall correlation should return a float."
-    assert isinstance(cohen_corr, float), "Cohen's kappa should return a float."
+    assert spearman_corr == 0.1220084679281462, "Spearman correlation not computed correctly."
+    assert kendall_corr == 0.10549886030924203, "Kendall correlation not computed correctly."
+    assert cohen_corr == 0.2619047619047619, "Cohen's kappa not computed correctly."
 
 
 def test_compute_krippendorffs_alpha(example_scores):
-    result = compute_krippendorffs_alpha(example_scores)
-    assert isinstance(result, float), "Krippendorff's alpha should return a float."
+    krippendorffs_alpha = compute_krippendorffs_alpha(example_scores)
+    assert krippendorffs_alpha == 0.0062893081761006275, "Krippendorff's alpha not computed correctly."
 
 
 def test_compute_doc_level_variation(example_scores, example_ids):
