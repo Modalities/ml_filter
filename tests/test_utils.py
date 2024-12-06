@@ -2,9 +2,10 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 import yaml
 
-from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
+from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt, verify_files
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 # Mock constants
@@ -15,6 +16,34 @@ EUROPEAN_LANGUAGES = {
     "de": "German",
     "es": "Spanish",
 }
+
+
+def test_verify_files_consistent(tmp_jsonl_directory: tuple[Path, list[Path], list[Path]]):
+    """Test that verify_files works for consistent file naming."""
+    directory, consistent_files, _ = tmp_jsonl_directory
+
+    # Remove the inconsistent file
+    for f in directory.iterdir():
+        if "different_suffix" in f.stem:
+            f.unlink()
+
+    result = verify_files(directory)
+    assert len(result) == len(consistent_files)
+    assert sorted(result) == sorted(consistent_files)
+
+
+def test_verify_files_inconsistent(tmp_jsonl_directory):
+    """Test that verify_files raises ValueError for inconsistent file naming."""
+    directory, _, _ = tmp_jsonl_directory
+
+    with pytest.raises(ValueError, match="The last two components of the file names do not match for all files."):
+        verify_files(directory)
+
+
+def test_verify_files_empty_directory(tmp_path):
+    """Test that verify_files works with an empty directory."""
+    with pytest.raises(ValueError, match="The last two components of the file names do not match for all files."):
+        verify_files(tmp_path)
 
 
 def test_add_target_language_to_prompt(create_input_yaml: Path):
