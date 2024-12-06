@@ -21,7 +21,7 @@ class CompareConfig(BaseModel):
     gold_annotations_file_paths: List[FilePath]
 
 
-def compare_experiments(config_file_path: Path):
+def compare_experiments(config_file_path: Path) -> pd.DataFrame:
     cfg = OmegaConf.load(config_file_path)
     config = CompareConfig(**OmegaConf.to_container(cfg, resolve=True))
 
@@ -65,3 +65,4 @@ def compare_experiments(config_file_path: Path):
     print(best_model_stats)
     print("Confusion Matrix:")
     print(pd.DataFrame(best_model_stats["confusion_matrix"]))
+    return df
