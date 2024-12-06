@@ -55,6 +55,7 @@ def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, expe
     help="Path to a file with the YAML config file.",
 )
 def entry_point_compare_experiments(config_file_path: Path):
+    # TODO check if entry point still works. rename
     compare_experiments(config_file_path)
 
 

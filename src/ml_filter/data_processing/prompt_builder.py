@@ -37,7 +37,6 @@ class PromptBuilder:
             List[Dict[str, str]]: The prompt that is represtend as a list (history) of messages.
         """
 
-        # TODO: Is this fixed for all models?
         prompt = {"role": "user", "content": self.prompt_template.format(placeholder=text)}
 
         if history is None:
