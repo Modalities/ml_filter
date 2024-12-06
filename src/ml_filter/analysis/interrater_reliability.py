@@ -2,7 +2,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import statistics
-from typing import List, Tuple, Union
+from typing import List, Tuple, Optional
 
 import krippendorff
 import numpy as np
