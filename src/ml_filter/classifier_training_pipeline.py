@@ -210,7 +210,7 @@ class ClassifierTrainingPipeline:
             target.view(-1, self.num_regressor_outputs),
         )
 
-    def compute_metrics(self, eval_pred: EvalPrediction):
+    def compute_metrics(self, eval_pred: EvalPrediction) -> Dict[str, float]:
         """
         Compute metrics for multi-target classification or regression.
         Args:
