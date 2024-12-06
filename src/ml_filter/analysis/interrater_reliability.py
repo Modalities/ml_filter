@@ -101,7 +101,7 @@ def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_file_path: Path,
     single_annotator: bool = False,
-    aggregation: Union[None, str] = None
+    aggregation: Optional[str] = None
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
