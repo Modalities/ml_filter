@@ -24,6 +24,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer, RegressionScalingLayer
 from ml_filter.utils.train_classifier import XLMRobertaForMultiTargetClassification
+from ml_filter.dataset_tokenizer import DatasetTokenizer
 
 
 class ClassifierTrainingPipeline:
@@ -112,23 +113,16 @@ class ClassifierTrainingPipeline:
             max_length=cfg.tokenizer.max_length,
             add_generation_prompt=False
         )
-        # Training
-        self.batch_size = cfg.training.batch_size
-        self.epochs = cfg.training.epochs
-        self.learning_rate = cfg.training.learning_rate
-        self.use_bf16 = cfg.training.use_bf16
-        self.weight_decay = cfg.training.weight_decay
-        self.eval_strategy = cfg.training.eval_strategy
-        self.save_strategy = cfg.training.save_strategy
-        self.output_dir = cfg.training.output_dir_path
-        self.greater_is_better = cfg.training.greater_is_better
-        self.metric_for_best_model = cfg.training.metric_for_best_model
-        self.load_best_model_at_end = self.save_strategy != "no"
 
-        self.sample_key = cfg.data.text_column
-        self.sample_label = cfg.data.label_column
-        self.logging_steps = cfg.training.logging_steps
-        self.logging_dir = cfg.training.logging_dir_path
+        # Add this after tokenizer initialization:
+        self.dataset_tokenizer = DatasetTokenizer(
+            tokenizer=self.tokenizer.tokenizer,
+            text_column=self.sample_key,  # using existing attribute
+            label_column=self.sample_label,  # using existing attribute
+            output_names=self.output_names,
+            max_length=cfg.tokenizer.max_length,
+            regression=self.regression_loss
+        )
 
 
     def _freeze_encoder(self):
@@ -151,14 +145,6 @@ class ClassifierTrainingPipeline:
         else:
             raise NotImplementedError(f"Freezing encoder not implemented for model type {type(self.model)}")
 
-    def _tokenize(self, documents: Dict[str, List[str]]):
-        return self.tokenizer.tokenizer(
-            documents[self.sample_key],
-            truncation=self.tokenizer.truncation,
-            padding=self.tokenizer.padding,
-            max_length=self.tokenizer.max_length,
-        )
-
     def _set_seeds(self):
         """Set seeds for reproducibility"""
         import random
@@ -176,9 +162,6 @@ class ClassifierTrainingPipeline:
             # but slow things down. Don't use them in production.
             # torch.backends.cudnn.deterministic = True
             # torch.backends.cudnn.benchmark = False
-
-    def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
-        return load_dataset("json", data_files=[file_path], split=split)
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -198,21 +181,6 @@ class ClassifierTrainingPipeline:
             greater_is_better=self.greater_is_better,
             learning_rate=self.learning_rate,
         )
-
-    def _map_dataset(self, dataset: Dataset) -> Dataset:
-        # Map both tokenization and label assignment
-        def process_batch(batch):
-            tokenized = self._tokenize(batch)
-            labels = []
-            for item in batch[self.sample_label]:
-                if self.regression_loss:
-                    labels.append([float(item[k]) for k in self.output_names])
-                else:
-                    labels.append([int(item[k]) for k in self.output_names])
-
-            return {**tokenized, "labels": labels}
-
-        return dataset.map(process_batch, batched=True)
 
     def multi_target_cross_entropy_loss(
         self,
@@ -340,19 +308,22 @@ class ClassifierTrainingPipeline:
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
 
-        if not self.tokenizer.pad_token:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-
-        train_dataset = self._load_dataset(self.train_data_file_path, split=self.train_data_split)
-        val_dataset = self._load_dataset(self.val_data_file_path, split=self.val_data_split)
-
-        train_dataset = self._map_dataset(train_dataset)
-        val_dataset = self._map_dataset(val_dataset)
+        train_dataset = self.dataset_tokenizer.load_and_tokenize(
+            self.train_data_file_path,
+            split=self.train_data_split
+        )
+        
+        val_dataset = self.dataset_tokenizer.load_and_tokenize(
+            self.val_data_file_path,
+            split=self.val_data_split
+        )
 
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:
-            gt_dataset = self._load_dataset(self.gt_data_file_path, split=self.gt_data_split)
-            gt_dataset = self._map_dataset(gt_dataset)
+            gt_dataset = self.dataset_tokenizer.load_and_tokenize(
+                self.gt_data_file_path,
+                split=self.gt_data_split
+            )
             eval_datasets["gt"] = gt_dataset
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
