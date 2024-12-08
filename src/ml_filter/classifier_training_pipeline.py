@@ -24,8 +24,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import (
     XLMRobertaForMultiTargetClassification,
-    MultiTargetRegressionHead, 
-    MultiTargetClassificationHead,
+    BertForMultiTargetClassification,
     compute_metrics_for_single_output
 )
 from ml_filter.dataset_tokenizer import DatasetTokenizer
@@ -275,55 +274,30 @@ class ClassifierTrainingPipeline:
 
     def _initialize_model(self, cfg):
         """Initialize and configure the model based on the provided configuration."""
+        model_name = cfg.model.name
+        model_args = {
+            "num_regressor_outputs": cfg.data.num_regressor_outputs,
+            "num_classes_per_output": torch.tensor(cfg.data.num_classes_per_output),
+            "regression": cfg.training.regression_loss
+        }
+
         # Initialize base model
-        if isinstance(cfg.model.name, str) and "xlm-roberta" in cfg.model.name.lower():
-            self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
-                cfg.model.name,
-                num_regressor_outputs=cfg.data.num_regressor_outputs,
-                num_classes_per_output=torch.tensor(cfg.data.num_classes_per_output),
-                regression=cfg.training.regression_loss
-            )
-        else:
-            self.model = AutoModelForSequenceClassification.from_pretrained(
-                cfg.model.name,
-                num_labels=cfg.model.num_labels,
-                classifier_dropout=cfg.model.classifier_dropout,
-                hidden_dropout_prob=cfg.model.hidden_dropout_prob,
-                output_hidden_states=cfg.model.output_hidden_states,
-            )
-
-        # Configure model classifier based on model type
-        if isinstance(self.model, BertForSequenceClassification):
-            self.embedding_size = self.model.classifier.in_features
-            if self.regression_loss:
-                self.model.classifier = MultiTargetRegressionHead(
-                    in_features=self.embedding_size,
-                    num_outputs=self.num_regressor_outputs,
-                    num_classes_per_output=self.num_classes_per_output
+        if isinstance(model_name, str):
+            if "xlm-roberta" in model_name.lower():
+                self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
+                    model_name, **model_args
+                )
+            elif "snowflake-arctic" in model_name.lower():
+                self.model = BertForMultiTargetClassification.from_pretrained(
+                    model_name, **model_args
                 )
             else:
-                self.model.classifier = MultiTargetClassificationHead(
-                    in_features=self.embedding_size,
-                    num_outputs=self.num_regressor_outputs,
-                    num_classes_per_output=self.num_classes_per_output
-                )
-        elif isinstance(self.model, (XLMRobertaForSequenceClassification, RobertaForSequenceClassification)):
-            self.embedding_size = self.model.classifier.dense.in_features
-            if self.regression_loss:
-                self.model.classifier.out_proj = MultiTargetRegressionHead(
-                    in_features=self.embedding_size,
-                    num_outputs=self.num_regressor_outputs,
-                    num_classes_per_output=self.num_classes_per_output
-                )
-            else:
-                self.model.classifier.out_proj = MultiTargetClassificationHead(
-                    in_features=self.embedding_size,
-                    num_outputs=self.num_regressor_outputs,
-                    num_classes_per_output=self.num_classes_per_output
+                raise NotImplementedError(
+                    f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."
                 )
         else:
-            raise NotImplementedError(f"Unsupported model type {type(self.model)}")
-
+            raise ValueError(f"Model name must be a string, got {type(model_name)}")
+        
         # Freeze encoder if specified
         if cfg.model.get("freeze_encoder", False):
             self._freeze_encoder()

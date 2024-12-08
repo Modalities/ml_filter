@@ -4,6 +4,7 @@ from transformers import Trainer, TrainingArguments
 from transformers import XLMRobertaForSequenceClassification
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, mean_absolute_error
+from transformers import BertForSequenceClassification
 
 class DocumentClassifier:
     def __init__(self, model):
@@ -148,22 +149,30 @@ class RegressionScalingLayer(torch.nn.Module):
             return torch.clamp(x, 0.0, 1.0) * self.scaling_constants
 
 class XLMRobertaForMultiTargetClassification(XLMRobertaForSequenceClassification):
-    def __init__(self, config, num_metrics=1, num_classes_per_metric=None, regression=False):
+    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
+        """
+        Args:
+            config: Model configuration
+            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
+            num_classes_per_output: Tensor containing the number of classes for each output
+            regression: If True, use regression head, otherwise use classification head
+        """
         super().__init__(config)
         
         # Get the embedding size from the dense layer
         embedding_size = self.classifier.dense.in_features
         
         if regression:
-            self.classifier.out_proj = torch.nn.Sequential(
-                torch.nn.Linear(embedding_size, num_metrics, bias=True),
-                RegressionScalingLayer(num_classes_per_metric),
+            self.classifier.out_proj = MultiTargetRegressionHead(
+                in_features=embedding_size,
+                num_outputs=num_regressor_outputs,
+                num_classes_per_output=num_classes_per_output
             )
         else:
-            self.num_labels = num_metrics * max(num_classes_per_metric)
-            self.classifier.out_proj = torch.nn.Sequential(
-                torch.nn.Linear(embedding_size, self.num_labels, bias=True),
-                LogitMaskLayer(num_classes_per_metric),
+            self.classifier.out_proj = MultiTargetClassificationHead(
+                in_features=embedding_size,
+                num_outputs=num_regressor_outputs,
+                num_classes_per_output=num_classes_per_output
             )
 
 class MultiTargetRegressionHead(torch.nn.Module):
@@ -269,3 +278,30 @@ def compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, pre
         metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
     
     return metrics
+
+class BertForMultiTargetClassification(BertForSequenceClassification):
+    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
+        """
+        Args:
+            config: Model configuration
+            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
+            num_classes_per_output: Tensor containing the number of classes for each output
+            regression: If True, use regression head, otherwise use classification head
+        """
+        super().__init__(config)
+        
+        # Get the embedding size from the classifier
+        embedding_size = self.classifier.in_features
+        
+        if regression:
+            self.classifier = MultiTargetRegressionHead(
+                in_features=embedding_size,
+                num_outputs=num_regressor_outputs,
+                num_classes_per_output=num_classes_per_output
+            )
+        else:
+            self.classifier = MultiTargetClassificationHead(
+                in_features=embedding_size,
+                num_outputs=num_regressor_outputs,
+                num_classes_per_output=num_classes_per_output
+            )
