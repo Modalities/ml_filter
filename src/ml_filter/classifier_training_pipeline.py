@@ -36,13 +36,7 @@ class ClassifierTrainingPipeline:
         if self.seed is not None:
             self._set_seeds()
 
-        # Data
-        self.train_data_file_path = cfg.data.train_file_path
-        self.train_data_split = cfg.data.train_file_split
-        self.val_data_file_path = cfg.data.val_file_path
-        self.val_data_split = cfg.data.val_file_split
-        self.gt_data_file_path = cfg.data.gt_file_path
-        self.gt_data_split = cfg.data.gt_file_split
+        self._extract_config_from_cfg(cfg)
 
         # Model
         if isinstance(cfg.model.name, str) and "xlm-roberta" in cfg.model.name.lower():
@@ -124,6 +118,33 @@ class ClassifierTrainingPipeline:
             regression=self.regression_loss
         )
 
+    def _extract_config_from_cfg(self, cfg: Dict):
+
+        # Data
+        self.train_data_file_path = cfg.data.train_file_path
+        self.train_data_split = cfg.data.train_file_split
+        self.val_data_file_path = cfg.data.val_file_path
+        self.val_data_split = cfg.data.val_file_split
+        self.gt_data_file_path = cfg.data.gt_file_path
+        self.gt_data_split = cfg.data.gt_file_split
+
+        # Training
+        self.batch_size = cfg.training.batch_size
+        self.epochs = cfg.training.epochs
+        self.learning_rate = cfg.training.learning_rate
+        self.use_bf16 = cfg.training.use_bf16
+        self.weight_decay = cfg.training.weight_decay
+        self.eval_strategy = cfg.training.eval_strategy
+        self.save_strategy = cfg.training.save_strategy
+        self.output_dir = cfg.training.output_dir_path
+        self.greater_is_better = cfg.training.greater_is_better
+        self.metric_for_best_model = cfg.training.metric_for_best_model
+        self.load_best_model_at_end = self.save_strategy != "no"
+
+        self.sample_key = cfg.data.text_column
+        self.sample_label = cfg.data.label_column
+        self.logging_steps = cfg.training.logging_steps
+        self.logging_dir = cfg.training.logging_dir_path
 
     def _freeze_encoder(self):
         """Freezes all encoder parameters, so that only the classifier is trained."""
