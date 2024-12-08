@@ -37,67 +37,9 @@ class ClassifierTrainingPipeline:
             self._set_seeds()
 
         self._extract_config_from_cfg(cfg)
-
-        # Model
-        if isinstance(cfg.model.name, str) and "xlm-roberta" in cfg.model.name.lower():
-            self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
-                cfg.model.name,
-                num_regressor_outputs=cfg.data.num_regressor_outputs,
-                num_classes_per_output=torch.tensor(cfg.data.num_classes_per_output),
-                regression=cfg.training.regression_loss
-            )
-        else:
-            # Fall back to current initialization for other model types
-            self.model = AutoModelForSequenceClassification.from_pretrained(
-                cfg.model.name,
-                num_labels=cfg.model.num_labels,
-                classifier_dropout=cfg.model.classifier_dropout,
-                hidden_dropout_prob=cfg.model.hidden_dropout_prob,
-                output_hidden_states=cfg.model.output_hidden_states,
-            )
-        # loss function
-        self.regression_loss = cfg.training.regression_loss
-
-        # multilabel settings
-        self.num_regressor_outputs = cfg.data.num_regressor_outputs
-
-        self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
-        self.output_names = cfg.data.output_names
-
-        if isinstance(self.model, BertForSequenceClassification):
-            self.embedding_size = self.model.classifier.in_features
-            if self.regression_loss:
-                self.model.classifier = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
-                    RegressionScalingLayer(self.num_classes_per_output),
-                )
-            else:
-                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
-                self.model.classifier = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                    LogitMaskLayer(self.num_classes_per_output),
-                )
-        elif isinstance(self.model, XLMRobertaForSequenceClassification) or isinstance(
-            self.model, RobertaForSequenceClassification
-        ):
-            self.embedding_size = self.model.classifier.dense.in_features
-            if self.regression_loss:
-                self.model.classifier.out_proj = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
-                    RegressionScalingLayer(self.num_classes_per_output),
-                )
-            else:
-                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
-                self.model.classifier.out_proj = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                    LogitMaskLayer(self.num_classes_per_output),
-                )
-        else:
-            raise NotImplementedError(f"Unsupported model type {type(self.model)}")
-
-        # Check if freeze_encoder is set to true
-        if cfg.model.get("freeze_encoder", False):
-            self._freeze_encoder()
+        
+        # Initialize model
+        self._initialize_model(cfg)
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
@@ -111,8 +53,8 @@ class ClassifierTrainingPipeline:
         # Add this after tokenizer initialization:
         self.dataset_tokenizer = DatasetTokenizer(
             tokenizer=self.tokenizer.tokenizer,
-            text_column=self.sample_key,  # using existing attribute
-            label_column=self.sample_label,  # using existing attribute
+            text_column=self.sample_key,
+            label_column=self.sample_label,
             output_names=self.output_names,
             max_length=cfg.tokenizer.max_length,
             regression=self.regression_loss
@@ -145,6 +87,15 @@ class ClassifierTrainingPipeline:
         self.sample_label = cfg.data.label_column
         self.logging_steps = cfg.training.logging_steps
         self.logging_dir = cfg.training.logging_dir_path
+
+        # loss function
+        self.regression_loss = cfg.training.regression_loss
+
+        # multilabel settings
+        self.num_regressor_outputs = cfg.data.num_regressor_outputs
+
+        self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
+        self.output_names = cfg.data.output_names
 
     def _freeze_encoder(self):
         """Freezes all encoder parameters, so that only the classifier is trained."""
@@ -363,3 +314,56 @@ class ClassifierTrainingPipeline:
 
         trainer.train()
         trainer.save_model(os.path.join(self.output_dir, "final"))
+
+    def _initialize_model(self, cfg):
+        """Initialize and configure the model based on the provided configuration."""
+        # Initialize base model
+        if isinstance(cfg.model.name, str) and "xlm-roberta" in cfg.model.name.lower():
+            self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
+                cfg.model.name,
+                num_regressor_outputs=cfg.data.num_regressor_outputs,
+                num_classes_per_output=torch.tensor(cfg.data.num_classes_per_output),
+                regression=cfg.training.regression_loss
+            )
+        else:
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                cfg.model.name,
+                num_labels=cfg.model.num_labels,
+                classifier_dropout=cfg.model.classifier_dropout,
+                hidden_dropout_prob=cfg.model.hidden_dropout_prob,
+                output_hidden_states=cfg.model.output_hidden_states,
+            )
+
+        # Configure model classifier based on model type
+        if isinstance(self.model, BertForSequenceClassification):
+            self.embedding_size = self.model.classifier.in_features
+            if self.regression_loss:
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
+                )
+            else:
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_output),
+                )
+        elif isinstance(self.model, (XLMRobertaForSequenceClassification, RobertaForSequenceClassification)):
+            self.embedding_size = self.model.classifier.dense.in_features
+            if self.regression_loss:
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
+                )
+            else:
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_output),
+                )
+        else:
+            raise NotImplementedError(f"Unsupported model type {type(self.model)}")
+
+        # Freeze encoder if specified
+        if cfg.model.get("freeze_encoder", False):
+            self._freeze_encoder()
