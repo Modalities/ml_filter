@@ -25,6 +25,7 @@ from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import LogitMaskLayer, RegressionScalingLayer
 from ml_filter.utils.train_classifier import XLMRobertaForMultiTargetClassification
 from ml_filter.dataset_tokenizer import DatasetTokenizer
+from ml_filter.utils.train_classifier import MultiTargetRegressionHead, MultiTargetClassificationHead
 
 
 class ClassifierTrainingPipeline:
@@ -349,28 +350,30 @@ class ClassifierTrainingPipeline:
         if isinstance(self.model, BertForSequenceClassification):
             self.embedding_size = self.model.classifier.in_features
             if self.regression_loss:
-                self.model.classifier = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
-                    RegressionScalingLayer(self.num_classes_per_output),
+                self.model.classifier = MultiTargetRegressionHead(
+                    in_features=self.embedding_size,
+                    num_outputs=self.num_regressor_outputs,
+                    num_classes_per_output=self.num_classes_per_output
                 )
             else:
-                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
-                self.model.classifier = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                    LogitMaskLayer(self.num_classes_per_output),
+                self.model.classifier = MultiTargetClassificationHead(
+                    in_features=self.embedding_size,
+                    num_outputs=self.num_regressor_outputs,
+                    num_classes_per_output=self.num_classes_per_output
                 )
         elif isinstance(self.model, (XLMRobertaForSequenceClassification, RobertaForSequenceClassification)):
             self.embedding_size = self.model.classifier.dense.in_features
             if self.regression_loss:
-                self.model.classifier.out_proj = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
-                    RegressionScalingLayer(self.num_classes_per_output),
+                self.model.classifier.out_proj = MultiTargetRegressionHead(
+                    in_features=self.embedding_size,
+                    num_outputs=self.num_regressor_outputs,
+                    num_classes_per_output=self.num_classes_per_output
                 )
             else:
-                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
-                self.model.classifier.out_proj = torch.nn.Sequential(
-                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
-                    LogitMaskLayer(self.num_classes_per_output),
+                self.model.classifier.out_proj = MultiTargetClassificationHead(
+                    in_features=self.embedding_size,
+                    num_outputs=self.num_regressor_outputs,
+                    num_classes_per_output=self.num_classes_per_output
                 )
         else:
             raise NotImplementedError(f"Unsupported model type {type(self.model)}")

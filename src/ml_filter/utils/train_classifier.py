@@ -163,3 +163,50 @@ class XLMRobertaForMultiTargetClassification(XLMRobertaForSequenceClassification
                 torch.nn.Linear(embedding_size, self.num_labels, bias=True),
                 LogitMaskLayer(num_classes_per_metric),
             )
+
+class MultiTargetRegressionHead(torch.nn.Module):
+    """Head for multi-target regression tasks.
+    
+    This module consists of a linear layer followed by a scaling layer to handle
+    multiple regression outputs with different scales.
+    """
+    def __init__(self, in_features: int, num_outputs: int, num_classes_per_output: torch.Tensor):
+        """
+        Args:
+            in_features: Number of input features from the encoder
+            num_outputs: Number of regression outputs
+            num_classes_per_output: Tensor containing the number of classes for each output 
+                                  (used for scaling)
+        """
+        super().__init__()
+        self.linear = torch.nn.Linear(in_features, num_outputs, bias=True)
+        self.scaling = RegressionScalingLayer(num_classes_per_output)
+        
+    def forward(self, x):
+        x = self.linear(x)
+        x = self.scaling(x)
+        return x
+
+
+class MultiTargetClassificationHead(torch.nn.Module):
+    """Head for multi-target classification tasks.
+    
+    This module consists of a linear layer followed by a logit mask layer to handle
+    multiple classification outputs with different numbers of classes.
+    """
+    def __init__(self, in_features: int, num_outputs: int, num_classes_per_output: torch.Tensor):
+        """
+        Args:
+            in_features: Number of input features from the encoder
+            num_outputs: Number of classification outputs
+            num_classes_per_output: Tensor containing the number of classes for each output
+        """
+        super().__init__()
+        total_logits = num_outputs * max(num_classes_per_output)
+        self.linear = torch.nn.Linear(in_features, total_logits, bias=True)
+        self.logit_mask = LogitMaskLayer(num_classes_per_output)
+        
+    def forward(self, x):
+        x = self.linear(x)
+        x = self.logit_mask(x)
+        return x
