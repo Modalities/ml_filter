@@ -41,6 +41,10 @@ class ClassifierTrainingPipeline:
         # Initialize model
         self._initialize_model(cfg)
 
+        # Initialize dataset
+        self._dataset_initialization(cfg)
+
+    def _dataset_initialization(self, cfg):
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
@@ -50,7 +54,7 @@ class ClassifierTrainingPipeline:
             add_generation_prompt=False
         )
 
-        # Add this after tokenizer initialization:
+        # Tokenizer for
         self.dataset_tokenizer = DatasetTokenizer(
             tokenizer=self.tokenizer.tokenizer,
             text_column=self.sample_key,
@@ -277,9 +281,7 @@ class ClassifierTrainingPipeline:
         
         return metrics
 
-    def train_classifier(self):
-        training_arguments = self._create_training_arguments()
-
+    def _dataset_loading(self):
         train_dataset = self.dataset_tokenizer.load_and_tokenize(
             self.train_data_file_path,
             split=self.train_data_split
@@ -299,6 +301,14 @@ class ClassifierTrainingPipeline:
             eval_datasets["gt"] = gt_dataset
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
+
+        return train_dataset, val_dataset, eval_datasets, data_collator
+    def train_classifier(self):
+        
+        training_arguments = self._create_training_arguments()
+
+        # Load datasets
+        train_dataset, val_dataset, eval_datasets, data_collator = self._dataset_loading()
 
         trainer = Trainer(
             model=self.model,
