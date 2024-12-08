@@ -38,7 +38,7 @@ training:
   seed: 42
   regression_loss: false
   greater_is_better: false
-  metric_for_best_model: eval_loss
+  metric_for_best_model: eval_val_loss
   learning_rate: 0.00001
   logging_dir_path: data/output/annotated_fineweb_model
   output_dir_path: data/output/annotated_fineweb_model

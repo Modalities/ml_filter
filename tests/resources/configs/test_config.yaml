@@ -35,9 +35,10 @@ training:
   eval_strategy: epoch
   save_strategy: epoch
   logging_steps: 1
+  learning_rate: 0.0003
   seed: 42
   regression_loss: false
   greater_is_better: false # save model with lowest loss
-  metric_for_best_model: eval_loss
+  metric_for_best_model: eval_val_loss
   logging_dir_path: tests/cache
   output_dir_path: tests/cache

@@ -39,7 +39,7 @@ training:
   regression_loss: true
   seed: 42
   greater_is_better: true
-  metric_for_best_model: eval_score/classification/f1_macro
+  metric_for_best_model: eval_val_score/classification/f1_macro
   learning_rate: 0.0003
   logging_dir_path: data/output/preliminary_snowflake-arctic-single-target-reproduction
   output_dir_path: data/output/preliminary_snowflake-arctic-single-target-reproduction

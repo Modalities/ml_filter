@@ -38,7 +38,7 @@ training:
   regression_loss: false
   seed: 42
   greater_is_better: false
-  metric_for_best_model: eval_loss
+  metric_for_best_model: eval_val_loss
   learning_rate: 0.00001
   logging_dir_path: data/output/preliminary_xlm_roberta_base-single-target
   output_dir_path: data/output/preliminary_xlm_roberta_base-single-target

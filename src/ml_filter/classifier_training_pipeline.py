@@ -303,8 +303,9 @@ class ClassifierTrainingPipeline:
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
 
         return train_dataset, val_dataset, eval_datasets, data_collator
+    
     def train_classifier(self):
-        
+
         training_arguments = self._create_training_arguments()
 
         # Load datasets
@@ -314,7 +315,7 @@ class ClassifierTrainingPipeline:
             model=self.model,
             args=training_arguments,
             train_dataset=train_dataset,
-            eval_dataset=val_dataset,
+            eval_dataset=eval_datasets,
             data_collator=data_collator,
             compute_loss_func=(
                 self.multi_target_mse_loss if self.regression_loss else self.multi_target_cross_entropy_loss
