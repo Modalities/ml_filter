@@ -71,7 +71,7 @@ def merge_and_sort_jsonl_files(directory: Path, split_filename_by: str = "_", nu
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
 
-def add_target_langauge_to_prompt(input_file_path: Path, output_dir: Path) -> None:
+def add_target_language_to_prompt(input_file_path: Path, output_dir: Path) -> None:
     """Reads a YAML file, replaces '{##TARGET_LANGUAGE##}' in the 'prompt' key with a given value,
     and writes the result to a new file.
     Args:
