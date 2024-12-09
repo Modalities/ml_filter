@@ -24,6 +24,7 @@ dependencies = [
     "accelerate>=0.34.2",
     "statsmodels",
     "krippendorff",
+    "seaborn",
     "python-dotenv",
 ]
 
