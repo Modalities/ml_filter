@@ -61,10 +61,10 @@ def test_merge_and_sort_files(merge_files_tmp_directory: Path):
 
     # Expected sorted content
     expected_data = [
-        {"id": 1, "value": "first"},
-        {"id": 2, "value": "second"},
-        {"id": 3, "value": "third"},
-        {"id": 4, "value": "fourth"},
+        {"id": "1", "value": "first"},
+        {"id": "2", "value": "second"},
+        {"id": "3", "value": "third"},
+        {"id": "10", "value": "tenth"},
     ]
 
     assert output_data == expected_data, "The output data does not match the expected sorted data."

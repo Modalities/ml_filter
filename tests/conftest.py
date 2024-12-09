@@ -44,10 +44,10 @@ def merge_files_tmp_directory(tmp_path):
     file2 = tmp_path / "data_part1_002_temp_file.jsonl"
 
     # Content for file1
-    content1 = [{"id": 3, "value": "third"}, {"id": 1, "value": "first"}]
+    content1 = [{"id": "3", "value": "third"}, {"id": "1", "value": "first"}]
 
     # Content for file2
-    content2 = [{"id": 2, "value": "second"}, {"id": 4, "value": "fourth"}]
+    content2 = [{"id": "2", "value": "second"}, {"id": "10", "value": "tenth"}]
 
     # Write to file1
     with open(file1, "w") as f:

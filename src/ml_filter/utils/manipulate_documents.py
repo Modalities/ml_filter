@@ -61,7 +61,7 @@ def merge_and_sort_files(directory: Path, split_filename_by: str = "_", num_file
                 documents.append(doc)
 
     # Sort documents by the 'id' field
-    sorted_documents = sorted(documents, key=lambda x: x["id"])
+    sorted_documents = sorted(documents, key=lambda x: int(x["id"]))
 
     # Write the sorted documents to the output JSONL file
     with open(output_file, "w") as f:
