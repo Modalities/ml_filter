@@ -2,7 +2,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import statistics
-from typing import List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 
 import krippendorff
 import numpy as np
@@ -72,7 +72,7 @@ def compute_krippendorffs_alpha(all_scores: List[List[float]]) -> float:
     return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
 
 
-def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: List[str]) -> dict:
+def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: List[str]) -> Dict:
     """
     Computes variation in scores at the document level.
 
