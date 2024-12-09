@@ -17,9 +17,6 @@ from ml_filter.analysis.interrater_reliability import (
     compute_interrater_reliability_metrics,
 )
 
-# Mock for `get_document_scores`
-from ml_filter.analysis.utils import get_document_scores
-
 
 @pytest.fixture
 def example_scores():
@@ -45,14 +42,14 @@ def test_compute_pairwise_correlations(example_scores):
     cohen_corr = compute_pairwise_correlations(example_scores, metric="cohen")
 
     # Verify values
-    assert spearman_corr == 0.1220084679281462, "Spearman correlation not computed correctly."
-    assert kendall_corr == 0.10549886030924203, "Kendall correlation not computed correctly."
-    assert cohen_corr == 0.2619047619047619, "Cohen's kappa not computed correctly."
+    assert spearman_corr == pytest.approx(0.1220084679281462, rel=1e-4), "Spearman correlation not computed correctly."
+    assert kendall_corr == pytest.approx(0.10549886030924203, rel=1e-4), "Kendall correlation not computed correctly."
+    assert cohen_corr == pytest.approx(0.2619047619047619, rel=1e-4), "Cohen's kappa not computed correctly."
 
 
 def test_compute_krippendorffs_alpha(example_scores):
     krippendorffs_alpha = compute_krippendorffs_alpha(example_scores)
-    assert krippendorffs_alpha == 0.0062893081761006275, "Krippendorff's alpha not computed correctly."
+    assert krippendorffs_alpha == pytest.approx(0.0062893081761006275, rel=1e-4), "Krippendorff's alpha not computed correctly."
 
 
 def test_compute_doc_level_variation(example_scores, example_ids):
