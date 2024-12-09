@@ -10,7 +10,9 @@ from ml_filter.data_processing.document import Annotation, MetaInformation
 
 def test_compare_experiments(tmpdir: Path):
     # Wirte example result file containing the fields scores, document_id, and language
-    meta_info = MetaInformation(prompt_name="", prompt_lang="", model="", raw_data_file_path="")
+    meta_info = MetaInformation(
+        prompt_name="", prompt_lang="", model="", raw_data_file_path="", out_tokens_per_second=0
+    )
     annotation_1 = Annotation(scores=[5], document_id="0", meta_information=meta_info)
     annotation_2 = Annotation(scores=[3], document_id="1", meta_information=meta_info)
 
@@ -37,6 +39,9 @@ def test_compare_experiments(tmpdir: Path):
     )
     with open(config_file_path, "w") as f:
         yaml.dump(_dict_with_pathlib_path_conversion(config.model_dump()), f, default_flow_style=False)
+
+    with open(tmpdir / "throughput.json", "w") as f:
+        f.write('{"throughput": 0.0}')
 
     df = compare_experiments(Path(config_file_path))
     assert df.iloc[0]["mae"] == 0.0
