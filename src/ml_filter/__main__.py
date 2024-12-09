@@ -11,7 +11,7 @@ from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
-from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
+from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt, merge_and_sort_jsonl_files
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 input_file_path_option = click.option(
@@ -217,6 +217,37 @@ def compute_num_words_in_jsonl_cli(
     output_file_path: Path,
 ):
     compute_num_words_and_chars_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+
+
+@main.command(name="merge_and_sort_jsonl_files_cli")
+@click.option(
+    "--input_folder_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    required=True,
+    help="Path to the input folder containing JSONL files.",
+)
+@click.option("--file-name-delimiter", type=str, required=True, help="Delimiter used to split the file names.")
+@click.option(
+    "--file-name-keep-idx",
+    type=str,
+    required=True,
+    help="Comma-separated list of indices to keep from the split file names.",
+)
+@click.option("--document-key", type=str, required=True, help="The key used to sort documents in the JSONL files.")
+def merge_and_sort_jsonl_files_cli(
+    input_folder_path: Path, file_name_delimiter: str, file_name_keep_idx: str, document_key: str
+):
+    """Merge and sort JSONL files in a directory by a specific key."""
+    # Parse file_name_keep_idx into a list of integers
+    file_name_keep_idx_list = [int(idx.strip()) for idx in file_name_keep_idx.split(",")]
+
+    # Call the main function to process JSONL files
+    merge_and_sort_jsonl_files(
+        directory=input_folder_path,
+        file_name_delimiter=file_name_delimiter,
+        file_name_keep_idx=file_name_keep_idx_list,
+        document_key=document_key,
+    )
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
