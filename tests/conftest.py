@@ -38,6 +38,31 @@ def tmp_jsonl_directory(tmp_path):
 
 
 @pytest.fixture
+def merge_files_tmp_directory(tmp_path):
+    # Create temporary JSONL files
+    file1 = tmp_path / "data_part1_001_temp_file.jsonl"
+    file2 = tmp_path / "data_part1_002_temp_file.jsonl"
+
+    # Content for file1
+    content1 = [{"id": 3, "value": "third"}, {"id": 1, "value": "first"}]
+
+    # Content for file2
+    content2 = [{"id": 2, "value": "second"}, {"id": 4, "value": "fourth"}]
+
+    # Write to file1
+    with open(file1, "w") as f:
+        for doc in content1:
+            f.write(json.dumps(doc) + "\n")
+
+    # Write to file2
+    with open(file2, "w") as f:
+        for doc in content2:
+            f.write(json.dumps(doc) + "\n")
+
+    return tmp_path
+
+
+@pytest.fixture
 def deepl_translator():
     deepl_client = DeepLClient(api_key="fake_key", ignore_tag_text="notranslate")
     return Translator(client=deepl_client)

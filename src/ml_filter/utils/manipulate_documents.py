@@ -29,10 +29,28 @@ def verify_files(directory: Path) -> list[Path]:
 
 
 def merge_and_sort_files(directory: Path, split_filename_by: str = "_", num_filename_entries_to_keep: int = 2) -> None:
-    """Merge, sort, and save JSONL files into a single output file."""
+    """Merges and sorts JSONL files in a directory by the 'id' field.
+    This function reads all JSONL files in the specified directory, merges their contents,
+    sorts the documents by the 'id' field, and writes the sorted documents to a new JSONL file.
+    The output file name is generated based on the first input file's name, keeping a specified
+    number of entries from the end of the filename.
+    Args:
+        directory (Path): The directory containing the JSONL files to be merged and sorted.
+        split_filename_by (str): The delimiter used to split the filename for generating the output filename.
+        num_filename_entries_to_keep (int): The number of entries from the end of the filename
+        to keep for the output filename.
+    Raises:
+        ValueError: If the number of filename entries to keep is greater than the number of filename entries
+        in the first file's name.
+    """
+
     jsonl_files = verify_files(directory)
     documents = []
-    file_name = jsonl_files[0].stem.split(split_filename_by)[-num_filename_entries_to_keep:]
+    file_name = jsonl_files[0].stem.split(split_filename_by)
+    if len(file_name) >= num_filename_entries_to_keep:
+        file_name = file_name[-num_filename_entries_to_keep:]
+    else:
+        raise ValueError("The number of filename entries to keep is greater than the number of filename entries.")
     file_name = "_".join(file_name)
     output_file = directory / f"merged_{file_name}.jsonl"
     # Read and collect documents from all files
@@ -52,12 +70,14 @@ def merge_and_sort_files(directory: Path, split_filename_by: str = "_", num_file
 
 
 def add_target_langauge_to_prompt(input_file_path: Path, output_dir: Path) -> None:
-    """
-    Reads a YAML file, replaces '{##TARGET_LANGUAGE##}' in the 'prompt' key with a given value,
+    """Reads a YAML file, replaces '{##TARGET_LANGUAGE##}' in the 'prompt' key with a given value,
     and writes the result to a new file.
-
-    :param file_path: Path to the input YAML file.
-    :param output_dir: Dir to save the updated YAML file.
+    Args:
+        input_file_path (Path): Path to the input YAML file.
+        output_dir (Path): Directory to save the updated YAML file.
+    Raises:
+        KeyError: If the 'prompt' key does not exist in the YAML file.
+        Exception: If any other error occurs during file processing.
     """
     for language_code, language in EUROPEAN_LANGUAGES.items():
         try:

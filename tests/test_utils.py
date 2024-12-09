@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import pytest
 import yaml
 
-from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt, verify_files
+from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt, merge_and_sort_files, verify_files
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 # Mock constants
@@ -44,6 +44,30 @@ def test_verify_files_empty_directory(tmp_path):
     """Test that verify_files works with an empty directory."""
     with pytest.raises(ValueError, match="The last two components of the file names do not match for all files."):
         verify_files(tmp_path)
+
+
+def test_merge_and_sort_files(merge_files_tmp_directory: Path):
+    tmp_path = merge_files_tmp_directory
+
+    merge_and_sort_files(tmp_path, split_filename_by="_", num_filename_entries_to_keep=2)
+
+    # Verify output file
+    expected_output_file = tmp_path / "merged_temp_file.jsonl"
+    assert expected_output_file.exists(), "Output file not found!"
+
+    # Read and verify the contents of the output file
+    with open(expected_output_file, "r") as f:
+        output_data = [json.loads(line) for line in f]
+
+    # Expected sorted content
+    expected_data = [
+        {"id": 1, "value": "first"},
+        {"id": 2, "value": "second"},
+        {"id": 3, "value": "third"},
+        {"id": 4, "value": "fourth"},
+    ]
+
+    assert output_data == expected_data, "The output data does not match the expected sorted data."
 
 
 def test_add_target_language_to_prompt(create_input_yaml: Path):
