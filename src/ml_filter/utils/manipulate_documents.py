@@ -28,7 +28,7 @@ def verify_jsonl_file_name_consistency(directory: Path) -> list[Path]:
     return jsonl_files
 
 
-def merge_and_sort_files(directory: Path, split_filename_by: str = "_", num_filename_entries_to_keep: int = 2) -> None:
+def merge_and_sort_jsonl_files(directory: Path, split_filename_by: str = "_", num_filename_entries_to_keep: int = 2) -> None:
     """Merges and sorts JSONL files in a directory by the 'id' field.
     This function reads all JSONL files in the specified directory, merges their contents,
     sorts the documents by the 'id' field, and writes the sorted documents to a new JSONL file.
