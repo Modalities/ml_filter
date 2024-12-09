@@ -55,6 +55,7 @@ def merge_and_sort_jsonl_files(
     directory: Path,
     file_name_delimiter: str,
     file_name_keep_idx: list[int],
+    document_key: str,
 ) -> None:
     """Merges and sorts JSONL files in a directory by the 'id' field.
     This function reads all JSONL files in the specified directory, merges their contents,
@@ -66,6 +67,7 @@ def merge_and_sort_jsonl_files(
         split_filename_by (str): The delimiter used to split the filename for generating the output filename.
         num_filename_entries_to_keep (int): The number of entries from the end of the filename
         to keep for the output filename.
+        document_key (str): The key to sort the documents by.
     Raises:
         ValueError: If the number of filename entries to keep is greater than the number of filename entries
         in the first file's name.
@@ -93,7 +95,7 @@ def merge_and_sort_jsonl_files(
     # Sort documents by the 'id' field
     # Convert 'id' to an integer for sorting - It is assunmed that id is a integer
     # stored as string in the document
-    sorted_documents = sorted(documents, key=lambda x: int(x["id"]))
+    sorted_documents = sorted(documents, key=lambda x: int(x[document_key]))
 
     # Write the sorted documents to the output JSONL file
     with open(output_file, "w") as f:

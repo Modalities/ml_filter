@@ -64,7 +64,9 @@ def test_verify_files_empty_directory(tmp_path):
 def test_merge_and_sort_jsonl_files(merge_files_tmp_directory: tuple[Path, list[int]]):
     tmp_path, file_name_keep_idx = merge_files_tmp_directory
 
-    merge_and_sort_jsonl_files(tmp_path, file_name_delimiter="_", file_name_keep_idx=file_name_keep_idx)
+    merge_and_sort_jsonl_files(
+        tmp_path, file_name_delimiter="_", file_name_keep_idx=file_name_keep_idx, document_key="id"
+    )
 
     # Verify output file
     expected_output_file = tmp_path / "merged_temp_file.jsonl"
