@@ -7,7 +7,7 @@ import yaml
 from constants import EUROPEAN_LANGUAGES, TARGET_LANGAUGE_PLACEHOLDER
 
 
-def verify_files(directory: Path) -> list[Path]:
+def verify_jsonl_file_name_consistency(directory: Path) -> list[Path]:
     """Verifies the presence and naming consistency of JSONL files in a directory.
     It also verifies that the last two components of the file names (when split by underscores)
     are consistent across all JSONL files.
