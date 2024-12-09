@@ -79,7 +79,7 @@ def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]
                     raise ValueError(f"Found duplicate score for {annotator_id}")
                 
                 # aggregate scores
-                scores = json_obj["scores"]
+                scores = [int(score) for score in json_obj["scores"]]
                 if aggregation is None:
                     aggr_score = scores
                 elif aggregation == "min":
