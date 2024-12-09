@@ -52,7 +52,14 @@ aggregation_option = click.option(
     "--aggregation",
     type=str,
     required=False,
-    help="Determines how the scores of each annotator are aggregated before comparing them to the other annotators"
+    help="""
+        Specifies how scores for a document from the same file are aggregated.
+        Supported values:
+        - "mean": Compute the average score.
+        - "max": Use the maximum score.
+        - "min": Use the minimum score.
+        - None: No aggregation (used for individual annotator analysis).
+    """
 )
 
 path_to_files_argument = click.argument('path_to_files', nargs=-1, type=click.Path(path_type=Path))
