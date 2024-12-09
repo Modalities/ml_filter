@@ -14,16 +14,40 @@ if [ -z "$CUDA_VISIBLE_DEVICES" ]; then
     exit 1
 fi
 
+if [ -z "$HF_HOME" ]; then
+    echo "HF_HOME is not set. Specify it in your .env file or in your current shell and execute this script with 'source' command."
+    exit 1
+fi
+
+if [ -z "$1" ]; then
+    echo "Container name is not provided. Please provide it as the first argument."
+    exit 1
+fi
+
+if [ -z "$2" ]; then
+    echo "Port is not provided. Please provide it as the second argument."
+    exit 1
+fi
+
+if [ -z "$3" ]; then
+    echo "Model name is not provided. Please provide it as the third argument."
+    exit 1
+fi
+
+CONTAINER_NAME=$1
+PORT=$2
+MODEL_NAME=$3
+
 num_gpus=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 devices="\"device=$CUDA_VISIBLE_DEVICES\""
 docker run --runtime nvidia \
     --gpus $devices \
-    --name alex_vllm_container \
-    -v /raid/s3/opengptx/models/:/root/.cache/huggingface \
+    --name $CONTAINER_NAME \
+    -v $HF_HOME:/root/.cache/huggingface \
     --env "HUGGING_FACE_HUB_TOKEN=$HF_TOKEN" \
-    -p 9900:8000 \
+    -p $PORT:8000 \
     --ipc=host \
     vllm/vllm-openai:v0.6.3 \
-    --model meta-llama/Llama-3.1-8B-Instruct \
+    --model $MODEL_NAME \
     --tensor-parallel-size $num_gpus
 

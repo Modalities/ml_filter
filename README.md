@@ -129,7 +129,10 @@ docker run --runtime nvidia --gpus '"device=5,6"'  --name vllm_container -v /rai
 
 Number of `tensor-parallel-size` and number of GPUs used should match (`--gpus`).
 
-Alternativley, just use execute `bash scripts/host_vllm_model.sh` and make sure, all required environment variables are in your `.env` file under project root.
+Alternativley, just use execute `bash scripts/host_vllm_model.sh $CONTAINER_NAME $PORT $MODEL_NAME` and make sure, all required environment variables are in your `.env` file under project root e.g.
+```bash
+bash scripts/host_vllm_model.sh my_vllm_container 9123 meta-llama/Llama-3.1-8B-Instruct
+```
 
 #### Test the hosted model
 ```bash

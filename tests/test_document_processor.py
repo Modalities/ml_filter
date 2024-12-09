@@ -21,8 +21,8 @@ def test_run(tmpdir: Path):
 
     raw_data_path = tmpdir / "raw_data.jsonl"
     with open(raw_data_path, "w") as f:
-        json.dump({"text": "some text"}, f)
-        json.dump({"text": "some more text"}, f)
+        json.dump({"text": "some text", "id": 0, "language": "en"}, f)
+        json.dump({"text": "some more text", "id": 1, "language": "en"}, f)
 
     llm_rest_client.tokenizer = Mock(spec=PreTrainedHFTokenizer)
     llm_rest_client.tokenizer.truncation = False
@@ -37,13 +37,11 @@ def test_run(tmpdir: Path):
         llm_rest_client=llm_rest_client,
         prompt_builder=prompt_builder,
         queue_size=2,
-        batch_size=2,
         raw_data_file_paths=[raw_data_path],
         experiment_dir_path=experiment_dir_path,
         num_processes=1,
         score_metric_name="educational_score",
-        gold_annotations_file_path=None,
-        out_file_path=experiment_dir_path / "processed_documents.jsonl",
+        jq_language_pattern=".language",
     )
 
     try:
