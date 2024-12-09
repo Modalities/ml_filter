@@ -20,6 +20,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
     Returns:
         None
     """
+    output_dir.mkdir(parents=True, exist_ok=True)
     document_scores = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation
@@ -27,7 +28,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
     
     # Iterate over different prompts
     for prompt in document_scores:
-        df = _prepare_df(document_scores[prompt])
+        df = _prepare_df(document_scores[prompt], aggregation=aggregation)
 
         # Plotting the distributions
         sns.set_theme(style='whitegrid')
@@ -40,7 +41,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
         # Add labels, title, and annotations
         plt.xlabel(f'{prompt} Score')
         plt.ylabel('Frequency')
-        plt.title(f'{prompt} Score Distributions')
+        plt.title(f'{prompt} Score Distributions - Aggregation Method {aggregation}')
 
         # Place annotation below the legend in the upper right corner
         plt.legend(loc='upper right')
@@ -52,7 +53,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
         )
 
         # Save and close the plot
-        plt.savefig(output_dir / (prompt + '_score_distributions.png'))
+        plt.savefig(output_dir / (prompt + f'_score_distributions_{aggregation}.png'))
         plt.close()
 
 
@@ -68,6 +69,7 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
     Returns:
         None
     """
+    output_dir.mkdir(parents=True, exist_ok=True)
     document_scores = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation
@@ -75,12 +77,11 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
     
     # Iterate over different prompts
     for prompt in document_scores:
-        df = _prepare_df(document_scores[prompt])
+        df = _prepare_df(document_scores[prompt], aggregation=aggregation)
         
-
         # Initialize a list to store the differences for each consecutive version pair
         score_differences = {}
-
+            
         # Compute differences for each document for all pairs of versions 
         for (version1, version2) in combinations(df.columns, 2):
             # Compute the difference between the two versions for all documents that have scores in both versions
@@ -98,12 +99,12 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
             plt.hist(differences, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
             plt.xlabel('Score Difference')
             plt.ylabel('Frequency')
-            plt.title(f'Histogram of {prompt} Score Differences ({version2} - {version1})')
+            plt.title(f'Histogram of {prompt} Score Differences ({version2} - {version1}) - Aggregation Method {aggregation}')
             plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
 
         plt.tight_layout()
-        plt.savefig(output_dir / (prompt + '_score_distributions_difference_histogram.png'))
+        plt.savefig(output_dir / (prompt + f'_score_distributions_difference_histogram_{aggregation}.png'))
         plt.close()
 
         # Plot boxplot of the score differences
@@ -134,17 +135,17 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
                         fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='green', arrowstyle='->'))
 
         plt.ylabel('Score Differences')
-        plt.title(f'Boxplot of {prompt} Score Differences Between Versions')
+        plt.title(f'Boxplot of {prompt} Score Differences Between Versions - Annotation Method {aggregation}')
         plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
         
         
         # Save boxplot
-        plt.savefig(output_dir / (prompt + '_score_distributions_difference_boxplot.png'))
+        plt.savefig(output_dir / (prompt + f'_score_distributions_difference_boxplot_{aggregation}.png'))
         plt.close()
 
 
-def _prepare_df(document_scores: dict[str, dict[str, float]]) -> pd.DataFrame:
+def _prepare_df(document_scores: dict[str, dict[str, float]], aggregation: Union[None, str]) -> pd.DataFrame:
     """
     Prepares a DataFrame from the document scores dictionary, filtering out incomplete rows.
 
@@ -155,6 +156,19 @@ def _prepare_df(document_scores: dict[str, dict[str, float]]) -> pd.DataFrame:
     Returns:
         pd.DataFrame: A DataFrame with rows as document IDs and columns as versions, containing valid scores only.
     """
-    df = pd.DataFrame(document_scores).T  # Transpose for better structure (rows are IDs, columns are versions)
+    if aggregation is not None:
+        document_scores_for_df = document_scores
+    else:
+        # we add for each score a separate version
+        document_scores_for_df = {}
+        for doc_id, version_scores in document_scores.items():
+            assert len(version_scores) == 1
+            version = next(iter(version_scores.keys()))
+            new_version_scores = {}
+            for i, score in enumerate(version_scores[version]):
+                new_version_scores[f"{version}_{i}"] = score
+            document_scores_for_df[doc_id] = new_version_scores
+            
+    df = pd.DataFrame(document_scores_for_df).T  # Transpose for better structure (rows are IDs, columns are versions)
     df = df[sorted(df.columns)]  # Sort columns by version
     return df.dropna()  # Filter out documents not present in all versions
