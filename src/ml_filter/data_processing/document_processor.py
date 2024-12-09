@@ -245,12 +245,12 @@ class DocumentProcessor:
             f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
             f" | Results per second: {results_per_second:.2f}"
         )
-        with open(self.experiment_dir_path / "thoughput.json", "w") as f:
+        with open(self.experiment_dir_path / "throughput.json", "w") as f:
             json.dump(
                 {
-                    "results_written": results_written,
+                    "num_documents_written": results_written,
                     "elapsed_time_s": elapsed_time,
-                    "results_per_second": results_per_second,
+                    "documents_per_second": results_per_second,
                     "mean_out_tokens_per_second": total_out_tokens_per_second / results_written,
                     "model_name": self.llm_rest_client.model_name,
                     "queue_size": self.queue_size,

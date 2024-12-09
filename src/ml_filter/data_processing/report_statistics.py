@@ -94,6 +94,10 @@ def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[P
     error_counts = pd.DataFrame(df["errors"].tolist()).apply(pd.Series.value_counts)
     error_counts.index = error_counts.index.astype(str)
 
+    # load throughput information
+    with open(result_dir_path / "throughput.json", "r") as f:
+        throughput = json.load(f)
+
     statistics_report = {
         **ReportStats(
             mae=stats["score_mae"].mean(),
@@ -109,6 +113,7 @@ def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[P
         "error_counts": error_counts.to_dict(),
         "gold_annotations_file_path": str(gold_annotations_file_paths),
         "predicted_annotations_file_path": str(result_dir_path),
+        **throughput,
     }
     logger.info(json.dumps(statistics_report, indent=4))
 

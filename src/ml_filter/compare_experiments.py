@@ -39,7 +39,6 @@ def compare_experiments(config_file_path: Path) -> pd.DataFrame:
             result_dir_path=result_dir_path,
             gold_annotations_file_paths=config.gold_annotations_file_paths,
         )
-        stats["model_name"] = exp_config.settings.model_name
         stats["add_generation_prompt"] = exp_config.tokenizer.add_generation_prompt
         stats["experiment_path"] = str(result_dir_path)
         results.append(stats)
