@@ -1,11 +1,55 @@
 
+from collections import Counter
 import json
 from pathlib import Path
 from statistics import mean
-from typing import Union
+from typing import Union, List
+
+
+def most_frequent_average(values: List[int]) -> float:
+    """
+    Finds the most frequent value(s) in a list. If there are ties, returns the average of the tied values.
+
+    Args:
+        values (list): A list of values (can be integers, floats, etc.) to analyze.
+
+    Returns:
+        float: The most frequent value, or the average of the most frequent values if there is a tie.
+
+    Example:
+        >>> values = [4, 2, 2, 3, 3, 5]
+        >>> most_frequent_average(values)
+        2.5
+    """
+    
+    counts = Counter(values)
+    max_frequency = max(counts.values())
+    most_frequent_values = [key for key, val in counts.items() if val == max_frequency]
+    return sum(most_frequent_values) / len(most_frequent_values)
 
 
 def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]) -> dict[str, dict[str, float]]:
+    """
+    Extracts the scores and corresponding document ids from a set of jsonl-files.
+    
+    Args:
+        path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
+        output_file_path (Path): The output path to save computed metrics as a JSON file.
+        single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
+        aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
+            Supported values:
+            - "mean": Compute the average score.
+            - "max": Use the maximum score.
+            - "min": Use the minimum score.
+            - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
+            - None: No aggregation (used for individual annotator analysis).
+
+    Raises:
+        ValueError: If invalid parameter combinations are provided.
+
+    Returns:
+        None
+    """
     document_scores = {}
 
     # Loop through each file
@@ -44,6 +88,8 @@ def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]
                     aggr_score = max(scores)
                 elif aggregation == "mean":
                     aggr_score = mean(scores)
+                elif aggregation == "majority":
+                    aggr_score = most_frequent_average(scores)
                 else:
                     raise NotImplementedError(f"Aggregation type {aggregation} is not supported.")
                 document_scores[prompt][doc_id][version] = aggr_score

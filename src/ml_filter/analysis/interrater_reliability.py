@@ -119,6 +119,7 @@ def compute_interrater_reliability_metrics(
             - "mean": Compute the average score.
             - "max": Use the maximum score.
             - "min": Use the minimum score.
+            - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
             - None: No aggregation (used for individual annotator analysis).
 
     Raises:
