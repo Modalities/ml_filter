@@ -257,7 +257,7 @@ class DocumentProcessor:
             ]
         )
 
-        out_dir_path = self.experiment_dir_path / relative_input_parents_path.parent
+        out_dir_path = self.experiment_dir_path / "generated_annotations" / relative_input_parents_path.parent
         out_dir_path.mkdir(parents=True, exist_ok=True)
         return out_dir_path / out_file_name
 

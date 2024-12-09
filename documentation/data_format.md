@@ -146,8 +146,10 @@ e.g., `00009__annotations_meta-llama--Llama-3.1-70B-Instruct_fine_web_edu_en.jso
 
 
 A fully annotated CC corpus (i.e., the set of annotation files) must be stored in a folder structure that mirrors the raw data folder structure, such that each annotation file can be mapped back to the raw data file. A simplification of this is to store the data in the same folder structure as the raw data. 
+The pipeline creates the mirrored folder structure within the `<output_directory_path>/<experiments_directory>/generated_annotations`. The <output_directory_path> is specified in the pipeline settings, the <experiments_directory> and the `generated_annotations` folder are created automatically be the prompt-based annotation pipeline: e.g.: `data/output/2024-12-06__13-20-48__eabd8b7b/generated_annotations`. 
 
 ```
+generated_annotations
 ├── 2014-41
 │   ├── bg
 │   │   └── 00055__annotations_meta-llama--Llama-3.1-70B-Instruct_fine_web_edu_en.jsonl
@@ -172,8 +174,6 @@ Before running the inference pipeline, the raw data must be tokenized. To achiev
 
 The result is a folder structure that mirrors the raw data folder structure, with the tokenized data stored in an indexation-optimized format (pbin) that is custom to modalities.
 
-The output of this pipeline is equivalent to the prompt-based pipeline.
-
 ```
 ├── 2014-41
 │   ├── bg
@@ -189,6 +189,8 @@ The output of this pipeline is equivalent to the prompt-based pipeline.
 
 [...]
 ```
+
+The output of this pipeline is equivalent to the prompt-based pipeline.
 
 ## Sampling raw data
 Sampling of raw data (the creation of a CC subset) is required for the prompt-based pipeline and for LLM training. The prompt-based pipeline samples from the CC corpus in a language-stratified fashion, leading to a language-balanced dataset. For other usecases we also support random sampling, where the probability of a document being selected is 1/(total number of documents).
@@ -210,4 +212,4 @@ To make the sampling process more efficient, we create a sampling index for each
 
 [...]
 ```
-After indexation, we leverage the index files to sample the raw data. The output of the sampling pipeline is a folder structure that mirrors the raw data folder structure, with the sampled JSON documents stored in the JSONL files. Note that due to the nature sampling, it can happen that some files are not sampled. 
+After indexation, we leverage the index files to sample the raw data. The output of the sampling pipeline is a folder structure that mirrors the raw data folder structure, with the sampled JSON documents stored in the JSONL files. Note that due to the nature of sampling, it can happen that some files are not sampled. 
