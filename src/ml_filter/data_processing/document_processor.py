@@ -38,6 +38,7 @@ class DocumentProcessor:
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
         self.prompt_builder = prompt_builder
+        self.queue_size = queue_size
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.num_processes = num_processes
@@ -148,6 +149,7 @@ class DocumentProcessor:
                 prompt_lang=processed_document_variations[0].language,
                 model=self.llm_rest_client.model_name,
                 raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
+                out_tokens_per_second=processed_document_variations[0].out_tokens_per_second,
             ),
         )
         for processed_document_variation in processed_document_variations:
@@ -199,7 +201,7 @@ class DocumentProcessor:
         start_time = time.time()
         results_written = 0
         open_files = {}
-
+        total_out_tokens_per_second = 0
         while True:
             annotation: Annotation = self.result_queue.get()
             if annotation is None:
@@ -225,6 +227,7 @@ class DocumentProcessor:
             json.dump(annotation.model_dump(), f)
             f.write("\n")
             results_written += 1
+            total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
 
             if results_written % 10 == 0:
                 for file in open_files.values():
@@ -242,6 +245,20 @@ class DocumentProcessor:
             f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
             f" | Results per second: {results_per_second:.2f}"
         )
+        with open(self.experiment_dir_path / "thoughput.json", "w") as f:
+            json.dump(
+                {
+                    "results_written": results_written,
+                    "elapsed_time_s": elapsed_time,
+                    "results_per_second": results_per_second,
+                    "mean_out_tokens_per_second": total_out_tokens_per_second / results_written,
+                    "model_name": self.llm_rest_client.model_name,
+                    "queue_size": self.queue_size,
+                    "num_processes": self.num_processes,
+                    "max_new_tokens": self.llm_rest_client.max_new_tokens,
+                },
+                f,
+            )
 
     def _create_out_file_path(self, annotation: Annotation, common_parents_path: Path) -> Path:
         input_file_path = Path(annotation.meta_information.raw_data_file_path)
