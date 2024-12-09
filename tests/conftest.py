@@ -18,6 +18,9 @@ def tmp_jsonl_directory(tmp_path):
         tmp_path / "file_3_common_suffix.jsonl",
     ]
     consistent_content = [{"id": 1, "text": "Document 1"}, {"id": 2, "text": "Document 2"}]
+    unique_file_name_stems = set(["common_suffix", "different_suffix"])
+
+    file_name_keep_idx = [2, 3]
 
     # Write consistent content to JSONL files
     for file in consistent_files:
@@ -34,14 +37,15 @@ def tmp_jsonl_directory(tmp_path):
         for doc in inconsistent_content:
             f.write(f"{json.dumps(doc)}\n")
 
-    return tmp_path, consistent_files, inconsistent_file
+    return tmp_path, consistent_files, inconsistent_file, unique_file_name_stems, file_name_keep_idx
 
 
 @pytest.fixture
-def merge_files_tmp_directory(tmp_path):
+def merge_files_tmp_directory(tmp_path: Path):
     # Create temporary JSONL files
     file1 = tmp_path / "data_part1_001_temp_file.jsonl"
     file2 = tmp_path / "data_part1_002_temp_file.jsonl"
+    file_name_keep_idx = [3, 4]
 
     # Content for file1
     content1 = [{"id": "3", "value": "third"}, {"id": "1", "value": "first"}]
@@ -59,7 +63,7 @@ def merge_files_tmp_directory(tmp_path):
         for doc in content2:
             f.write(json.dumps(doc) + "\n")
 
-    return tmp_path
+    return tmp_path, file_name_keep_idx
 
 
 @pytest.fixture

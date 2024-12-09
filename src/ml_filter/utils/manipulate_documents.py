@@ -7,29 +7,54 @@ import yaml
 from constants import EUROPEAN_LANGUAGES, TARGET_LANGAUGE_PLACEHOLDER
 
 
-def verify_jsonl_file_name_consistency(directory: Path) -> list[Path]:
+def verify_jsonl_file_name_consistency(
+    directory: Path,
+    file_name_delimiter: str,
+    file_name_keep_idx: list[int],
+) -> list[Path]:
     """Verifies the presence and naming consistency of JSONL files in a directory.
-    It also verifies that the last two components of the file names (when split by underscores)
-    are consistent across all JSONL files.
+    It checks that specific components of the file names (as determined by indices in
+    `file_name_keep_idx`) are consistent across all JSONL files.
+
     Args:
         directory (Path): The path to the directory to be checked.
-    Returns:
-        list[Path]: A list of JSONL paths in the directory.
-    Raises:
-        ValueError: If the last two components of the file names do not match for all files.
-    """
-    jsonl_files = [file for file in directory.iterdir() if file.suffix == ".jsonl"]
+        file_name_delimiter (str): The delimiter used to split the file names.
+        file_name_keep_idx (list[int]): Indices of the components in the split file names to check.
 
-    # Split file names and check the last two components
-    components = [f.stem.split("_")[-2:] for f in jsonl_files]
-    if len(set(map(tuple, components))) != 1:
-        raise ValueError("The last two components of the file names do not match for all files.")
+    Returns:
+        list[Path]: A list of JSONL file paths in the directory.
+
+    Raises:
+        ValueError: If the specified components of the file names do not match for all files.
+    """
+    # Get all JSONL files in the directory
+    jsonl_files = [file for file in directory.iterdir() if file.suffix == ".jsonl"]
+    if not jsonl_files:
+        raise ValueError("No JSONL files found in the directory.")
+
+    # Extract and compare the specified components from file names
+    file_names = set()
+    for f in jsonl_files:
+        file_name = _costruct_file_name(
+            file_path=f,
+            file_name_delimiter=file_name_delimiter,
+            file_name_keep_idx=file_name_keep_idx,
+        )
+        file_names.add(file_name)
+
+    if len(file_names) != 1:
+        raise ValueError(
+            "The specified components of the file names do not match for all files. "
+            f"Inconsistent components: {file_names}"
+        )
 
     return jsonl_files
 
 
 def merge_and_sort_jsonl_files(
-    directory: Path, split_filename_by: str = "_", num_filename_entries_to_keep: int = 2
+    directory: Path,
+    file_name_delimiter: str,
+    file_name_keep_idx: list[int],
 ) -> None:
     """Merges and sorts JSONL files in a directory by the 'id' field.
     This function reads all JSONL files in the specified directory, merges their contents,
@@ -46,14 +71,17 @@ def merge_and_sort_jsonl_files(
         in the first file's name.
     """
 
-    jsonl_files = verify_jsonl_file_name_consistency(directory)
+    jsonl_files = verify_jsonl_file_name_consistency(
+        directory=directory,
+        file_name_delimiter=file_name_delimiter,
+        file_name_keep_idx=file_name_keep_idx,
+    )
     documents = []
-    file_name_splits = jsonl_files[0].stem.split(split_filename_by)
-    if len(file_name_splits) >= num_filename_entries_to_keep:
-        file_name = file_name_splits[-num_filename_entries_to_keep:]
-    else:
-        raise ValueError("The number of filename entries to keep is greater than the number of filename entries.")
-    file_name = "_".join(file_name)
+    file_name = _costruct_file_name(
+        file_path=jsonl_files[0],
+        file_name_delimiter=file_name_delimiter,
+        file_name_keep_idx=file_name_keep_idx,
+    )
     output_file = directory / f"merged_{file_name}.jsonl"
     # Read and collect documents from all files
     for file in jsonl_files:
@@ -71,6 +99,22 @@ def merge_and_sort_jsonl_files(
     with open(output_file, "w") as f:
         for doc in sorted_documents:
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+
+def _costruct_file_name(
+    file_path: Path,
+    file_name_keep_idx: list[int],
+    file_name_delimiter: str,
+) -> str:
+    """Constructs a file name based on the specified components of the file name."""
+    file_name_splits = file_path.stem.split(file_name_delimiter)
+    try:
+        file_name = file_name_delimiter.join([file_name_splits[i] for i in file_name_keep_idx])
+    except IndexError:
+        raise ValueError(
+            f"File name '{file_path.stem}' does not have enough components to extract indices {file_name_keep_idx}."
+        )
+    return file_name
 
 
 def add_target_language_to_prompt(input_file_path: Path, output_dir: Path) -> None:

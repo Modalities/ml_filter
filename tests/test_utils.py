@@ -5,7 +5,11 @@ from tempfile import TemporaryDirectory
 import pytest
 import yaml
 
-from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt, merge_and_sort_files, verify_files
+from ml_filter.utils.manipulate_documents import (
+    add_target_language_to_prompt,
+    merge_and_sort_jsonl_files,
+    verify_jsonl_file_name_consistency,
+)
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 # Mock constants
@@ -18,38 +22,49 @@ EUROPEAN_LANGUAGES = {
 }
 
 
-def test_verify_files_consistent(tmp_jsonl_directory: tuple[Path, list[Path], list[Path]]):
+def test_verify_files_consistent(tmp_jsonl_directory: tuple[Path, list[Path], list[Path], list[str], list[int]]):
     """Test that verify_files works for consistent file naming."""
-    directory, consistent_files, _ = tmp_jsonl_directory
+    directory, consistent_files, _, _, file_name_keep_idx = tmp_jsonl_directory
+    delimiter = "_"
 
     # Remove the inconsistent file
     for f in directory.iterdir():
         if "different_suffix" in f.stem:
             f.unlink()
 
-    result = verify_files(directory)
+    result = verify_jsonl_file_name_consistency(
+        directory=directory,
+        file_name_delimiter=delimiter,
+        file_name_keep_idx=file_name_keep_idx,
+    )
     assert len(result) == len(consistent_files)
     assert sorted(result) == sorted(consistent_files)
 
 
-def test_verify_files_inconsistent(tmp_jsonl_directory):
+def test_verify_files_inconsistent(tmp_jsonl_directory: tuple[Path, list[Path], list[Path], list[str], list[int]]):
     """Test that verify_files raises ValueError for inconsistent file naming."""
-    directory, _, _ = tmp_jsonl_directory
+    directory, _, _, unique_file_name_stems, file_name_keep_idx = tmp_jsonl_directory
 
-    with pytest.raises(ValueError, match="The last two components of the file names do not match for all files."):
-        verify_files(directory)
+    with pytest.raises(
+        ValueError,
+        match="The specified components of the file names do not match for all files. "
+        f"Inconsistent components: {unique_file_name_stems}",
+    ):
+        verify_jsonl_file_name_consistency(
+            directory=directory, file_name_delimiter="_", file_name_keep_idx=file_name_keep_idx
+        )
 
 
 def test_verify_files_empty_directory(tmp_path):
     """Test that verify_files works with an empty directory."""
-    with pytest.raises(ValueError, match="The last two components of the file names do not match for all files."):
-        verify_files(tmp_path)
+    with pytest.raises(ValueError, match="No JSONL files found in the directory."):
+        verify_jsonl_file_name_consistency(directory=tmp_path, file_name_delimiter="_", file_name_keep_idx=[])
 
 
-def test_merge_and_sort_files(merge_files_tmp_directory: Path):
-    tmp_path = merge_files_tmp_directory
+def test_merge_and_sort_jsonl_files(merge_files_tmp_directory: tuple[Path, list[int]]):
+    tmp_path, file_name_keep_idx = merge_files_tmp_directory
 
-    merge_and_sort_files(tmp_path, split_filename_by="_", num_filename_entries_to_keep=2)
+    merge_and_sort_jsonl_files(tmp_path, file_name_delimiter="_", file_name_keep_idx=file_name_keep_idx)
 
     # Verify output file
     expected_output_file = tmp_path / "merged_temp_file.jsonl"
@@ -78,7 +93,7 @@ def test_add_target_language_to_prompt(create_input_yaml: Path):
         output_dir = Path(temp_output_dir)
 
         # Call the function
-        add_target_langauge_to_prompt(input_file_path, output_dir)
+        add_target_language_to_prompt(input_file_path, output_dir)
 
         # Check generated files for all languages
         for lang_code, lang_name in EUROPEAN_LANGUAGES.items():
