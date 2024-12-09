@@ -46,7 +46,7 @@ def merge_and_sort_jsonl_files(directory: Path, split_filename_by: str = "_", nu
 
     jsonl_files = verify_files(directory)
     documents = []
-    file_name = jsonl_files[0].stem.split(split_filename_by)
+    file_name_splits = jsonl_files[0].stem.split(split_filename_by)
     if len(file_name) >= num_filename_entries_to_keep:
         file_name = file_name[-num_filename_entries_to_keep:]
     else:
