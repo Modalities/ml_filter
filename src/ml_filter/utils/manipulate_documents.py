@@ -28,7 +28,9 @@ def verify_jsonl_file_name_consistency(directory: Path) -> list[Path]:
     return jsonl_files
 
 
-def merge_and_sort_jsonl_files(directory: Path, split_filename_by: str = "_", num_filename_entries_to_keep: int = 2) -> None:
+def merge_and_sort_jsonl_files(
+    directory: Path, split_filename_by: str = "_", num_filename_entries_to_keep: int = 2
+) -> None:
     """Merges and sorts JSONL files in a directory by the 'id' field.
     This function reads all JSONL files in the specified directory, merges their contents,
     sorts the documents by the 'id' field, and writes the sorted documents to a new JSONL file.
@@ -44,11 +46,11 @@ def merge_and_sort_jsonl_files(directory: Path, split_filename_by: str = "_", nu
         in the first file's name.
     """
 
-    jsonl_files = verify_files(directory)
+    jsonl_files = verify_jsonl_file_name_consistency(directory)
     documents = []
     file_name_splits = jsonl_files[0].stem.split(split_filename_by)
-    if len(file_name) >= num_filename_entries_to_keep:
-        file_name = file_name[-num_filename_entries_to_keep:]
+    if len(file_name_splits) >= num_filename_entries_to_keep:
+        file_name = file_name_splits[-num_filename_entries_to_keep:]
     else:
         raise ValueError("The number of filename entries to keep is greater than the number of filename entries.")
     file_name = "_".join(file_name)
