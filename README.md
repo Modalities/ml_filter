@@ -41,9 +41,9 @@ If you already have the score, you can train a classifier by running
 python cli.py train_classifier --config_file_path path/to/your/training_config.yaml
 ```
 ### 3. Measure Interrater Reliability
-If you have a dataset with scores annotated by multiple annotators, you can compute metrics to measure the interrater reliability with the command interrater_reliability. If you want to compare the scores in a single file (e.g. the human annotated ground truth data), use the parameter single_annotator with no aggregation:
+If you have a dataset with scores annotated by multiple annotators, you can compute metrics to measure the interrater reliability with the command interrater_reliability. If you want to compare the scores in a single file (e.g. the human annotated ground truth data), run:
 ```script
-python cli.py interrater_reliability data_annotated.jsonl --single_annotator --output_file_path output.json
+python cli.py interrater_reliability data_annotated.jsonl --output_file_path output.json
 ```
 If you want to compare the scores across different models and files (e.g. when comparing LLM annotated data to ground truth), the scores in each file first have to be aggregated. For that, use the parameter aggregation:
 ```script

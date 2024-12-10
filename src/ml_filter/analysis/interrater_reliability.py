@@ -100,7 +100,6 @@ def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: L
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_file_path: Path,
-    single_annotator: bool = False,
     aggregation: Optional[str] = None
 ) -> None:
     """
@@ -113,7 +112,6 @@ def compute_interrater_reliability_metrics(
     Args:
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
         output_file_path (Path): The output path to save computed metrics as a JSON file.
-        single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
         aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
@@ -127,38 +125,24 @@ def compute_interrater_reliability_metrics(
 
     Returns:
         None
-    """
-    # Check parameters
-    if single_annotator and aggregation is not None:
-        raise ValueError("Aggregation types other than None are only valid when comparing multiple annotators.")
-    if not single_annotator and aggregation is None:
-        raise ValueError("Aggregation type must not be None when comparing multiple annotators.")
-    
+    """    
     document_scores = get_document_scores(path_to_files, aggregation=aggregation)
     metrics = {}
     for prompt in document_scores:
         all_document_ids = []
         all_scores = []
         
-        num_versions = 1 if single_annotator else max(len(versions) for versions in document_scores[prompt].values())
+        num_versions = max(len(versions) for versions in document_scores[prompt].values())
         for document_id, scores_per_version in document_scores[prompt].items():
-            if single_annotator:
-                if len(scores_per_version) != 1:
-                    raise ValueError(
-                        f"There should be only one annotator if single_annotator is set to true, "
-                        f"but found multiple for document ID {document_id}: {list(scores_per_version.keys())}"
-                    )
-                all_scores.append(next(iter(scores_per_version.values())))
-            else:
-                scores = []
-                for version in scores_per_version:
-                    scores.append(scores_per_version[version])
+            scores = []
+            for version in scores_per_version:
+                scores.append(scores_per_version[version])
 
-                # Skip documents where not all versions have scores
-                if len(scores) != num_versions:
-                    continue
-                
-                all_scores.append(scores)
+            # Skip documents where not all versions have scores
+            if len(scores) != num_versions:
+                continue
+            
+            all_scores.append(scores)
             all_document_ids.append(document_id)
 
         # Metrics for rounded scores

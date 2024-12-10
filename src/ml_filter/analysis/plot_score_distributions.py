@@ -30,31 +30,31 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
     for prompt in document_scores:
         df = _prepare_df(document_scores[prompt], aggregation=aggregation)
 
-        # Plotting the distributions
-        sns.set_theme(style='whitegrid')
-        plt.figure(figsize=(10, 6))
-        for model_name in df.columns:
-            scores = df[model_name]
-            # Create a histogram for each file's scores
-            plt.hist(scores, bins=30, alpha=0.5, label=model_name, edgecolor='black')
+        # Create a histogram for each file's scores
+        for version in df.columns:
+            # Plotting the distributions
+            sns.set_theme(style='whitegrid')
+            plt.figure(figsize=(10, 6))
+            scores = df[version]
+            plt.hist(scores, bins=30, alpha=0.5, label=version, edgecolor='black')
 
-        # Add labels, title, and annotations
-        plt.xlabel(f'{prompt} Score')
-        plt.ylabel('Frequency')
-        plt.title(f'{prompt} Score Distributions - Aggregation Method {aggregation}')
+            # Add labels, title, and annotations
+            plt.xlabel(f'{prompt} Score')
+            plt.ylabel('Frequency')
+            plt.title(f'{prompt} Score Distributions - Version {version}')
 
-        # Place annotation below the legend in the upper right corner
-        plt.legend(loc='upper right')
-        plt.annotate(
-            f'Number of Documents: {len(df)}',
-            xy=(0.95, 0.85), xycoords='axes fraction',  # Adjust y-coordinate to be slightly below the legend
-            fontsize=10, ha='right', va='top',
-            bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white')
-        )
+            # Place annotation below the legend in the upper right corner
+            plt.legend(loc='upper right')
+            plt.annotate(
+                f'Number of Documents: {len(df)}',
+                xy=(0.95, 0.85), xycoords='axes fraction',  # Adjust y-coordinate to be slightly below the legend
+                fontsize=10, ha='right', va='top',
+                bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white')
+            )
 
-        # Save and close the plot
-        plt.savefig(output_dir / (prompt + f'_score_distributions_{aggregation}.png'))
-        plt.close()
+            # Save and close the plot
+            plt.savefig(output_dir / (prompt + f'_score_distributions_{version}.png'))
+            plt.close()
 
 
 def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union[None, str]) -> None:
@@ -155,20 +155,7 @@ def _prepare_df(document_scores: dict[str, dict[str, float]], aggregation: Union
 
     Returns:
         pd.DataFrame: A DataFrame with rows as document IDs and columns as versions, containing valid scores only.
-    """
-    if aggregation is not None:
-        document_scores_for_df = document_scores
-    else:
-        # we add for each score a separate version
-        document_scores_for_df = {}
-        for doc_id, version_scores in document_scores.items():
-            assert len(version_scores) == 1
-            version = next(iter(version_scores.keys()))
-            new_version_scores = {}
-            for i, score in enumerate(version_scores[version]):
-                new_version_scores[f"{version}_{i}"] = score
-            document_scores_for_df[doc_id] = new_version_scores
-            
-    df = pd.DataFrame(document_scores_for_df).T  # Transpose for better structure (rows are IDs, columns are versions)
+    """            
+    df = pd.DataFrame(document_scores).T  # Transpose for better structure (rows are IDs, columns are versions)
     df = df[sorted(df.columns)]  # Sort columns by version
     return df.dropna()  # Filter out documents not present in all versions

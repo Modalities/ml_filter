@@ -35,7 +35,6 @@ def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]
     Args:
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
         output_file_path (Path): The output path to save computed metrics as a JSON file.
-        single_annotator (bool, optional): Whether to compute metrics for a single annotator. Defaults to False.
         aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
@@ -81,17 +80,19 @@ def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]
                 # aggregate scores
                 scores = [int(score) for score in json_obj["scores"]]
                 if aggregation is None:
-                    aggr_score = scores
-                elif aggregation == "min":
-                    aggr_score = min(scores)
-                elif aggregation == "max":
-                    aggr_score = max(scores)
-                elif aggregation == "mean":
-                    aggr_score = mean(scores)
-                elif aggregation == "majority":
-                    aggr_score = most_frequent_average(scores)
+                    for i, score in enumerate(scores):
+                        document_scores[prompt][doc_id][f"{version}_{i}"] = score
                 else:
-                    raise NotImplementedError(f"Aggregation type {aggregation} is not supported.")
-                document_scores[prompt][doc_id][version] = aggr_score
+                    if aggregation == "min":
+                        aggr_score = min(scores)
+                    elif aggregation == "max":
+                        aggr_score = max(scores)
+                    elif aggregation == "mean":
+                        aggr_score = mean(scores)
+                    elif aggregation == "majority":
+                        aggr_score = most_frequent_average(scores)
+                    else:
+                        raise NotImplementedError(f"Aggregation type {aggregation} is not supported.")
+                    document_scores[prompt][doc_id][version] = aggr_score
     
     return document_scores

@@ -68,7 +68,7 @@ def test_compute_doc_level_variation(example_scores, example_ids):
 
 
 @pytest.mark.parametrize(
-    "path_to_files, single_annotator, aggregation",
+    "path_to_files, aggregation",
     [
         # Test case 1: Single annotator
         (
@@ -76,7 +76,6 @@ def test_compute_doc_level_variation(example_scores, example_ids):
                 "tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl",
                 "tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl",
             ],    
-            True,
             None
         ),
         # Test case 2: Multiple annotators
@@ -90,12 +89,11 @@ def test_compute_doc_level_variation(example_scores, example_ids):
                 "tests/resources/data/llm_annotations/en/annotations_toxic_en_test_2.jsonl",
                 "tests/resources/data/llm_annotations/de/annotations_toxic_de_test_1.jsonl",
             ],
-            False,
             "mean"
         ),
     ],
 )
-def test_compute_interrater_reliability_metrics_single_annotator(tmp_path, path_to_files, single_annotator, aggregation):
+def test_compute_interrater_reliability_metrics(tmp_path, path_to_files, aggregation):
     output_file = tmp_path / "output.json"
     path_to_files = [Path(p) for p in path_to_files]
 
@@ -103,7 +101,6 @@ def test_compute_interrater_reliability_metrics_single_annotator(tmp_path, path_
     compute_interrater_reliability_metrics(
         path_to_files=path_to_files,
         output_file_path=output_file,
-        single_annotator=single_annotator,
         aggregation=aggregation,
     )
 
@@ -116,21 +113,3 @@ def test_compute_interrater_reliability_metrics_single_annotator(tmp_path, path_
         
     assert "edu" in result, "Output metrics should include the prompt."
     assert len(result["edu"]) > 0
-
-
-def test_invalid_parameters():
-    with pytest.raises(ValueError):
-        compute_interrater_reliability_metrics(
-            path_to_files=[],
-            output_file_path=Path("output.json"),
-            single_annotator=False,
-            aggregation=None,
-        )
-
-    with pytest.raises(ValueError):
-        compute_interrater_reliability_metrics(
-            path_to_files=[],
-            output_file_path=Path("output.json"),
-            single_annotator=True,
-            aggregation="mean",
-        )
