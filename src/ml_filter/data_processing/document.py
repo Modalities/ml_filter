@@ -32,7 +32,9 @@ class ProcessedDocument:
     original_history: List[Dict[str, str]] = field(default_factory=list)
     preprocessed_text: str = ""
     prompt: str = ""
+    prompt_name: str = ""
     generated_text: str = ""
+    language: str = ""
     score_type: str = ""
     score: float = None
     original_score: float = None

@@ -1,14 +1,13 @@
 import json
 import logging
 import multiprocessing
+import os
 import re
 import time
-from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
-from pydantic import BaseModel, ConfigDict
+import jq
 from tqdm import tqdm
 
 from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus, MetaInformation, ProcessedDocument
@@ -29,13 +28,11 @@ class DocumentProcessor:
         llm_rest_client: LLMRestClient,
         prompt_builder: PromptBuilder,
         queue_size: int,
-        batch_size: int,
         raw_data_file_paths: List[Path],
-        gold_annotations_file_path: Path | None,
         experiment_dir_path: Path,
-        out_file_path: Path,
         num_processes: int,
         score_metric_name: str,
+        jq_language_pattern: str,
         strings_to_remove: Optional[List[str]] = [],
     ):
         """Initializes the DocumentProcessor."""
@@ -43,13 +40,13 @@ class DocumentProcessor:
         self.prompt_builder = prompt_builder
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
-        self.batch_size = batch_size
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
+        self.common_parents_path = os.path.commonpath(raw_data_file_paths)
+
         self.strings_to_remove = strings_to_remove
-        self.out_file_path = out_file_path
-        self.gold_annotations_file_path = gold_annotations_file_path
+        self.jq_language_pattern = jq.compile(jq_language_pattern)
 
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
@@ -100,6 +97,7 @@ class DocumentProcessor:
             document_id=document["id"],
             original_text=document["text"],
             raw_data_file_path=document["raw_data_file_path"],
+            language=document["language"],
         )
         if "score" in document:
             processed_document.original_score = float(document["score"])
@@ -130,29 +128,24 @@ class DocumentProcessor:
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
-    def _process_documents_batch(self):
+    def _process_documents(self):
         while True:
-            batch_of_documents = self.documents_queue.get()
+            document = self.documents_queue.get()
 
-            if batch_of_documents is None:
+            if document is None:
                 break
 
-            annotations = []
+            processed_document_variations = self._process_document(document)
+            annotation = self._convert_to_annotation(processed_document_variations)
 
-            for document in batch_of_documents:
-                processed_document_variations = self._process_document(document)
-                annotation = self._convert_to_annotation(processed_document_variations)
-                annotations.append(annotation)
-
-            self.result_queue.put(annotations)
+            self.result_queue.put(annotation)
 
     def _convert_to_annotation(self, processed_document_variations: List[ProcessedDocument]) -> Annotation:
         annotation = Annotation(
             document_id=processed_document_variations[0].document_id,
             meta_information=MetaInformation(
-                prompt_name=processed_document_variations[0].prompt,
-                # TODO
-                prompt_lang="en",
+                prompt_name=processed_document_variations[0].prompt_name,
+                prompt_lang=processed_document_variations[0].language,
                 model_name=self.llm_rest_client.model_name,
                 raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
             ),
@@ -167,10 +160,9 @@ class DocumentProcessor:
         return annotation
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        return len(document["text"]) > 0 and len(document["id"]) > 0
+        return len(document["text"]) > 0 and len(document["id"]) > 0 and len(document["language"]) > 0
 
-    def _create_batches(self, raw_data_file_paths: List[Path]):
-        batch = []
+    def _load_documents(self, raw_data_file_paths: List[Path]):
         for raw_data_file_path in raw_data_file_paths:
             with open(raw_data_file_path, "r") as fin:
                 while True:
@@ -179,10 +171,17 @@ class DocumentProcessor:
                         break
                     try:
                         document = json.loads(document_string)
-                        document["raw_data_file_path"] = raw_data_file_path
                     except json.JSONDecodeError:
                         logger.warning(f"Error decoding document: {document_string}. Skipping.")
                         continue
+
+                    # Add langauge to document based on jq pattern
+                    langauge = self.jq_language_pattern.input(document).first()
+                    if not langauge:
+                        raise ValueError(f"Could not find language in document: {document}. Check your jq pattern.")
+
+                    document["language"] = langauge
+                    document["raw_data_file_path"] = raw_data_file_path
 
                     if not self._is_valid_document(document):
                         logger.warning(
@@ -190,52 +189,77 @@ class DocumentProcessor:
                             + "Value of key 'text' has length of 0. Skipping."
                         )
                         continue
+                    self.documents_queue.put(document)
 
-                    batch.append(document)
-
-                    if len(batch) % self.batch_size == 0:
-                        self.documents_queue.put(batch)
-                        batch = []
-
-        # If there are remaining documents that didn't fill up a batch
-        if len(batch) > 0:
-            self.documents_queue.put(batch)
-
-        # Add termination signal (None) once all batches are in the queue
+        # Add termination signal (None) once all documents are in the queue
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
 
-    def _write_results(self, out_file_path: Path):
+    def _write_results(self, common_parents_path: Path):
         start_time = time.time()
         results_written = 0
+        open_files = {}
 
-        with out_file_path.open("w") as f:
-            while True:
-                annotations: List[Annotation] = self.result_queue.get()
-                if annotations is None:
+        while True:
+            annotation: Annotation = self.result_queue.get()
+            if annotation is None:
+                for f in open_files.values():
                     f.flush()
-                    break
+                    f.close()
+                break
 
-                for annotation in annotations:
-                    json.dump(annotation.model_dump(), f)
-                    f.write("\n")
-                    results_written += 1
+            out_file_path = self._create_out_file_path(annotation, common_parents_path)
 
-                if results_written % 10 == 0:
-                    f.flush()
-                    end_time = time.time()
-                    elapsed_time = end_time - start_time
-                    results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+            # Open the file if not already open
+            if out_file_path not in open_files:
+                open_files[out_file_path] = open(out_file_path, "a")  # Append mode
 
-                    logger.info(
-                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
-                        f" | Results per second: {results_per_second:.2f}"
-                    )
+            f = open_files[out_file_path]
+
+            if annotation is None:
+                for file in open_files.values():
+                    file.flush()
+                    file.close()
+                break
+
+            json.dump(annotation.model_dump(), f)
+            f.write("\n")
+            results_written += 1
+
+            if results_written % 10 == 0:
+                for file in open_files.values():
+                    file.flush()
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+
+                logger.info(
+                    f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
+                    f" | Results per second: {results_per_second:.2f}"
+                )
 
         logger.info(
             f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
             f" | Results per second: {results_per_second:.2f}"
         )
+
+    def _create_out_file_path(self, annotation: Annotation, common_parents_path: Path) -> Path:
+        input_file_path = Path(annotation.meta_information.raw_data_file_path)
+        relative_input_parents_path = input_file_path.relative_to(common_parents_path)
+        out_file_name = "_".join(
+            [
+                input_file_path.stem,
+                "_annotations",
+                annotation.meta_information.model.replace("/", "--"),
+                annotation.meta_information.prompt_name,
+                annotation.meta_information.prompt_lang,
+                input_file_path.suffix,
+            ]
+        )
+
+        out_dir_path = self.experiment_dir_path / "generated_annotations" / relative_input_parents_path.parent
+        out_dir_path.mkdir(parents=True, exist_ok=True)
+        return out_dir_path / out_file_name
 
     def run(self):
         """Runs the document processor.
@@ -247,14 +271,14 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_paths,))
+        reader = multiprocessing.Process(target=self._load_documents, args=(self.raw_data_file_paths,))
         reader.start()
 
-        writer = multiprocessing.Process(target=self._write_results, args=(self.out_file_path,))
+        writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
         writer.start()
 
         processor_threads = [
-            multiprocessing.Process(target=self._process_documents_batch)
+            multiprocessing.Process(target=self._process_documents)
             for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
@@ -267,105 +291,3 @@ class DocumentProcessor:
         self.result_queue.put(None)
 
         writer.join()
-
-        self._report_statistics()
-
-    def _report_statistics(self):
-        if self.gold_annotations_file_path is not None:
-            report_statistics(
-                results_file_path=self.out_file_path,
-                gold_annotations_file_path=self.gold_annotations_file_path,
-            )
-
-
-class ReportStats(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    mae: float
-    mse: float
-    std: float
-    acc: float
-    confusion_matrix: Dict
-
-
-def report_statistics(results_file_path: Path, gold_annotations_file_path: Path) -> Dict[str, Any]:
-    """Show the comparison between the original and generated score."""
-
-    logger.info("Computing statistics...")
-
-    df = _load_and_validate_as_df(results_file_path)
-    df_gold = _load_and_validate_as_df(gold_annotations_file_path)
-
-    # Merge both dataframes on document_id
-    stats = df.merge(df_gold, on="document_id", suffixes=("_pred", "_gold"))
-
-    # Check for missing documents after merge
-    if len(stats) != len(df_gold):
-        raise ValueError("Mismatch in document counts after merging. Some documents are missing.")
-
-    stats["score_mae"] = (stats["score_pred"] - stats["score_gold"]).abs().mean()
-    stats["score_mse"] = ((stats["score_pred"] - stats["score_gold"]) ** 2).mean()
-    stats["score_std"] = (stats["score_pred"] - stats["score_gold"]).std()
-    stats["accuracy"] = (stats["score_pred"] == stats["score_gold"]).mean()
-
-    # Transform the list of document_processing_status to individual columns and perform value_counts on each column
-    status_counts = (
-        pd.DataFrame(df["document_processing_status"].tolist()).apply(pd.Series.value_counts).fillna(0).astype(int)
-    )
-    status_counts.index = status_counts.index.astype(str)
-    # dict(Counter([error for errors in df["errors"].tolist() for error in errors]))
-    error_counts = pd.DataFrame(df["errors"].tolist()).apply(pd.Series.value_counts)  #
-    error_counts.index = error_counts.index.astype(str)
-
-    statistics_report = {
-        **ReportStats(
-            mae=stats["score_mae"].mean(),
-            mse=stats["score_mse"].mean(),
-            std=stats["score_std"].mean(),
-            acc=stats["accuracy"].mean(),
-            confusion_matrix=pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
-        ).model_dump(),
-        "predicted_scores_mean_std_var": stats["scores_pred"].apply(lambda x: pd.Series(x).std()).mean(),
-        "predicted_score_counts": stats["score_pred"].value_counts().sort_index().to_dict(),
-        "gold_score_counts": stats["score_gold"].value_counts().sort_index().to_dict(),
-        "document_status_counts": status_counts.to_dict(),
-        "error_counts": error_counts.to_dict(),
-        "gold_annotations_file_path": str(gold_annotations_file_path),
-        "predicted_annotations_file_path": str(results_file_path),
-    }
-    logger.info(json.dumps(statistics_report, indent=4))
-
-    output_dir_path = results_file_path.parent
-    with open(output_dir_path / "statistics_report.json", "w") as f:
-        json.dump(statistics_report, f, indent=4)
-
-    return statistics_report
-
-
-def _load_and_validate_as_df(jsonl_file_path: Path) -> pd.DataFrame:
-    annotations = []
-    with open(jsonl_file_path, "r") as f:
-        for line in f:
-            try:
-                annotation = Annotation.model_validate_json(line).model_dump()
-            except Exception as e:
-                # try to convert single scores to list of scores
-                if "id" in line and "score" in line:
-                    json_line = json.loads(line)
-                    annotation = {"document_id": json_line["id"], "scores": [json_line["score"]]}
-                else:
-                    raise ValueError(
-                        f"Abort statistic computations. Error while parsing annotations from {jsonl_file_path}: {e}"
-                    )
-            annotations.append(annotation)
-    df = pd.DataFrame(annotations)
-    df["score"] = df.scores.apply(_get_most_common_score)
-    return df
-
-
-def _get_most_common_score(scores: List[float | None]) -> float | None:
-    """Get the most common score from a list of scores."""
-    most_common_score = Counter([float(score) for score in scores if score is not None]).most_common(1)
-    if most_common_score:
-        return most_common_score[0][0]
-    else:
-        return None
