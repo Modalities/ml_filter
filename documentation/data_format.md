@@ -92,10 +92,11 @@ The scores are provided by the model that was prompted with the prompt defined b
 ```js
 {
    "document_id": "<id>",
-   "scores": [1, 2, 2],
+   "scores": [1, null, 2],
    "explanations": ["<explanation 1>", "<explanation 2>", "<explanation 3>"],
-   "errors": ["<error 1>", "<error 2>", "<error 3>"],
+   "errors": [["<error 1>", "<error 2>"], null, ["<error 3>"]],
    "time_stamps": [1, 2, 3],
+   document_processing_status: ["error_server", "success", "error_server"], 
    "meta_information": {
         "prompt_name": "<prompt_name>",
         "prompt_lang": "<prompt_lang>",
@@ -110,17 +111,19 @@ In ml_filter, we implement the annotations by pydantic data classes. The `Annota
 class MetaInformation(BaseModel):
     """A class representing the meta information for a given document."""
 
-    prompt_name: str
+    prompt: str
     prompt_lang: str
-    model_name: str
+    model: str
+    raw_data_file_path: str
+
 
 class Annotation(BaseModel):
     """A class representing the output document from the model."""
 
     document_id: str
-    scores: List[float] = []
+    scores: List[float | None] = []
     explanations: List[str] = []
-    errors: List[str] = []
+    errors: List[List[str]] = []
     time_stamps: List[int] = []
     document_processing_status: List[DocumentProcessingStatus] = []
     meta_information: MetaInformation

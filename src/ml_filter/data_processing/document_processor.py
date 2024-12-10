@@ -150,10 +150,10 @@ class DocumentProcessor:
         annotation = Annotation(
             document_id=processed_document_variations[0].document_id,
             meta_information=MetaInformation(
-                prompt=processed_document_variations[0].prompt,
+                prompt_name=processed_document_variations[0].prompt,
                 # TODO
                 prompt_lang="en",
-                model=self.llm_rest_client.model_name,
+                model_name=self.llm_rest_client.model_name,
                 raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
             ),
         )
