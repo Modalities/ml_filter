@@ -28,7 +28,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
     
     # Iterate over different prompts
     for prompt in document_scores:
-        df = _prepare_df(document_scores[prompt], aggregation=aggregation)
+        df = _prepare_df(document_scores[prompt])
 
         # Create a histogram for each file's scores
         for version in df.columns:
@@ -36,6 +36,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, aggregation: Union
             sns.set_theme(style='whitegrid')
             plt.figure(figsize=(10, 6))
             scores = df[version]
+
             plt.hist(scores, bins=30, alpha=0.5, label=version, edgecolor='black')
 
             # Add labels, title, and annotations
@@ -77,7 +78,7 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
     
     # Iterate over different prompts
     for prompt in document_scores:
-        df = _prepare_df(document_scores[prompt], aggregation=aggregation)
+        df = _prepare_df(document_scores[prompt])
         
         # Initialize a list to store the differences for each consecutive version pair
         score_differences = {}
@@ -116,36 +117,22 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, agg
         
         plt.figure(figsize=(10, 6))
         plt.boxplot(score_differences_values, labels=labels, showmeans=True)
-        mean_value = np.mean(score_differences_values)
-        median_value = np.median(score_differences_values)
-        q1 = np.percentile(score_differences_values, 25)
-        q3 = np.percentile(score_differences_values, 75)
-
-        plt.annotate(f'Median: {median_value:.2f}', xy=(i + 1, median_value), xytext=(i + 1.1, median_value),
-                        fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='black', arrowstyle='->'))
-        plt.annotate(f'Mean: {mean_value:.2f}', xy=(i + 1, mean_value), xytext=(i + 0.9, mean_value),
-                        fontsize=9, ha='right', va='center', arrowprops=dict(facecolor='red', arrowstyle='->'))
-        # Get the current y-axis limits
-        y_min, y_max = plt.ylim()
-        q1_text_y = max(y_min, min(q1 - 0.5, y_max))
-        plt.annotate(f'Q1: {q1:.2f}', xy=(i + 1, q1), xytext=(i + 1.1, q1_text_y),
-                        fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='blue', arrowstyle='->'))
-        q3_text_y = max(y_min, min(q3 + 0.5, y_max))
-        plt.annotate(f'Q3: {q3:.2f}', xy=(i + 1, q3), xytext=(i + 1.1, q3_text_y),
-                        fontsize=9, ha='left', va='center', arrowprops=dict(facecolor='green', arrowstyle='->'))
 
         plt.ylabel('Score Differences')
-        plt.title(f'Boxplot of {prompt} Score Differences Between Versions - Annotation Method {aggregation}')
+        plt.title(f'Boxplot of {prompt} Score Differences Between Versions - Aggregation Method {aggregation}')
         plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
         
+        # Rotate x-axis labels
+        plt.xticks(rotation=90)
+        plt.tight_layout()
         
         # Save boxplot
         plt.savefig(output_dir / (prompt + f'_score_distributions_difference_boxplot_{aggregation}.png'))
         plt.close()
 
 
-def _prepare_df(document_scores: dict[str, dict[str, float]], aggregation: Union[None, str]) -> pd.DataFrame:
+def _prepare_df(document_scores: dict[str, dict[str, float]]) -> pd.DataFrame:
     """
     Prepares a DataFrame from the document scores dictionary, filtering out incomplete rows.
 
