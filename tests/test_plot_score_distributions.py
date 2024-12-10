@@ -30,8 +30,9 @@ def test_plot_scores(tmp_path, path_to_files):
     
     # Check that the expected files were created
     for prompt in ["edu", "toxic"]:
-        plot_path = output_dir / f"{prompt}_score_distributions.png"
-        assert plot_path.exists(), "Plot file was not created."
+        for version in ["en_test", "de_test"]:
+            plot_path = output_dir / f"{prompt}_score_distributions_{version}.png"
+            assert plot_path.exists(), "Plot file was not created."
 
     # Open and inspect the plot to ensure it is not empty
     plt.imread(plot_path)
@@ -40,13 +41,13 @@ def test_plot_scores(tmp_path, path_to_files):
 def test_plot_differences_in_scores(tmp_path, path_to_files):
     output_dir = tmp_path / "plots"
     output_dir.mkdir()
-    
-    plot_differences_in_scores(path_to_files=path_to_files, output_dir=output_dir, aggregation="mean")
+    aggregation = "mean"
+    plot_differences_in_scores(path_to_files=path_to_files, output_dir=output_dir, aggregation=aggregation)
     
     # Check that the expected files were created
     for prompt in ["edu", "toxic"]:
-        histogram_path = output_dir / f"{prompt}_score_distributions_difference_histogram.png"
-        boxplot_path = output_dir / f"{prompt}_score_distributions_difference_boxplot.png"
+        histogram_path = output_dir / f"{prompt}_score_distributions_difference_histogram_{aggregation}.png"
+        boxplot_path = output_dir / f"{prompt}_score_distributions_difference_boxplot_{aggregation}.png"
         
         assert histogram_path.exists(), "Histogram plot file was not created."
         assert boxplot_path.exists(), "Boxplot file was not created."
