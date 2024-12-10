@@ -24,6 +24,7 @@ dependencies = [
     "accelerate>=0.21.0",
     "python-dotenv",
     "jq",
+    "tabulate",
 ]
 
 [project.optional-dependencies]

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
-from ml_filter.data_processing.document import Annotation
+from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus
 from ml_filter.data_processing.document_processor import logger
 
 
@@ -90,7 +90,12 @@ def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[P
     status_counts = (
         pd.DataFrame(df["document_processing_status"].tolist()).apply(pd.Series.value_counts).fillna(0).astype(int)
     )
-    status_counts.index = status_counts.index.astype(str)
+    status_counts.index = [DocumentProcessingStatus(x).value for x in status_counts.index]
+    if "success" in status_counts.index:
+        success_rate = status_counts.loc["success"] / status_counts.sum()
+    else:
+        success_rate = pd.Series(0.0, index=status_counts.columns)
+
     error_counts = pd.DataFrame(df["errors"].tolist()).apply(pd.Series.value_counts)
     error_counts.index = error_counts.index.astype(str)
 
@@ -109,9 +114,9 @@ def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[P
         "confusion_matrix": pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
         "predicted_score_counts": stats["score_pred"].value_counts().sort_index().to_dict(),
         "gold_score_counts": stats["score_gold"].value_counts().sort_index().to_dict(),
-        "document_status_counts": status_counts.to_dict(),
+        "success_rate": success_rate.to_dict(),
         "error_counts": error_counts.to_dict(),
-        "gold_annotations_file_path": str(gold_annotations_file_paths),
+        "gold_annotations_file_path": [str(x) for x in gold_annotations_file_paths],
         "predicted_annotations_file_path": str(result_dir_path),
         **throughput,
     }
