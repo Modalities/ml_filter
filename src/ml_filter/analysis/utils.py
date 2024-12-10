@@ -3,7 +3,7 @@ from collections import Counter
 import json
 from pathlib import Path
 from statistics import mean
-from typing import Union, List
+from typing import Optional, List
 
 
 def most_frequent_average(values: List[int]) -> float:
@@ -28,7 +28,7 @@ def most_frequent_average(values: List[int]) -> float:
     return sum(most_frequent_values) / len(most_frequent_values)
 
 
-def get_document_scores(path_to_files: list[Path], aggregation: Union[None, str]) -> dict[str, dict[str, float]]:
+def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -> dict[str, dict[str, float]]:
     """
     Extracts the scores and corresponding document ids from a set of jsonl-files.
     
