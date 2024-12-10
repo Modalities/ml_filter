@@ -20,9 +20,9 @@ The common crawl dumps come with the following folder structure:
 [...]
 ```
 
-A dump is defined by the year and an incremental number (format: `yyyy-nn`). Each dump contains a folder for each language. Each language folder contains a number of JSONL files. Each jsonl JSONL contains a number of JSON-formatted documents.
+A dump is defined by the year and an incremental number (format: `yyyy-nn`). Each dump contains a folder for each language. Each language folder contains a number of JSONL files. Each JSONL file contains a number of JSON-formatted documents.
 
-A single document in the JSONL file folows the format below. Besides the raw utf-8 encoded text, it has a unique identifier, metadata, and a number of features extracted from the text.
+A single document in the JSONL file follows the format below. Besides the raw utf-8 encoded text, it has a unique identifier and metadata containing a number of features extracted from the text.
 ```
 {
    "text":"Oscar Isaac im InterviewAls Oscar Isaac erfuhr, dass [...]",
@@ -85,9 +85,9 @@ A single document in the JSONL file folows the format below. Besides the raw utf
 ```
 
 ## Document annotation format
-The annotation format of the a single document is given below. The `document_id` must correspond to the id of the document in the raw data. Note that `document_id` corresponds to `id` in the raw data. This mismatch should be fixed in the future. As a workaround we can search for the presence of either `document_id` or `id` in the raw data.
+The annotation format of the a single document is given below. Note that `document_id` corresponds to `id` in the raw data. This mismatch should be fixed in the future. As a workaround we can search for the presence of either `document_id` or `id` in the raw data.
 
-The scores are provided by the model that was prompted with the prompt defined by `prompt_name` and `prompt_lang`. Note that the scores are defined as a list, as the model potentially scores the document multiple times to estimate model uncertainty. Further information such as the model generated score explanations and possible errors and the timestamp are added. 
+The scores are provided by the model `model_name` that was prompted with the prompt defined by `prompt_name` and `prompt_lang`. Note that the scores are defined as a list, as the model potentially scores the document multiple times to estimate model uncertainty. Further information such as the model generated score explanations and possible errors and the timestamp are added. 
 
 ```js
 {
@@ -137,16 +137,16 @@ There are four main data pipelines in Eurolingua. All of these piplines **never*
 
 The following sections describe the data format for each of these pipelines.
 
-## Prompt-based annotation pipeline
+## 1. Prompt-based annotation pipeline
 
 The prompt-based pipeline expects the provided raw data to be stored in a folder structure as described above. The output of the pipeline is a set of annotation files, one for each raw JSONL file.
 
-For a given raw JSONL file, the corresponding annotation file must follow the format: `<original_file_name>__annotations_<mdoel_name>_<prompt_name>_<language>.jsonl`,
+For a given raw JSONL file, the corresponding annotation file must follow the format: `<original_file_name>__annotations_<model_name>_<prompt_name>_<language>.jsonl`,
 e.g., `00009__annotations_meta-llama--Llama-3.1-70B-Instruct_fine_web_edu_en.jsonl` for `00009.jsonl`.
 
 
 A fully annotated CC corpus (i.e., the set of annotation files) must be stored in a folder structure that mirrors the raw data folder structure, such that each annotation file can be mapped back to the raw data file. A simplification of this is to store the data in the same folder structure as the raw data. 
-The pipeline creates the mirrored folder structure within the `<output_directory_path>/<experiments_directory>/generated_annotations`. The <output_directory_path> is specified in the pipeline settings, the <experiments_directory> and the `generated_annotations` folder are created automatically be the prompt-based annotation pipeline: e.g.: `data/output/2024-12-06__13-20-48__eabd8b7b/generated_annotations`. 
+The pipeline creates the mirrored folder structure within the `<output_directory_path>/<experiments_directory>/generated_annotations`. The `<output_directory_path>` is specified in the pipeline settings, the `<experiments_directory>` and the `generated_annotations` folder are created automatically be the prompt-based annotation pipeline: e.g.: `data/output/2024-12-06__13-20-48__eabd8b7b/generated_annotations`. 
 
 ```
 generated_annotations
@@ -165,10 +165,10 @@ generated_annotations
 [...]
 ```
 
-## Classifier training pipeline
+## 2. Classifier training pipeline
 The classifier training pipeline requires the root folders of the raw data and the annotations, following the format for raw data and annotations described above. The pipeline itself does not create any new data, but it trains a classifier model that can be used in the inference pipeline.
 
-## Inferencing data
+## 3. Inferencing data
 
 Before running the inference pipeline, the raw data must be tokenized. To achieve this each file is tokenized individually using modalities's tokenization functionality. Tokenization is a two step process involving [indexation](https://github.com/Modalities/modalities?tab=readme-ov-file#raw-training-dataset-indexation) and [tokenization](https://github.com/Modalities/modalities?tab=readme-ov-file#raw-training-dataset-tokenization).  
 
@@ -192,8 +192,8 @@ The result is a folder structure that mirrors the raw data folder structure, wit
 
 The output of this pipeline is equivalent to the prompt-based pipeline.
 
-## Sampling raw data
-Sampling of raw data (the creation of a CC subset) is required for the prompt-based pipeline and for LLM training. The prompt-based pipeline samples from the CC corpus in a language-stratified fashion, leading to a language-balanced dataset. For other usecases we also support random sampling, where the probability of a document being selected is 1/(total number of documents).
+## 4. Sampling raw data
+Sampling of raw data (the creation of a CC subset) is required for the prompt-based pipeline and for LLM training. The prompt-based pipeline samples from the CC corpus in a language-stratified fashion, leading to a language-balanced dataset. For other use cases we also support random sampling, where the probability of a document being selected is 1/(total number of documents).
 
 To make the sampling process more efficient, we create a sampling index for each raw JSONL file, as described in the [Modalities documentation](https://github.com/Modalities/modalities?tab=readme-ov-file#raw-training-dataset-indexation). The resulting folder structure is shown below.
 
