@@ -1,6 +1,6 @@
 experiment_dir_paths:
-  - data/output/2024-12-09__15-46-25__cda513d9
-  - data/output/2024-12-09__15-54-16__cda513d9
+  - data/output/2024-12-10__10-56-59__cda513d9
+  - data/output/2024-12-10__10-57-44__cda513d9
 experiment_config_file_name: lorem_ipsum.yaml
 gold_annotations_file_paths: 
 - data/dev_dump/a/dev_data_ml_filter_511_head_10.jsonl

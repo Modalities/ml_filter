@@ -253,7 +253,7 @@ class DocumentProcessor:
                     "documents_per_second": results_per_second,
                     "mean_out_tokens_per_second": total_out_tokens_per_second / results_written,
                     "model_name": self.llm_rest_client.model_name,
-                    "num_gpus": self.llm_rest_client.num_gpus,
+                    "temperature": self.llm_rest_client.temperature,
                     "queue_size": self.queue_size,
                     "num_processes": self.num_processes,
                     "max_new_tokens": self.llm_rest_client.max_new_tokens,

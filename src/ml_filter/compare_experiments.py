@@ -94,21 +94,24 @@ def _get_markdown_report(df: pd.DataFrame) -> str:
             df = df.sort_values(by=ranking_column, ascending=True).reset_index(drop=True)
 
     # Add rank column
-    df["Rank"] = df.index + 1
+    df["rank"] = df.index + 1
 
     # Create markdown content
     markdown_lines = []
 
     markdown_lines.append("# Experiment Report\n")
 
+    gold_annotation_paths = df["gold_annotations_file_path"].iloc[0]
+    markdown_lines.append(f"Gold Annotations File Paths: {gold_annotation_paths}\n")
+
+    # TODO: make a pydantic StatisticReport to avoid maintaining the list of columns in multiple places
     # Scalar columns
     scalar_columns = [
-        "Rank",
+        "rank",
         "mae",
         "mse",
         "std",
         "acc",
-        "gold_annotations_file_path",
         "predicted_annotations_file_path",
         "model_name",
         "add_generation_prompt",
@@ -121,6 +124,7 @@ def _get_markdown_report(df: pd.DataFrame) -> str:
         "queue_size",
         "num_processes",
         "max_new_tokens",
+        "temperature",
     ]
 
     # Ensure scalar columns exist
@@ -130,10 +134,10 @@ def _get_markdown_report(df: pd.DataFrame) -> str:
     markdown_lines.append("## Scalar Metrics Across Experiments\n")
 
     scalar_df = df[scalar_columns].T
-    # bold all labels in the index and use Rank as new columns
+    # bold all labels in the index and use rank as new columns
     df.index = [f"**{idx}**" for idx in df.index]
-    scalar_df.columns = df["Rank"]
-    scalar_df.columns.name = "Rank"
+    scalar_df.columns = df["rank"]
+    scalar_df.columns.name = "rank"
 
     scalar_table = scalar_df.to_markdown(index=True)
     markdown_lines.append(scalar_table)
@@ -154,29 +158,29 @@ def _get_markdown_report(df: pd.DataFrame) -> str:
 
     # For each experiment, collect sub-dfs
     for idx, row in df.iterrows():
-        rank = row["Rank"]
+        rank = row["rank"]
         model_name = row.get("model_name", "N/A")
 
         for sub_col in sub_df_columns:
             sub_data = row[sub_col]
 
             if isinstance(sub_data, pd.DataFrame):
-                # Add Rank and model_name columns to sub_data
+                # Add rank and model_name columns to sub_data
                 sub_data = sub_data.copy()
-                sub_data["Rank"] = rank
+                sub_data["rank"] = rank
                 sub_data["model_name"] = model_name
-                # Reorder columns to have Rank and model_name first
-                cols = ["Rank", "model_name"] + [col for col in sub_data.columns if col not in ["Rank", "model_name"]]
+                # Reorder columns to have rank and model_name first
+                cols = ["rank", "model_name"] + [col for col in sub_data.columns if col not in ["rank", "model_name"]]
                 sub_data = sub_data[cols]
                 sub_df_combined[sub_col].append(sub_data)
 
             elif isinstance(sub_data, pd.Series):
                 # Convert Series to DataFrame
                 sub_df = sub_data.to_frame().T  # Transpose to make it a single row DataFrame
-                sub_df["Rank"] = rank
+                sub_df["rank"] = rank
                 sub_df["model_name"] = model_name
                 # Reorder columns
-                cols = ["Rank", "model_name"] + [col for col in sub_df.columns if col not in ["Rank", "model_name"]]
+                cols = ["rank", "model_name"] + [col for col in sub_df.columns if col not in ["rank", "model_name"]]
                 sub_df = sub_df[cols]
                 sub_df_combined[sub_col].append(sub_df)
 
@@ -187,10 +191,10 @@ def _get_markdown_report(df: pd.DataFrame) -> str:
                     sub_df = pd.DataFrame([sub_data])
                 else:
                     sub_df = pd.json_normalize(sub_data)
-                sub_df["Rank"] = rank
+                sub_df["rank"] = rank
                 sub_df["model_name"] = model_name
                 # Reorder columns
-                cols = ["Rank", "model_name"] + [col for col in sub_df.columns if col not in ["Rank", "model_name"]]
+                cols = ["rank", "model_name"] + [col for col in sub_df.columns if col not in ["rank", "model_name"]]
                 sub_df = sub_df[cols]
                 sub_df_combined[sub_col].append(sub_df)
 
@@ -212,7 +216,7 @@ def _get_markdown_report(df: pd.DataFrame) -> str:
 
     not_combine_columns = [col for col in ["confusion_matrix", "error_counts"] if col in df.columns]
     for idx, row in df.iterrows():
-        rank = row["Rank"]
+        rank = row["rank"]
         model_name = row.get("model_name", "N/A")
         experiment_path = row.get("experiment_path", "N/A")
         markdown_lines.append(f"\n## {model_name} ranked {rank} in Exp {experiment_path}\n")
