@@ -45,27 +45,25 @@ class ClassifierTrainingPipeline:
         self._initialize_model(cfg)
 
         # Initialize dataset
-        self._dataset_initialization(cfg)
+        self._initialize_dataset_tokenizer(cfg)
 
-    def _dataset_initialization(self, cfg):
-        # Tokenizer
-        self.tokenizer = PreTrainedHFTokenizer(
-            pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
-            truncation=cfg.tokenizer.truncation,
-            padding=cfg.tokenizer.padding,
-            max_length=cfg.tokenizer.max_length,
-            add_generation_prompt=False
-        )
+    def _set_seeds(self):
+        """Set seeds for reproducibility"""
+        import random
 
-        # Tokenizer for
-        self.dataset_tokenizer = DatasetTokenizer(
-            tokenizer=self.tokenizer.tokenizer,
-            text_column=self.sample_key,
-            label_column=self.sample_label,
-            output_names=self.output_names,
-            max_length=cfg.tokenizer.max_length,
-            regression=self.regression_loss
-        )
+        import numpy as np
+
+        torch.manual_seed(self.seed)
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(self.seed)
+            torch.cuda.manual_seed_all(self.seed)
+
+            # the following are needed for exact reproducibility across GPUs and runs
+            # but slow things down. Don't use them in production.
+            # torch.backends.cudnn.deterministic = True
+            # torch.backends.cudnn.benchmark = False
 
     def _extract_config_from_cfg(self, cfg: Dict):
 
@@ -104,6 +102,57 @@ class ClassifierTrainingPipeline:
         self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
         self.output_names = cfg.data.output_names
 
+    def _initialize_model(self, cfg):
+        """Initialize and configure the model based on the provided configuration."""
+        model_name = cfg.model.name
+        model_args = {
+            "num_regressor_outputs": cfg.data.num_regressor_outputs,
+            "num_classes_per_output": torch.tensor(cfg.data.num_classes_per_output),
+            "regression": cfg.training.regression_loss
+        }
+
+        # Initialize base model
+        if isinstance(model_name, str):
+            if "xlm-roberta" in model_name.lower():
+                self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
+                    model_name, **model_args
+                )
+            elif "snowflake-arctic" in model_name.lower():
+                self.model = BertForMultiTargetClassification.from_pretrained(
+                    model_name, **model_args
+                )
+            else:
+                raise NotImplementedError(
+                    f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."
+                )
+        else:
+            raise ValueError(f"Model name must be a string, got {type(model_name)}")
+        
+        # Freeze encoder if specified
+        if cfg.model.get("freeze_encoder", False):
+            self._freeze_encoder()
+
+
+    def _initialize_dataset_tokenizer(self, cfg):
+        # Tokenizer
+        self.tokenizer = PreTrainedHFTokenizer(
+            pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
+            truncation=cfg.tokenizer.truncation,
+            padding=cfg.tokenizer.padding,
+            max_length=cfg.tokenizer.max_length,
+            add_generation_prompt=False
+        )
+
+        # Tokenizer for
+        self.dataset_tokenizer = DatasetTokenizer(
+            tokenizer=self.tokenizer.tokenizer,
+            text_column=self.sample_key,
+            label_column=self.sample_label,
+            output_names=self.output_names,
+            max_length=cfg.tokenizer.max_length,
+            regression=self.regression_loss
+        )
+
     def _freeze_encoder(self):
         """Freezes all encoder parameters, so that only the classifier is trained."""
         
@@ -123,24 +172,6 @@ class ClassifierTrainingPipeline:
                 param.requires_grad = True
         else:
             raise NotImplementedError(f"Freezing encoder not implemented for model type {type(self.model)}")
-
-    def _set_seeds(self):
-        """Set seeds for reproducibility"""
-        import random
-
-        import numpy as np
-
-        torch.manual_seed(self.seed)
-        random.seed(self.seed)
-        np.random.seed(self.seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(self.seed)
-            torch.cuda.manual_seed_all(self.seed)
-
-            # the following are needed for exact reproducibility across GPUs and runs
-            # but slow things down. Don't use them in production.
-            # torch.backends.cudnn.deterministic = True
-            # torch.backends.cudnn.benchmark = False
 
     def _create_training_arguments(self) -> TrainingArguments:
         return TrainingArguments(
@@ -272,32 +303,3 @@ class ClassifierTrainingPipeline:
         trainer.train()
         trainer.save_model(os.path.join(self.output_dir, "final"))
 
-    def _initialize_model(self, cfg):
-        """Initialize and configure the model based on the provided configuration."""
-        model_name = cfg.model.name
-        model_args = {
-            "num_regressor_outputs": cfg.data.num_regressor_outputs,
-            "num_classes_per_output": torch.tensor(cfg.data.num_classes_per_output),
-            "regression": cfg.training.regression_loss
-        }
-
-        # Initialize base model
-        if isinstance(model_name, str):
-            if "xlm-roberta" in model_name.lower():
-                self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
-                    model_name, **model_args
-                )
-            elif "snowflake-arctic" in model_name.lower():
-                self.model = BertForMultiTargetClassification.from_pretrained(
-                    model_name, **model_args
-                )
-            else:
-                raise NotImplementedError(
-                    f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."
-                )
-        else:
-            raise ValueError(f"Model name must be a string, got {type(model_name)}")
-        
-        # Freeze encoder if specified
-        if cfg.model.get("freeze_encoder", False):
-            self._freeze_encoder()
