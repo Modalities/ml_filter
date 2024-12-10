@@ -92,13 +92,13 @@ def test_get_document_scores():
         # Test aggregation: None
         result = get_document_scores([file1, file2], aggregation=None)
         expected = {
-            "prompt1": {
-                "doc1": {"lang1_model1": [3, 3, 4]},  # most_frequent_average([3, 3, 4])
-                "doc2": {"lang1_model1": [1, 2, 2]},  # most_frequent_average([1, 2, 2])
+            'prompt1': {
+                'doc1': {'lang1_model1_0': 3, 'lang1_model1_1': 3, 'lang1_model1_2': 4},
+                'doc2': {'lang1_model1_0': 1, 'lang1_model1_1': 2, 'lang1_model1_2': 2}
             },
-            "prompt2": {
-                "doc1": {"lang2_model2": [5, 5, 5]},  # most_frequent_average([5, 5, 5])
-                "doc2": {"lang2_model2": [4, 4, 4]},  # most_frequent_average([4, 4, 4])
+            'prompt2': {
+                'doc1': {'lang2_model2_0': 5, 'lang2_model2_1': 5, 'lang2_model2_2': 5},
+                'doc2': {'lang2_model2_0': 4, 'lang2_model2_1': 4, 'lang2_model2_2': 4}
             }
         }
         assert result == expected
