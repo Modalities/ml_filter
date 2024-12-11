@@ -146,7 +146,7 @@ class DocumentProcessor:
             meta_information=MetaInformation(
                 prompt_name=processed_document_variations[0].prompt_name,
                 prompt_lang=processed_document_variations[0].language,
-                model=self.llm_rest_client.model_name,
+                model_name=self.llm_rest_client.model_name,
                 raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
             ),
         )
@@ -257,7 +257,7 @@ class DocumentProcessor:
             ]
         )
 
-        out_dir_path = self.experiment_dir_path / relative_input_parents_path.parent
+        out_dir_path = self.experiment_dir_path / "generated_annotations" / relative_input_parents_path.parent
         out_dir_path.mkdir(parents=True, exist_ok=True)
         return out_dir_path / out_file_name
 
