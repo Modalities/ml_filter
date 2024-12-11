@@ -6,6 +6,8 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+from ml_filter.analysis.plot_score_distributions import plot_scores, plot_differences_in_scores
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
@@ -45,6 +47,22 @@ target_language_codes_option = click.option(
     required=True,
     help="Comma-separated list of languages.",
 )
+
+aggregation_option = click.option(
+    "--aggregation",
+    type=str,
+    required=False,
+    help="""
+        Specifies how scores for a document from the same file are aggregated. If not set, no aggregation will be done (used for individual annotator analysis).
+        Supported values:
+        - "mean": Compute the average score.
+        - "max": Use the maximum score.
+        - "min": Use the minimum score.
+        - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
+    """
+)
+
+path_to_files_argument = click.argument('path_to_files', nargs=-1, type=click.Path(path_type=Path))
 
 
 @click.group()
@@ -180,6 +198,51 @@ def translate_flat_yaml_cli(
         target_language_codes=target_language_codes_list,
     )
 
+
+@main.command(name="interrater_reliability")
+@path_to_files_argument
+@click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Write the computed metrics to this json-file.",
+)
+@aggregation_option
+
+def interrater_reliability_cli(
+    path_to_files: tuple[Path],
+    output_file_path: Path,
+    aggregation: Optional[str] = None
+):
+    compute_interrater_reliability_metrics(
+        path_to_files=path_to_files,
+        output_file_path=output_file_path,
+        aggregation=aggregation,
+    )
+
+
+@main.command(name="plot_scores")
+@path_to_files_argument
+@click.option('--output_dir', type=str, required=True)
+@aggregation_option
+def plot_scores_cli(
+    path_to_files: tuple[Path],
+    output_dir: str,
+    aggregation: Optional[str] = None
+) -> None:
+    """Plot the differences in scores."""
+    path_to_files = [Path(p) for p in path_to_files]
+    plot_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation
+    )
+    plot_differences_in_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation
+    )
+    
 
 @main.command(name="translate_jsonl_to_multiple_languages_cli")
 @input_file_path_option
