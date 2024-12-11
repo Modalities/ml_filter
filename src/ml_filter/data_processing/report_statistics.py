@@ -1,22 +1,34 @@
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict
+from omegaconf import OmegaConf
+from pydantic import BaseModel
 
 from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus
 from ml_filter.data_processing.document_processor import logger
 
 
-class ReportStats(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    mae: float
-    mse: float
-    error_mean_std: float
-    acc: float
-    predicted_scores_mean_std_var: float
+class ThroughputStatisticReport(BaseModel):
+    """A class representing the throughput statistics report."""
+
+    mean_regex_match_rate: float
+    experiment_path: str
+    num_gpus: int
+    add_generation_prompt: bool
+
+    # provided by throughput.json
+    mean_out_tokens_per_second: float
+    num_documents_written: int
+    elapsed_time_s: float
+    documents_per_second: float
+    model_name: str
+    temperature: float
+    queue_size: int
+    num_processes: int
+    max_new_tokens: int
 
 
 def _get_most_common_score(scores: List[float | None]) -> float | None:
@@ -47,10 +59,13 @@ def _load_validated_jsonl_as_dataframe(jsonl_file_path: Path) -> pd.DataFrame:
             try:
                 annotation = Annotation.model_validate_json(line).model_dump()
             except Exception as e:
-                # try to convert single scores to list of scores
-                if "id" in line and "score" in line:
-                    json_line = json.loads(line)
-                    annotation = {"document_id": json_line["id"], "scores": [json_line["score"]]}
+                # minimal set for human annotatations
+                entry = json.loads(line)
+                if "document_id" in entry.keys() and "scores" in entry.keys():
+                    annotation = {"document_id": entry["document_id"], "scores": entry["scores"]}
+                # minimal set for inital Llama annotatations
+                elif "id" in entry.keys() and "score" in entry.keys():
+                    annotation = {"document_id": entry["id"], "scores": [entry["score"]]}
                 else:
                     raise ValueError(
                         f"Abort statistic computations. Error while parsing annotations from {jsonl_file_path}: {e}"
@@ -61,30 +76,18 @@ def _load_validated_jsonl_as_dataframe(jsonl_file_path: Path) -> pd.DataFrame:
     return df
 
 
-def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[Path]) -> Dict[str, Any]:
+def report_throughput_statistics(result_dir_path: Path, exp_config_filename: str) -> ThroughputStatisticReport:
     """Show the comparison between the original and generated score."""
+
+    exp_config = OmegaConf.load(result_dir_path / exp_config_filename)
 
     logger.info(
         "Computing statistics by selecting the most common score when multiple scores per document "
         + "were predicted..."
     )
-    # Load all gold annotations across multiple files
-    df_gold = pd.concat(list(map(_load_validated_jsonl_as_dataframe, gold_annotations_file_paths)))
 
     # Load all annotated results across multiple files
     df = pd.concat(list(map(_load_validated_jsonl_as_dataframe, result_dir_path.glob("**/*__annotations_*.jsonl"))))
-
-    # Merge both dataframes on document_id
-    stats = df.merge(df_gold, on="document_id", suffixes=("_pred", "_gold"))
-
-    # Check for missing documents after merge
-    if len(stats) != len(df_gold):
-        raise ValueError("Mismatch in document counts after merging. Some documents are missing.")
-
-    stats["score_mae"] = (stats["score_pred"] - stats["score_gold"]).abs().mean()
-    stats["score_mse"] = ((stats["score_pred"] - stats["score_gold"]) ** 2).mean()
-    stats["score_std"] = (stats["score_pred"] - stats["score_gold"]).std()
-    stats["accuracy"] = (stats["score_pred"] == stats["score_gold"]).mean()
 
     # Transform the list of document_processing_status to individual columns and perform value_counts on each column
     status_counts = (
@@ -92,38 +95,24 @@ def report_statistics(result_dir_path: Path, gold_annotations_file_paths: List[P
     )
     status_counts.index = [DocumentProcessingStatus(x).value for x in status_counts.index]
     if "success" in status_counts.index:
-        success_rate = status_counts.loc["success"] / status_counts.sum()
+        mean_regex_match_rate = (status_counts.loc["success"] / status_counts.sum()).mean()
     else:
-        success_rate = pd.Series(0.0, index=status_counts.columns)
-
-    error_counts = pd.DataFrame(df["errors"].tolist()).apply(pd.Series.value_counts)
-    error_counts.index = error_counts.index.astype(str)
+        mean_regex_match_rate = 0.0
 
     # load throughput information
     with open(result_dir_path / "throughput.json", "r") as f:
         throughput = json.load(f)
 
-    statistics_report = {
-        **ReportStats(
-            mae=stats["score_mae"].mean(),
-            mse=stats["score_mse"].mean(),
-            error_mean_std=stats["score_std"].mean(),
-            acc=stats["accuracy"].mean(),
-            predicted_scores_mean_std_var=stats["scores_pred"].apply(lambda x: pd.Series(x).std()).mean(),
-        ).model_dump(),
-        "confusion_matrix": pd.crosstab(stats["score_gold"], stats["score_pred"]).to_dict(),
-        "predicted_score_counts": stats["score_pred"].value_counts().sort_index().to_dict(),
-        "gold_score_counts": stats["score_gold"].value_counts().sort_index().to_dict(),
-        "success_rate": success_rate.to_dict(),
-        "error_counts": error_counts.to_dict(),
-        "gold_annotations_file_path": [str(x) for x in gold_annotations_file_paths],
-        "predicted_annotations_file_path": str(result_dir_path),
+    statistics_report = ThroughputStatisticReport(
+        mean_regex_match_rate=mean_regex_match_rate,
+        add_generation_prompt=exp_config.tokenizer.add_generation_prompt,
+        experiment_path=str(result_dir_path),
+        num_gpus=exp_config.settings.num_gpus,
         **throughput,
-    }
-    logger.info(json.dumps(statistics_report, indent=4))
-
-    output_dir_path = result_dir_path.parent
-    with open(output_dir_path / "statistics_report.json", "w") as f:
-        json.dump(statistics_report, f, indent=4)
+    )
+    out_file_path = result_dir_path / "statistics_report.json"
+    with open(out_file_path, "w") as f:
+        json.dump(statistics_report.model_dump(), f, indent=4)
+    logger.info(f"Statistics report saved to {out_file_path}")
 
     return statistics_report

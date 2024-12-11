@@ -1,10 +1,8 @@
 experiment_dir_paths:
-  - data/output/2024-12-10__10-56-59__cda513d9
-  - data/output/2024-12-10__10-57-44__cda513d9
+  - data/output/2024-12-11__14-51-24__4ecfea30
+  - data/output/2024-12-11__14-52-17__e06b8c1d
 experiment_config_file_name: lorem_ipsum.yaml
-gold_annotations_file_paths: 
-- data/dev_dump/a/dev_data_ml_filter_511_head_10.jsonl
 output_format:
-  - sort_by_metric:  mae
+  - sort_by_metric:  mean_out_tokens_per_second
     ascending: false
-  
+
