@@ -28,3 +28,4 @@ prompt: 'Nedenfor er et uddrag fra en webside. Vurder, om siden har en høj udda
   extract: {placeholder}.</notranslate>\nEfter at have gennemgået uddraget:\n Begrund
   kort din samlede score, op til 100 ord.\nSlut af med scoren ved hjælp af formatet:
   <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

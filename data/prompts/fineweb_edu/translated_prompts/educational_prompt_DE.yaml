@@ -31,3 +31,4 @@ prompt: 'Nachfolgend finden Sie einen Auszug aus einer Webseite. Beurteilen Sie,
   extract: {placeholder}.</notranslate>\nNach der Prüfung des Auszugs:\n Begründen
   Sie kurz Ihre Gesamtpunktzahl, bis zu 100 Wörter.\nSchließen Sie mit der Punktzahl
   unter Verwendung des Formats: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

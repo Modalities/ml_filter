@@ -29,3 +29,4 @@ prompt: 'A continuación se muestra un extracto de una página web. Evalúe si l
   de examinar el extracto:\n Justifique brevemente su puntuación total, con un máximo
   de 100 palabras.\nConcluya con la puntuación utilizando el formato: <notranslate>''Educational
   score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

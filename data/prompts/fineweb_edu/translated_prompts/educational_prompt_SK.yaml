@@ -26,3 +26,4 @@ prompt: 'Nižšie je uvedený výňatok z webovej stránky. Posúďte, či má s
   extract: {placeholder}.</notranslate>\nPo preskúmaní úryvku:\n Stručne zdôvodnite
   svoj celkový počet bodov, maximálne 100 slov.\nZáver s bodovým hodnotením urobte
   vo formáte: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

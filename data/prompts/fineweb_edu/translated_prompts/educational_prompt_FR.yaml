@@ -30,3 +30,4 @@ prompt: 'Vous trouverez ci-dessous un extrait d''une page web. Évaluez si la pa
   extract: {placeholder}.</notranslate>\NAprès avoir examiné l''extrait:\Njustifiez
   brièvement votre note totale, jusqu''à 100 mots.\NConcluez avec la note en utilisant
   le format : <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

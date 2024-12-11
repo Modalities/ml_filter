@@ -27,3 +27,4 @@ prompt: 'Poniżej znajduje się fragment strony internetowej. Oceń, czy strona 
   złożonych treści.\n <notranslate>The extract: {placeholder}.</notranslate>\nPo przeanalizowaniu
   fragmentu: \n Krótko uzasadnij swoją całkowitą ocenę, do 100 słów.\nZakończ ocenę,
   używając formatu: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

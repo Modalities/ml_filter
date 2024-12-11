@@ -27,3 +27,4 @@ prompt: 'Ниже приведена выдержка из веб-страниц
   непедагогического или сложного содержания.\n <notranslate>The extract: {placeholder}.</notranslate>\nПосле
   изучения отрывка:\n Кратко обоснуйте свою общую оценку, до 100 слов.\nЗакончите
   оценку, используя формат: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu
