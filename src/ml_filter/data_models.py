@@ -6,42 +6,56 @@ from pydantic import BaseModel, Field
 
 # Define DecodingStrategy Enum
 class DecodingStrategy(str, Enum):
-    greedy = "greedy"
-    beam_search = "beam_search"
-    top_k = "top_k"
-    top_p = "top_p"
+    """Decoding strategies for text generation models"""
+
+    GREEDY = "greedy"
+    BEAM_SEARCH = "beam_search"
+    TOP_K = "top_k"
+    TOP_P = "top_p"
 
 
 # Base class for decoding strategy parameters
 class DecodingParameters(BaseModel):
+    """Decoding strategy parameters"""
+
     strategy: DecodingStrategy
 
 
 # Decoding strategy parameter classes
 class GreedyParameters(DecodingParameters):
-    strategy: DecodingStrategy = Field(default=DecodingStrategy.greedy)
+    """Greedy decoding strategy parameters"""
+
+    strategy: DecodingStrategy = Field(default=DecodingStrategy.GREEDY)
 
 
 class BeamSearchParameters(DecodingParameters):
-    strategy: DecodingStrategy = Field(default=DecodingStrategy.beam_search)
+    """Beam search decoding strategy parameters"""
+
+    strategy: DecodingStrategy = Field(default=DecodingStrategy.BEAM_SEARCH)
     num_beams: int
     early_stopping: bool
 
 
 class TopKParameters(DecodingParameters):
-    strategy: DecodingStrategy = Field(default=DecodingStrategy.top_k)
+    """Top-K decoding strategy parameters"""
+
+    strategy: DecodingStrategy = Field(default=DecodingStrategy.TOP_K)
     top_k: int
     temperature: float
 
 
 class TopPParameters(DecodingParameters):
-    strategy: DecodingStrategy = Field(default=DecodingStrategy.top_p)
+    """Top-P decoding strategy parameters"""
+
+    strategy: DecodingStrategy = Field(default=DecodingStrategy.TOP_P)
     top_p: float
     temperature: float
 
 
 # General Information about a document
 class DocumentInfo(BaseModel):
+    """General information about a document"""
+
     document_id: str
     prompt: str
     prompt_lang: str
@@ -50,18 +64,21 @@ class DocumentInfo(BaseModel):
     decoding_parameters: Union[GreedyParameters, BeamSearchParameters, TopKParameters, TopPParameters]
 
 
-# Statistical correlations for performance evaluation
 class CorrelationMetrics(BaseModel):
+    """Correlation metrics for performance evaluation"""
+
     correlation: Dict[str, Dict[str, float]]  # Correlation per ground truth approach
 
 
-# T-Test and p-value results for performance evaluation
 class TTestResults(BaseModel):
+    """T-Test results for performance evaluation"""
+
     t_test_p_values: Dict[str, float]  # p-values for each ground truth approach
 
 
-# Complete statistical report combining various metrics
 class StatisticReport(BaseModel):
+    """Complete statistical report combining various metrics"""
+
     document_info: DocumentInfo
     correlation_metrics: CorrelationMetrics
     t_test_results: TTestResults
