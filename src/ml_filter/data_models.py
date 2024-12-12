@@ -32,7 +32,7 @@ class BeamSearchParameters(DecodingParameters):
     """Beam search decoding strategy parameters"""
 
     strategy: DecodingStrategy = Field(default=DecodingStrategy.BEAM_SEARCH)
-    num_beams: int
+    num_beams: int = Field(..., gt=0, description="Number of beams must be greater than 0.")
     early_stopping: bool
 
 
@@ -40,16 +40,18 @@ class TopKParameters(DecodingParameters):
     """Top-K decoding strategy parameters"""
 
     strategy: DecodingStrategy = Field(default=DecodingStrategy.TOP_K)
-    top_k: int
-    temperature: float
+    top_k: int = Field(..., gt=0, description="Number of top candidates to consider. Must be greater than 0.")
+    temperature: float = Field(..., gt=0, description="Sampling temperature. Must be greater than 0.")
 
 
 class TopPParameters(DecodingParameters):
     """Top-P decoding strategy parameters"""
 
     strategy: DecodingStrategy = Field(default=DecodingStrategy.TOP_P)
-    top_p: float
-    temperature: float
+    top_p: float = Field(
+        ..., gt=0, le=1, description="Cumulative probability for nucleus sampling. Must be in the range (0, 1]."
+    )
+    temperature: float = Field(..., gt=0, description="Sampling temperature. Must be greater than 0.")
 
 
 # General Information about a document
