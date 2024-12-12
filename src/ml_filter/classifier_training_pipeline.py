@@ -3,31 +3,26 @@ from pathlib import Path
 from typing import Dict
 
 import numpy as np
-
 import torch
-from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
 from torch import Tensor
 from transformers import (
-    AutoModelForSequenceClassification,
     BertForSequenceClassification,
     DataCollatorWithPadding,
     EvalPrediction,
-    RobertaForSequenceClassification,
     Trainer,
     TrainingArguments,
     XLMRobertaForSequenceClassification,
 )
 from transformers.modeling_outputs import SequenceClassifierOutput
 
+from ml_filter.dataset_tokenizer import DatasetTokenizer
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import (
-    XLMRobertaForMultiTargetClassification,
     BertForMultiTargetClassification,
-    compute_metrics_for_single_output
+    XLMRobertaForMultiTargetClassification,
+    compute_metrics_for_single_output,
 )
-from ml_filter.dataset_tokenizer import DatasetTokenizer
 
 
 class ClassifierTrainingPipeline:
@@ -40,7 +35,7 @@ class ClassifierTrainingPipeline:
             self._set_seeds()
 
         self._extract_config_from_cfg(cfg)
-        
+
         # Initialize model
         self._initialize_model(cfg)
 
@@ -66,7 +61,6 @@ class ClassifierTrainingPipeline:
             # torch.backends.cudnn.benchmark = False
 
     def _extract_config_from_cfg(self, cfg: Dict):
-
         # Data
         self.train_data_file_path = cfg.data.train_file_path
         self.train_data_split = cfg.data.train_file_split
@@ -108,30 +102,25 @@ class ClassifierTrainingPipeline:
         model_args = {
             "num_regressor_outputs": cfg.data.num_regressor_outputs,
             "num_classes_per_output": torch.tensor(cfg.data.num_classes_per_output),
-            "regression": cfg.training.regression_loss
+            "regression": cfg.training.regression_loss,
         }
 
         # Initialize base model
         if isinstance(model_name, str):
             if "xlm-roberta" or "xlm-v" in model_name.lower():
-                self.model = XLMRobertaForMultiTargetClassification.from_pretrained(
-                    model_name, **model_args
-                )
+                self.model = XLMRobertaForMultiTargetClassification.from_pretrained(model_name, **model_args)
             elif "snowflake-arctic" in model_name.lower():
-                self.model = BertForMultiTargetClassification.from_pretrained(
-                    model_name, **model_args
-                )
+                self.model = BertForMultiTargetClassification.from_pretrained(model_name, **model_args)
             else:
                 raise NotImplementedError(
-                    f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."
+                    f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."  # noqa
                 )
         else:
             raise ValueError(f"Model name must be a string, got {type(model_name)}")
-        
+
         # Freeze encoder if specified
         if cfg.model.get("freeze_encoder", False):
             self._freeze_encoder()
-
 
     def _initialize_dataset_tokenizer(self, cfg):
         # Tokenizer
@@ -140,7 +129,7 @@ class ClassifierTrainingPipeline:
             truncation=cfg.tokenizer.truncation,
             padding=cfg.tokenizer.padding,
             max_length=cfg.tokenizer.max_length,
-            add_generation_prompt=False
+            add_generation_prompt=False,
         )
 
         # Tokenizer for
@@ -150,12 +139,12 @@ class ClassifierTrainingPipeline:
             label_column=self.sample_label,
             output_names=self.output_names,
             max_length=cfg.tokenizer.max_length,
-            regression=self.regression_loss
+            regression=self.regression_loss,
         )
 
     def _freeze_encoder(self):
         """Freezes all encoder parameters, so that only the classifier is trained."""
-        
+
         # Freeze all parameters
         for param in self.model.parameters():
             param.requires_grad = False
@@ -243,46 +232,33 @@ class ClassifierTrainingPipeline:
             # accuracy and F1 are not defined for float predictions
             preds = np.round(predictions)
             preds_raw = predictions
-            
+
         metric_dict = {}
         for i, output_name in enumerate(self.output_names):
             metrics = compute_metrics_for_single_output(
                 labels=labels[:, i],
                 preds=preds[:, i],
                 preds_raw=preds_raw[:, i],
-                thresholds=list(range(1, self.num_classes_per_output[i]))
+                thresholds=list(range(1, self.num_classes_per_output[i])),
             )
-            metric_dict.update({
-                f"{output_name}/{metric}": metrics[metric]
-                for metric in metrics
-            })
+            metric_dict.update({f"{output_name}/{metric}": metrics[metric] for metric in metrics})
         return metric_dict
 
     def _dataset_loading(self):
-        train_dataset = self.dataset_tokenizer.load_and_tokenize(
-            self.train_data_file_path,
-            split=self.train_data_split
-        )
-        
-        val_dataset = self.dataset_tokenizer.load_and_tokenize(
-            self.val_data_file_path,
-            split=self.val_data_split
-        )
+        train_dataset = self.dataset_tokenizer.load_and_tokenize(self.train_data_file_path, split=self.train_data_split)
+
+        val_dataset = self.dataset_tokenizer.load_and_tokenize(self.val_data_file_path, split=self.val_data_split)
 
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:
-            gt_dataset = self.dataset_tokenizer.load_and_tokenize(
-                self.gt_data_file_path,
-                split=self.gt_data_split
-            )
+            gt_dataset = self.dataset_tokenizer.load_and_tokenize(self.gt_data_file_path, split=self.gt_data_split)
             eval_datasets["gt"] = gt_dataset
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
 
         return train_dataset, val_dataset, eval_datasets, data_collator
-    
-    def train_classifier(self):
 
+    def train_classifier(self):
         training_arguments = self._create_training_arguments()
 
         # Load datasets
@@ -302,4 +278,3 @@ class ClassifierTrainingPipeline:
 
         trainer.train()
         trainer.save_model(os.path.join(self.output_dir, "final"))
-
