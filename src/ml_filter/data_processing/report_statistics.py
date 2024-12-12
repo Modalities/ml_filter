@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import Counter
 from pathlib import Path
 from typing import List
@@ -8,27 +9,31 @@ from omegaconf import OmegaConf
 from pydantic import BaseModel
 
 from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus
-from ml_filter.data_processing.document_processor import logger
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
+logger = logging.getLogger(__name__)  # Create a logger instance
 
 
-class ThroughputStatisticReport(BaseModel):
-    """A class representing the throughput statistics report."""
+class ThroughputStatistics(BaseModel):
+    """A class representing the throughput statistics."""
 
-    mean_regex_match_rate: float
-    experiment_path: str
-    num_gpus: int
-    add_generation_prompt: bool
-
-    # provided by throughput.json
     mean_out_tokens_per_second: float
     num_documents_written: int
     elapsed_time_s: float
     documents_per_second: float
     model_name: str
-    temperature: float
     queue_size: int
     num_processes: int
     max_new_tokens: int
+
+
+class ThroughputStatisticReport(ThroughputStatistics):
+    """A class representing the throughput statistics report."""
+
+    mean_regex_match_rate: float
+    experiment_path: str
+    num_gpus: int
 
 
 def _get_most_common_score(scores: List[float | None]) -> float | None:
@@ -93,9 +98,10 @@ def report_throughput_statistics(result_dir_path: Path, exp_config_filename: str
     status_counts = (
         pd.DataFrame(df["document_processing_status"].tolist()).apply(pd.Series.value_counts).fillna(0).astype(int)
     )
-    status_counts.index = [DocumentProcessingStatus(x).value for x in status_counts.index]
-    if "success" in status_counts.index:
-        mean_regex_match_rate = (status_counts.loc["success"] / status_counts.sum()).mean()
+    if len(status_counts.columns) > 0:
+        status_counts.index = [DocumentProcessingStatus(x).value for x in status_counts.index]
+        if "success" in status_counts.index:
+            mean_regex_match_rate = (status_counts.loc["success"] / status_counts.sum()).mean()
     else:
         mean_regex_match_rate = 0.0
 
@@ -105,7 +111,6 @@ def report_throughput_statistics(result_dir_path: Path, exp_config_filename: str
 
     statistics_report = ThroughputStatisticReport(
         mean_regex_match_rate=mean_regex_match_rate,
-        add_generation_prompt=exp_config.tokenizer.add_generation_prompt,
         experiment_path=str(result_dir_path),
         num_gpus=exp_config.settings.num_gpus,
         **throughput,

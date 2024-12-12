@@ -13,6 +13,7 @@ from tqdm import tqdm
 from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus, MetaInformation, ProcessedDocument
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
+from ml_filter.data_processing.report_statistics import ThroughputStatistics
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
 
 # Set up logging
@@ -247,17 +248,16 @@ class DocumentProcessor:
         )
         with open(self.experiment_dir_path / "throughput.json", "w") as f:
             json.dump(
-                {
-                    "num_documents_written": results_written,
-                    "elapsed_time_s": elapsed_time,
-                    "documents_per_second": results_per_second,
-                    "mean_out_tokens_per_second": total_out_tokens_per_second / results_written,
-                    "model_name": self.llm_rest_client.model_name,
-                    "temperature": self.llm_rest_client.temperature,
-                    "queue_size": self.queue_size,
-                    "num_processes": self.num_processes,
-                    "max_new_tokens": self.llm_rest_client.max_new_tokens,
-                },
+                ThroughputStatistics(
+                    num_documents_written=results_written,
+                    elapsed_time_s=elapsed_time,
+                    documents_per_second=results_per_second,
+                    mean_out_tokens_per_second=total_out_tokens_per_second / results_written,
+                    model_name=self.llm_rest_client.model_name,
+                    queue_size=self.queue_size,
+                    num_processes=self.num_processes,
+                    max_new_tokens=self.llm_rest_client.max_new_tokens,
+                ).model_dump(),
                 f,
             )
 
