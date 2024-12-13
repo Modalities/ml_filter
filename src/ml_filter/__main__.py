@@ -15,7 +15,7 @@ from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
-from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, process_files
+from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, start_word_count_jsonl_files
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -319,7 +319,7 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
         directory (Path): Path to the directory to search for JSONL files.
         output_file (Path): Path to the output file (JSONL or YAML format) to save results.
     """
-    process_files(directory, output_file)
+    start_word_count_jsonl_files(directory, output_file)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):

@@ -92,7 +92,7 @@ def find_jsonl_files(directory_path: Path) -> list[Path]:
     return list(Path(directory_path).rglob("*.jsonl"))
 
 
-def process_files(directory: Path, output_file: Path) -> None:
+def start_word_count_jsonl_files(directory: Path, output_file: Path) -> None:
     """
     Processes all JSONL files in a directory to count words and saves the results to an output file.
 
