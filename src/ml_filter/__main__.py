@@ -14,7 +14,7 @@ from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
-from ml_filter.utils.manipulate_documents import add_target_langauge_to_prompt, merge_and_sort_jsonl_files
+from ml_filter.utils.manipulate_documents import add_target_language_to_prompt, merge_and_sort_jsonl_files
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
 
 input_file_path_option = click.option(
@@ -146,7 +146,7 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
 
 
-@main.command(name="add_target_langauge_to_prompt_yaml")
+@main.command(name="add_target_language_to_prompt_yaml")
 @click.option(
     "--input_file_path",
     type=click_pathlib.Path(exists=True),
@@ -159,8 +159,8 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     required=True,
     help="Directory where chunk files will be saved.",
 )
-def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
-    add_target_langauge_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
+def add_target_language_to_prompt_yaml(input_file_path: Path, output_dir: Path):
+    add_target_language_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
 
 
 @main.command(name="translate_flat_yaml")
