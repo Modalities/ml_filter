@@ -1,10 +1,15 @@
-import torch
-from torch import Tensor
-from transformers import Trainer, TrainingArguments
-from transformers import XLMRobertaForSequenceClassification
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, mean_absolute_error
-from transformers import BertForSequenceClassification
+import torch
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
+from torch import Tensor
+from transformers import (
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments,
+    XLMRobertaForSequenceClassification,
+    XLMRobertaXLForSequenceClassification,
+)
+
 
 class DocumentClassifier:
     def __init__(self, model):
@@ -148,6 +153,7 @@ class RegressionScalingLayer(torch.nn.Module):
         else:  # clamp to [0, 1] during eval
             return torch.clamp(x, 0.0, 1.0) * self.scaling_constants
 
+
 class XLMRobertaForMultiTargetClassification(XLMRobertaForSequenceClassification):
     def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
         """
@@ -158,41 +164,71 @@ class XLMRobertaForMultiTargetClassification(XLMRobertaForSequenceClassification
             regression: If True, use regression head, otherwise use classification head
         """
         super().__init__(config)
-        
+
         # Get the embedding size from the dense layer
         embedding_size = self.classifier.dense.in_features
-        
+
         if regression:
             self.classifier.out_proj = MultiTargetRegressionHead(
                 in_features=embedding_size,
                 num_outputs=num_regressor_outputs,
-                num_classes_per_output=num_classes_per_output
+                num_classes_per_output=num_classes_per_output,
             )
         else:
             self.classifier.out_proj = MultiTargetClassificationHead(
                 in_features=embedding_size,
                 num_outputs=num_regressor_outputs,
-                num_classes_per_output=num_classes_per_output
+                num_classes_per_output=num_classes_per_output,
             )
+
+
+class XLMRobertaXLForMultiTargetClassification(XLMRobertaXLForSequenceClassification):
+    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
+        """
+        Args:
+            config: Model configuration
+            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
+            num_classes_per_output: Tensor containing the number of classes for each output
+            regression: If True, use regression head, otherwise use classification head
+        """
+        super().__init__(config)
+
+        # Get the embedding size from the dense layer
+        embedding_size = self.classifier.dense.in_features
+
+        if regression:
+            self.classifier.out_proj = MultiTargetRegressionHead(
+                in_features=embedding_size,
+                num_outputs=num_regressor_outputs,
+                num_classes_per_output=num_classes_per_output,
+            )
+        else:
+            self.classifier.out_proj = MultiTargetClassificationHead(
+                in_features=embedding_size,
+                num_outputs=num_regressor_outputs,
+                num_classes_per_output=num_classes_per_output,
+            )
+
 
 class MultiTargetRegressionHead(torch.nn.Module):
     """Head for multi-target regression tasks.
-    
+
     This module consists of a linear layer followed by a scaling layer to handle
     multiple regression outputs with different scales.
     """
+
     def __init__(self, in_features: int, num_outputs: int, num_classes_per_output: torch.Tensor):
         """
         Args:
             in_features: Number of input features from the encoder
             num_outputs: Number of regression outputs
-            num_classes_per_output: Tensor containing the number of classes for each output 
+            num_classes_per_output: Tensor containing the number of classes for each output
                                   (used for scaling)
         """
         super().__init__()
         self.linear = torch.nn.Linear(in_features, num_outputs, bias=True)
         self.scaling = RegressionScalingLayer(num_classes_per_output)
-        
+
     def forward(self, x):
         x = self.linear(x)
         x = self.scaling(x)
@@ -201,10 +237,11 @@ class MultiTargetRegressionHead(torch.nn.Module):
 
 class MultiTargetClassificationHead(torch.nn.Module):
     """Head for multi-target classification tasks.
-    
+
     This module consists of a linear layer followed by a logit mask layer to handle
     multiple classification outputs with different numbers of classes.
     """
+
     def __init__(self, in_features: int, num_outputs: int, num_classes_per_output: torch.Tensor):
         """
         Args:
@@ -216,20 +253,23 @@ class MultiTargetClassificationHead(torch.nn.Module):
         total_logits = num_outputs * max(num_classes_per_output)
         self.linear = torch.nn.Linear(in_features, total_logits, bias=True)
         self.logit_mask = LogitMaskLayer(num_classes_per_output)
-        
+
     def forward(self, x):
         x = self.linear(x)
         x = self.logit_mask(x)
         return x
 
-def compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray, thresholds: list) -> dict:
+
+def compute_metrics_for_single_output(
+    labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray, thresholds: list
+) -> dict:
     """
     Computes evaluation metrics for a specific output.
 
     Args:
         labels (np.ndarray): Ground truth labels of shape (batch_size,)
         preds (np.ndarray): Predicted class indices of shape (batch_size,)
-        preds_raw (np.ndarray): Raw predictions (logits or regression values) of shape (batch_size,) for regression 
+        preds_raw (np.ndarray): Raw predictions (logits or regression values) of shape (batch_size,) for regression
                                and (batch_size, num_classes) for classification.
         thresholds (list): List of thresholds to use for binary metrics
 
@@ -248,7 +288,7 @@ def compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, pre
             - f1_class_{c}: F1 score for each individual class c
     """
     metrics = {}
-    
+
     # Compute classification metrics
     metrics["classification/accuracy"] = accuracy_score(labels, preds)
     metrics["classification/f1_weighted"] = f1_score(labels, preds, average="weighted")
@@ -260,7 +300,7 @@ def compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, pre
         # Convert to binary predictions using threshold
         binary_preds = np.where(preds >= threshold, 1, 0)
         binary_labels = np.where(labels >= threshold, 1, 0)
-        
+
         metrics[f"binary/t{threshold}/accuracy"] = accuracy_score(binary_labels, binary_preds)
         metrics[f"binary/t{threshold}/f1_weighted"] = f1_score(binary_labels, binary_preds, average="weighted")
         metrics[f"binary/t{threshold}/f1_micro"] = f1_score(binary_labels, binary_preds, average="micro")
@@ -269,15 +309,16 @@ def compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, pre
     # Compute regression-like metrics
     metrics["regression/mse"] = mean_squared_error(labels, preds_raw)
     metrics["regression/mae"] = mean_absolute_error(labels, preds_raw)
-    
+
     # Add f1 scores for each class
     classes = np.unique(labels)
     classes.sort()
     f1_per_class = f1_score(labels, preds, average=None)
     for i, c in enumerate(classes):
         metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
-    
+
     return metrics
+
 
 class BertForMultiTargetClassification(BertForSequenceClassification):
     def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
@@ -289,19 +330,19 @@ class BertForMultiTargetClassification(BertForSequenceClassification):
             regression: If True, use regression head, otherwise use classification head
         """
         super().__init__(config)
-        
+
         # Get the embedding size from the classifier
         embedding_size = self.classifier.in_features
-        
+
         if regression:
             self.classifier = MultiTargetRegressionHead(
                 in_features=embedding_size,
                 num_outputs=num_regressor_outputs,
-                num_classes_per_output=num_classes_per_output
+                num_classes_per_output=num_classes_per_output,
             )
         else:
             self.classifier = MultiTargetClassificationHead(
                 in_features=embedding_size,
                 num_outputs=num_regressor_outputs,
-                num_classes_per_output=num_classes_per_output
+                num_classes_per_output=num_classes_per_output,
             )
