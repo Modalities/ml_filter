@@ -41,7 +41,7 @@ If you already have the score, you can train a classifier by running
 python cli.py train_classifier --config_file_path path/to/your/training_config.yaml
 ```
 
-## Setting up the TGI Container with Hugging Face Models
+## TGI
 
 This service relies on **TGI containers** (Text Generation Inference), which can be downloaded from [Hugging Face](https://huggingface.co). Follow the steps below to download and run the TGI container.
 
@@ -81,7 +81,9 @@ Use the following command to download the TGI container and run it. If the model
   --max-total-tokens 65536 \
   --max-batch-prefill-tokens 66536
    ```
-    
+
+If you restrict the number of GPUs for your container by `--gpus '"device=6"'`,  `number-shard` should not be larger.
+
  ### 3. Optional: Restricting GPU Usage     
  By default, the container uses all available GPUs (--gpus all). If you want to limit the number of GPUs, you can define specific devices. For example, to restrict the container to 4 GPUs (e.g.,  devices 0, 1, 2, 3), use the following:
  
@@ -118,14 +120,7 @@ curl 127.0.0.1:8080/generate_stream \
     -H 'Content-Type: application/json'
 ```
 
-### 6. Testing VLLM service
-
-#### Host a Model with TGI
-```bash
-docker run -d --gpus '"device=6"' --shm-size 1g -p 8000:80 -v ${HUGGINGFACECACHE}:/data -e HF_TOKEN=$API_TOKEN ghcr.io/huggingface/text-generation-inference:2.2.0 --model-id mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated --num-shard 1 --max-input-length 4095 --max-total-tokens 4096 --max-batch-prefill-tokens 4096
-```
-
-`number-shards` and number of GPUs used should match (`--gpus`).
+## VLLM
 
 #### Host a Model with VLLM (faster)
 ```bash
@@ -133,6 +128,8 @@ docker run --runtime nvidia --gpus '"device=5,6"'  --name vllm_container -v /rai
 ```
 
 Number of `tensor-parallel-size` and number of GPUs used should match (`--gpus`).
+
+Alternativley, just use execute `bash scripts/host_vllm_model.sh` and make sure, all required environment variables are in your `.env` file under project root.
 
 #### Test the hosted model
 ```bash

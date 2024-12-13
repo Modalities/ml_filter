@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import List
 
@@ -18,6 +17,7 @@ class CompareConfig(BaseModel):
     experiment_dir_paths: List[str]
     config_file_name: str
     output_format: List[StatisticConfig]
+    gold_annotations_file_path: str
 
 
 def compare_experiments(config_file_path: Path):
@@ -38,14 +38,13 @@ def compare_experiments(config_file_path: Path):
     results = []
     for path in paths:
         exp_config = OmegaConf.load(path / config_filename)
-        stats = report_statistics(results_file_path=path / "processed_documents.jsonl")
+        stats = report_statistics(
+            results_file_path=path / "annotations" / "processed_documents.jsonl",
+            gold_annotations_file_path=Path(config.gold_annotations_file_path),
+        )
         stats["model_name"] = exp_config.settings.model_name
         stats["add_generation_prompt"] = exp_config.tokenizer.add_generation_prompt
         stats["experiment_path"] = str(path)
-
-        with open(path / "statistics_report.json", "w") as f:
-            json.dump(stats, f, indent=4)
-
         results.append(stats)
 
     df = pd.DataFrame(results)

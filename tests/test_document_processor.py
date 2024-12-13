@@ -32,15 +32,18 @@ def test_run(tmpdir: Path):
     prompt_builder = Mock(spec=PromptBuilder)
     prompt_builder.construct_prompt = lambda text: [{"role": "user", "content": text}]
 
+    experiment_dir_path = tmpdir / "experiment"
     document_processor = DocumentProcessor(
         llm_rest_client=llm_rest_client,
         prompt_builder=prompt_builder,
         queue_size=2,
         batch_size=2,
-        raw_data_file_paths=raw_data_path,
-        experiment_dir_path=tmpdir / "experiment",
+        raw_data_file_paths=[raw_data_path],
+        experiment_dir_path=experiment_dir_path,
         num_processes=1,
         score_metric_name="educational_score",
+        gold_annotations_file_path=None,
+        out_file_path=experiment_dir_path / "processed_documents.jsonl",
     )
 
     try:
