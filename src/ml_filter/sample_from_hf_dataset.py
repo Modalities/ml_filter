@@ -56,7 +56,7 @@ def sample_from_hf_dataset(
     random.seed(seed)
     random.shuffle(sampled_data)
 
-
+    # write sampled data to jsonl file
     with open(output_file_path, "w", encoding="utf-8") as f:
         for item in sampled_data:
             json.dump(item, f, ensure_ascii=False)
