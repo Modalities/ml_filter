@@ -250,7 +250,7 @@ class DocumentProcessor:
             [
                 input_file_path.stem,
                 "_annotations",
-                annotation.meta_information.model.replace("/", "--"),
+                annotation.meta_information.model_name.replace("/", "--"),
                 annotation.meta_information.prompt_name,
                 annotation.meta_information.prompt_lang,
                 input_file_path.suffix,
