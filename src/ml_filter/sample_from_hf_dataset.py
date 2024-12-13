@@ -56,13 +56,11 @@ def sample_from_hf_dataset(
     random.seed(seed)
     random.shuffle(sampled_data)
 
-    # convert data to dict and save it to json file
-    sampled_data_dict = {}
-    for k in ["text", "metadata", "prompt", "score"]:
-        sampled_data_dict[k] = {str(i): v[k] for i, v in enumerate(sampled_data)}
 
     with open(output_file_path, "w", encoding="utf-8") as f:
-        json.dump(sampled_data_dict, f, ensure_ascii=False)
+        for item in sampled_data:
+            json.dump(item, f, ensure_ascii=False)
+            f.write("\n")
 
     # upload json file to huggingface
     api = HfApi()
