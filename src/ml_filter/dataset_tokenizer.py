@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
-from datasets import Dataset, load_dataset
+import numpy as np
+from datasets import Dataset, concatenate_datasets, load_dataset
 from transformers import PreTrainedTokenizer
+
 
 class DatasetTokenizer:
     """Handles loading and tokenizing datasets from JSONL files."""
@@ -42,7 +44,8 @@ class DatasetTokenizer:
         self,
         file_path: Union[str, Path],
         split: str = "train",
-        cache_dir: Optional[str] = None
+        cache_dir: Optional[str] = None,
+        annotation_dir_path: Optional[Union[str, Path]] = None,
     ) -> Dataset:
         """
         Load a JSONL file and tokenize its contents.
@@ -55,28 +58,90 @@ class DatasetTokenizer:
         Returns:
             Tokenized dataset
         """
-        # Load the raw dataset
-        dataset = load_dataset(
-            "json",
-            data_files=[file_path],
-            split=split,
-            cache_dir=cache_dir
-        )
-        
-        # Apply tokenization and label processing
-        return self._process_dataset(dataset)
+        file_path = Path(file_path)
+        if file_path.suffix == ".jsonl":
+            # Load the raw dataset
+            dataset = load_dataset(
+                "json",
+                data_files=[str(file_path)],
+                split=split,
+                cache_dir=cache_dir,
+            )
+            return self._process_dataset(dataset)
+        elif file_path.is_dir():
+            annotation_dir_path = Path(
+                "/raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_annotations"
+            )
+            # data_files = []
+            for i, path in enumerate(file_path.glob("**/*.jsonl")):
+                # data_files.append(str(path))
+                new_dataset = load_dataset(
+                    "json",
+                    data_files=[str(path)],
+                    split=split,
+                    cache_dir=cache_dir,
+                )
+                annotation_path = self.get_annotation_path(path, annotation_dir_path)
+                annotation_dataset = load_dataset(
+                    "json",
+                    data_files=[str(annotation_path)],
+                    split=split,
+                    cache_dir=cache_dir,
+                )
+                merged_dataset = self.join_datasets(new_dataset, annotation_dataset, "id", "document_id")
+                if i == 0:
+                    dataset = merged_dataset
+                else:
+                    dataset = concatenate_datasets([dataset, merged_dataset])
+
+            return self._process_dataset2(dataset)
+        else:
+            raise ValueError(f"Invalid path {file_path}. Path must be .jsonl or directory")
+
+    @staticmethod
+    def get_annotation_path(raw_path: Path, annotation_root_dir: Path) -> Path:
+        raw_suffix = "/".join(str(raw_path).split("/")[-3:-1])
+        raw_filename = str(raw_path).split("/")[-1].split(".")[0]
+        annotation_path = list(Path(str(annotation_root_dir) + "/" + raw_suffix).glob(f"{raw_filename}*.jsonl"))[0]
+        return annotation_path
+
+    @staticmethod
+    def join_datasets(dataset1: Dataset, dataset2: Dataset, join_column1: str, join_column2: str) -> Dataset:
+        """
+        Join two Hugging Face datasets on a common column without using pandas.
+
+        Args:
+            dataset1 (Dataset): First Hugging Face dataset
+            dataset2 (Dataset): Second Hugging Face dataset
+            join_column (str): Name of the column to join on
+
+        Returns:
+            Dataset: Merged Hugging Face dataset
+        """
+        # Create a mapping from the join column to rows in dataset2
+        dataset2_map = {row[join_column2]: row for row in dataset2}
+
+        # Function to merge rows
+        def merge_rows(row: Dict[str, Any]) -> Dict[str, Any]:
+            # Find the matching row in dataset2
+            match = dataset2_map.get(row[join_column1], {})
+
+            # Merge the dictionaries, with dataset1 rows taking precedence
+            merged_row = {**match, **row}
+            return merged_row
+
+        # Apply the merge to dataset1
+        merged_dataset = dataset1.map(merge_rows)
+
+        return merged_dataset
 
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Process a dataset by tokenizing text and formatting labels."""
-        
+
         def process_batch(batch):
             # Tokenize the text
             tokenized = self.tokenizer(
-                batch[self.text_column],
-                truncation=True,
-                padding=True,
-                max_length=self.max_length,
-                return_tensors="pt"
+                batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
             )
 
             # Process labels
@@ -89,8 +154,28 @@ class DatasetTokenizer:
 
             return {**tokenized, "labels": labels}
 
-        return dataset.map(
-            process_batch,
-            batched=True,
-            remove_columns=dataset.column_names
-        ) 
+        return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)
+
+    def _process_dataset2(self, dataset: Dataset) -> Dataset:
+        """Process a dataset by tokenizing text and formatting labels."""
+
+        def process_batch(batch):
+            # Tokenize the text
+            tokenized = self.tokenizer(
+                batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
+            )
+
+            # Process labels
+            labels = []
+            for item in batch[self.label_column]:
+                item = [x for x in item if x is not None]
+                if item == []:
+                    item = [0]
+                if self.regression:
+                    labels.append([np.mean(item)])
+                else:
+                    labels.append([round(np.median(item))])
+
+            return {**tokenized, "labels": labels}
+
+        return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)
