@@ -79,7 +79,7 @@ def _count_words_in_file(file_path: Path) -> tuple[Path, int]:
     return file_path, word_count
 
 
-def find_jsonl_files(directory_path: Path) -> list[Path]:
+_def find_jsonl_files(directory_path: Path) -> list[Path]:
     """
     Recursively finds all JSONL files in a directory and its subdirectories.
 
