@@ -100,7 +100,7 @@ def start_word_count_jsonl_files(directory: Path, output_file: Path) -> None:
         directory (Path): Path to the directory containing JSONL files.
         output_file (Path): Path to the output file (JSONL) to save results.
     """
-    files = find_jsonl_files(directory)
+    file_paths = find_jsonl_files(directory)
     if not files:
         logger.info("No JSONL files found.")
         return
