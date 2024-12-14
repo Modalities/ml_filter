@@ -111,7 +111,7 @@ def start_word_count_jsonl_files(directory: Path, output_file: Path) -> None:
         results = pool.map(count_words_in_file, files)
 
     # Save results as a JSONL or YAML file
-    output_data: dict[Path, int] = {file_path: word_count for file_path, word_count in results}
+    output_data: dict[str, int] = {str(file_path): word_count for file_path, word_count in results}
     with open(output_file, "w", encoding="utf-8") as f:
         for file_path, word_count in output_data.items():
             f.write(json.dumps({str(file_path): word_count}) + "\n")
