@@ -53,7 +53,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def count_words_in_file(file_path: Path) -> tuple[Path, int]:
+def _count_words_in_file(file_path: Path) -> tuple[Path, int]:
     """Reads a JSONL file using the jq module, extracts the 'text' field from each line,
     and counts the total words.
 
