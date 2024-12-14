@@ -11,9 +11,9 @@ from ml_filter.utils.manipulate_documents import (
     verify_jsonl_file_name_consistency,
 )
 from ml_filter.utils.statistics import (
+    _count_words_in_file,
+    _find_jsonl_files,
     compute_num_words_and_chars_in_jsonl,
-    count_words_in_file,
-    find_jsonl_files,
     start_word_count_jsonl_files,
 )
 
@@ -169,13 +169,13 @@ def test_compute_num_words_and_chars_in_jsonl(tmp_input_file: Path, tmp_output_f
 
 def test_count_words_in_file(temporary_jsonl_file: Path):
     """Test the count_words_in_file function."""
-    _, word_count = count_words_in_file(temporary_jsonl_file)
+    _, word_count = _count_words_in_file(temporary_jsonl_file)
     assert word_count == 5, 'Word count should be 5 "Hello world! "How are you?".'
 
 
 def test_find_jsonl_files(tmp_jsonl_directory: Path):
     """Test the find_jsonl_files function."""
-    files = find_jsonl_files(directory_path=tmp_jsonl_directory)
+    files = _find_jsonl_files(directory_path=tmp_jsonl_directory)
     assert len(files) == 3, "There should be 3 JSONL files in the directory."
     for file in files:
         assert file.suffix == ".jsonl", "File extension should be .jsonl."

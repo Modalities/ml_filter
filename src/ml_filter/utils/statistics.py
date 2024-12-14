@@ -79,7 +79,7 @@ def _count_words_in_file(file_path: Path) -> tuple[Path, int]:
     return file_path, word_count
 
 
-_def find_jsonl_files(directory_path: Path) -> list[Path]:
+def _find_jsonl_files(directory_path: Path) -> list[Path]:
     """
     Recursively finds all JSONL files in a directory and its subdirectories.
 
@@ -100,20 +100,20 @@ def start_word_count_jsonl_files(directory: Path, output_file: Path) -> None:
         directory (Path): Path to the directory containing JSONL files.
         output_file (Path): Path to the output file (JSONL) to save results.
     """
-    file_paths = find_jsonl_files(directory)
-    if not files:
+    file_paths = _find_jsonl_files(directory)
+    if not file_paths:
         logger.info("No JSONL files found.")
         return
 
-    logger.info(f"Found {len(files)} JSONL files. Processing...")
+    logger.info(f"Found {len(file_paths)} JSONL files. Processing...")
 
     with Pool(processes=cpu_count()) as pool:
-        results = pool.map(count_words_in_file, files)
+        results = pool.map(_count_words_in_file, file_paths)
 
     # Save results as a JSONL or YAML file
     output_data: dict[str, int] = {str(file_path): word_count for file_path, word_count in results}
     with open(output_file, "w", encoding="utf-8") as f:
         for file_path, word_count in output_data.items():
-            f.write(json.dumps({str(file_path): word_count}) + "\n")
+            f.write(json.dumps({file_path: word_count}) + "\n")
 
     logger.info(f"Word counts saved to {output_file}")
