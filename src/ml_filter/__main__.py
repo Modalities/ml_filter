@@ -319,7 +319,7 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
         directory (Path): Path to the directory to search for JSONL files.
         output_file (Path): Path to the output file (JSONL or YAML format) to save results.
     """
-    start_word_count_jsonl_files(directory, output_file)
+    run_word_count_jsonl_files(directory, output_file)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
