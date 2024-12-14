@@ -313,7 +313,7 @@ def merge_and_sort_jsonl_files_cli(
 )
 def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
     """
-    CLI wrapper to count words in all JSONL files within a directory and save the result.
+    CLI wrapper to count words in all JSONL files within a directory recursively and save the result.
 
     Args:
         directory (Path): Path to the directory to search for JSONL files.
