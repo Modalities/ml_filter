@@ -98,7 +98,7 @@ def start_word_count_jsonl_files(directory: Path, output_file: Path) -> None:
 
     Args:
         directory (Path): Path to the directory containing JSONL files.
-        output_file (Path): Path to the output file (JSONL or YAML format) to save results.
+        output_file (Path): Path to the output file (JSONL) to save results.
     """
     files = find_jsonl_files(directory)
     if not files:
@@ -113,12 +113,7 @@ def start_word_count_jsonl_files(directory: Path, output_file: Path) -> None:
     # Save results as a JSONL or YAML file
     output_data: dict[Path, int] = {file_path: word_count for file_path, word_count in results}
     with open(output_file, "w", encoding="utf-8") as f:
-        if output_file.suffix == ".yaml":
-            import yaml
-
-            yaml.dump(output_data, f, default_flow_style=False)
-        else:
-            for file_path, word_count in output_data.items():
-                f.write(json.dumps({str(file_path): word_count}) + "\n")
+        for file_path, word_count in output_data.items():
+            f.write(json.dumps({str(file_path): word_count}) + "\n")
 
     logger.info(f"Word counts saved to {output_file}")
