@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 from datasets import Dataset, concatenate_datasets, load_dataset
+from datasets.formatting.formatting import LazyBatch
 from transformers import PreTrainedTokenizer
 
 
@@ -150,7 +151,7 @@ class DatasetTokenizer:
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Process a dataset by tokenizing text and formatting labels."""
 
-        def process_batch(batch):
+        def process_batch(batch: LazyBatch) -> Dict[str, Any]:
             # Tokenize the text
             tokenized = self.tokenizer(
                 batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
@@ -172,7 +173,7 @@ class DatasetTokenizer:
         """Process a dataset by tokenizing text and formatting labels,
         assuming annotations are in distributed in dedicated files."""
 
-        def process_batch(batch):
+        def process_batch_distributed(batch: LazyBatch) -> Dict[str, Any]:
             # Tokenize the text
             tokenized = self.tokenizer(
                 batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
@@ -198,4 +199,4 @@ class DatasetTokenizer:
 
             return {**tokenized, "labels": labels_reshaped}
 
-        return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)
+        return dataset.map(process_batch_distributed, batched=True, remove_columns=dataset.column_names)
