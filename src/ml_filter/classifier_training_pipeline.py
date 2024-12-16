@@ -72,6 +72,7 @@ class ClassifierTrainingPipeline:
 
         self.train_annotation_path = cfg.data.train_annotation_path
         self.val_annotation_path = cfg.data.val_annotation_path
+        self.gt_annotation_path = cfg.data.gt_annotation_path
         if cfg.data.annotator_average_fn == "median":
             self.annotator_average_fn = np.median
         elif cfg.data.annotator_average_fn in ["average", "mean"]:
@@ -263,7 +264,6 @@ class ClassifierTrainingPipeline:
         train_dataset = self.dataset_tokenizer.load_and_tokenize(
             self.train_data_file_path, split=self.train_data_split, annotation_dir_path=self.train_annotation_path
         )
-        print(train_dataset["labels"])
 
         val_dataset = self.dataset_tokenizer.load_and_tokenize(
             self.val_data_file_path, split=self.val_data_split, annotation_dir_path=self.val_annotation_path
@@ -271,7 +271,9 @@ class ClassifierTrainingPipeline:
 
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:
-            gt_dataset = self.dataset_tokenizer.load_and_tokenize(self.gt_data_file_path, split=self.gt_data_split)
+            gt_dataset = self.dataset_tokenizer.load_and_tokenize(
+                self.gt_data_file_path, split=self.gt_data_split, annotation_dir_path=self.gt_annotation_path
+            )
             eval_datasets["gt"] = gt_dataset
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)

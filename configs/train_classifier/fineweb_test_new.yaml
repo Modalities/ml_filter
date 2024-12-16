@@ -22,6 +22,7 @@ data:
   val_annotation_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_annotations
   val_file_split: train
   gt_file_path: null # ground truth data; can be null (optional)
+  gt_annotation_path: null
   gt_file_split: train
   label_column: scores
   text_column: text
