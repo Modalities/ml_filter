@@ -20,7 +20,9 @@ class PromptBuilder:
         self.max_prompt_length = max_prompt_length
         self.tokenizer = tokenizer
         with open(prompt_path, "r") as file:
-            self.prompt_template = yaml.safe_load(file)["prompt"]
+            prompt = yaml.safe_load(file)
+            self.prompt_template = prompt["prompt"]
+            self.prompt_name = prompt["prompt_name"]
 
     def construct_prompt_helper(
         self, text: str, history: Optional[List[Dict[str, str]]] = None
@@ -35,7 +37,6 @@ class PromptBuilder:
             List[Dict[str, str]]: The prompt that is represtend as a list (history) of messages.
         """
 
-        # TODO: Is this fixed for all models?
         prompt = {"role": "user", "content": self.prompt_template.format(placeholder=text)}
 
         if history is None:
@@ -80,6 +81,7 @@ class PromptBuilder:
                     processed_document.document_text_detokenized = document_text_detokenized
                 prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
                 processed_document.prompt = prompt_string
+                processed_document.prompt_name = self.prompt_name
                 return processed_document
 
         prompt_dict = self.construct_prompt_helper(
@@ -87,4 +89,5 @@ class PromptBuilder:
         )
         prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
         processed_document.prompt = prompt_string
+        processed_document.prompt_name = self.prompt_name
         return processed_document

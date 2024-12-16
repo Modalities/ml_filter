@@ -5,7 +5,7 @@ import yaml
 from constants import EUROPEAN_LANGUAGES, TARGET_LANGAUGE_PLACEHOLDER
 
 
-def add_target_langauge_to_prompt(input_file_path: Path, output_dir: Path) -> None:
+def add_target_language_to_prompt(input_file_path: Path, output_dir: Path) -> None:
     """
     Reads a YAML file, replaces '{##TARGET_LANGUAGE##}' in the 'prompt' key with a given value,
     and writes the result to a new file.

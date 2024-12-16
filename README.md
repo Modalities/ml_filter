@@ -40,7 +40,19 @@ If you already have the score, you can train a classifier by running
 ```script
 python cli.py train_classifier --config_file_path path/to/your/training_config.yaml
 ```
-
+### 3. Measure Interrater Reliability
+If you have a dataset with scores annotated by multiple annotators, you can compute metrics to measure the interrater reliability with the command interrater_reliability. If you want to compare the scores in a single file (e.g. the human annotated ground truth data), run:
+```script
+python cli.py interrater_reliability data_annotated.jsonl --output_file_path output.json
+```
+If you want to compare the scores across different models and files (e.g. when comparing LLM annotated data to ground truth), the scores in each file first have to be aggregated. For that, use the parameter aggregation:
+```script
+python cli.py interrater_reliability data_annotated_by_model_1.jsonl data_annotated_by_model_2.jsonl --aggregation majority --output_file_path output.json
+```
+You can create plots for the distribution of annotations and the differences between annotators with
+```script
+python cli.py plot_scores data_annotated_by_model_1.jsonl data_annotated_by_model_2.jsonl --aggregation majority --output_dir outputs
+```
 ## TGI
 
 This service relies on **TGI containers** (Text Generation Inference), which can be downloaded from [Hugging Face](https://huggingface.co). Follow the steps below to download and run the TGI container.
@@ -129,7 +141,10 @@ docker run --runtime nvidia --gpus '"device=5,6"'  --name vllm_container -v /rai
 
 Number of `tensor-parallel-size` and number of GPUs used should match (`--gpus`).
 
-Alternativley, just use execute `bash scripts/host_vllm_model.sh` and make sure, all required environment variables are in your `.env` file under project root.
+Alternativley, just use execute `bash scripts/host_vllm_model.sh $CONTAINER_NAME $PORT $MODEL_NAME` and make sure, all required environment variables are in your `.env` file under project root e.g.
+```bash
+bash scripts/host_vllm_model.sh my_vllm_container 9123 meta-llama/Llama-3.1-8B-Instruct
+```
 
 #### Test the hosted model
 ```bash
