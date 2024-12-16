@@ -78,6 +78,7 @@ class ClassifierTrainingPipeline:
             self.annotator_average_fn = np.mean
         else:
             raise ValueError("annotator_average_fn must be one of [median, mean]")
+        self.annotation_names = cfg.data.annotation_names
 
         # Training
         self.batch_size = cfg.training.batch_size
@@ -153,6 +154,7 @@ class ClassifierTrainingPipeline:
             max_length=cfg.tokenizer.max_length,
             regression=self.regression_loss,
             annotator_average_fn=self.annotator_average_fn,
+            annotation_names=self.annotation_names,
         )
 
     def _freeze_encoder(self):

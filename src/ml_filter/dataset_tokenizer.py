@@ -18,6 +18,7 @@ class DatasetTokenizer:
         max_length: int,
         regression: bool = False,
         annotator_average_fn: Optional[Callable] = np.median,
+        annotation_names: Optional[List[str]] = [],
     ):
         """
         Initialize the dataset tokenizer.
@@ -37,6 +38,7 @@ class DatasetTokenizer:
         self.max_length = max_length
         self.regression = regression
         self.annotator_average_fn = annotator_average_fn
+        self.annotation_names = annotation_names
 
         # Ensure tokenizer has padding token
         if not self.tokenizer.pad_token:
@@ -72,7 +74,6 @@ class DatasetTokenizer:
             return self._process_dataset(dataset)
         elif file_path.is_dir():
             annotation_dir_path = Path(annotation_dir_path)
-            annotation_prefixes = ["1", "2"]
             for i, path in enumerate(file_path.glob("**/*.jsonl")):
                 new_dataset = load_dataset(
                     "json",
@@ -80,8 +81,8 @@ class DatasetTokenizer:
                     split=split,
                     cache_dir=cache_dir,
                 )
-                annotation_paths = self.get_annotation_path(path, annotation_dir_path) * 2
-                for annotation_path, prefix in zip(annotation_paths, annotation_prefixes):
+                annotation_paths = self.get_annotation_paths(path, annotation_dir_path, self.annotation_names) * 2
+                for annotation_path, prefix in zip(annotation_paths, self.annotation_names):
                     annotation_dataset = load_dataset(
                         "json",
                         data_files=[str(annotation_path)],
@@ -95,16 +96,23 @@ class DatasetTokenizer:
                     dataset = new_dataset
                 else:
                     dataset = concatenate_datasets([dataset, new_dataset])
-            return self._process_dataset_distributed(dataset, annotation_prefixes)
+            return self._process_dataset_distributed(dataset, self.annotation_names)
         else:
             raise ValueError(f"Invalid path {file_path}. Path must be .jsonl or directory")
 
     @staticmethod
-    def get_annotation_path(raw_path: Path, annotation_root_dir: Path) -> list[Path]:
+    def get_annotation_paths(raw_path: Path, annotation_root_dir: Path, annotation_names: List[str]) -> List[Path]:
         raw_suffix = Path(raw_path.parent.parent.name) / Path(raw_path.parent.name)
         raw_filename = raw_path.stem
         annotation_paths = list(annotation_root_dir.joinpath(raw_suffix).glob(f"{raw_filename}*.jsonl"))
-        return annotation_paths
+
+        # Sort annotation paths
+        def path_sort_key(path: Path) -> List[int]:
+            # Find the first occurrence of each model/prompt name in the path string
+            indices = [str(path).index(name) for name in annotation_names]
+            return indices
+
+        return sorted(annotation_paths, key=path_sort_key)
 
     @staticmethod
     def join_datasets(
