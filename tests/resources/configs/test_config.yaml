@@ -22,12 +22,14 @@ data:
   val_annotation_path: null
   val_file_split: train
   gt_file_path: tests/resources/data/lorem_ipsum.jsonl # ground truth data; can be null (optional)
+  gt_annotation_path: null
   gt_file_split: train
   label_column: scores
   text_column: text
   num_regressor_outputs: 1
   num_classes_per_output: [6]
   output_names: ["score"]
+  annotation_names: []
   annotator_average_fn: median 
   
 training:
