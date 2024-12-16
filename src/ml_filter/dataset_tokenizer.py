@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 from datasets import Dataset, concatenate_datasets, load_dataset
@@ -17,6 +17,7 @@ class DatasetTokenizer:
         output_names: List[str],
         max_length: int,
         regression: bool = False,
+        annotator_average_fn: Optional[Callable] = np.median,
     ):
         """
         Initialize the dataset tokenizer.
@@ -35,6 +36,7 @@ class DatasetTokenizer:
         self.output_names = output_names
         self.max_length = max_length
         self.regression = regression
+        self.annotator_average_fn = annotator_average_fn
 
         # Ensure tokenizer has padding token
         if not self.tokenizer.pad_token:
@@ -69,46 +71,47 @@ class DatasetTokenizer:
             )
             return self._process_dataset(dataset)
         elif file_path.is_dir():
-            annotation_dir_path = Path(
-                "/raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_annotations"
-            )
-            # data_files = []
+            annotation_dir_path = Path(annotation_dir_path)
+            annotation_prefixes = ["1", "2"]
             for i, path in enumerate(file_path.glob("**/*.jsonl")):
-                # data_files.append(str(path))
                 new_dataset = load_dataset(
                     "json",
                     data_files=[str(path)],
                     split=split,
                     cache_dir=cache_dir,
                 )
-                annotation_path = self.get_annotation_path(path, annotation_dir_path)
-                annotation_dataset = load_dataset(
-                    "json",
-                    data_files=[str(annotation_path)],
-                    split=split,
-                    cache_dir=cache_dir,
-                )
-                merged_dataset = self.join_datasets(new_dataset, annotation_dataset, "id", "document_id")
+                annotation_paths = self.get_annotation_path(path, annotation_dir_path) * 2
+                for annotation_path, prefix in zip(annotation_paths, annotation_prefixes):
+                    annotation_dataset = load_dataset(
+                        "json",
+                        data_files=[str(annotation_path)],
+                        split=split,
+                        cache_dir=cache_dir,
+                    )
+                    new_dataset = self.join_datasets(
+                        new_dataset, annotation_dataset, "id", "document_id", prefix=prefix
+                    )
                 if i == 0:
-                    dataset = merged_dataset
+                    dataset = new_dataset
                 else:
-                    dataset = concatenate_datasets([dataset, merged_dataset])
-
-            return self._process_dataset2(dataset)
+                    dataset = concatenate_datasets([dataset, new_dataset])
+            return self._process_dataset_distributed(dataset, annotation_prefixes)
         else:
             raise ValueError(f"Invalid path {file_path}. Path must be .jsonl or directory")
 
     @staticmethod
-    def get_annotation_path(raw_path: Path, annotation_root_dir: Path) -> Path:
-        raw_suffix = "/".join(str(raw_path).split("/")[-3:-1])
-        raw_filename = str(raw_path).split("/")[-1].split(".")[0]
-        annotation_path = list(Path(str(annotation_root_dir) + "/" + raw_suffix).glob(f"{raw_filename}*.jsonl"))[0]
-        return annotation_path
+    def get_annotation_path(raw_path: Path, annotation_root_dir: Path) -> list[Path]:
+        raw_suffix = Path(raw_path.parent.parent.name) / Path(raw_path.parent.name)
+        raw_filename = raw_path.stem
+        annotation_paths = list(annotation_root_dir.joinpath(raw_suffix).glob(f"{raw_filename}*.jsonl"))
+        return annotation_paths
 
     @staticmethod
-    def join_datasets(dataset1: Dataset, dataset2: Dataset, join_column1: str, join_column2: str) -> Dataset:
+    def join_datasets(
+        dataset1: Dataset, dataset2: Dataset, join_column1: str, join_column2: str, prefix: str
+    ) -> Dataset:
         """
-        Join two Hugging Face datasets on a common column without using pandas.
+        Join two Hugging Face datasets on a common column.
 
         Args:
             dataset1 (Dataset): First Hugging Face dataset
@@ -125,6 +128,7 @@ class DatasetTokenizer:
         def merge_rows(row: Dict[str, Any]) -> Dict[str, Any]:
             # Find the matching row in dataset2
             match = dataset2_map.get(row[join_column1], {})
+            match[f"{prefix}_scores"] = match["scores"]
 
             # Merge the dictionaries, with dataset1 rows taking precedence
             merged_row = {**match, **row}
@@ -156,8 +160,9 @@ class DatasetTokenizer:
 
         return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)
 
-    def _process_dataset2(self, dataset: Dataset) -> Dataset:
-        """Process a dataset by tokenizing text and formatting labels."""
+    def _process_dataset_distributed(self, dataset: Dataset, annotation_prefixes: List[str]) -> Dataset:
+        """Process a dataset by tokenizing text and formatting labels,
+        assuming annotations are in distributed in dedicated files."""
 
         def process_batch(batch):
             # Tokenize the text
@@ -167,15 +172,22 @@ class DatasetTokenizer:
 
             # Process labels
             labels = []
-            for item in batch[self.label_column]:
-                item = [x for x in item if x is not None]
-                if item == []:
-                    item = [0]
-                if self.regression:
-                    labels.append([np.mean(item)])
-                else:
-                    labels.append([round(np.median(item))])
+            for prefix in annotation_prefixes:
+                for annotations in batch[f"{prefix}_{self.label_column}"]:
+                    # remove missing annotations
+                    annotations = [x for x in annotations if x is not None]
+                    # if all annotations are missing, default to 0
+                    if annotations == []:
+                        annotations = [0]
+                    if self.regression:
+                        labels.append(self.annotator_average_fn(annotations))
+                    else:
+                        labels.append(round(self.annotator_average_fn(annotations)))
+            labels_reshaped = [
+                labels[i * len(annotation_prefixes) : (i + 1) * len(annotation_prefixes)]
+                for i in range(len(labels) // len(annotation_prefixes))
+            ]
 
-            return {**tokenized, "labels": labels}
+            return {**tokenized, "labels": labels_reshaped}
 
         return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)

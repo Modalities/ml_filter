@@ -70,6 +70,15 @@ class ClassifierTrainingPipeline:
         self.gt_data_file_path = cfg.data.gt_file_path
         self.gt_data_split = cfg.data.gt_file_split
 
+        self.train_annotation_path = cfg.data.train_annotation_path
+        self.val_annotation_path = cfg.data.val_annotation_path
+        if cfg.data.annotator_average_fn == "median":
+            self.annotator_average_fn = np.median
+        elif cfg.data.annotator_average_fn in ["average", "mean"]:
+            self.annotator_average_fn = np.mean
+        else:
+            raise ValueError("annotator_average_fn must be one of [median, mean]")
+
         # Training
         self.batch_size = cfg.training.batch_size
         self.epochs = cfg.training.epochs
@@ -143,6 +152,7 @@ class ClassifierTrainingPipeline:
             output_names=self.output_names,
             max_length=cfg.tokenizer.max_length,
             regression=self.regression_loss,
+            annotator_average_fn=self.annotator_average_fn,
         )
 
     def _freeze_encoder(self):
@@ -248,9 +258,14 @@ class ClassifierTrainingPipeline:
         return metric_dict
 
     def _dataset_loading(self):
-        train_dataset = self.dataset_tokenizer.load_and_tokenize(self.train_data_file_path, split=self.train_data_split)
+        train_dataset = self.dataset_tokenizer.load_and_tokenize(
+            self.train_data_file_path, split=self.train_data_split, annotation_dir_path=self.train_annotation_path
+        )
+        print(train_dataset["labels"])
 
-        val_dataset = self.dataset_tokenizer.load_and_tokenize(self.val_data_file_path, split=self.val_data_split)
+        val_dataset = self.dataset_tokenizer.load_and_tokenize(
+            self.val_data_file_path, split=self.val_data_split, annotation_dir_path=self.val_annotation_path
+        )
 
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:

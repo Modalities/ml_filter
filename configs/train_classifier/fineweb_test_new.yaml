@@ -14,18 +14,21 @@ tokenizer:
 
 data: 
   train_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw
+  train_annotation_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_annotations
   train_file_split: train
   test_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw # currently not used
   test_file_split: train # currently not used
   val_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw
+  val_annotation_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_annotations
   val_file_split: train
   gt_file_path: null # ground truth data; can be null (optional)
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_regressor_outputs: 1
-  num_classes_per_output: [6]
-  output_names: ["score"]
+  num_regressor_outputs: 2
+  num_classes_per_output: [6, 6]
+  output_names: ["score", "score2"]
+  annotator_average_fn: median
   
 training:
   batch_size: 32
