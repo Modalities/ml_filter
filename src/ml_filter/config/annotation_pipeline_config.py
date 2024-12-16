@@ -29,6 +29,7 @@ class LLMRestClientConfig(BaseModel):
     verbose: bool
     num_return_sequences: int
     num_gpus: int
+    top_p: float
 
 
 class TokenizerConfig(BaseModel):

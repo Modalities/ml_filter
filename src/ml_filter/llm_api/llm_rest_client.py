@@ -32,6 +32,7 @@ class LLMRestClient:
         temperature: float,
         verbose: bool,
         num_return_sequences: int,
+        top_p: float,
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -45,6 +46,7 @@ class LLMRestClient:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
         self.num_return_sequences = num_return_sequences
+        self.top_p = top_p
 
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
@@ -70,6 +72,7 @@ class LLMRestClient:
             max_tokens=self.max_new_tokens,
             temperature=self.temperature,
             n=self.num_return_sequences,
+            top_p=self.top_p,
         )
         start_time_generation = time.time()
         for i in range(self.max_retries):
