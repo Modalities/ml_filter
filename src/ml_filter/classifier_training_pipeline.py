@@ -107,7 +107,7 @@ class ClassifierTrainingPipeline:
 
         # Initialize base model
         if isinstance(model_name, str):
-            if "xlm-roberta" or "xlm-v" in model_name.lower():
+            if "xlm-roberta" in model_name.lower() or "xlm-v" in model_name.lower():
                 self.model = XLMRobertaForMultiTargetClassification.from_pretrained(model_name, **model_args)
             elif "snowflake-arctic" in model_name.lower():
                 self.model = BertForMultiTargetClassification.from_pretrained(model_name, **model_args)
