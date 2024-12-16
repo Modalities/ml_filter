@@ -68,9 +68,6 @@ def _load_validated_jsonl_as_dataframe(jsonl_file_path: Path) -> pd.DataFrame:
                 entry = json.loads(line)
                 if "document_id" in entry.keys() and "scores" in entry.keys():
                     annotation = {"document_id": entry["document_id"], "scores": entry["scores"]}
-                # minimal set for inital Llama annotatations
-                elif "id" in entry.keys() and "score" in entry.keys():
-                    annotation = {"document_id": entry["id"], "scores": [entry["score"]]}
                 else:
                     raise ValueError(
                         f"Abort statistic computations. Error while parsing annotations from {jsonl_file_path}: {e}"

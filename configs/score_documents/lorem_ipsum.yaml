@@ -7,7 +7,16 @@ settings:
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths: 
-    - data/test_data_ml_filter_511.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/da/00135.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/sv/00088.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/fr/00007.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/pt/00175.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/ga/00115.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/hu/00090.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2014-41/sk/00097.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2023-50/pl/00071.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2023-50/ca/00147.jsonl
+    - /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw/2023-50/is/00182.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
 
