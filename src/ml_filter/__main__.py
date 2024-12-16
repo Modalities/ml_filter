@@ -298,7 +298,7 @@ def merge_and_sort_jsonl_files_cli(
     )
 
 
-@click.command(name="count_words_in_jsonl_files_cli")
+@main.command(name="count_words_in_jsonl_files_cli")
 @click.option(
     "--directory",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
