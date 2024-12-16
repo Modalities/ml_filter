@@ -6,13 +6,16 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
-from ml_filter.utils.manipulate_prompt import add_target_langauge_to_prompt
-from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl
+from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
+from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
+from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -45,6 +48,23 @@ target_language_codes_option = click.option(
     required=True,
     help="Comma-separated list of languages.",
 )
+
+aggregation_option = click.option(
+    "--aggregation",
+    type=str,
+    required=False,
+    help="""
+        Specifies how scores for a document from the same file are aggregated. 
+        If not set, no aggregation will be done (used for individual annotator analysis).
+        Supported values:
+        - "mean": Compute the average score.
+        - "max": Use the maximum score.
+        - "min": Use the minimum score.
+        - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
+    """,
+)
+
+path_to_files_argument = click.argument("path_to_files", nargs=-1, type=click.Path(path_type=Path))
 
 
 @click.group()
@@ -141,7 +161,7 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     help="Directory where chunk files will be saved.",
 )
 def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
-    add_target_langauge_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
+    add_target_language_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
 
 
 @main.command(name="translate_flat_yaml")
@@ -181,6 +201,34 @@ def translate_flat_yaml_cli(
     )
 
 
+@main.command(name="interrater_reliability")
+@path_to_files_argument
+@click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Write the computed metrics to this json-file.",
+)
+@aggregation_option
+def interrater_reliability_cli(path_to_files: tuple[Path], output_file_path: Path, aggregation: Optional[str] = None):
+    compute_interrater_reliability_metrics(
+        path_to_files=path_to_files,
+        output_file_path=output_file_path,
+        aggregation=aggregation,
+    )
+
+
+@main.command(name="plot_scores")
+@path_to_files_argument
+@click.option("--output_dir", type=str, required=True)
+@aggregation_option
+def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: Optional[str] = None) -> None:
+    """Plot the differences in scores."""
+    path_to_files = [Path(p) for p in path_to_files]
+    plot_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
+    plot_differences_in_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
+
+
 @main.command(name="translate_jsonl_to_multiple_languages_cli")
 @input_file_path_option
 @output_folder_path_option
@@ -217,6 +265,61 @@ def compute_num_words_in_jsonl_cli(
     output_file_path: Path,
 ):
     compute_num_words_and_chars_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+
+
+@main.command(name="merge_and_sort_jsonl_files_cli")
+@click.option(
+    "--input_folder_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    required=True,
+    help="Path to the input folder containing JSONL files.",
+)
+@click.option("--file-name-delimiter", type=str, required=True, help="Delimiter used to split the file names.")
+@click.option(
+    "--file-name-keep-idx",
+    type=str,
+    required=True,
+    help="Comma-separated list of indices to keep from the split file names.",
+)
+@click.option("--document-key", type=str, required=True, help="The key used to sort documents in the JSONL files.")
+def merge_and_sort_jsonl_files_cli(
+    input_folder_path: Path, file_name_delimiter: str, file_name_keep_idx: str, document_key: str
+):
+    """Merge and sort JSONL files in a directory by a specific key."""
+    # Parse file_name_keep_idx into a list of integers
+    file_name_keep_idx_list = [int(idx.strip()) for idx in file_name_keep_idx.split(",")]
+
+    # Call the main function to process JSONL files
+    merge_and_sort_jsonl_files(
+        directory=input_folder_path,
+        file_name_delimiter=file_name_delimiter,
+        file_name_keep_idx=file_name_keep_idx_list,
+        document_key=document_key,
+    )
+
+
+@main.command(name="count_words_in_jsonl_files_cli")
+@click.option(
+    "--directory",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    required=True,
+    help="Path to the directory containing JSONL files.",
+)
+@click.option(
+    "--output-file",
+    type=click.Path(file_okay=True, dir_okay=False, writable=True, path_type=Path),
+    required=True,
+    help="Path to the output file (JSONL or YAML format) to save results.",
+)
+def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
+    """
+    CLI wrapper to count words in all JSONL files within a directory recursively and save the result.
+
+    Args:
+        directory (Path): Path to the directory to search for JSONL files.
+        output_file (Path): Path to the output file (JSONL or YAML format) to save results.
+    """
+    run_word_count_jsonl_files(directory, output_file)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):

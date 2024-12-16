@@ -1,0 +1,3 @@
+{"document_id": "1", "scores": [2, 1, 2], "explanation": ["<explanation 1>", "<explanation 2>", "<explanation 3>"], "meta_information": {"prompt": "edu", "prompt_lang": "de", "model": "test", "timestamp": 20241202}}
+{"document_id": "3", "scores": [3, 4, 2], "explanation": ["<explanation 1>", "<explanation 2>", "<explanation 3>"], "meta_information": {"prompt": "edu", "prompt_lang": "de", "model": "test", "timestamp": 20241202}}
+{"document_id": "2", "scores": [4, 2, 4], "explanation": ["<explanation 1>", "<explanation 2>", "<explanation 3>"], "meta_information": {"prompt": "edu", "prompt_lang": "de", "model": "test", "timestamp": 20241202}}
