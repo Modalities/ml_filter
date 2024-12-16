@@ -39,6 +39,8 @@ def test_translate_jsonl_to_multiple_languages(
     """Test the translate_jsonl_to_multiple_languages method."""
 
     class MockTranslationClient:
+        name: str = "mock_translation_client"
+
         def translate_text(self, text, source_language, target_language):
             return mock_translate_text(text, source_language, target_language)
 
@@ -81,7 +83,7 @@ def test_translate_jsonl_to_multiple_languages(
 
     # Verify output files
     for lang in target_languages:
-        output_file = output_folder / f"input_{lang}.jsonl"
+        output_file = output_folder / f"input_{lang}_{mock_client.name}.jsonl"
         assert output_file.exists()
 
         with open(output_file, "r", encoding="utf-8") as f:
@@ -90,9 +92,7 @@ def test_translate_jsonl_to_multiple_languages(
 
             for i, line in enumerate(lines):
                 doc = json.loads(line)
-                expected_text = (
-                    f"Hello, world! translated to {lang}" if i == 0 else f"How are you? translated to {lang}"
-                )
+                expected_text = f"Hello world! translated to {lang}" if i == 0 else f"How are you? translated to {lang}"
                 assert doc["text"] == expected_text
 
                 # Check if other fields are preserved
