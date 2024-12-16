@@ -15,7 +15,7 @@ from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
-from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, start_word_count_jsonl_files
+from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
 
 input_file_path_option = click.option(
     "--input_file_path",

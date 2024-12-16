@@ -14,7 +14,7 @@ from ml_filter.utils.statistics import (
     _count_words_in_file,
     _find_jsonl_files,
     compute_num_words_and_chars_in_jsonl,
-    start_word_count_jsonl_files,
+    run_word_count_jsonl_files,
 )
 
 # Mock constants
@@ -184,7 +184,7 @@ def test_find_jsonl_files(tmp_jsonl_directory: Path):
 def test_start_word_count_jsonl_files(tmp_jsonl_directory: Path):
     """Test the process_files function."""
     output_file = tmp_jsonl_directory / "output.jsonl"
-    start_word_count_jsonl_files(tmp_jsonl_directory, output_file)
+    run_word_count_jsonl_files(tmp_jsonl_directory, output_file)
 
     # Verify output file
     assert output_file.exists(), "Output file should exist."
@@ -200,7 +200,7 @@ def test_process_nested_files(tmp_nested_jsonl_directory: tuple[Path, dict[str, 
     """Test the process_files function with a nested directory structure."""
     root_directory, expected_word_counts = tmp_nested_jsonl_directory
     output_file = tmp_path / "nested_output.jsonl"
-    start_word_count_jsonl_files(root_directory, output_file)
+    run_word_count_jsonl_files(root_directory, output_file)
 
     # Verify output file
     assert output_file.exists(), "Output file should exist."
