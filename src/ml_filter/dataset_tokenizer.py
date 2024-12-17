@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 from datasets import Dataset, concatenate_datasets, load_dataset
 from datasets.formatting.formatting import LazyBatch
+from tqdm import tqdm
 from transformers import PreTrainedTokenizer
 
 
@@ -75,7 +76,7 @@ class DatasetTokenizer:
             return self._process_dataset(dataset)
         elif file_path.is_dir():
             annotation_dir_path = Path(annotation_dir_path)
-            for i, path in enumerate(file_path.glob("**/*.jsonl")):
+            for i, path in tqdm(enumerate(file_path.glob("**/*.jsonl"))):
                 new_dataset = load_dataset(
                     "json",
                     data_files=[str(path)],
