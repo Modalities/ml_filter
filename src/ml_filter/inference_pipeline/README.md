@@ -1,60 +1,47 @@
-# Distributed BERT Inference with Checkpointing
+# BERT Inference Pipeline
 
-This repository provides code to perform distributed inference using BERT on a Slurm cluster with multiple GPUs and
-nodes. It includes optimizations for faster inference and checkpointing to allow resuming from interruptions.
+This repository runs large-scale parallel inference on tokenized datasets using BERT.
 
-## Setup
+## 1. Setup
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/EuroLingua-GPT/ml_filter
-cd ml_filter/src/ml_filter/inference_pipeline
-```
-
-### 2. Create and Activate a Conda Environment
-
+### Install Dependencies
 ```bash
 conda create -n bert-env python=3.11
 conda activate bert-env
-```
-
-### 3. Install Required Python Packages
-
-```
-conda install pytorch torchvision torchaudio cudatoolkit=12.4 -c pytorch -c nvidia
 pip install -r requirements.txt
 ```
 
-### 4. Prepare Input Files List
-
-Create a text file named input_files.txt containing the paths to your input JSONL files, one per line.
-The jsonl files assume the data is at the "text" key.
-
+## 2. Create Dummy Datasets
+Use `create_dummy_ds.py` to generate tokenized datasets:
 ```bash
-/data/jsonl/file1.jsonl
-/data/jsonl/file2.jsonl
-/data/jsonl/file3.jsonl
-...
+python create_dummy_ds.py
 ```
 
-## Usage
-
-### 1. Launch job
-
-```bash
-conda activate bert-env
-chmod +x run_inference.slurm
-sbatch run_inference.slurm
-```
-
-### 2. Collect results
+## 3. Running the Pipeline
+### Local Execution
+##### Run inference on a single machine:
 
 ```bash
-cat outputs/output_task*.jsonl > combined_output.jsonl
+python inference.py --input_files_list input_files_list.txt --output_dir outputs --checkpoint_dir checkpoints --task_id 0 --num_tasks 1
+```
+### SLURM Execution
+##### Submit the job to a SLURM cluster:
+```bash
+sbatch runner.sh
+```
+## 4. Output
+```bash
+Logs: logs/
+Outputs: outputs/
+Checkpoints: checkpoints/
+```
+## 5. Run tests
+To validate key components of the pipeline (e.g., collate_fn and dataset sharding), run:
+```bash
+python -m unittest test_inference.py
 ```
 
-# Guesstimate of inference time for 93 CC dumps
+## Guesstimate of inference time for 93 CC dumps
 ```
 | Model                | Single GPU   | 64 GPUs (16 nodes x 4 GPUs) |
 |----------------------|--------------|-----------------------------|
