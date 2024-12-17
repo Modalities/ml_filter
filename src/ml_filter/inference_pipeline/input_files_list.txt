@@ -1,3 +1,1 @@
 datasets/dummy_dataset1
-datasets/dummy_dataset2
-datasets/dummy_dataset3
