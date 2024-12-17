@@ -1,5 +1,5 @@
 model:
-  name: jinaai/jina-embeddings-v3
+  name: Snowflake/snowflake-arctic-embed-m
   num_labels: 6
   classifier_dropout: 0.0
   hidden_dropout_prob: 0.0
@@ -30,7 +30,7 @@ data:
   num_classes_per_output: [6]
   output_names: ["score"]
   annotation_names: []
-  annotator_average_fn: median
+  annotation_aggregation_fn: median
   
 training:
   batch_size: 32

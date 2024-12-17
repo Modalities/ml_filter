@@ -30,7 +30,7 @@ data:
   num_classes_per_output: [6]
   output_names: ["score"]
   annotation_names: []
-  annotator_average_fn: median 
+  annotation_aggregation_fn: median 
   
 training:
   batch_size: 32

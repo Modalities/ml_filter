@@ -20,6 +20,7 @@ from ml_filter.dataset_tokenizer import DatasetTokenizer
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.utils.train_classifier import (
     BertForMultiTargetClassification,
+    XLMRobertaFlashForMultiTargetClassification,
     XLMRobertaForMultiTargetClassification,
     XLMRobertaXLForMultiTargetClassification,
     compute_metrics_for_single_output,
@@ -73,12 +74,12 @@ class ClassifierTrainingPipeline:
         self.train_annotation_path = cfg.data.train_annotation_path
         self.val_annotation_path = cfg.data.val_annotation_path
         self.gt_annotation_path = cfg.data.gt_annotation_path
-        if cfg.data.annotator_average_fn == "median":
-            self.annotator_average_fn = np.median
-        elif cfg.data.annotator_average_fn in ["average", "mean"]:
-            self.annotator_average_fn = np.mean
+        if cfg.data.annotation_aggregation_fn == "median":
+            self.annotation_aggregation_fn = np.median
+        elif cfg.data.annotation_aggregation_fn in ["average", "mean"]:
+            self.annotation_aggregation_fn = np.mean
         else:
-            raise ValueError("annotator_average_fn must be one of [median, mean]")
+            raise ValueError("annotation_aggregation_fn must be one of [median, mean]")
         self.annotation_names = cfg.data.annotation_names
 
         # Training
@@ -125,6 +126,8 @@ class ClassifierTrainingPipeline:
                 self.model = XLMRobertaForMultiTargetClassification.from_pretrained(model_name, **model_args)
             elif "snowflake-arctic" in model_name.lower():
                 self.model = BertForMultiTargetClassification.from_pretrained(model_name, **model_args)
+            elif "jina" in model_name.lower():
+                self.model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(model_name, **model_args)
             else:
                 raise NotImplementedError(
                     f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."  # noqa
@@ -154,7 +157,7 @@ class ClassifierTrainingPipeline:
             output_names=self.output_names,
             max_length=cfg.tokenizer.max_length,
             regression=self.regression_loss,
-            annotator_average_fn=self.annotator_average_fn,
+            annotation_aggregation_fn=self.annotation_aggregation_fn,
             annotation_names=self.annotation_names,
         )
 

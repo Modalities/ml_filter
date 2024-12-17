@@ -18,7 +18,7 @@ class DatasetTokenizer:
         output_names: List[str],
         max_length: int,
         regression: bool = False,
-        annotator_average_fn: Optional[Callable] = np.median,
+        annotation_aggregation_fn: Optional[Callable] = np.median,
         annotation_names: Optional[List[str]] = [],
     ):
         """
@@ -38,7 +38,7 @@ class DatasetTokenizer:
         self.output_names = output_names
         self.max_length = max_length
         self.regression = regression
-        self.annotator_average_fn = annotator_average_fn
+        self.annotation_aggregation_fn = annotation_aggregation_fn
         self.annotation_names = annotation_names
 
         # Ensure tokenizer has padding token
@@ -82,7 +82,7 @@ class DatasetTokenizer:
                     split=split,
                     cache_dir=cache_dir,
                 )
-                annotation_paths = self.get_annotation_paths(path, annotation_dir_path, self.annotation_names) * 2
+                annotation_paths = self.get_annotation_paths(path, annotation_dir_path, self.annotation_names)
                 for annotation_path, prefix in zip(annotation_paths, self.annotation_names):
                     annotation_dataset = load_dataset(
                         "json",
@@ -137,6 +137,8 @@ class DatasetTokenizer:
         def merge_rows(row: Dict[str, Any]) -> Dict[str, Any]:
             # Find the matching row in dataset2
             match = dataset2_map.get(row[join_column1], {})
+            if match == {}:
+                raise FileNotFoundError(f"No annotation found for document ID {row[join_column1]}")
             match[f"{prefix}_scores"] = match["scores"]
 
             # Merge the dictionaries, with dataset1 rows taking precedence
@@ -171,7 +173,7 @@ class DatasetTokenizer:
 
     def _process_dataset_distributed(self, dataset: Dataset, annotation_prefixes: List[str]) -> Dataset:
         """Process a dataset by tokenizing text and formatting labels,
-        assuming annotations are in distributed in dedicated files."""
+        assuming annotations are distributed in dedicated files."""
 
         def process_batch_distributed(batch: LazyBatch) -> Dict[str, Any]:
             # Tokenize the text
@@ -189,9 +191,9 @@ class DatasetTokenizer:
                     if annotations == []:
                         annotations = [0]
                     if self.regression:
-                        labels.append(self.annotator_average_fn(annotations))
+                        labels.append(self.annotation_aggregation_fn(annotations))
                     else:
-                        labels.append(round(self.annotator_average_fn(annotations)))
+                        labels.append(round(self.annotation_aggregation_fn(annotations)))
             labels_reshaped = [
                 labels[i * len(annotation_prefixes) : (i + 1) * len(annotation_prefixes)]
                 for i in range(len(labels) // len(annotation_prefixes))

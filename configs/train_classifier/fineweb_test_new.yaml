@@ -30,7 +30,7 @@ data:
   num_classes_per_output: [6, 6]
   output_names: ["score", "score2"]
   annotation_names: ["annotations_meta-llama--Llama-3.1-70B-Instruct_fine_web_edu", "annotations_meta-llama--Llama-3.1-70B-Instruct_fine_web_edu"]
-  annotator_average_fn: median
+  annotation_aggregation_fn: median
   
 training:
   batch_size: 32
