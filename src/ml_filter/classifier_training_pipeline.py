@@ -120,18 +120,19 @@ class ClassifierTrainingPipeline:
 
         # Initialize base model
         if isinstance(model_name, str):
-            if "xlm-roberta-xl" in model_name.lower():
-                self.model = XLMRobertaXLForMultiTargetClassification.from_pretrained(model_name, **model_args)
-            elif "xlm-roberta" in model_name.lower() or "xlm-v" in model_name.lower():
-                self.model = XLMRobertaForMultiTargetClassification.from_pretrained(model_name, **model_args)
-            elif "snowflake-arctic" in model_name.lower():
-                self.model = BertForMultiTargetClassification.from_pretrained(model_name, **model_args)
-            elif "jina" in model_name.lower():
-                self.model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(model_name, **model_args)
-            else:
-                raise NotImplementedError(
-                    f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."  # noqa
-                )
+            match model_name.lower():
+                case "facebook/xlm-roberta-xl":
+                    self.model = XLMRobertaXLForMultiTargetClassification.from_pretrained(model_name, **model_args)
+                case "facebookai/xlm-roberta-base" | "facebookai/xlm-roberta-large":
+                    self.model = XLMRobertaForMultiTargetClassification.from_pretrained(model_name, **model_args)
+                case "snowflake/snowflake-arctic-embed-m":
+                    self.model = BertForMultiTargetClassification.from_pretrained(model_name, **model_args)
+                case "jinaai/jina-embeddings-v3":
+                    self.model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(model_name, **model_args)
+                case _:
+                    raise NotImplementedError(
+                        f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."  # noqa
+                    )
         else:
             raise ValueError(f"Model name must be a string, got {type(model_name)}")
 
