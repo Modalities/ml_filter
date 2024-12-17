@@ -29,6 +29,8 @@ class LLMClient:
         # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
         self.experiment_dir_path.mkdir(parents=True, exist_ok=True)
+
+        print(f"Experiment directory created at: {self.experiment_dir_path}")
         shutil.copy(config_file_path, self.experiment_dir_path / config_file_path.name)
         shutil.copy(
             cfg.prompt_builder.prompt_template_file_path,
