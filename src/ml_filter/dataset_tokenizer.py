@@ -83,6 +83,7 @@ class DatasetTokenizer:
                     split=split,
                     cache_dir=cache_dir,
                 )
+                new_dataset = new_dataset.select_columns(["text", "id"])
                 annotation_paths = self.get_annotation_paths(path, annotation_dir_path, self.annotation_names)
                 for annotation_path, prefix in zip(annotation_paths, self.annotation_names):
                     annotation_dataset = load_dataset(
@@ -91,6 +92,7 @@ class DatasetTokenizer:
                         split=split,
                         cache_dir=cache_dir,
                     )
+                    annotation_dataset = annotation_dataset.select_columns(["document_id", "scores"])
                     new_dataset = self.join_datasets(
                         new_dataset, annotation_dataset, "id", "document_id", prefix=prefix
                     )
