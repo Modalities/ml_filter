@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import random
 from typing import Dict, List
 from datasets import load_dataset
@@ -62,7 +61,7 @@ def sample_from_hf_dataset(
         )
 
 
-def upload_file_to_hf(file_path: str, hf_repo_path: str, hf_repo_id: str, repo_type: str="dataset", hf_token: str=os.environ["HF_TOKEN"]):
+def upload_file_to_hf(file_path: str, hf_repo_path: str, hf_repo_id: str, repo_type: str, hf_token: str):
     """
     Uploads a file to the Hugging Face Hub.
 
