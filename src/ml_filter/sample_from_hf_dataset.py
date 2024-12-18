@@ -62,12 +62,12 @@ def sample_from_hf_dataset(
         )
 
 
-def upload_file_to_hf(output_file_path: str, hf_repo_path: str, hf_repo_id: str, repo_type: str="dataset", hf_token: str=os.environ["HF_TOKEN"]):
+def upload_file_to_hf(file_path: str, hf_repo_path: str, hf_repo_id: str, repo_type: str="dataset", hf_token: str=os.environ["HF_TOKEN"]):
     """
     Uploads a file to the Hugging Face Hub.
 
     Args:
-        output_file_path (str): The local path to the file to be uploaded.
+        file_path (str): The local path to the file to be uploaded.
         hf_repo_path (str): The path in the Hugging Face repository where the file will be stored.
         hf_repo_id (str): The ID of the Hugging Face repository.
         repo_type (str, optional): The type of the repository (default is "dataset").
@@ -78,7 +78,7 @@ def upload_file_to_hf(output_file_path: str, hf_repo_path: str, hf_repo_id: str,
     """
     api = HfApi()
     api.upload_file(
-        path_or_fileobj=output_file_path,
+        path_or_fileobj=file_path,
         path_in_repo=hf_repo_path,
         repo_id=hf_repo_id,
         repo_type=repo_type,

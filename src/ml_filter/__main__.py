@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -11,7 +12,7 @@ from ml_filter.analysis.plot_score_distributions import plot_differences_in_scor
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
-from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset
+from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
@@ -343,6 +344,51 @@ def sample_from_hf_dataset_cli(
         num_docs_per_value=num_docs_per_value,
         seed=seed,
     )
+    
+    
+@main.command(name="upload_file_to_hf_cli")
+@click.option(
+    "--file-path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="The local path to the file to be uploaded.",
+)
+@click.option(
+    "--hf-repo-path",
+    type=str,
+    required=True,
+    help="The path in the Hugging Face repository where the file will be stored.",
+)
+@click.option(
+    "--hf-repo-id",
+    type=str,
+    required=True,
+    help="The ID of the Hugging Face repository.",
+)
+@click.option(
+    "--repo-type",
+    type=str,
+    default="dataset",
+    show_default=True,
+    help="The type of the repository (default is 'dataset').",
+)
+@click.option(
+    "--hf-token",
+    type=str,
+    default=os.environ.get("HF_TOKEN", ""),
+    show_default=True,
+    help="The Hugging Face authentication token (default is taken from the environment variable 'HF_TOKEN').",
+)
+def upload_file_to_hf_cli(file_path: Path, hf_repo_path: str, hf_repo_id: str, repo_type: str, hf_token: str):
+    """Upload a file to the Hugging Face Hub."""
+    upload_file_to_hf(
+        file_path=str(file_path),
+        hf_repo_path=hf_repo_path,
+        hf_repo_id=hf_repo_id,
+        repo_type=repo_type,
+        hf_token=hf_token,
+    )
+
 
 @main.command(name="merge_and_sort_jsonl_files_cli")
 @click.option(
