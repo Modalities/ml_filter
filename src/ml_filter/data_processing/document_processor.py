@@ -163,7 +163,7 @@ class DocumentProcessor:
         return annotation
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        return len(document["text"]) > 0 and len(document["id"]) > 0 and len(document["language"]) > 0
+        return len(document["text"]) > 0 and len(document["document_id"]) > 0 and len(document["language"]) > 0
 
     def _load_documents(self, raw_data_file_paths: List[Path]):
         for raw_data_file_path in raw_data_file_paths:
