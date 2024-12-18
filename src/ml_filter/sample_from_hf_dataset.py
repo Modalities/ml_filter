@@ -69,8 +69,8 @@ def upload_file_to_hf(file_path: str, hf_repo_path: str, hf_repo_id: str, repo_t
         file_path (str): The local path to the file to be uploaded.
         hf_repo_path (str): The path in the Hugging Face repository where the file will be stored.
         hf_repo_id (str): The ID of the Hugging Face repository.
-        repo_type (str, optional): The type of the repository (default is "dataset").
-        hf_token (str, optional): The Hugging Face authentication token (default is taken from the environment variable "HF_TOKEN").
+        repo_type (str): The type of the repository (default is "dataset").
+        hf_token (str): The Hugging Face authentication token (default is taken from the environment variable "HF_TOKEN").
 
     Returns:
         None
