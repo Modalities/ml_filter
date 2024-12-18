@@ -96,7 +96,7 @@ class DocumentProcessor:
 
     def _process_document(self, document: Dict[str, Any]) -> List[ProcessedDocument]:
         processed_document = ProcessedDocument(
-            document_id=document["id"],
+            document_id=document["document_id"],
             original_text=document["text"],
             raw_data_file_path=document["raw_data_file_path"],
             language=document["language"],
