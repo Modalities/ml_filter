@@ -288,18 +288,6 @@ def compute_num_words_in_jsonl_cli(
     type=click.Path(),
     help="Path to save the sampled data as a JSON file (e.g., 'output.json')."
 )
-# @click.option(
-#     "--hf_repo_path",
-#     required=True,
-#     type=str,
-#     help="Path in the Hugging Face Hub repository where the file will be stored (e.g., 'dataset/output.json')."
-# )
-# @click.option(
-#     "--hf_repo_id",
-#     required=True,
-#     type=str,
-#     help="Hugging Face repository ID (e.g., 'username/repository')."
-# )
 @click.option(
     "--column_name",
     required=True,
@@ -346,34 +334,34 @@ def sample_from_hf_dataset_cli(
     )
     
     
-@main.command(name="upload_file_to_hf_cli")
+@main.command(name="upload_file_to_hf")
 @click.option(
-    "--file-path",
+    "--file_path",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
     required=True,
     help="The local path to the file to be uploaded.",
 )
 @click.option(
-    "--hf-repo-path",
+    "--hf_repo_path",
     type=str,
     required=True,
     help="The path in the Hugging Face repository where the file will be stored.",
 )
 @click.option(
-    "--hf-repo-id",
+    "--hf_repo_id",
     type=str,
     required=True,
     help="The ID of the Hugging Face repository.",
 )
 @click.option(
-    "--repo-type",
+    "--repo_type",
     type=str,
     default="dataset",
     show_default=True,
     help="The type of the repository (default is 'dataset').",
 )
 @click.option(
-    "--hf-token",
+    "--hf_token",
     type=str,
     default=os.environ.get("HF_TOKEN", ""),
     show_default=True,
