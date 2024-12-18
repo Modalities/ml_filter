@@ -1,5 +1,6 @@
 
 import json
+import logging
 import os
 import random
 from typing import List
@@ -38,12 +39,14 @@ def sample_from_hf_dataset(
     Returns:
         None
     """
+    logging.basicConfig(level=logging.INFO)
+    
     # Load dataset
-    print("Loading dataset...")
+    logging.info("Loading dataset...")
     dataset = load_dataset(dataset_name)
 
     # Processing: Sample documents for each relevant score
-    print(f"Sampling {num_docs_per_class} documents per unique value in column '{column_name}'...")
+    logging.info(f"Sampling {num_docs_per_class} documents per unique value in column '{column_name}'...")
     sampled_data = []
 
     for value in relevant_classes:
