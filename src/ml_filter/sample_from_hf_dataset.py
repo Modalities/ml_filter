@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import random
-from typing import List
+from typing import Dict, List
 from datasets import load_dataset
 from huggingface_hub import HfApi
 
@@ -60,10 +60,12 @@ def sample_from_hf_dataset(
     random.shuffle(sampled_data)
 
     # write sampled data to jsonl file
-    with open(output_file_path, "w", encoding="utf-8") as f:
-        for item in sampled_data:
-            json.dump(item, f, ensure_ascii=False)
-            f.write("\n")
+    save_data_to_file(
+        output_file_path=output_file_path,
+        data=sampled_data,
+        encoding="utf-8",
+        ensure_ascii=False
+        )
 
     # upload json file to huggingface
     api = HfApi()
@@ -74,3 +76,10 @@ def sample_from_hf_dataset(
         repo_type="dataset",
         token=HF_TOKEN,
     )
+
+
+def save_data_to_file(output_file_path: str, data: List[Dict], encoding: str="utf-8", ensure_ascii: bool = False):
+    with open(output_file_path, "w", encoding=encoding) as f:
+        for item in data:
+            json.dump(item, f, ensure_ascii=ensure_ascii)
+            f.write("\n")
