@@ -287,18 +287,18 @@ def compute_num_words_in_jsonl_cli(
     type=click.Path(),
     help="Path to save the sampled data as a JSON file (e.g., 'output.json')."
 )
-@click.option(
-    "--hf_repo_path",
-    required=True,
-    type=str,
-    help="Path in the Hugging Face Hub repository where the file will be stored (e.g., 'dataset/output.json')."
-)
-@click.option(
-    "--hf_repo_id",
-    required=True,
-    type=str,
-    help="Hugging Face repository ID (e.g., 'username/repository')."
-)
+# @click.option(
+#     "--hf_repo_path",
+#     required=True,
+#     type=str,
+#     help="Path in the Hugging Face Hub repository where the file will be stored (e.g., 'dataset/output.json')."
+# )
+# @click.option(
+#     "--hf_repo_id",
+#     required=True,
+#     type=str,
+#     help="Hugging Face repository ID (e.g., 'username/repository')."
+# )
 @click.option(
     "--column_name",
     required=True,
@@ -306,16 +306,16 @@ def compute_num_words_in_jsonl_cli(
     help="Column in the dataset used for filtering (e.g., 'score')."
 )
 @click.option(
-    "--relevant_classes",
+    "--column_values",
     required=True,
     type=str,
-    help="Comma-separated list of relevant class values to sample.",
+    help="Comma-separated list of relevant column values to sample.",
 )
 @click.option(
-    "--num_docs_per_class",
+    "--num_docs_per_value",
     required=True,
     type=int,
-    help="Number of documents to sample for each class (e.g., 100)."
+    help="Number of documents to sample for each column value (e.g., 100)."
 )
 @click.option(
     "--seed",
@@ -328,23 +328,19 @@ def sample_from_hf_dataset_cli(
     dataset_name: str,
     dataset_split: str,
     output_file_path: str,
-    hf_repo_id: str,
-    hf_repo_path: str,
     column_name: str,
-    relevant_classes: tuple[int],
-    num_docs_per_class: int,
+    column_values: tuple[int],
+    num_docs_per_value: int,
     seed: int
 ):
-    relevant_classes_list = [int(x.strip()) for x in relevant_classes.split(",")]
+    column_values_list = [x.strip() for x in column_values.split(",")]
     sample_from_hf_dataset(
         dataset_name=dataset_name,
         dataset_split=dataset_split,
         output_file_path=output_file_path,
-        hf_repo_path=hf_repo_path,
-        hf_repo_id=hf_repo_id,
         column_name=column_name,
-        relevant_classes=relevant_classes_list,
-        num_docs_per_class=num_docs_per_class,
+        column_values=column_values_list,
+        num_docs_per_value=num_docs_per_value,
         seed=seed,
     )
 

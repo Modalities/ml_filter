@@ -1,4 +1,3 @@
-
 import json
 import logging
 import os
@@ -12,11 +11,9 @@ def sample_from_hf_dataset(
     dataset_name: str,
     dataset_split: str,
     output_file_path: str,
-    hf_repo_path: str,
-    hf_repo_id: str,
     column_name: str,
-    relevant_classes: List[int],
-    num_docs_per_class: int,
+    column_values: List[str],
+    num_docs_per_value: int,
     seed: int
 ):
     """
@@ -29,8 +26,8 @@ def sample_from_hf_dataset(
         hf_repo_path (str): The path in the Hugging Face Hub repository where the file will be stored.
         hf_repo_id (str): The ID of the Hugging Face repository to upload the file to.
         column_name (str): The column in the dataset used for filtering (e.g., "score").
-        relevant_classes (List[int]): List of class values to filter and sample from.
-        num_docs_per_class (int): Number of documents to sample for each class.
+        column_values (List[str]): List of column values to filter and sample from as strings.
+        num_docs_per_value (int): Number of documents to sample for each column value.
         seed (int): Seed value for random operations to ensure reproducibility.
 
     Returns:
@@ -43,13 +40,13 @@ def sample_from_hf_dataset(
     dataset = load_dataset(dataset_name)
 
     # Processing: Sample documents for each relevant score
-    logging.info(f"Sampling {num_docs_per_class} documents per unique value in column '{column_name}'...")
+    logging.info(f"Sampling {num_docs_per_value} documents per unique value in column '{column_name}'...")
     sampled_data = []
 
-    for value in relevant_classes:
-        group = dataset[dataset_split].filter(lambda x: x[column_name] == value)
+    for value in column_values:
+        group = dataset[dataset_split].filter(lambda x: str(x[column_name]) == value)
         # Randomly sample from the group (handle cases where group size < SAMPLES_PER_GROUP)
-        sampled_group = group.shuffle(seed=seed).select(range(min(len(group), num_docs_per_class)))
+        sampled_group = group.shuffle(seed=seed).select(range(min(len(group), num_docs_per_value)))
         sampled_data.extend(sampled_group)
 
     # shuffle data
@@ -66,6 +63,19 @@ def sample_from_hf_dataset(
 
 
 def upload_file_to_hf(output_file_path: str, hf_repo_path: str, hf_repo_id: str, repo_type: str="dataset", hf_token: str=os.environ["HF_TOKEN"]):
+    """
+    Uploads a file to the Hugging Face Hub.
+
+    Args:
+        output_file_path (str): The local path to the file to be uploaded.
+        hf_repo_path (str): The path in the Hugging Face repository where the file will be stored.
+        hf_repo_id (str): The ID of the Hugging Face repository.
+        repo_type (str, optional): The type of the repository (default is "dataset").
+        hf_token (str, optional): The Hugging Face authentication token (default is taken from the environment variable "HF_TOKEN").
+
+    Returns:
+        None
+    """
     api = HfApi()
     api.upload_file(
         path_or_fileobj=output_file_path,
