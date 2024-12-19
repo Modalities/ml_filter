@@ -1,33 +1,28 @@
 import os
-import sys
 from pathlib import Path
 from typing import Dict, List
+
+import numpy as np
 
 import torch
 from datasets import Dataset, load_dataset
 from omegaconf import OmegaConf
-from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, mean_absolute_error
-from transformers import AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments, EvalPrediction
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
+from torch import Tensor
+from transformers import (
+    AutoModelForSequenceClassification,
+    BertForSequenceClassification,
+    DataCollatorWithPadding,
+    EvalPrediction,
+    RobertaForSequenceClassification,
+    Trainer,
+    TrainingArguments,
+    XLMRobertaForSequenceClassification,
+)
+from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
-
-sys.path.append(os.path.join(os.getcwd(), "src"))
-
-
-def compute_metrics(eval_pred: EvalPrediction):
-    predictions, labels = eval_pred
-    
-    # Convert logits to predicted class
-    preds = predictions.argmax(axis=-1)
-    
-    # Compute classification metrics
-    accuracy = accuracy_score(labels, preds)
-    f1 = f1_score(labels, preds, average="weighted")
-    
-    # Compute regression-like metrics
-    mse = mean_squared_error(labels, preds)
-    mae = mean_absolute_error(labels, preds)
-    return {"accuracy": accuracy, "f1": f1, "mse": mse, "mae": mae}
+from ml_filter.utils.train_classifier import LogitMaskLayer, RegressionScalingLayer
 
 
 class ClassifierTrainingPipeline:
@@ -56,6 +51,45 @@ class ClassifierTrainingPipeline:
             hidden_dropout_prob=cfg.model.hidden_dropout_prob,
             output_hidden_states=cfg.model.output_hidden_states,
         )
+        # loss function
+        self.regression_loss = cfg.training.regression_loss
+
+        # multilabel settings
+        self.num_regressor_outputs = cfg.data.num_regressor_outputs
+
+        self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
+        self.output_names = cfg.data.output_names
+
+        if isinstance(self.model, BertForSequenceClassification):
+            self.embedding_size = self.model.classifier.in_features
+            if self.regression_loss:
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
+                )
+            else:
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
+                self.model.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_output),
+                )
+        elif isinstance(self.model, XLMRobertaForSequenceClassification) or isinstance(
+            self.model, RobertaForSequenceClassification
+        ):
+            self.embedding_size = self.model.classifier.dense.in_features
+            if self.regression_loss:
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.num_regressor_outputs, bias=True),
+                    RegressionScalingLayer(self.num_classes_per_output),
+                )
+            else:
+                self.model.num_labels = self.num_regressor_outputs * max(self.num_classes_per_output)
+                self.model.classifier.out_proj = torch.nn.Sequential(
+                    torch.nn.Linear(self.embedding_size, self.model.num_labels, bias=True),
+                    LogitMaskLayer(self.num_classes_per_output),
+                )
+        else:
+            raise NotImplementedError(f"Unsupported model type {type(self.model)}")
 
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
@@ -63,6 +97,7 @@ class ClassifierTrainingPipeline:
             truncation=cfg.tokenizer.truncation,
             padding=cfg.tokenizer.padding,
             max_length=cfg.tokenizer.max_length,
+            add_generation_prompt=False
         )
         # Training
         self.batch_size = cfg.training.batch_size
@@ -91,8 +126,9 @@ class ClassifierTrainingPipeline:
     def _set_seeds(self):
         """Set seeds for reproducibility"""
         import random
+
         import numpy as np
-        
+
         torch.manual_seed(self.seed)
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -102,8 +138,8 @@ class ClassifierTrainingPipeline:
 
             # the following are needed for exact reproducibility across GPUs and runs
             # but slow things down. Don't use them in production.
-            #torch.backends.cudnn.deterministic = True
-            #torch.backends.cudnn.benchmark = False
+            # torch.backends.cudnn.deterministic = True
+            # torch.backends.cudnn.benchmark = False
 
     def _load_dataset(self, file_path: Path, split: str = "train") -> Dataset:
         return load_dataset("json", data_files=[file_path], split=split)
@@ -118,7 +154,7 @@ class ClassifierTrainingPipeline:
             save_strategy=self.save_strategy,
             logging_steps=self.logging_steps,
             logging_dir=self.logging_dir,
-            seed=self.seed if self.seed is not None else 42, # 42 is the default value in huggingface Trainer
+            seed=self.seed if self.seed is not None else 42,  # 42 is the default value in huggingface Trainer
             # Load best model at the end of training to save it after training in a separate directory
             load_best_model_at_end=True,
             metric_for_best_model=self.metric_for_best_model,
@@ -128,13 +164,102 @@ class ClassifierTrainingPipeline:
 
     def _map_dataset(self, dataset: Dataset) -> Dataset:
         # Map both tokenization and label assignment
-        return dataset.map(
-            lambda x: {
-                **self._tokenize(x),  # tokenize the text
-                "labels": torch.tensor([int(score) for score in x[self.sample_label]], dtype=torch.long),
-            },
-            batched=True,
+        def process_batch(batch):
+            tokenized = self._tokenize(batch)
+            labels = []
+            for item in batch[self.sample_label]:
+                if self.regression_loss:
+                    labels.append([float(item[k]) for k in self.output_names])
+                else:
+                    labels.append([int(item[k]) for k in self.output_names])
+
+            return {**tokenized, "labels": labels}
+
+        return dataset.map(process_batch, batched=True)
+
+    def multi_target_cross_entropy_loss(
+        self,
+        input: SequenceClassifierOutput,
+        target: Tensor,
+        num_items_in_batch: int,
+        **kwargs,
+    ):
+        """
+        The `num_items_in_batch` argument is unused, but this exact signature is required by `Trainer`.
+        """
+        return torch.nn.functional.cross_entropy(
+            input["logits"],
+            target.view(-1, self.num_regressor_outputs),
         )
+
+    def multi_target_mse_loss(
+        self,
+        input: SequenceClassifierOutput,
+        target: Tensor,
+        num_items_in_batch: int,
+        **kwargs,
+    ):
+        """
+        The `num_items_in_batch` argument is unused, but this exact signature is required by `Trainer`.
+        """
+        return torch.nn.functional.mse_loss(
+            input["logits"],
+            target.view(-1, self.num_regressor_outputs),
+        )
+
+    def compute_metrics(self, eval_pred: EvalPrediction) -> dict:
+        """
+        Computes evaluation metrics for all outputs.
+        
+        Returns a dictionary containing an entry for every output with different evaluation metrics.
+        """
+        predictions, labels = eval_pred
+
+        # Convert logits to predicted class
+        if not self.regression_loss:
+            preds = predictions.argmax(axis=1)
+            preds_raw = preds
+        else:
+            # accuracy and F1 are not defined for float predictions
+            preds = np.round(predictions)
+            preds_raw = predictions
+            
+        metric_dict = {}
+        for i, output_name in enumerate(self.output_names):
+            metrics = self._compute_metrics_for_single_output(labels=labels[:, i], preds=preds[:, i], preds_raw=preds_raw[:, i])
+            metric_dict.update({
+                f"{output_name}_{metric}": metrics[metric]
+                for metric in metrics
+            })
+        return metric_dict
+
+    @staticmethod
+    def _compute_metrics_for_single_output(labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray) -> dict:
+        """
+        Computes evaluation metrics for a specific output
+        
+        Returns a dictionary containing an entry for every evaluation metrics.
+        """
+        metrics = {}
+        
+        # Compute classification metrics
+        metrics["accuracy"] = accuracy_score(labels, preds)
+        metrics["f1_weighted"] = f1_score(labels, preds, average="weighted")
+        metrics["f1_micro"] = f1_score(labels, preds, average="micro")
+        metrics["f1_macro"] = f1_score(labels, preds, average="macro")
+
+        # Compute regression-like metrics
+        metrics["mse"] = mean_squared_error(labels, preds_raw)
+        metrics["mae"] = mean_absolute_error(labels, preds_raw)
+        
+        # add f1 scores for each class
+        classes = np.unique(labels)
+        classes.sort()
+        f1_per_class = f1_score(labels, preds, average=None)
+        for i, c in enumerate(classes):
+            metrics[f"f1_class_{c}"] = f1_per_class[i]
+        
+        return metrics   
 
     def train_classifier(self):
         training_arguments = self._create_training_arguments()
@@ -147,7 +272,7 @@ class ClassifierTrainingPipeline:
 
         train_dataset = self._map_dataset(train_dataset)
         val_dataset = self._map_dataset(val_dataset)
-        
+
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:
             gt_dataset = self._load_dataset(self.gt_data_file_path, split=self.gt_data_split)
@@ -155,14 +280,17 @@ class ClassifierTrainingPipeline:
             eval_datasets["gt"] = gt_dataset
 
         data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer.tokenizer)
-        
+
         trainer = Trainer(
             model=self.model,
             args=training_arguments,
             train_dataset=train_dataset,
-            eval_dataset=eval_datasets,
+            eval_dataset=val_dataset,
             data_collator=data_collator,
-            compute_metrics=compute_metrics,
+            compute_loss_func=(
+                self.multi_target_mse_loss if self.regression_loss else self.multi_target_cross_entropy_loss
+            ),
+            compute_metrics=self.compute_metrics,
         )
 
         trainer.train()

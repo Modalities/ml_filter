@@ -13,6 +13,7 @@ dependencies = [
     "click",
     "click_pathlib",
     "Jinja2",
+    "scikit-learn",
     # this is only needed for MN5 as it has Keras 3 installed which is incompatible with the latest version of transformers. 
     # When running mn_filters the transformers generally checks if keras is installed and if so if it is the correct version.
     # This throws an error as the version of keras is not compatible with the transformers version.
@@ -20,12 +21,17 @@ dependencies = [
     "tf-keras==2.18.0",
     "deepl",
     "openai",
-    "accelerate>=0.21.0"
+    "accelerate>=0.34.2",
+    "statsmodels",
+    "krippendorff",
+    "seaborn",
+    "python-dotenv",
+    "jq",
 ]
 
 [project.optional-dependencies]
 linting = ["pre-commit"]
-tests = ["pytest", "pytest-cov"]
+tests = ["pytest", "pytest-cov", "pytest-dotenv"]
 install_helper = ["ninja"]
 
 [project.scripts]

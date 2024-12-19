@@ -1,4 +1,7 @@
+import json
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
 from unittest.mock import Mock
 
 import deepl
@@ -10,8 +13,13 @@ from ml_filter.translate import Translator
 
 
 @dataclass
+class Message:
+    content: str
+
+
+@dataclass
 class Choice:
-    message: str
+    message: Message
 
 
 @dataclass
@@ -25,7 +33,74 @@ class TextResult:
     choices: list[Choice] | None = None
 
 
-def _test_raises_exception(text, translator: Translator):
+def test_translate_jsonl_to_multiple_languages(
+    mock_translate_text: Callable, temporary_jsonl_file: Path, output_folder: Path
+):
+    """Test the translate_jsonl_to_multiple_languages method."""
+
+    class MockTranslationClient:
+        name: str = "mock_translation_client"
+
+        def translate_text(self, text, source_language, target_language):
+            return mock_translate_text(text, source_language, target_language)
+
+        def translate_jsonl_to_multiple_languages(
+            self,
+            input_file_path,
+            output_folder_path,
+            source_language_code,
+            target_language_codes,
+        ):
+            translator = Translator(client=self)
+            translator.translate_jsonl_to_multiple_languages(
+                input_file_path=input_file_path,
+                output_folder_path=output_folder_path,
+                source_language_code=source_language_code,
+                target_language_codes=target_language_codes,
+            )
+
+        @property
+        def supported_source_languages(self):
+            return ["en"]
+
+        @property
+        def supported_target_languages(self):
+            return ["fr", "es"]
+
+    mock_client = MockTranslationClient()
+    translator = Translator(client=mock_client)
+
+    source_language = "en"
+    target_languages = ["fr", "es"]
+
+    # Call the method under test
+    translator.translate_jsonl_to_multiple_languages(
+        input_file_path=temporary_jsonl_file,
+        output_folder_path=output_folder,
+        source_language_code=source_language,
+        target_language_codes=target_languages,
+    )
+
+    # Verify output files
+    for lang in target_languages:
+        output_file = output_folder / f"input_{lang}_{mock_client.name}.jsonl"
+        assert output_file.exists()
+
+        with open(output_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            assert len(lines) == 2  # Ensure two documents are translated
+
+            for i, line in enumerate(lines):
+                doc = json.loads(line)
+                expected_text = f"Hello world! translated to {lang}" if i == 0 else f"How are you? translated to {lang}"
+                assert doc["text"] == expected_text
+
+                # Check if other fields are preserved
+                assert "id" in doc
+                assert doc["id"] == i + 1
+
+
+def _test_raises_exception(text: str, translator: Translator):
     for source_lang_code, target_lang_code in zip(["xx2", "de"], [["xx2", "fr"], ["xx2", "fr"]]):
         with pytest.raises(Exception):
             translator.translate_text(
@@ -35,7 +110,7 @@ def _test_raises_exception(text, translator: Translator):
             )
 
 
-def test_deepl_translate(deepl_translator):
+def test_deepl_translate(deepl_translator: Translator):
     """Test the translation of text into multiple languages."""
 
     with open("tests/resources/data/translate_en.yaml", "r") as file:
@@ -64,7 +139,7 @@ def test_deepl_translate(deepl_translator):
     _test_raises_exception(text=text, translator=deepl_translator)
 
 
-def test_openai_translate(openai_translator):
+def test_openai_translate(openai_translator: Translator):
     with open("tests/resources/data/translate_en.yaml", "r") as file:
         data = yaml.safe_load(file)
 
@@ -77,7 +152,9 @@ def test_openai_translate(openai_translator):
     openai_client.translate_text = lambda text, source_lang, target_lang, tag_handling, ignore_tags: TextResult(
         text=text
     )
-    openai_client.chat.completions.create = lambda model, messages: TextResult(choices=[Choice(message=messages[1])])
+    openai_client.chat.completions.create = lambda model, messages: TextResult(
+        choices=[Choice(message=Message(messages[1]["content"]))]
+    )
     openai_translator.client.client = openai_client
 
     translated_data = openai_translator.translate_text(

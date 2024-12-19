@@ -19,7 +19,9 @@ class LLMClient:
         self.experiment_id = experiment_id
         self.rest_endpoint = rest_endpoint
 
+        OmegaConf.register_new_resolver("eval", eval)
         cfg = OmegaConf.load(config_file_path)
+
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
@@ -30,7 +32,7 @@ class LLMClient:
             self.experiment_dir_path / Path(self.prompt_template_file_path).name,
         )
         # Dataset related variables
-        self.raw_data_file_path = Path(cfg.settings.paths.raw_data_file_path)
+        self.raw_data_file_paths = [Path(path) for path in cfg.settings.paths.raw_data_file_paths]
 
         # LLMRestClient related variables
         self.max_retries = cfg.llm_rest_client.max_retries
@@ -43,17 +45,19 @@ class LLMClient:
         self.max_new_tokens = cfg.llm_rest_client.max_new_tokens
         self.temperature = cfg.llm_rest_client.temperature
         self.verbose = cfg.llm_rest_client.verbose
+        self.num_return_sequences = cfg.llm_rest_client.num_return_sequences
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
         self.special_tokens = cfg.tokenizer.special_tokens
+        self.add_generation_prompt = cfg.tokenizer.add_generation_prompt
 
         # DocumentProcessor related variables
         self.max_prompt_length = cfg.prompt_builder.max_prompt_length
         self.queue_size = cfg.document_processor.queue_size
-        self.batch_size = cfg.document_processor.batch_size
         self.num_processes = cfg.document_processor.num_processes
         self.score_metric_name = cfg.document_processor.score_metric_name
+        self.jq_language_pattern = cfg.document_processor.jq_language_pattern
 
     def run(self):
         """Runs the LLM service.
@@ -70,6 +74,7 @@ class LLMClient:
             padding=False,
             max_length=None,
             special_tokens=self.special_tokens,
+            add_generation_prompt=self.add_generation_prompt,
         )
 
         # Get LLMRestClient
@@ -86,6 +91,7 @@ class LLMClient:
             max_new_tokens=self.max_new_tokens,
             temperature=self.temperature,
             verbose=self.verbose,
+            num_return_sequences=self.num_return_sequences,
         )
 
         # Get DocumentProcessor
@@ -95,11 +101,11 @@ class LLMClient:
                 self.prompt_template_file_path, tokenizer=tokenizer, max_prompt_length=self.max_prompt_length
             ),
             queue_size=self.queue_size,
-            batch_size=self.batch_size,
-            raw_data_file_path=self.raw_data_file_path,
+            raw_data_file_paths=self.raw_data_file_paths,
             experiment_dir_path=self.experiment_dir_path,
             num_processes=self.num_processes,
             score_metric_name=self.score_metric_name,
+            jq_language_pattern=self.jq_language_pattern,
         )
 
         document_processor.run()

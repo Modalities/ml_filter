@@ -1,15 +1,16 @@
 import json
 import logging
 import multiprocessing
+import os
 import re
 import time
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import jq
 from tqdm import tqdm
 
-from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
+from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus, MetaInformation, ProcessedDocument
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
@@ -27,11 +28,11 @@ class DocumentProcessor:
         llm_rest_client: LLMRestClient,
         prompt_builder: PromptBuilder,
         queue_size: int,
-        batch_size: int,
-        raw_data_file_path: Path,
+        raw_data_file_paths: List[Path],
         experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
+        jq_language_pattern: str,
         strings_to_remove: Optional[List[str]] = [],
     ):
         """Initializes the DocumentProcessor."""
@@ -39,12 +40,13 @@ class DocumentProcessor:
         self.prompt_builder = prompt_builder
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
-        self.batch_size = batch_size
         self.num_processes = num_processes
-        self.raw_data_file_path = raw_data_file_path
+        self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
-        self.output_file_path = Path(experiment_dir_path) / "processed_documents.jsonl"
+        self.common_parents_path = os.path.commonpath(raw_data_file_paths)
+
         self.strings_to_remove = strings_to_remove
+        self.jq_language_pattern = jq.compile(jq_language_pattern)
 
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
@@ -90,8 +92,15 @@ class DocumentProcessor:
 
         return text
 
-    def _process_document(self, document: Dict[str, Any]) -> ProcessedDocument:
-        processed_document = ProcessedDocument(document_id=document["id"], original_text=document["text"])
+    def _process_document(self, document: Dict[str, Any]) -> List[ProcessedDocument]:
+        processed_document = ProcessedDocument(
+            document_id=document["id"],
+            original_text=document["text"],
+            raw_data_file_path=document["raw_data_file_path"],
+            language=document["language"],
+        )
+        if "score" in document:
+            processed_document.original_score = float(document["score"])
         # text preprocessing
         processed_document.preprocessed_text = self._remove_special_strings(processed_document.original_text)
 
@@ -99,118 +108,158 @@ class DocumentProcessor:
         processed_document = self.prompt_builder.construct_prompt(processed_document)
 
         # text generation
-        processed_document = self.llm_rest_client.generate(processed_document=processed_document)
-
-        # score filtering
-        score = DocumentProcessor.find_last_pattern(
-            processed_document.generated_text, pattern=self.score_metric.pattern
-        )
-        if score is None:
-            processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
-            processed_document.errors.append(
-                f"Could not find the score metric '{self.score_metric.metric_name}' in the model response."
+        all_processed_documents = []
+        processed_documents = self.llm_rest_client.generate(processed_document=processed_document)
+        for processed_document in processed_documents:
+            # score filtering
+            score = DocumentProcessor.find_last_pattern(
+                processed_document.generated_text, pattern=self.score_metric.pattern
             )
-        else:
-            processed_document.score = float(score)
-            processed_document.score_type = self.score_metric.metric_name
-            processed_document.document_processing_status = DocumentProcessingStatus.SUCCESS
+            if score is None:
+                processed_document.document_processing_status = DocumentProcessingStatus.ERROR_FAULTY_SCORE
+            else:
+                processed_document.score = float(score)
+                processed_document.score_type = self.score_metric.metric_name
+                processed_document.document_processing_status = DocumentProcessingStatus.SUCCESS
 
-        if len(processed_document.errors) > 0:
-            error_string = " | ".join(processed_document.errors)
-            logger.warning(f"Error processing document with id {document['id']}: {error_string}")
-        return processed_document
+            if len(processed_document.errors) > 0:
+                error_string = " | ".join(processed_document.errors)
+                logger.warning(f"Error processing document with id {document['id']}: {error_string}")
+            all_processed_documents.append(processed_document)
+        return all_processed_documents
 
-    def _process_documents_batch(self):
+    def _process_documents(self):
         while True:
-            batch_of_documents = self.documents_queue.get()
+            document = self.documents_queue.get()
 
-            if batch_of_documents is None:
+            if document is None:
                 break
 
-            processed_documents = []
+            processed_document_variations = self._process_document(document)
+            annotation = self._convert_to_annotation(processed_document_variations)
 
-            for document in batch_of_documents:
-                processed_document = self._process_document(document)
-                processed_documents.append(processed_document)
+            self.result_queue.put(annotation)
 
-            self.result_queue.put(processed_documents)
+    def _convert_to_annotation(self, processed_document_variations: List[ProcessedDocument]) -> Annotation:
+        annotation = Annotation(
+            document_id=processed_document_variations[0].document_id,
+            meta_information=MetaInformation(
+                prompt_name=processed_document_variations[0].prompt_name,
+                prompt_lang=processed_document_variations[0].language,
+                model_name=self.llm_rest_client.model_name,
+                raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
+            ),
+        )
+        for processed_document_variation in processed_document_variations:
+            annotation.scores.append(processed_document_variation.score)
+            annotation.explanations.append(processed_document_variation.generated_text)
+            annotation.errors.append(processed_document_variation.errors)
+            annotation.time_stamps.append(processed_document_variation.timestamp)
+            annotation.document_processing_status.append(processed_document_variation.document_processing_status)
+
+        return annotation
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        return len(document["text"]) > 0
+        return len(document["text"]) > 0 and len(document["id"]) > 0 and len(document["language"]) > 0
 
-    def _create_batches(self, raw_data_file_path: Path):
-        batch = []
-        with open(raw_data_file_path, "r") as fin:
-            while True:
-                document_string = fin.readline()
-                if len(document_string) == 0:
-                    break
-                try:
-                    document = json.loads(document_string)
-                except json.JSONDecodeError:
-                    logger.warning(f"Error decoding document: {document_string}. Skipping.")
-                    continue
+    def _load_documents(self, raw_data_file_paths: List[Path]):
+        for raw_data_file_path in raw_data_file_paths:
+            with open(raw_data_file_path, "r") as fin:
+                while True:
+                    document_string = fin.readline()
+                    if len(document_string) == 0:
+                        break
+                    try:
+                        document = json.loads(document_string)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Error decoding document: {document_string}. Skipping.")
+                        continue
 
-                if not self._is_valid_document(document):
-                    logger.warning(
-                        f"Invalid document with id: {document['id']}. Value of key 'text' has length of 0. Skipping."
-                    )
-                    continue
+                    # Add langauge to document based on jq pattern
+                    langauge = self.jq_language_pattern.input(document).first()
+                    if not langauge:
+                        raise ValueError(f"Could not find language in document: {document}. Check your jq pattern.")
 
-                batch.append(document)
+                    document["language"] = langauge
+                    document["raw_data_file_path"] = raw_data_file_path
 
-                if len(batch) % self.batch_size == 0:
-                    self.documents_queue.put(batch)
-                    batch = []
+                    if not self._is_valid_document(document):
+                        logger.warning(
+                            f"Invalid document with id: {document['id']}. "
+                            + "Value of key 'text' has length of 0. Skipping."
+                        )
+                        continue
+                    self.documents_queue.put(document)
 
-        # If there are remaining documents that didn't fill up a batch
-        if len(batch) > 0:
-            self.documents_queue.put(batch)
-
-        # Add termination signal (None) once all batches are in the queue
+        # Add termination signal (None) once all documents are in the queue
         for _ in range(self.num_processes):
             self.documents_queue.put(None)
 
-    def _write_results(self, output_file: str):
-        with open(output_file, "w") as f:
-            start_time = time.time()
-            results_written = 0
+    def _write_results(self, common_parents_path: Path):
+        start_time = time.time()
+        results_written = 0
+        open_files = {}
 
-            while True:
-                processed_documents = self.result_queue.get()
-                if processed_documents is None:
+        while True:
+            annotation: Annotation = self.result_queue.get()
+            if annotation is None:
+                for f in open_files.values():
                     f.flush()
-                    break
-                for processed_document in processed_documents:
-                    rejected_keys = {
-                        "preprocessed_text",
-                        "original_text",
-                        "original_history",
-                        "prompt",
-                        "document_text_detokenized",
-                        "truncated_preprocessed_text",
-                    }
-                    processed_document_dict = {
-                        k: v for k, v in asdict(processed_document).items() if k not in rejected_keys
-                    }
-                    json.dump(processed_document_dict, f)
-                    f.write("\n")
-                    results_written += 1
+                    f.close()
+                break
 
-                if results_written % 10 == 0:
-                    f.flush()
-                    end_time = time.time()
-                    elapsed_time = end_time - start_time
-                    results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+            out_file_path = self._create_out_file_path(annotation, common_parents_path)
 
-                    logger.info(
-                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
-                        f" | Results per second: {results_per_second:.2f}"
-                    )
+            # Open the file if not already open
+            if out_file_path not in open_files:
+                open_files[out_file_path] = open(out_file_path, "a")  # Append mode
+
+            f = open_files[out_file_path]
+
+            if annotation is None:
+                for file in open_files.values():
+                    file.flush()
+                    file.close()
+                break
+
+            json.dump(annotation.model_dump(), f)
+            f.write("\n")
+            results_written += 1
+
+            if results_written % 10 == 0:
+                for file in open_files.values():
+                    file.flush()
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+
+                logger.info(
+                    f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
+                    f" | Results per second: {results_per_second:.2f}"
+                )
+
         logger.info(
             f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
             f" | Results per second: {results_per_second:.2f}"
         )
+
+    def _create_out_file_path(self, annotation: Annotation, common_parents_path: Path) -> Path:
+        input_file_path = Path(annotation.meta_information.raw_data_file_path)
+        relative_input_parents_path = input_file_path.relative_to(common_parents_path)
+        out_file_name = "_".join(
+            [
+                input_file_path.stem,
+                "_annotations",
+                annotation.meta_information.model.replace("/", "--"),
+                annotation.meta_information.prompt_name,
+                annotation.meta_information.prompt_lang,
+                input_file_path.suffix,
+            ]
+        )
+
+        out_dir_path = self.experiment_dir_path / "generated_annotations" / relative_input_parents_path.parent
+        out_dir_path.mkdir(parents=True, exist_ok=True)
+        return out_dir_path / out_file_name
 
     def run(self):
         """Runs the document processor.
@@ -222,14 +271,14 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._create_batches, args=(self.raw_data_file_path,))
+        reader = multiprocessing.Process(target=self._load_documents, args=(self.raw_data_file_paths,))
         reader.start()
 
-        writer = multiprocessing.Process(target=self._write_results, args=(self.output_file_path,))
+        writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
         writer.start()
 
         processor_threads = [
-            multiprocessing.Process(target=self._process_documents_batch)
+            multiprocessing.Process(target=self._process_documents)
             for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):

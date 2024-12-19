@@ -6,11 +6,11 @@ model:
   output_hidden_states: false
 
 tokenizer:
-    pretrained_model_name_or_path: ${model.name}
-    truncation: true
-    padding: true
-    max_length: 512
-    special_tokens: null
+  pretrained_model_name_or_path: ${model.name}
+  truncation: true
+  padding: true
+  max_length: 512
+  special_tokens: null
 
 data: 
   train_file_path: tests/resources/data/lorem_ipsum.jsonl
@@ -19,17 +19,25 @@ data:
   test_file_split: train # currently not used
   val_file_path: tests/resources/data/lorem_ipsum.jsonl
   val_file_split: train
-  label_column: score
+  gt_file_path: tests/resources/data/lorem_ipsum.jsonl # ground truth data; can be null (optional)
+  gt_file_split: train
+  label_column: scores
   text_column: text
+  num_regressor_outputs: 1
+  num_classes_per_output: [6]
+  output_names: ["score"]
   
 training:
   batch_size: 32
-  epochs: 1
+  epochs: 2
   use_bf16: true
   weight_decay: 0.01
   eval_strategy: epoch
   save_strategy: epoch
   logging_steps: 1
-  greater_is_better: false
+  seed: 42
+  regression_loss: false
+  greater_is_better: false # save model with lowest loss
+  metric_for_best_model: eval_loss
   logging_dir_path: tests/cache
   output_dir_path: tests/cache

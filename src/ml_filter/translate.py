@@ -1,11 +1,21 @@
+import json
+import logging
 import os
 from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
 
 import yaml
 from pydantic import FilePath
 
-from constants import EUROPEAN_LANGUAGES
+from constants import DEEPL, EUROPEAN_LANGUAGES, OPENAI
+
+logging.basicConfig(level=logging.WARNING)
+
+
+class TranslationServiceType(Enum):
+    DEEPL = "deepl"
+    OPENAI = "openai"
 
 
 class TranslationClient(ABC):
@@ -14,6 +24,12 @@ class TranslationClient(ABC):
     def __init__(self, api_key: str, ignore_tag_text: str | None = None):
         self.api_key = api_key
         self.ignore_tag_text = ignore_tag_text
+
+    @property
+    @abstractmethod
+    def name(self) -> list[str]:
+        """A property that returns the name of the translation client."""
+        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -28,7 +44,7 @@ class TranslationClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> dict[str, str]:
+    def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text and return results as a dictionary."""
         raise NotImplementedError
 
@@ -45,7 +61,7 @@ class TranslationClient(ABC):
         if source_language_code not in self.supported_source_languages:
             raise ValueError(f"The source language {source_language_code} is not available.")
 
-    def assert_target_language_available(self, target_language_code: list[str]) -> None:
+    def assert_target_language_available(self, target_language_code: str) -> None:
         """Checks if the target language is available in the predefined supported target language set.
         Raises a ValueError if the language in the target_languages list is not available.
 
@@ -68,7 +84,74 @@ class Translator:
 
     def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
         """Translate the text into the target language using the specified client."""
-        return self.client.translate_text(text, source_language_code, target_language_code)
+        translated_text = self.client.translate_text(text, source_language_code, target_language_code)
+        if translated_text == text:
+            logging.warning(
+                "The translated text is identical to the source text. "
+                f"This may indicate an issue with the translation process. "
+                f"Source language: {source_language_code}, Target language: {target_language_code}."
+            )
+        return translated_text
+
+    def translate_jsonl_to_multiple_languages(
+        self,
+        input_file_path: FilePath,
+        output_folder_path: Path,
+        source_language_code: str,
+        target_language_codes: list[str],
+    ) -> None:
+        """
+        Translates the 'text' field in each JSON document from a JSONL input file into
+        multiple target languages using a generator for data loading. Creates one JSONL file
+        per target language, processing the input file in a single pass for efficiency.
+
+        Args:
+            input_file_path (FilePath): Path to the JSONL input file.
+            output_folder_path (Path): Path to the folder for output files.
+            source_language_code (str): The source language code.
+            target_language_codes (list[str]): List of target language codes.
+        """
+        # Ensure output folder exists
+        output_folder_path.mkdir(parents=True, exist_ok=True)
+
+        def _read_jsonl(file_path: Path):
+            """Generator to yield JSON objects from a JSONL file."""
+            with open(file_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    yield json.loads(line)
+
+        output_files = {}
+        try:
+            # Open output files for all target languages
+            output_files = {
+                language_code: open(
+                    output_folder_path / f"{input_file_path.stem}_{language_code}_{self.client.name}.jsonl",
+                    "w",
+                    encoding="utf-8",
+                )
+                for language_code in target_language_codes
+            }
+
+            # Use the generator to read and process the input JSONL file
+            for document in _read_jsonl(input_file_path):
+                text = document.get("text")
+                if not isinstance(text, str):
+                    raise ValueError("Each document must have a 'text' field with a string value.")
+
+                # Translate the text to all target languages
+                translated_documents = {
+                    lang: {**document, "text": self.translate_text(text, source_language_code, lang)}
+                    for lang in target_language_codes
+                }
+
+                # Write the translated documents to their respective files
+                for lang, translated_doc in translated_documents.items():
+                    json.dump(translated_doc, output_files[lang], ensure_ascii=False)
+                    output_files[lang].write("\n")
+        finally:
+            # Ensure all output files are properly closed
+            for file in output_files.values():
+                file.close()
 
     def translate_flat_yaml_to_multiple_languages(
         self,
@@ -94,7 +177,7 @@ class Translator:
                 )
 
         for language_code, data in translated_data.items():
-            output_file_path = output_folder_path / f"{input_file_path.stem}_{language_code}.yaml"
+            output_file_path = output_folder_path / f"{input_file_path.stem}_{language_code}_{self.client.name}.yaml"
             self._write_output(output_file_path, data)
 
     @staticmethod
@@ -181,6 +264,10 @@ class DeepLClient(TranslationClient):
         )
         return result.text
 
+    @property
+    def name(self) -> str:
+        return DEEPL
+
 
 class OpenAIClient(TranslationClient):
     """Client for the OpenAI API."""
@@ -190,6 +277,10 @@ class OpenAIClient(TranslationClient):
         import openai
 
         self.client = openai.OpenAI(api_key=api_key)
+
+    @property
+    def name(self) -> str:
+        return OPENAI
 
     @property
     def supported_source_languages(self) -> list[str]:
@@ -240,7 +331,7 @@ class OpenAIClient(TranslationClient):
                 {"role": "user", "content": prompt},
             ],
         )
-        translated_text = response.choices[0].message["content"]
+        translated_text = response.choices[0].message.content
         return translated_text
 
     def _get_ignore_text(self) -> str:
@@ -254,6 +345,18 @@ class OpenAIClient(TranslationClient):
 
 class TranslatorFactory:
     @staticmethod
+    def get_translator(
+        translation_service_type: TranslationServiceType, ignore_tag_text: str | None = None
+    ) -> Translator:
+        if translation_service_type == TranslationServiceType.DEEPL:
+            return TranslatorFactory.get_deepl_translator(ignore_tag_text=ignore_tag_text)
+        elif translation_service_type == TranslationServiceType.OPENAI:
+            return TranslatorFactory.get_openai_translator(ignore_tag_text=ignore_tag_text)
+        else:
+            valid_translators = ", ".join([service.value for service in TranslationServiceType])
+            raise ValueError(f"Invalid translator specified. Choose from: {valid_translators}.")
+
+    @staticmethod
     def get_openai_translator(ignore_tag_text: str | None = None) -> Translator:
         api_key = TranslatorFactory._get_api_key("OPENAI_API_KEY")
         client = OpenAIClient(api_key, ignore_tag_text)
@@ -265,7 +368,7 @@ class TranslatorFactory:
         client = DeepLClient(api_key, ignore_tag_text)
         return Translator(client)
 
-    def _get_api_key(evn_variable_name: str):
+    def _get_api_key(evn_variable_name: str) -> str:
         api_key = os.getenv(evn_variable_name)
         if api_key is None or api_key == "":
             raise EnvironmentError(
