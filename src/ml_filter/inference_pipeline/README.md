@@ -1,6 +1,5 @@
 # BERT Inference Pipeline
-
-This repository runs large-scale parallel inference on tokenized datasets using BERT.
+This repository runs large-scale parallel inference on tokenized datasets using sequence classification models, such as Roberta.
 
 ## 1. Setup
 
@@ -35,12 +34,6 @@ Logs: logs/
 Outputs: outputs/
 Checkpoints: checkpoints/
 ```
-## 5. Run tests
-To validate key components of the pipeline (e.g., collate_fn and dataset sharding), run:
-```bash
-python -m unittest test_inference.py
-```
-
 ## Guesstimate of inference time for 93 CC dumps
 ```
 | Model                | Single GPU   | 64 GPUs (16 nodes x 4 GPUs) |
