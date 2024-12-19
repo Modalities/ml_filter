@@ -8,7 +8,7 @@
 #SBATCH --output=logs/inference_%j.out
 
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate bert-env
+conda activate torch
 
 mkdir -p logs checkpoints outputs
 
