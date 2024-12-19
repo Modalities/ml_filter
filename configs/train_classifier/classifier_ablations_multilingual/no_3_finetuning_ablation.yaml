@@ -45,6 +45,6 @@ training:
   seed: 42
   greater_is_better: true
   metric_for_best_model: eval_val_edu/classification/f1_macro
-  learning_rate: 0.000001
+  learning_rate: 0.0003
   logging_dir_path: /raid/s3/fm_tmp/output/classifier_ablation_multilingual/no_3_finetuning_ablation
   output_dir_path: /raid/s3/fm_tmp/output/classifier_ablation_multilingual/no_3_finetuning_ablation

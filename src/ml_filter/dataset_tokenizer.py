@@ -52,6 +52,7 @@ class DatasetTokenizer:
         split: str = "train",
         cache_dir: Optional[str] = None,
         annotation_dir_path: Optional[Union[str, Path]] = None,
+        language: str = "all",
     ) -> Dataset:
         """
         Load a JSONL file and tokenize its contents.
@@ -77,6 +78,10 @@ class DatasetTokenizer:
         elif file_path.is_dir():
             annotation_dir_path = Path(annotation_dir_path)
             for i, path in tqdm(enumerate(file_path.glob("**/*.jsonl"))):
+
+                if not self._check_language(path, language):
+                    continue
+                
                 new_dataset = load_dataset(
                     "json",
                     data_files=[str(path)],
@@ -103,6 +108,13 @@ class DatasetTokenizer:
             return self._process_dataset_distributed(dataset, self.annotation_names)
         else:
             raise ValueError(f"Invalid path {file_path}. Path must be .jsonl or directory")
+
+    def _check_language(self, path: Path, language: str) -> bool:
+        """Check if the path contains the language."""
+        if language == "all":
+            return True
+        return "/" + language + "/" in str(path)
+
 
     @staticmethod
     def get_annotation_paths(raw_path: Path, annotation_root_dir: Path, annotation_names: List[str]) -> List[Path]:

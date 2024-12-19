@@ -81,7 +81,8 @@ class ClassifierTrainingPipeline:
         else:
             raise ValueError("annotation_aggregation_fn must be one of [median, mean]")
         self.annotation_names = cfg.data.annotation_names
-
+        self.language = cfg.data.language if "language" in cfg.data else "all"
+        
         # Training
         self.batch_size = cfg.training.batch_size
         self.epochs = cfg.training.epochs
@@ -266,17 +267,17 @@ class ClassifierTrainingPipeline:
 
     def _dataset_loading(self):
         train_dataset = self.dataset_tokenizer.load_and_tokenize(
-            self.train_data_file_path, split=self.train_data_split, annotation_dir_path=self.train_annotation_path
+            self.train_data_file_path, split=self.train_data_split, annotation_dir_path=self.train_annotation_path, language=self.language
         )
 
         val_dataset = self.dataset_tokenizer.load_and_tokenize(
-            self.val_data_file_path, split=self.val_data_split, annotation_dir_path=self.val_annotation_path
+            self.val_data_file_path, split=self.val_data_split, annotation_dir_path=self.val_annotation_path, language=self.language
         )
 
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:
             gt_dataset = self.dataset_tokenizer.load_and_tokenize(
-                self.gt_data_file_path, split=self.gt_data_split, annotation_dir_path=self.gt_annotation_path
+                self.gt_data_file_path, split=self.gt_data_split, annotation_dir_path=self.gt_annotation_path, language=self.language
             )
             eval_datasets["gt"] = gt_dataset
 
