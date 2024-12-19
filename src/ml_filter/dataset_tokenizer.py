@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from datasets import Dataset, concatenate_datasets, load_dataset
+import pandas as pd
+from datasets import Dataset, concatenate_datasets, disable_progress_bar, load_dataset
 from datasets.formatting.formatting import LazyBatch
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
@@ -77,27 +78,18 @@ class DatasetTokenizer:
             return self._process_dataset(dataset)
         elif file_path.is_dir():
             annotation_dir_path = Path(annotation_dir_path)
+            disable_progress_bar()
             for i, path in tqdm(enumerate(file_path.glob("**/*.jsonl"))):
 
                 if not self._check_language(path, language):
                     continue
                 
-                new_dataset = load_dataset(
-                    "json",
-                    data_files=[str(path)],
-                    split=split,
-                    cache_dir=cache_dir,
-                )
-                new_dataset = new_dataset.select_columns(["text", "id"])
+                new_dataset = Dataset.from_pandas(pd.read_json(str(path), lines=True)[["text", "id"]])
                 annotation_paths = self.get_annotation_paths(path, annotation_dir_path, self.annotation_names)
                 for annotation_path, prefix in zip(annotation_paths, self.annotation_names):
-                    annotation_dataset = load_dataset(
-                        "json",
-                        data_files=[str(annotation_path)],
-                        split=split,
-                        cache_dir=cache_dir,
+                    annotation_dataset = Dataset.from_pandas(
+                        pd.read_json(str(annotation_path), lines=True)[["document_id", "scores"]]
                     )
-                    annotation_dataset = annotation_dataset.select_columns(["document_id", "scores"])
                     new_dataset = self.join_datasets(
                         new_dataset, annotation_dataset, "id", "document_id", prefix=prefix
                     )
