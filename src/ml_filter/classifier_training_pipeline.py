@@ -82,7 +82,12 @@ class ClassifierTrainingPipeline:
             raise ValueError("annotation_aggregation_fn must be one of [median, mean]")
         self.annotation_names = cfg.data.annotation_names
         self.language = cfg.data.language if "language" in cfg.data else "all"
-        
+
+        self.document_id_column = cfg.data.document_id_column if "document_id_column" in cfg.data.keys() else "id"
+        self.annotation_id_column = (
+            cfg.data.annotation_id_column if "annotation_id_column" in cfg.data.keys() else "document_id"
+        )
+
         # Training
         self.batch_size = cfg.training.batch_size
         self.epochs = cfg.training.epochs
@@ -161,6 +166,8 @@ class ClassifierTrainingPipeline:
             regression=self.regression_loss,
             annotation_aggregation_fn=self.annotation_aggregation_fn,
             annotation_names=self.annotation_names,
+            document_id_column=self.document_id_column,
+            annotation_id_column=self.annotation_id_column,
         )
 
     def _freeze_encoder(self):
@@ -267,17 +274,26 @@ class ClassifierTrainingPipeline:
 
     def _dataset_loading(self):
         train_dataset = self.dataset_tokenizer.load_and_tokenize(
-            self.train_data_file_path, split=self.train_data_split, annotation_dir_path=self.train_annotation_path, language=self.language
+            self.train_data_file_path,
+            split=self.train_data_split,
+            annotation_dir_path=self.train_annotation_path,
+            language=self.language,
         )
 
         val_dataset = self.dataset_tokenizer.load_and_tokenize(
-            self.val_data_file_path, split=self.val_data_split, annotation_dir_path=self.val_annotation_path, language=self.language
+            self.val_data_file_path,
+            split=self.val_data_split,
+            annotation_dir_path=self.val_annotation_path,
+            language=self.language,
         )
 
         eval_datasets = {"val": val_dataset}
         if self.gt_data_file_path:
             gt_dataset = self.dataset_tokenizer.load_and_tokenize(
-                self.gt_data_file_path, split=self.gt_data_split, annotation_dir_path=self.gt_annotation_path, language=self.language
+                self.gt_data_file_path,
+                split=self.gt_data_split,
+                annotation_dir_path=self.gt_annotation_path,
+                language=self.language,
             )
             eval_datasets["gt"] = gt_dataset
 
