@@ -316,9 +316,9 @@ def compute_num_words_in_jsonl_cli(
 def sample_from_hf_dataset_cli(
     dataset_name: str,
     dataset_split: str,
-    output_file_path: str,
+    output_file_path: Path,
     column_name: str,
-    column_values: tuple[int],
+    column_values: str,
     num_docs_per_value: int,
     seed: int
 ):

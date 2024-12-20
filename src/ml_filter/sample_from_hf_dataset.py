@@ -85,7 +85,7 @@ def upload_file_to_hf(file_path: str, hf_repo_path: str, hf_repo_id: str, repo_t
     )
     
     
-def save_data_to_file(output_file_path: str, data: List[Dict], encoding: str="utf-8", ensure_ascii: bool = False):
+def save_data_to_file(output_file_path: str, data: list[dict], encoding: str="utf-8", ensure_ascii: bool = False):
     with open(output_file_path, "w", encoding=encoding) as f:
         for item in data:
             json.dump(item, f, ensure_ascii=ensure_ascii)
