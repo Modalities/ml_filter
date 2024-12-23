@@ -256,7 +256,7 @@ class DocumentProcessor:
                     model_name=self.llm_rest_client.model_name,
                     queue_size=self.queue_size,
                     num_processes=self.num_processes,
-                    max_new_tokens=self.llm_rest_client.max_new_tokens,
+                    max_new_tokens=self.llm_rest_client.sampling_params["max_tokens"],
                 ).model_dump(),
                 f,
             )
