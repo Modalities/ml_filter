@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from datasets import Dataset, concatenate_datasets, load_dataset
+import pandas as pd
+from datasets import Dataset, concatenate_datasets, disable_progress_bar, load_dataset
 from datasets.formatting.formatting import LazyBatch
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
@@ -21,6 +22,8 @@ class DatasetTokenizer:
         regression: bool = False,
         annotation_aggregation_fn: Optional[Callable] = np.median,
         annotation_names: Optional[List[str]] = [],
+        document_id_column: Optional[str] = "id",
+        annotation_id_column: Optional[str] = "document_id",
     ):
         """
         Initialize the dataset tokenizer.
@@ -41,6 +44,8 @@ class DatasetTokenizer:
         self.regression = regression
         self.annotation_aggregation_fn = annotation_aggregation_fn
         self.annotation_names = annotation_names
+        self.document_id_column = document_id_column
+        self.annotation_id_column = annotation_id_column
 
         # Ensure tokenizer has padding token
         if not self.tokenizer.pad_token:
@@ -52,6 +57,7 @@ class DatasetTokenizer:
         split: str = "train",
         cache_dir: Optional[str] = None,
         annotation_dir_path: Optional[Union[str, Path]] = None,
+        language: Optional[str] = "all",
     ) -> Dataset:
         """
         Load a JSONL file and tokenize its contents.
@@ -75,35 +81,47 @@ class DatasetTokenizer:
             )
             return self._process_dataset(dataset)
         elif file_path.is_dir():
-            annotation_dir_path = Path(annotation_dir_path)
-            for i, path in tqdm(enumerate(file_path.glob("**/*.jsonl"))):
-                new_dataset = load_dataset(
-                    "json",
-                    data_files=[str(path)],
-                    split=split,
-                    cache_dir=cache_dir,
-                )
-                annotation_paths = self.get_annotation_paths(path, annotation_dir_path, self.annotation_names)
-                for annotation_path, prefix in zip(annotation_paths, self.annotation_names):
-                    annotation_dataset = load_dataset(
-                        "json",
-                        data_files=[str(annotation_path)],
-                        split=split,
-                        cache_dir=cache_dir,
-                    )
-                    new_dataset = self.join_datasets(
-                        new_dataset, annotation_dataset, "id", "document_id", prefix=prefix
-                    )
-                if i == 0:
-                    dataset = new_dataset
-                else:
-                    dataset = concatenate_datasets([dataset, new_dataset])
-            return self._process_dataset_distributed(dataset, self.annotation_names)
+            return self.load_and_tokenize_distributed(file_path, annotation_dir_path, language)
         else:
             raise ValueError(f"Invalid path {file_path}. Path must be .jsonl or directory")
 
+    def load_and_tokenize_distributed(
+        self,
+        file_path: Union[str, Path],
+        annotation_dir_path: Union[str, Path],
+        language: Optional[str] = "all",
+    ) -> Dataset:
+        annotation_dir_path = Path(annotation_dir_path)
+        disable_progress_bar()
+        for i, path in tqdm(enumerate(file_path.glob("**/*.jsonl"))):
+            if not self._check_language(path, language):
+                continue
+            new_dataset = Dataset.from_pandas(
+                pd.read_json(str(path), lines=True)[[self.text_column, self.document_id_column]]
+            )
+            annotation_paths = self._get_annotation_paths(path, annotation_dir_path, self.annotation_names)
+            for annotation_path, prefix in zip(annotation_paths, self.annotation_names):
+                annotation_dataset = Dataset.from_pandas(
+                    pd.read_json(str(annotation_path), lines=True)[[self.annotation_id_column, self.label_column]]
+                )
+                new_dataset = self._join_datasets(
+                    new_dataset, annotation_dataset, self.document_id_column, self.annotation_id_column, prefix=prefix
+                )
+            if i == 0:
+                dataset = new_dataset
+            else:
+                dataset = concatenate_datasets([dataset, new_dataset])
+        return self._process_dataset_distributed(dataset, self.annotation_names)
+
     @staticmethod
-    def get_annotation_paths(raw_path: Path, annotation_root_dir: Path, annotation_names: List[str]) -> List[Path]:
+    def _check_language(path: Path, language: str) -> bool:
+        """Check if the path contains the language."""
+        if language == "all":
+            return True
+        return "/" + language + "/" in str(path)
+
+    @staticmethod
+    def _get_annotation_paths(raw_path: Path, annotation_root_dir: Path, annotation_names: List[str]) -> List[Path]:
         raw_suffix = Path(raw_path.parent.parent.name) / Path(raw_path.parent.name)
         raw_filename = raw_path.stem
         annotation_paths = list(annotation_root_dir.joinpath(raw_suffix).glob(f"{raw_filename}*.jsonl"))
@@ -117,7 +135,7 @@ class DatasetTokenizer:
         return sorted(annotation_paths, key=path_sort_key)
 
     @staticmethod
-    def join_datasets(
+    def _join_datasets(
         dataset1: Dataset, dataset2: Dataset, join_column1: str, join_column2: str, prefix: str
     ) -> Dataset:
         """
@@ -186,9 +204,9 @@ class DatasetTokenizer:
             labels = []
             for prefix in annotation_prefixes:
                 for annotations in batch[f"{prefix}_{self.label_column}"]:
-                    # remove missing annotations
+                    # remove null annotations
                     annotations = [x for x in annotations if x is not None]
-                    # if all annotations are missing, default to 0
+                    # if all annotations are null, default to 0
                     if annotations == []:
                         annotations = [0]
                     if self.regression:

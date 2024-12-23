@@ -1,0 +1,45 @@
+model:
+  name: FacebookAI/xlm-roberta-large
+  num_labels: 6
+  classifier_dropout: 0.0
+  hidden_dropout_prob: 0.0
+  output_hidden_states: false
+  freeze_encoder: false
+
+tokenizer:
+  pretrained_model_name_or_path: ${model.name}
+  truncation: true
+  padding: true
+  max_length: 512
+  special_tokens: null
+
+data: 
+  train_file_path: /raid/s3/fm_tmp/data/annotated_fineweb_train.jsonl
+  train_file_split: train
+  test_file_path: /raid/s3/fm_tmp/data/annotated_fineweb_test.jsonl # currently not used
+  test_file_split: train # currently not used
+  val_file_path: /raid/s3/fm_tmp/data/annotated_fineweb_val.jsonl
+  val_file_split: train
+  gt_file_path: null # ground truth data; can be null (optional)
+  gt_file_split: train
+  label_column: scores
+  text_column: text
+  num_regressor_outputs: 1
+  num_classes_per_output: [6]
+  output_names: ["score"]
+  
+training:
+  batch_size: 32
+  epochs: 20
+  use_bf16: true
+  weight_decay: 0.01
+  eval_strategy: epoch
+  save_strategy: "no"
+  logging_steps: 100
+  regression_loss: true
+  seed: 42
+  greater_is_better: true
+  metric_for_best_model: eval_score/classification/f1_macro
+  learning_rate: 0.000001
+  logging_dir_path: /raid/s3/fm_tmp/output/preliminary_xlm-roberta-large-single-target-unfrozen-lowlr
+  output_dir_path: /raid/s3/fm_tmp/output/preliminary_xlm-roberta-large-single-target-unfrozen-lowlr
