@@ -22,17 +22,18 @@ settings:
 
 llm_rest_client:
   model_name: ${settings.model_name}
-  max_tokens: 8192
-  max_new_tokens: 500
-  temperature: 0.7
+  max_tokens: 8192 # The maximum total number of tokens supported by the model (input + output)
+  sampling_params:
+    max_tokens: 500 # The maximum number of tokens to generate
+    temperature: 0.7
+    n: 3 # The number of sequences to generate
+    top_p: 0.9
   max_pool_connections: 1000
   max_pool_maxsize: 1000 #TODO
   max_retries: 2
   backoff_factor: 0.4 
   timeout: 100
   verbose: false
-  num_return_sequences: 5
-  top_p: 0.9
   num_gpus: ${settings.num_gpus}
 
 tokenizer:
