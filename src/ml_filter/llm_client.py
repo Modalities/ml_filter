@@ -45,11 +45,9 @@ class LLMClient:
         self.max_pool_connections = cfg.llm_rest_client.max_pool_connections
         self.max_pool_maxsize = cfg.llm_rest_client.max_pool_maxsize
         self.max_tokens = cfg.llm_rest_client.max_tokens
-        self.max_new_tokens = cfg.llm_rest_client.max_new_tokens
-        self.temperature = cfg.llm_rest_client.temperature
+
         self.verbose = cfg.llm_rest_client.verbose
-        self.num_return_sequences = cfg.llm_rest_client.num_return_sequences
-        self.top_p = cfg.llm_rest_client.top_p
+        self.sampling_params = cfg.llm_rest_client.sampling_params
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
@@ -92,11 +90,8 @@ class LLMClient:
             max_pool_connections=self.max_pool_connections,
             max_pool_maxsize=self.max_pool_maxsize,
             max_tokens=self.max_tokens,
-            max_new_tokens=self.max_new_tokens,
-            temperature=self.temperature,
-            top_p=self.top_p,
+            sampling_params=self.sampling_params,
             verbose=self.verbose,
-            num_return_sequences=self.num_return_sequences,
         )
 
         # Get DocumentProcessor

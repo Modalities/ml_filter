@@ -3,7 +3,7 @@ import logging
 import time
 import traceback
 from http import HTTPStatus
-from typing import List
+from typing import Any, Dict, List
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
@@ -28,11 +28,8 @@ class LLMRestClient:
         max_pool_connections: int,
         max_pool_maxsize: int,
         max_tokens: int,
-        max_new_tokens: int,
-        temperature: float,
         verbose: bool,
-        num_return_sequences: int,
-        top_p: float,
+        sampling_params: Dict[str, Any],
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -40,13 +37,10 @@ class LLMRestClient:
         self.model_name = model_name
         self.timeout = timeout
         self.max_tokens = max_tokens
-        self.max_new_tokens = max_new_tokens
-        self.temperature = temperature
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
-        self.num_return_sequences = num_return_sequences
-        self.top_p = top_p
+        self.sampling_params = sampling_params
 
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
@@ -69,10 +63,7 @@ class LLMRestClient:
         request = dict(
             model=self.model_name,
             prompt=processed_document.prompt,
-            max_tokens=self.max_new_tokens,
-            temperature=self.temperature,
-            n=self.num_return_sequences,
-            top_p=self.top_p,
+            **self.sampling_params,
         )
         start_time_generation = time.time()
         for i in range(self.max_retries):

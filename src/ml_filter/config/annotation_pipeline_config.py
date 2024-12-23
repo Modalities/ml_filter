@@ -19,18 +19,15 @@ class SettingsConfig(BaseModel):
 class LLMRestClientConfig(BaseModel):
     model_name: str
     max_tokens: int
-    max_new_tokens: int
-    temperature: float
     max_pool_connections: int
     max_pool_maxsize: int
     max_retries: int
     backoff_factor: float
     timeout: int
     verbose: bool
-    num_return_sequences: int
     num_gpus: int
-    top_p: float
-
+    sampling_params: dict
+    
 
 class TokenizerConfig(BaseModel):
     pretrained_model_name_or_path: str
