@@ -31,7 +31,7 @@ def test_get_document_scores():
         data1 = [
             {"document_id": "doc1", "scores": [3, 3, 4]},
             {"document_id": "doc2", "scores": [1, 2, 2]},
-            {"document_id": "doc3", "scores": [float("-inf"), 2, 3]},  # Invalid entry
+            {"document_id": "doc3", "scores": [float("-inf"), 2, 3]},
         ]
         data2 = [
             {"document_id": "doc1", "scores": [5, 5, 5]},
@@ -47,6 +47,7 @@ def test_get_document_scores():
             "prompt1": {
                 "doc1": {"lang1_model1": 3.33},  # mean([3, 3, 4])
                 "doc2": {"lang1_model1": 1.67},  # mean([1, 2, 2])
+                "doc3": {'lang1_model1': 2.5},  # mean([float("-inf"), 2, 3]), excluding float("-inf")
             },
             "prompt2": {
                 "doc1": {"lang2_model2": 5.0},   # mean([5, 5, 5])
@@ -66,6 +67,8 @@ def test_get_document_scores():
             "prompt1": {
                 "doc1": {"lang1_model1": 4},  # max([3, 3, 4])
                 "doc2": {"lang1_model1": 2},  # max([1, 2, 2])
+                "doc3": {'lang1_model1': 3},  # max([float("-inf"), 2, 3]), excluding float("-inf")
+
             },
             "prompt2": {
                 "doc1": {"lang2_model2": 5},  # max([5, 5, 5])
@@ -80,6 +83,7 @@ def test_get_document_scores():
             "prompt1": {
                 "doc1": {"lang1_model1": 3},  # most_frequent_average([3, 3, 4])
                 "doc2": {"lang1_model1": 2},  # most_frequent_average([1, 2, 2])
+                'doc3': {'lang1_model1': 2.5}, # most_frequent_average([float("-inf"), 2, 3]), excluding float("-inf")
             },
             "prompt2": {
                 "doc1": {"lang2_model2": 5},  # most_frequent_average([5, 5, 5])
@@ -93,7 +97,8 @@ def test_get_document_scores():
         expected = {
             'prompt1': {
                 'doc1': {'lang1_model1_0': 3, 'lang1_model1_1': 3, 'lang1_model1_2': 4},
-                'doc2': {'lang1_model1_0': 1, 'lang1_model1_1': 2, 'lang1_model1_2': 2}
+                'doc2': {'lang1_model1_0': 1, 'lang1_model1_1': 2, 'lang1_model1_2': 2},
+                # 'doc3' is excluded due to missing annotations
             },
             'prompt2': {
                 'doc1': {'lang2_model2_0': 5, 'lang2_model2_1': 5, 'lang2_model2_2': 5},
