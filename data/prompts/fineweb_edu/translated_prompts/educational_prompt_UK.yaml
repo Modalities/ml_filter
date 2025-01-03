@@ -26,3 +26,4 @@ prompt: 'Нижче наведено уривок з веб-сторінки. О
   або складного змісту.\n <notranslate>The extract: {placeholder}.</notranslate>\nПісля
   вивчення уривку:\nКоротко обґрунтуйте свою загальну оцінку (до 100 слів).\nВиставте
   оцінку, використовуючи формат: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

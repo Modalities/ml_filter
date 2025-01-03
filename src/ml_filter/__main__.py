@@ -94,10 +94,14 @@ def main() -> None:
     help="The endpoint for the LLM service.",
 )
 def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
+    with open(config_file_path, "rb") as f:
+        hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
+    experiment_id_postfix = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
+
     if experiment_id is None:
-        with open(config_file_path, "rb") as f:
-            hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
-        experiment_id = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
+        experiment_id = experiment_id_postfix
+    else:
+        experiment_id = experiment_id + f"/{experiment_id_postfix}"
     llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
     llm_service.run()
 

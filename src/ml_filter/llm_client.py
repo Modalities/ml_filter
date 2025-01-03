@@ -5,6 +5,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from requests import Session
 
+from ml_filter.config.annotation_pipeline_config import AnnotationPipelineConfig
 from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
@@ -20,12 +21,16 @@ class LLMClient:
         self.rest_endpoint = rest_endpoint
 
         OmegaConf.register_new_resolver("eval", eval)
-        cfg = OmegaConf.load(config_file_path)
+        config_omegaconf = OmegaConf.load(config_file_path)
+        config_resolved = OmegaConf.to_container(config_omegaconf, resolve=True)
+        cfg = AnnotationPipelineConfig.model_validate(config_resolved)
 
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
         self.experiment_dir_path.mkdir(parents=True, exist_ok=True)
+
+        print(f"Experiment directory created at: {self.experiment_dir_path}")
         shutil.copy(config_file_path, self.experiment_dir_path / config_file_path.name)
         shutil.copy(
             cfg.prompt_builder.prompt_template_file_path,

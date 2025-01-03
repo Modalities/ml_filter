@@ -28,3 +28,4 @@ prompt: 'Hieronder zie je een fragment van een webpagina. Beoordeel of de pagina
   zonder enige niet-educatieve of complexe inhoud.\ <notranslate>The extract: {placeholder}.</notranslate>\Na
   bestudering van het uittreksel:\ Motiveer kort je totaalscore, maximaal 100 woorden.\Need
   de score volgens het format: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

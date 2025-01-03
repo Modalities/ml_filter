@@ -28,3 +28,4 @@ prompt: "Below is an extract from a web page in Slovenian. Evaluate whether the 
   nAfter examining the extract:\\n Briefly justify your total score in English, up\
   \ to 100 words.\\nConclude with the score using the format: 'Educational score:\
   \ <total points>'"
+prompt_name: fine_web_edu

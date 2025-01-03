@@ -26,3 +26,4 @@ prompt: 'Toliau pateikiama tinklalapio ištrauka. Įvertinkite, ar šis puslapis
   nepedagoginio ar sudėtingo turinio.\n <notranslate>The extract: {placeholder}.</notranslate>\nIšnagrinėjus
   ištrauką:\n Trumpai pagrįskite bendrą balų skaičių, iki 100 žodžių.\nBaigdamas pateikite
   įvertinimą pagal formą: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu
