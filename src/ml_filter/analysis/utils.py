@@ -30,7 +30,7 @@ def most_frequent_average(values: List[int]) -> float:
 
 def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -> dict[str, dict[str, float]]:
     """
-    Extracts the scores and corresponding document ids from a set of jsonl-files.
+    Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
     Args:
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
@@ -60,11 +60,20 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -
         with open(file_path, 'r') as f:
             for line in f:
                 json_obj = json.loads(line)
+                scores = json_obj.get('scores')
                 
-                # filter out documents with missing annotations
-                if float("-inf") in json_obj["scores"]:
-                    continue
+                # there are two variants for missing annotations: -inf and None. We standardize to None here
+                scores = [None if score == float("-inf") else score for score in scores]
                 
+                if aggregation is None:
+                    # filter out documents with missing annotations
+                    if None in scores:
+                        continue
+                    
+                # filter out documents with no annotations
+                if all(score is None for score in scores):
+                    continue                
+                    
                 doc_id = json_obj.get('document_id')
                 
                 if not prompt in document_scores:
@@ -78,11 +87,11 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -
                     raise ValueError(f"Found duplicate score for {annotator_id}")
                 
                 # aggregate scores
-                scores = [int(score) for score in json_obj["scores"]]
                 if aggregation is None:
                     for i, score in enumerate(scores):
-                        document_scores[prompt][doc_id][f"{version}_{i}"] = score
+                        document_scores[prompt][doc_id][f"{version}_{i}"] = int(score)
                 else:
+                    scores = [int(s) for s in scores if s not in (float("-inf"), None)]
                     if aggregation == "min":
                         aggr_score = min(scores)
                     elif aggregation == "max":
