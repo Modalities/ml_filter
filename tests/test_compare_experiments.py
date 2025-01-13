@@ -12,7 +12,7 @@ from ml_filter.data_processing.report_statistics import ThroughputStatistics
 def test_compare_experiments(tmpdir: Path):
     # Wirte example result file containing the fields scores, document_id, and language
     meta_info = MetaInformation(
-        prompt_name="", prompt_lang="", model="", raw_data_file_path="", out_tokens_per_second=0
+        prompt_name="", prompt_lang="", model_name="", raw_data_file_path="", out_tokens_per_second=0
     )
     annotation_1 = Annotation(scores=[5], document_id="0", meta_information=meta_info)
     annotation_2 = Annotation(scores=[3], document_id="1", meta_information=meta_info)
