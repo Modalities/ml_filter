@@ -188,7 +188,7 @@ class DocumentProcessor:
 
                     if not self._is_valid_document(document):
                         logger.warning(
-                            f"Invalid document with id: {document['id']}. "
+                            f"Invalid document with id: {document['document_id']}. "
                             + "Value of key 'text' has length of 0. Skipping."
                         )
                         continue
