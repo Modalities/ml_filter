@@ -30,7 +30,7 @@ def most_frequent_average(values: List[int]) -> float:
 
 def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -> dict[str, dict[str, float]]:
     """
-    Extracts the scores and corresponding document ids from a set of jsonl-files.
+    Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
     Args:
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
