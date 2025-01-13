@@ -71,7 +71,7 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -
                         continue
                     
                 # filter out documents with no annotations
-                if not any(score is not None for score in scores):
+                if all(score is None for score in scores):
                     continue                
                     
                 doc_id = json_obj.get('document_id')
