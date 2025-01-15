@@ -97,10 +97,40 @@ def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: L
     return results
 
 
+def compute_average_accuracy_and_mse_against_gt(all_scores: List[List[int]], all_scores_rounded: List[List[int]], gt_file_idx: int) -> Tuple[float, float]:
+    """
+    Computes the accuracy of the annotators' scores against the ground truth.
+
+    Args:
+        all_scores (List[List[int]]): A list where each sublist contains scores assigned by all raters for one item.
+        gt_file_idx (int): The index of the ground truth file in the list of all files.
+
+    Returns:
+        None
+    """
+    gt_scores = [item[gt_file_idx] for item in all_scores]
+    num_annotators = len(all_scores[0]) - 1
+    total_acc = 0
+    total_mse = 0
+    for i in range(len(all_scores[0])):
+        if i == gt_file_idx:
+            continue
+        annotator_scores = [item[i] for item in all_scores]
+        annotator_scores_rounded = [item[i] for item in all_scores_rounded]
+        acc = sum(1 for s1, s2 in zip(gt_scores, annotator_scores) if s1 == s2) / len(gt_scores)
+        total_acc += acc
+        squared_diffs = [(a - b) ** 2 for a, b in zip(gt_scores, annotator_scores_rounded)]
+        mse = sum(squared_diffs) / len(squared_diffs)
+        total_mse += mse
+    
+    return total_acc / num_annotators, total_mse / num_annotators
+
+
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_file_path: Path,
-    aggregation: Optional[str] = None
+    aggregation: Optional[str] = None,
+    gt_file_idx: Optional[int] = None,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -156,7 +186,7 @@ def compute_interrater_reliability_metrics(
         cohen_kappa = compute_pairwise_correlations(all_scores_rounded, metric='cohen')
         kripp_alpha = compute_krippendorffs_alpha(all_scores)
         doc_vars = compute_doc_level_variation(all_scores_rounded, all_document_ids)
-
+        
         # Store results
         metrics[prompt] = {
             'Fleiss Kappa': fk,
@@ -164,8 +194,14 @@ def compute_interrater_reliability_metrics(
             'Spearman Rank Correlation (avg pairwise)': spearman_corr,
             'Kendall Tau (avg pairwise)': kendall_corr,
             'Krippendorff Alpha': kripp_alpha,
-            "Variation per Document": doc_vars
+            "Variation per Document": doc_vars,
         }
+        
+        # compute accuracy and mse if ground truth is provided
+        if gt_file_idx is not None:
+            acc, mse = compute_average_accuracy_and_mse_against_gt(all_scores, all_scores_rounded, gt_file_idx)
+            metrics[prompt]['Accuracy against GT (avg pairwise)'] = acc
+            metrics[prompt]['MSE against GT (avg pairwise)'] = mse
 
     # Print results and save them to file
     print("\n".join(f"{key}: {value}" for key, value in metrics.items()))
