@@ -7,8 +7,8 @@ from pandas.io.formats.style import Styler
 
 
 def style_df(df: pd.DataFrame) -> Styler:
-    columns_to_highlight_max = [col for col in df.columns if col not in ["Model", "Model 1", "Model 2", "Filename", "Prompt", "MSE"]]
-    columns_to_highlight_min = ["MSE"]
+    columns_to_highlight_max = [col for col in df.columns if col not in ["Model", "Model 1", "Model 2", "Filename", "Prompt", "MSE", "Invalid"]]
+    columns_to_highlight_min = ["MSE", "Invalid"]
     df_sorted = df.sort_values(by="Model")
     styled_df = df_sorted.style.highlight_max(axis=0, subset=columns_to_highlight_max, props='textbf:--rwrap;')
     styled_df = styled_df.highlight_min(axis=0, subset=columns_to_highlight_min, props='textbf:--rwrap;')
@@ -58,6 +58,7 @@ for file_path in list(input_directory.rglob("ir_*.json")):
                 result["Spearman"] = prompt_data.get("Spearman Rank Correlation (avg pairwise)")
                 result["Kendall"] = prompt_data.get("Kendall Tau (avg pairwise)")
                 result["Krippendorff"] = prompt_data.get("Krippendorff Alpha")
+                result["Invalid"] = prompt_data.get("Number of invalid scores", 0)
                 result["Filepath"] = file_path
                 if not lang in results:
                     results[lang] = []
@@ -69,7 +70,7 @@ for file_path in list(input_directory.rglob("ir_*.json")):
 
 latex_output = ""
 # Initialize a DataFrame to hold the aggregated values for each model
-aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Count"])
+aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
 
 for lang in sorted(results.keys()):
     # Convert the data to a DataFrame
@@ -88,6 +89,7 @@ for lang in sorted(results.keys()):
                 "Spearman": 0,
                 "Kendall": 0,
                 "Krippendorff": 0,
+                "Invalid": 0,
                 "Count": 0
             }])
             aggregated_results = pd.concat([aggregated_results, new_row], ignore_index=True)
@@ -99,6 +101,7 @@ for lang in sorted(results.keys()):
         aggregated_results.loc[aggregated_results["Model"] == model, "Spearman"] += model_df["Spearman"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Kendall"] += model_df["Kendall"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Krippendorff"] += model_df["Krippendorff"].sum()
+        aggregated_results.loc[aggregated_results["Model"] == model, "Invalid"] += model_df["Invalid"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Count"] += len(model_df)
 
     # Write the DataFrame to an Excel file
@@ -106,6 +109,7 @@ for lang in sorted(results.keys()):
 
     # Write the DataFrame to a LaTeX table
     df = df.drop(columns=["Filepath", "Prompt"])
+    df["Invalid"] = df["Invalid"].astype(int)
     styled_df = style_df(df)
     latex_output += f"""
 \\begin{{table}}[ht]
@@ -122,6 +126,7 @@ for lang in sorted(results.keys()):
 for col in ["Acc", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff"]:
     aggregated_results[col] = aggregated_results.apply(lambda row: row[col] / row["Count"] if row["Count"] != 0 else 0, axis=1)
 aggregated_results = aggregated_results.drop(columns=["Count"])
+aggregated_results["Invalid"] = aggregated_results["Invalid"].astype(int)
 # Write the DataFrame to an Excel file
 aggregated_results.to_excel(output_directory / f"ir_summary_gt_all_langs.xlsx", index=False)
 

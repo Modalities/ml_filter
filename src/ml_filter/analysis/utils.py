@@ -68,11 +68,7 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -
                 if aggregation is None:
                     # filter out documents with missing annotations
                     if None in scores:
-                        continue
-                    
-                # filter out documents with no annotations
-                if all(score is None for score in scores):
-                    continue                
+                        continue                       
                     
                 doc_id = json_obj.get('document_id')
                 
@@ -82,10 +78,15 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -
                 if doc_id not in document_scores[prompt]:
                     document_scores[prompt][doc_id] = {}
                         
-                version = "_".join([prompt_lang, model])                    
+                version = "_".join([prompt_lang, model])     
                 if version in document_scores[prompt][doc_id]:
                     raise ValueError(f"Found duplicate score for {annotator_id}")
                 
+                # count documents with no annotations
+                if all(score is None for score in scores):
+                    document_scores[prompt][doc_id][version] = "invalid"   
+                    continue
+                        
                 # aggregate scores
                 if aggregation is None:
                     for i, score in enumerate(scores):

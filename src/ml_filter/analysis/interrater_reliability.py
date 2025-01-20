@@ -124,8 +124,8 @@ def compute_average_accuracy_and_mse_against_gt(all_scores: List[List[int]], all
         total_mse += mse
     
     return total_acc / num_annotators, total_mse / num_annotators
-
-
+    
+    
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_file_path: Path,
@@ -161,6 +161,7 @@ def compute_interrater_reliability_metrics(
     for prompt in document_scores:
         all_document_ids = []
         all_scores = []
+        missing_scores = {}
         
         num_versions = max(len(versions) for versions in document_scores[prompt].values())
         for document_id, scores_per_version in document_scores[prompt].items():
@@ -170,6 +171,10 @@ def compute_interrater_reliability_metrics(
 
             # Skip documents where not all versions have scores
             if len(scores) != num_versions:
+                continue
+            
+            if "invalid" in scores:
+                missing_scores[document_id] = scores
                 continue
             
             all_scores.append(scores)
@@ -186,6 +191,7 @@ def compute_interrater_reliability_metrics(
         cohen_kappa = compute_pairwise_correlations(all_scores_rounded, metric='cohen')
         kripp_alpha = compute_krippendorffs_alpha(all_scores)
         doc_vars = compute_doc_level_variation(all_scores_rounded, all_document_ids)
+        num_invalid_scores = len(missing_scores)
         
         # Store results
         metrics[prompt] = {
@@ -195,6 +201,7 @@ def compute_interrater_reliability_metrics(
             'Kendall Tau (avg pairwise)': kendall_corr,
             'Krippendorff Alpha': kripp_alpha,
             "Variation per Document": doc_vars,
+            "Number of invalid scores": num_invalid_scores
         }
         
         # compute accuracy and mse if ground truth is provided
