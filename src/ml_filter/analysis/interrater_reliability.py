@@ -199,7 +199,11 @@ def compute_interrater_reliability_metrics(
         
         # compute accuracy and mse if ground truth is provided
         if gt_file_idx is not None:
-            acc, mse = compute_average_accuracy_and_mse_against_gt(all_scores, all_scores_rounded, gt_file_idx)
+            acc, mse = compute_average_accuracy_and_mse_against_gt(
+                all_scores=all_scores, 
+                all_scores_rounded=all_scores_rounded,
+                gt_file_idx=gt_file_idx
+            )
             metrics[prompt]['Accuracy against GT (avg pairwise)'] = acc
             metrics[prompt]['MSE against GT (avg pairwise)'] = mse
 
