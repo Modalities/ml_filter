@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_tasks", type=int, default=1, help="Total number of tasks")
     parser.add_argument("--batch_size", type=int, default=512, help="Batch size for inference")
     parser.add_argument("--model_checkpoint", type=str, default="bert-base-uncased", help="Model checkpoint to load")
+    parser.add_argument("--model_arch", type=str, default="bert-base-uncased", help="Base model architecture")
     parser.add_argument("--num_regressor_outputs", type=int, default=1, help="Number of regressor outputs")
     parser.add_argument(
         "--num_classes_per_output",
@@ -79,14 +80,14 @@ def main() -> None:
         "num_classes_per_output": torch.tensor(args.num_classes_per_output),
         "regression": args.use_regression,
     }
-    model_name = args.model_checkpoint.lower()
-    if "xlm-roberta-xl" in model_name:
+    model_arch = args.model_arch.lower()
+    if "xlm-roberta-xl" in model_arch:
         model = XLMRobertaXLForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    elif "xlm-roberta-base" in model_name or "xlm-roberta-large" in model_name:
+    elif "xlm-roberta-base" in model_arch or "xlm-roberta-large" in model_arch:
         model = XLMRobertaForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    elif "snowflake-arctic-embed-m" in model_name:
+    elif "snowflake-arctic-embed" in model_arch:
         model = BertForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    elif "jina-embeddings" in model_name:
+    elif "jina-embeddings" in model_arch:
         model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
     else:
         logger.info(
