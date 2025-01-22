@@ -10,12 +10,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from transformers import AutoModelForSequenceClassification
 
-from ml_filter.utils.train_classifier import (
-    BertForMultiTargetClassification,
-    XLMRobertaFlashForMultiTargetClassification,
-    XLMRobertaForMultiTargetClassification,
-    XLMRobertaXLForMultiTargetClassification,
-)
+from ml_filter.utils.train_classifier import AutoModelForMultiTargetClassification
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,20 +71,14 @@ def main() -> None:
 
     logger.info("Loading model...")
     model_args = {
+        "model_type": args.model_arch,
         "num_regressor_outputs": args.num_regressor_outputs,
         "num_classes_per_output": torch.tensor(args.num_classes_per_output),
         "regression": args.use_regression,
     }
-    model_arch = args.model_arch.lower()
-    if "xlm-roberta-xl" in model_arch:
-        model = XLMRobertaXLForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    elif "xlm-roberta-base" in model_arch or "xlm-roberta-large" in model_arch:
-        model = XLMRobertaForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    elif "snowflake-arctic-embed" in model_arch:
-        model = BertForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    elif "jina-embeddings" in model_arch:
-        model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    else:
+    try:
+        model = AutoModelForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
+    except NotImplementedError:
         logger.info(
             f"Custom model architecture for {args.model_checkpoint=} not implemented, falling back to AutoModel..."
         )
