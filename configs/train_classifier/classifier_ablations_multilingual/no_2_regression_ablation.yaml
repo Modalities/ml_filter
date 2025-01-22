@@ -1,0 +1,50 @@
+model:
+  name: FacebookAI/xlm-roberta-large
+  num_labels: 6
+  classifier_dropout: 0.0
+  hidden_dropout_prob: 0.0
+  output_hidden_states: false
+  freeze_encoder: false
+
+tokenizer:
+  pretrained_model_name_or_path: ${model.name}
+  truncation: true
+  padding: true
+  max_length: 512
+  special_tokens: null
+
+data: 
+  train_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_1000_docs_raw # ONLY FOR DEBUG
+  train_annotation_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_1000_docs_annotations # ONLY FOR DEBUG
+  train_file_split: train
+  test_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_1000_docs_raw # currently not used
+  test_file_split: train # currently not used
+  val_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_1000_docs_raw # ONLY FOR DEBUG
+  val_annotation_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_1000_docs_annotations # ONLY FOR DEBUG
+  val_file_split: train
+  gt_file_path: null # ground truth data; can be null (optional)
+  gt_annotation_path: null # ONLY FOR DEBUG
+  gt_file_split: train
+  label_column: scores
+  text_column: text
+  num_regressor_outputs: 1
+  num_classes_per_output: [6]
+  output_names: ["edu"]
+  annotation_names: ["annotations_meta-llama--Llama-3.1-70B-Instruct_fine_web_edu"]
+  annotation_aggregation_fn: median
+  
+training:
+  batch_size: 32
+  epochs: 10
+  use_bf16: true
+  weight_decay: 0.01
+  eval_strategy: epoch
+  save_strategy: epoch
+  logging_steps: 100
+  regression_loss: true
+  seed: 42
+  greater_is_better: true
+  metric_for_best_model: eval_val_edu/classification/f1_macro
+  learning_rate: 0.000001
+  logging_dir_path: /raid/s3/fm_tmp/output/classifier_ablation_multilingual/no_2_regression_ablation
+  output_dir_path: /raid/s3/fm_tmp/output/classifier_ablation_multilingual/no_2_regression_ablation

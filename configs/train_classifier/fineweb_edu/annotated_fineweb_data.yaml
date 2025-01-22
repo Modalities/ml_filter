@@ -13,24 +13,19 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: data/lorem_ipsum.jsonl
-  train_annotation_path: null
+  train_file_path: data/annotated_fineweb_train.jsonl
   train_file_split: train
-  test_file_path: data/lorem_ipsum.jsonl # currently not used
+  test_file_path: data/annotated_fineweb_test.jsonl # currently not used
   test_file_split: train # currently not used
-  val_file_path: data/lorem_ipsum.jsonl
-  val_annotation_path: null
+  val_file_path: data/annotated_fineweb_val.jsonl
   val_file_split: train
-  gt_file_path: null # ground truth data; can be null (optional)
-  gt_annotation_path: null
+  gt_file_path: data/lorem_ipsum.jsonl # ground truth data; can be null (optional)
   gt_file_split: train
   label_column: scores
   text_column: text
   num_regressor_outputs: 1
   num_classes_per_output: [6]
   output_names: ["score"]
-  annotation_names: []
-  annotation_aggregation_fn: median
   
 training:
   batch_size: 32
@@ -42,8 +37,8 @@ training:
   logging_steps: 100
   seed: 42
   regression_loss: false
-  greater_is_better: false # save model with lowest loss
+  greater_is_better: false
   metric_for_best_model: eval_val_loss
   learning_rate: 0.00001
-  logging_dir_path: data/output/lorem_ipsum_model
-  output_dir_path: data/output/lorem_ipsum_model
+  logging_dir_path: data/output/annotated_fineweb_model
+  output_dir_path: data/output/annotated_fineweb_model

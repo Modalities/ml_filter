@@ -32,7 +32,7 @@ def test_train_classifier():
     classifier_training_pipeline = get_pipeline("test_config.yaml")
     logits, batch_size = _train_and_test(classifier_training_pipeline)
 
-    assert logits.shape == (batch_size, int(classifier_training_pipeline.model.num_labels), 1)
+    assert logits.shape == (batch_size, max(classifier_training_pipeline.num_classes_per_output), 1)
     eps = 1e-30
     for i, n_classes in enumerate(classifier_training_pipeline.num_classes_per_output):
         # nothing is masked

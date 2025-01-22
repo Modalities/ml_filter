@@ -1,5 +1,5 @@
 model:
-  name: Snowflake/snowflake-arctic-embed-m
+  name: FacebookAI/xlm-roberta-base
   num_labels: 6
   classifier_dropout: 0.0
   hidden_dropout_prob: 0.0
@@ -13,24 +13,19 @@ tokenizer:
     special_tokens: null
 
 data: 
-  train_file_path: data/lorem_ipsum.jsonl
-  train_annotation_path: null
+  train_file_path: data/annotated_fineweb_multi_train.jsonl
   train_file_split: train
-  test_file_path: data/lorem_ipsum.jsonl # currently not used
+  test_file_path: data/annotated_fineweb_multi_test.jsonl # currently not used
   test_file_split: train # currently not used
-  val_file_path: data/lorem_ipsum.jsonl
-  val_annotation_path: null
+  val_file_path: data/annotated_fineweb_multi_val.jsonl
   val_file_split: train
   gt_file_path: null # ground truth data; can be null (optional)
-  gt_annotation_path: null
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_regressor_outputs: 1
-  num_classes_per_output: [6]
-  output_names: ["score"]
-  annotation_names: []
-  annotation_aggregation_fn: median
+  num_regressor_outputs: 4
+  num_classes_per_output: [6, 6, 6, 2]
+  output_names: ["score", "score_transform_1", "score_transform_2", "score_transform_3"]
   
 training:
   batch_size: 32
@@ -40,10 +35,10 @@ training:
   eval_strategy: epoch
   save_strategy: epoch
   logging_steps: 100
-  seed: 42
   regression_loss: false
-  greater_is_better: false # save model with lowest loss
+  seed: 42
+  greater_is_better: false
   metric_for_best_model: eval_val_loss
   learning_rate: 0.00001
-  logging_dir_path: data/output/lorem_ipsum_model
-  output_dir_path: data/output/lorem_ipsum_model
+  logging_dir_path: data/output/preliminary_xlm_roberta_base
+  output_dir_path: data/output/preliminary_xlm_roberta_base
