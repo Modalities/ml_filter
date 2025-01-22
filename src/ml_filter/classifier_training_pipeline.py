@@ -18,13 +18,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.dataset_tokenizer import DatasetTokenizer
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
-from ml_filter.utils.train_classifier import (
-    BertForMultiTargetClassification,
-    XLMRobertaFlashForMultiTargetClassification,
-    XLMRobertaForMultiTargetClassification,
-    XLMRobertaXLForMultiTargetClassification,
-    compute_metrics_for_single_output,
-)
+from ml_filter.utils.train_classifier import AutoModelForMultiTargetClassification, compute_metrics_for_single_output
 
 
 class ClassifierTrainingPipeline:
@@ -125,22 +119,7 @@ class ClassifierTrainingPipeline:
         }
 
         # Initialize base model
-        if isinstance(model_name, str):
-            match model_name.lower():
-                case "facebook/xlm-roberta-xl":
-                    self.model = XLMRobertaXLForMultiTargetClassification.from_pretrained(model_name, **model_args)
-                case "facebookai/xlm-roberta-base" | "facebookai/xlm-roberta-large":
-                    self.model = XLMRobertaForMultiTargetClassification.from_pretrained(model_name, **model_args)
-                case "snowflake/snowflake-arctic-embed-m":
-                    self.model = BertForMultiTargetClassification.from_pretrained(model_name, **model_args)
-                case "jinaai/jina-embeddings-v3":
-                    self.model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(model_name, **model_args)
-                case _:
-                    raise NotImplementedError(
-                        f"Model {model_name} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."  # noqa
-                    )
-        else:
-            raise ValueError(f"Model name must be a string, got {type(model_name)}")
+        self.model = AutoModelForMultiTargetClassification.from_pretrained(model_name, **model_args)
 
         # Freeze encoder if specified
         if cfg.model.get("freeze_encoder", False):

@@ -277,6 +277,28 @@ class MultiTargetRegressionHead(torch.nn.Module):
         return x
 
 
+class AutoModelForMultiTargetClassification:
+    @classmethod
+    def from_pretrained(cls, model_name_or_path, **kwargs):
+        if isinstance(model_name_or_path, str):
+            model_type = kwargs.get("model_type", model_name_or_path).lower()
+
+            if "xlm-roberta-xl" in model_type:
+                return XLMRobertaXLForMultiTargetClassification.from_pretrained(model_name_or_path, **kwargs)
+            elif "xlm-roberta-base" in model_type or "xlm-roberta-large" in model_type:
+                return XLMRobertaForMultiTargetClassification.from_pretrained(model_name_or_path, **kwargs)
+            elif "snowflake-arctic-embed" in model_type:
+                return BertForMultiTargetClassification.from_pretrained(model_name_or_path, **kwargs)
+            elif "jina-embeddings" in model_type:
+                return XLMRobertaFlashForMultiTargetClassification.from_pretrained(model_name_or_path, **kwargs)
+            else:
+                raise NotImplementedError(
+                    f"Model {model_name_or_path} not supported. Only Snowflake-Arctic and XLM-RoBERTa models are currently supported."  # noqa
+                )
+        else:
+            raise ValueError(f"Model name must be a string, got {type(model_name_or_path)}")
+
+
 class MultiTargetClassificationHead(torch.nn.Module):
     """Head for multi-target classification tasks.
 
