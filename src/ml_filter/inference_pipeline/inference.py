@@ -29,7 +29,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model_checkpoint", type=str, default="bert-base-uncased", help="Model checkpoint to load")
     parser.add_argument("--num_regressor_outputs", type=int, default=1, help="Number of regressor outputs")
     parser.add_argument(
-        "--num_classes_per_output", type=List[int], default=[2], help="Number of classes per regressor output"
+        "--num_classes_per_output",
+        nargs="+",
+        type=int,
+        default=2,
+        help="Number of classes per regressor output, should be space-separated e.g. --num_classes_per_output 6 6 2 2",
     )
     parser.add_argument(
         "--use_regression",
@@ -75,23 +79,23 @@ def main() -> None:
         "num_classes_per_output": torch.tensor(args.num_classes_per_output),
         "regression": args.use_regression,
     }
-    match args.model_checkpoint.lower():
-        case "xlm-roberta-xl":
-            model = XLMRobertaXLForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-        case "xlm-roberta-base" | "xlm-roberta-large":
-            model = XLMRobertaForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-        case "snowflake-arctic-embed-m":
-            model = BertForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-        case "jina-embeddings":
-            model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-        case _:
-            logger.info(
-                f"Custom model architecture for {args.model_checkpoint=} not implemented, falling back to AutoModel..."
-            )
-            model = AutoModelForSequenceClassification.from_pretrained(
-                args.model_checkpoint,
-                num_labels=args.num_classes_per_output[0],
-            )
+    model_name = args.model_checkpoint.lower()
+    if "xlm-roberta-xl" in model_name:
+        model = XLMRobertaXLForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
+    elif "xlm-roberta-base" in model_name or "xlm-roberta-large" in model_name:
+        model = XLMRobertaForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
+    elif "snowflake-arctic-embed-m" in model_name:
+        model = BertForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
+    elif "jina-embeddings" in model_name:
+        model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
+    else:
+        logger.info(
+            f"Custom model architecture for {args.model_checkpoint=} not implemented, falling back to AutoModel..."
+        )
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_checkpoint,
+            num_labels=args.num_classes_per_output[0],
+        )
     model.to(device).eval()
 
     with open(args.input_files_list, "r") as f:
