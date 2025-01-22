@@ -1,1 +1,1 @@
-datasets/dummy_dataset1
+../../../data/inference_pipeline/dummy_dataset1
