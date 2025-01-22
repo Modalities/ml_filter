@@ -4,11 +4,7 @@ This repository runs large-scale parallel inference on tokenized datasets using 
 ## 1. Setup
 
 ### Install Dependencies
-```bash
-conda create -n bert-env python=3.11
-conda activate bert-env
-pip install -r requirements.txt
-```
+This code is compatible with the requirements of the ML Filter project. Please see [../../../CONTRIBUTING.md](../../../CONTRIBUTING.md) for more information on the installation.
 
 ## 2. Create Dummy Datasets
 Use `create_dummy_ds.py` to generate tokenized datasets:
