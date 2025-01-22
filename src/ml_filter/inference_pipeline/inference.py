@@ -73,20 +73,20 @@ def main() -> None:
     model_args = {
         "num_regressor_outputs": args.num_regressor_outputs,
         "num_classes_per_output": torch.tensor(args.num_classes_per_output),
-        "regression": args.regression_loss,
+        "regression": args.use_regression,
     }
-    match args.model_name.lower():
+    match args.model_checkpoint.lower():
         case "xlm-roberta-xl":
-            model = XLMRobertaXLForMultiTargetClassification.from_pretrained(args.model_name, **model_args)
+            model = XLMRobertaXLForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
         case "xlm-roberta-base" | "xlm-roberta-large":
-            model = XLMRobertaForMultiTargetClassification.from_pretrained(args.model_name, **model_args)
+            model = XLMRobertaForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
         case "snowflake-arctic-embed-m":
-            model = BertForMultiTargetClassification.from_pretrained(args.model_name, **model_args)
+            model = BertForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
         case "jina-embeddings":
-            model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(args.model_name, **model_args)
+            model = XLMRobertaFlashForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
         case _:
             logger.info(
-                f"Custom model architecture for {args.model_name=} not implemented, falling back to AutoModel..."
+                f"Custom model architecture for {args.model_checkpoint=} not implemented, falling back to AutoModel..."
             )
             model = AutoModelForSequenceClassification.from_pretrained(
                 args.model_checkpoint,
