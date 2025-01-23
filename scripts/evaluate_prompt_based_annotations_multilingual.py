@@ -5,10 +5,9 @@ from ml_filter.analysis.interrater_reliability import compute_interrater_reliabi
 #### Parameters ####
 input_directory = Path("/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/multilinguality/experiments")
 output_directory = input_directory / "comparison"
-subfolder_per_language = False
 gt_data = Path('/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/model_size_architecture/annotations/annotations_edu_en_gt.jsonl')
 aggregation = "majority"
-####################
+####################1
 
 # Find all files matching the pattern in the directory and subdirectories
 files = list(input_directory.rglob("annotations_*.jsonl"))
@@ -36,12 +35,12 @@ for file in files:
     print(f"Compare model {model} to ground truth")
     lang_dir = output_directory / lang
     lang_dir.mkdir(parents=True, exist_ok=True)
-    output_file_path = lang_dir / f"ir_{model}_gt.json"
     
     compute_interrater_reliability_metrics(
         path_to_files=([gt_data, file]),
-        output_file_path=output_file_path,
+        output_dir=lang_dir,
         aggregation=aggregation,
         gt_file_idx=0,
+        model_name=model,
     )
-    print(f"Metrics successfully written to {output_file_path}")
+    print(f"Metrics successfully written to {lang_dir}")
