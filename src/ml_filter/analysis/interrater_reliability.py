@@ -1,3 +1,4 @@
+#%%
 from collections import Counter
 import json
 from pathlib import Path
@@ -5,6 +6,7 @@ import statistics
 from typing import Dict, List, Tuple, Optional
 
 import krippendorff
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import spearmanr, kendalltau
 from sklearn.metrics import cohen_kappa_score
@@ -126,9 +128,25 @@ def compute_average_accuracy_and_mse_against_gt(all_scores: List[List[int]], all
     return total_acc / num_annotators, total_mse / num_annotators
     
     
+def plot_histogram(missing_scores: Dict[str, List[int]], gt_file_idx: int, output_file_path: str, model_name: str) -> None:
+    # Plot the histogram for missing scores
+    plt.figure(figsize=(10, 6))
+    plt.hist(
+        [scores[gt_file_idx] for scores in missing_scores.values()],
+        bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
+        alpha=0.5,
+        edgecolor='black'
+    )
+    plt.xlabel('Scores')
+    plt.ylabel('Frequency')
+    plt.title(f'Histogram of Invalid Scores for {model_name}')
+    plt.grid(True)
+    plt.savefig(output_file_path)
+    
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
-    output_file_path: Path,
+    output_dir: Path,
+    model_name: str,
     aggregation: Optional[str] = None,
     gt_file_idx: Optional[int] = None,
 ) -> None:
@@ -213,8 +231,17 @@ def compute_interrater_reliability_metrics(
             )
             metrics[prompt]['Accuracy against GT (avg pairwise)'] = acc
             metrics[prompt]['MSE against GT (avg pairwise)'] = mse
+            
+            # plot the distribution of invalid scores
+            plot_histogram(
+                missing_scores=missing_scores,
+                gt_file_idx=gt_file_idx,
+                output_file_path=output_dir / f"histogram_{prompt}_{model_name}.png",
+                model_name=model_name,
+            )
 
     # Print results and save them to file
     print("\n".join(f"{key}: {value}" for key, value in metrics.items()))
+    output_file_path = output_dir / f"ir_{model_name}_gt.json"
     with output_file_path.open("w") as f:
         json.dump(metrics, f, indent=4)
