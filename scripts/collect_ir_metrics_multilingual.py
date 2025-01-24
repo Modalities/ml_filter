@@ -1,17 +1,16 @@
 
 import json
 from pathlib import Path
+from typing import List
 
 import pandas as pd
 from pandas.io.formats.style import Styler
 
 
-def style_df(df: pd.DataFrame) -> Styler:
-    columns_to_highlight_max = [col for col in df.columns if col not in ["Model", "Model 1", "Model 2", "Filename", "Prompt", "MSE", "Invalid"]]
-    columns_to_highlight_min = ["MSE", "Invalid"]
+def style_df(df: pd.DataFrame, max_columns: List[str], min_columns: List[str]) -> Styler:
     df_sorted = df.sort_values(by="Model")
-    styled_df = df_sorted.style.highlight_max(axis=0, subset=columns_to_highlight_max, props='textbf:--rwrap;')
-    styled_df = styled_df.highlight_min(axis=0, subset=columns_to_highlight_min, props='textbf:--rwrap;')
+    styled_df = df_sorted.style.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
+    styled_df = styled_df.highlight_min(axis=0, subset=min_columns, props='textbf:--rwrap;')
     return styled_df.hide(axis='index')
 
 
@@ -49,6 +48,7 @@ for file_path in list(input_directory.rglob("ir_*.json")):
                 if COMPARE_TO_GT_ONLY:
                     result["Model"] = model1 if model1 != "gt" else model2
                     result["Acc"] = prompt_data.get("Accuracy against GT (avg pairwise)")
+                    result["MAE"] = prompt_data.get("MAE against GT (avg pairwise)")
                     result["MSE"] = prompt_data.get("MSE against GT (avg pairwise)")
                 else:
                     result["Model 1"] = model1
@@ -70,11 +70,31 @@ for file_path in list(input_directory.rglob("ir_*.json")):
 
 latex_output = ""
 # Initialize a DataFrame to hold the aggregated values for each model
-aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
+aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
+min_columns = ["MAE", "MSE", "Invalid"]
+max_columns = [col for col in aggregated_results.columns if col not in (["Model", "Count"] + min_columns)]
+top_n_models = {n: {col: {} for col in min_columns + max_columns} for n in [1, 2, 3, 4]}
 
 for lang in sorted(results.keys()):
     # Convert the data to a DataFrame
     df = pd.DataFrame(results[lang])
+    
+    # get the top n models for each metric
+    for col in max_columns + min_columns:
+        for model in df["Model"].unique():
+            for n in top_n_models.keys():
+                if model not in top_n_models[n][col]:
+                    top_n_models[n][col][model] = 0
+        
+    for col in max_columns:
+        for n in top_n_models.keys():
+            for model in df.nlargest(n, col)["Model"].to_list():
+                top_n_models[n][col][model] += 1
+
+    for col in min_columns:
+        for n in top_n_models.keys():
+            for model in df.nsmallest(n, col)["Model"].to_list():
+                top_n_models[n][col][model] += 1
 
     # Aggregate the values for each model
     for model in df["Model"].unique():
@@ -83,6 +103,7 @@ for lang in sorted(results.keys()):
             new_row = pd.DataFrame([{
                 "Model": model,
                 "Acc": 0,
+                "MAE": 0,
                 "MSE": 0,
                 "Fleiss": 0,
                 "Cohen": 0,
@@ -95,6 +116,7 @@ for lang in sorted(results.keys()):
             aggregated_results = pd.concat([aggregated_results, new_row], ignore_index=True)
 
         aggregated_results.loc[aggregated_results["Model"] == model, "Acc"] += model_df["Acc"].sum()
+        aggregated_results.loc[aggregated_results["Model"] == model, "MAE"] += model_df["MAE"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "MSE"] += model_df["MSE"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Fleiss"] += model_df["Fleiss"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Cohen"] += model_df["Cohen"].sum()
@@ -110,7 +132,11 @@ for lang in sorted(results.keys()):
     # Write the DataFrame to a LaTeX table
     df = df.drop(columns=["Filepath", "Prompt"])
     df["Invalid"] = df["Invalid"].astype(int)
-    styled_df = style_df(df)
+    styled_df = style_df(
+        df=df,
+        max_columns=max_columns,
+        min_columns=min_columns
+    )
     latex_output += f"""
 \\begin{{table}}[ht]
 \\centering
@@ -123,15 +149,20 @@ for lang in sorted(results.keys()):
 
 # scores aggregated over all languages
 # Divide the values in each row by the value in the column Count
-for col in ["Acc", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff"]:
+for col in ["Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff"]:
     aggregated_results[col] = aggregated_results.apply(lambda row: row[col] / row["Count"] if row["Count"] != 0 else 0, axis=1)
 aggregated_results = aggregated_results.drop(columns=["Count"])
 aggregated_results["Invalid"] = aggregated_results["Invalid"].astype(int)
+
 # Write the DataFrame to an Excel file
 aggregated_results.to_excel(output_directory / f"ir_summary_gt_all_langs.xlsx", index=False)
 
 # add to latex output
-styled_aggregated_results = style_df(aggregated_results)
+styled_aggregated_results = style_df(
+    df=aggregated_results,
+    max_columns=max_columns,
+    min_columns=min_columns
+)
 latex_output += f"""
 \\begin{{table}}[ht]
 \\centering
@@ -141,6 +172,26 @@ latex_output += f"""
 \\label{{tab:llm_scores_all_langs}}
 \\end{{table}}
 """
+
+# Add top n models to latex output
+top_n_models_dfs = {}
+for n, metrics_dict in top_n_models.items():
+    df = pd.DataFrame(metrics_dict).reset_index().rename(columns={"index": "Model"})
+    styled_df = style_df(
+        df=df,
+        max_columns=[],
+        min_columns=[],
+    )
+    latex_output += f"""
+\\begin{{table}}[ht]
+\\centering
+\\scriptsize
+{styled_df.to_latex()}
+\\caption{{Number of times each LLM was under top {n} performing models across languages}}
+\\label{{tab:llm_top_n_all_langs}}
+\\end{{table}}
+"""
+
 print(latex_output)
 with open(output_directory / "ir_summary_gt.tex", "w") as f:
     f.write(latex_output)
