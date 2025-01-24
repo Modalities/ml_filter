@@ -27,6 +27,7 @@ dependencies = [
     "seaborn",
     "python-dotenv",
     "jq",
+    "torch",
 ]
 
 [project.optional-dependencies]
