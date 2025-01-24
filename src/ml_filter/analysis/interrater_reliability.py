@@ -1,4 +1,4 @@
-#%%
+
 from collections import Counter
 import json
 from pathlib import Path
@@ -8,8 +8,9 @@ from typing import Dict, List, Tuple, Optional
 import krippendorff
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 from scipy.stats import spearmanr, kendalltau
-from sklearn.metrics import cohen_kappa_score
+from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.utils import get_document_scores
@@ -99,7 +100,7 @@ def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: L
     return results
 
 
-def compute_average_accuracy_and_mse_against_gt(all_scores: List[List[int]], all_scores_rounded: List[List[int]], gt_file_idx: int) -> Tuple[float, float]:
+def compute_average_accuracy_mae_mse_against_gt(all_scores: List[List[int]], all_scores_rounded: List[List[int]], gt_file_idx: int) -> Tuple[float, float]:
     """
     Computes the accuracy of the annotators' scores against the ground truth.
 
@@ -111,21 +112,30 @@ def compute_average_accuracy_and_mse_against_gt(all_scores: List[List[int]], all
         None
     """
     gt_scores = [item[gt_file_idx] for item in all_scores]
+    gt_scores_rounded = [item[gt_file_idx] for item in all_scores_rounded]
     num_annotators = len(all_scores[0]) - 1
     total_acc = 0
+    total_mae = 0
     total_mse = 0
     for i in range(len(all_scores[0])):
         if i == gt_file_idx:
             continue
         annotator_scores = [item[i] for item in all_scores]
         annotator_scores_rounded = [item[i] for item in all_scores_rounded]
-        acc = sum(1 for s1, s2 in zip(gt_scores, annotator_scores) if s1 == s2) / len(gt_scores)
+        acc = sum(1 for s1, s2 in zip(gt_scores_rounded, annotator_scores_rounded) if s1 == s2) / len(gt_scores_rounded)
         total_acc += acc
-        squared_diffs = [(a - b) ** 2 for a, b in zip(gt_scores, annotator_scores_rounded)]
+        mae = sum(abs(a - b) for a, b in zip(gt_scores, annotator_scores)) / len(gt_scores)
+        total_mae += mae
+        squared_diffs = [(a - b) ** 2 for a, b in zip(gt_scores, annotator_scores)]
         mse = sum(squared_diffs) / len(squared_diffs)
         total_mse += mse
     
-    return total_acc / num_annotators, total_mse / num_annotators
+    avg_metrics = {
+        'acc': total_acc / num_annotators,
+        'mae': total_mae / num_annotators,
+        'mse': total_mse / num_annotators,
+    }
+    return avg_metrics
     
     
 def plot_histogram(missing_scores: Dict[str, List[int]], gt_file_idx: int, output_file_path: str, model_name: str) -> None:
@@ -142,6 +152,24 @@ def plot_histogram(missing_scores: Dict[str, List[int]], gt_file_idx: int, outpu
     plt.title(f'Histogram of Invalid Scores for {model_name}')
     plt.grid(True)
     plt.savefig(output_file_path)
+    
+    
+def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path: str, model_name: str) -> None:
+    # Plot the confusion matrix for missing scores
+    cm = confusion_matrix(labels, preds)
+    
+    # Normalize the confusion matrix
+    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    
+    # Plot the confusion matrix
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=np.unique(preds), yticklabels=np.unique(labels))
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title(f'Confusion Matrix for {model_name}')
+    plt.savefig(output_file_path)
+    plt.show()
+
     
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
@@ -224,19 +252,44 @@ def compute_interrater_reliability_metrics(
         
         # compute accuracy and mse if ground truth is provided
         if gt_file_idx is not None:
-            acc, mse = compute_average_accuracy_and_mse_against_gt(
+            avg_metrics = compute_average_accuracy_mae_mse_against_gt(
                 all_scores=all_scores, 
                 all_scores_rounded=all_scores_rounded,
                 gt_file_idx=gt_file_idx
             )
-            metrics[prompt]['Accuracy against GT (avg pairwise)'] = acc
-            metrics[prompt]['MSE against GT (avg pairwise)'] = mse
+            metrics[prompt]['Accuracy against GT (avg pairwise)'] = avg_metrics["acc"]
+            metrics[prompt]['MAE against GT (avg pairwise)'] = avg_metrics["mae"]
+            metrics[prompt]['MSE against GT (avg pairwise)'] = avg_metrics["mse"]
             
             # plot the distribution of invalid scores
             plot_histogram(
                 missing_scores=missing_scores,
                 gt_file_idx=gt_file_idx,
                 output_file_path=output_dir / f"histogram_{prompt}_{model_name}.png",
+                model_name=model_name,
+            )
+            
+            labels = []
+            preds = []
+            for scores in all_scores_rounded:
+                if len(scores) != 2:
+                    raise ValueError("Confusion matrix can only be computed for two annotators.")
+                
+                for i, score in enumerate(scores):
+                    if i == gt_file_idx:
+                        label = score
+                    else:
+                        pred = score
+                if pred == "invalid":
+                    continue
+                labels.append(label)
+                preds.append(pred)
+                
+            # plot confusion matrix
+            plot_confusion_matrix(
+                labels=labels,
+                preds=preds,
+                output_file_path=output_dir / f"confusion_matrix_{prompt}_{model_name}.png",
                 model_name=model_name,
             )
 
