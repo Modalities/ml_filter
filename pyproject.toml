@@ -12,6 +12,7 @@ dependencies = [
     "transformers==4.46.1",
     "click",
     "click_pathlib",
+    "sentencepiece",
     "Jinja2",
     "scikit-learn",
     # this is only needed for MN5 as it has Keras 3 installed which is incompatible with the latest version of transformers. 

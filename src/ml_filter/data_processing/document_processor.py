@@ -126,7 +126,7 @@ class DocumentProcessor:
 
             if len(processed_document.errors) > 0:
                 error_string = " | ".join(processed_document.errors)
-                logger.warning(f"Error processing document with id {document['id']}: {error_string}")
+                logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
