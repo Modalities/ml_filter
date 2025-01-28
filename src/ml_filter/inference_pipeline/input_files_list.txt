@@ -1,1 +1,1 @@
-../../../data/inference_pipeline/dummy_dataset1
+../../../data/inference_pipeline/fineweb_2_10k/nld_Latn_sampled_10k.pbin

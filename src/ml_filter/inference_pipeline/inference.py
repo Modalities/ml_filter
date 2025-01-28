@@ -2,10 +2,11 @@ import argparse
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Dict, List, Set
 
 import torch
-from datasets import Dataset, load_from_disk
+from modalities.dataloader.dataset import PackedMemMapDatasetContinuous
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from transformers import AutoModelForSequenceClassification
@@ -53,7 +54,7 @@ def setup_logging(task_id: int) -> logging.Logger:
 
 def collate_fn(batch: List[Dict[str, List[int]]]) -> Dict[str, torch.Tensor]:
     input_ids = [torch.tensor(example["input_ids"], dtype=torch.long) for example in batch]
-    attention_mask = [torch.tensor(example["attention_mask"], dtype=torch.long) for example in batch]
+    attention_mask = [torch.ones(len(example["input_ids"]), dtype=torch.long) for example in batch]
 
     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
     attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
@@ -104,7 +105,8 @@ def main() -> None:
             continue
 
         logger.info(f"Processing file: {file_path}")
-        dataset: Dataset = load_from_disk(file_path).shard(args.num_tasks, args.task_id)
+        # dataset: Dataset = load_from_disk(file_path).shard(args.num_tasks, args.task_id)
+        dataset = PackedMemMapDatasetContinuous(Path(file_path), "input_ids", block_size=512)
         dataloader: DataLoader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
 
         output_file: str = os.path.join(args.output_dir, f"output_task{args.task_id}.jsonl")
