@@ -27,8 +27,6 @@ dependencies = [
     "seaborn",
     "python-dotenv",
     "jq",
-    "modalities@git+https://github.com/Modalities/modalities@fe4a3bec545f2ca0a984b9c3a21af88a63eae551",
-    "torch",
 ]
 
 [project.optional-dependencies]
