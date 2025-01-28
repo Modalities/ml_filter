@@ -7,17 +7,22 @@ import os
 from pathlib import Path
 import random, math
 from typing import List, Tuple, Callable, Union
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 def convert_to_jsonl(base_path: str):
     # Load the dataset
-    print("Loading dataset...")
+    logger.info("Loading dataset...")
     dataset = load_dataset("HuggingFaceFW/fineweb-edu-llama3-annotations")
     
     # Create output directory if it doesn't exist
     os.makedirs(base_path, exist_ok=True)
     
     # Open output file
-    print("Converting to JSONL format...")
+    logger.info("Converting to JSONL format...")
     output_file = os.path.join(base_path, "annotated_fineweb.jsonl")
     with open(output_file, "w", encoding="utf-8") as f:
         # Process each example
@@ -34,12 +39,12 @@ def convert_to_jsonl(base_path: str):
             # Write to file
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     
-    print(f"Conversion complete! File saved to {output_file}")
+    logger.info(f"Conversion complete! File saved to {output_file}")
     
     # Delete downloaded dataset cache
-    print("Cleaning up downloaded data...")
+    logger.info("Cleaning up downloaded data...")
     dataset.cleanup_cache_files()
-    print("Done!")
+    logger.info("Done!")
 
 def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callable[[float], Union[int, float]]]]):
     """Transform single scores into multiple scores using different transformations.
@@ -56,7 +61,7 @@ def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callabl
     input_file = Path(os.path.join(base_path, "annotated_fineweb.jsonl"))
     output_file = Path(os.path.join(base_path, "annotated_fineweb_multi.jsonl"))
     
-    print("Applying score transformations...")
+    logger.info("Applying score transformations...")
     with open(input_file, 'r', encoding='utf-8') as in_f, \
          open(output_file, 'w', encoding='utf-8') as out_f:
         
@@ -73,7 +78,7 @@ def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callabl
             # Write transformed entry
             out_f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     
-    print(f"Score transformation complete! File saved to {output_file}")
+    logger.info(f"Score transformation complete! File saved to {output_file}")
 
 def split_dataset(base_path: str, file_path: str, train_ratio: float = 0.8, val_ratio: float = 0.1, test_ratio: float = 0.1, seed: int = 42):
     """Split the dataset into train, validation and test sets."""
@@ -117,10 +122,10 @@ def split_dataset(base_path: str, file_path: str, train_ratio: float = 0.8, val_
             else:
                 test_f.write(line)
     
-    print(f"Split complete! Created files:")
-    print(f"Train ({train_size} samples): {train_file}")
-    print(f"Validation ({val_size} samples): {val_file}") 
-    print(f"Test ({test_size} samples): {test_file}")
+    logger.info(f"Split complete! Created files:")
+    logger.info(f"Train ({train_size} samples): {train_file}")
+    logger.info(f"Validation ({val_size} samples): {val_file}") 
+    logger.info(f"Test ({test_size} samples): {test_file}")
 
 if __name__ == "__main__":
     base_path = "data"  # Can be changed to any desired path
