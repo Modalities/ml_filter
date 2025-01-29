@@ -28,7 +28,7 @@ def most_frequent_average(values: List[int]) -> float:
     return sum(most_frequent_values) / len(most_frequent_values)
 
 
-def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -> dict[str, dict[str, float]]:
+def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], max_score: Optional[int] = None) -> dict[str, dict[str, float]]:
     """
     Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
@@ -60,10 +60,20 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str]) -
         with open(file_path, 'r') as f:
             for line in f:
                 json_obj = json.loads(line)
-                scores = json_obj.get('scores')
+                orig_scores = json_obj.get('scores')
                 
-                # there are two variants for missing annotations: -inf and None. We standardize to None here
-                scores = [None if score == float("-inf") else score for score in scores]
+                # there are two variants for missing annotations: -inf and None. We standardize to None here.
+                # In addition, convert scores to ints and discard scores larger than max_score
+                scores = []
+                for score in orig_scores:
+                    if score == float("-inf") or score is None:
+                        scores.append(None)
+                    else:
+                        score = int(score)
+                        if max_score is not None and score > max_score:
+                            scores.append(None)
+                        else:
+                            scores.append(score)
                 
                 if aggregation is None:
                     # filter out documents with missing annotations

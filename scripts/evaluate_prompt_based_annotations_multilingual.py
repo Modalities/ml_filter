@@ -3,10 +3,11 @@ from ml_filter.analysis.interrater_reliability import compute_interrater_reliabi
 
 
 #### Parameters ####
-input_directory = Path("/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/multilinguality/experiments")
+input_directory = Path("/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/multilinguality/experiments/2025-01-21__17-19-01__e4cd1989/generated_annotations/Qwen--QwQ-32B-Preview")
 output_directory = input_directory / "comparison"
 gt_data = Path('/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/model_size_architecture/annotations/annotations_edu_en_gt.jsonl')
 aggregation = "majority"
+max_score = 5
 ####################1
 
 # Find all files matching the pattern in the directory and subdirectories
@@ -42,5 +43,6 @@ for file in files:
         aggregation=aggregation,
         gt_file_idx=0,
         model_name=model,
+        max_score=max_score,
     )
     print(f"Metrics successfully written to {lang_dir}")

@@ -180,6 +180,7 @@ def compute_interrater_reliability_metrics(
     model_name: str,
     aggregation: Optional[str] = None,
     gt_file_idx: Optional[int] = None,
+    max_score: Optional[int] = None,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -205,7 +206,11 @@ def compute_interrater_reliability_metrics(
     Returns:
         None
     """    
-    document_scores = get_document_scores(path_to_files, aggregation=aggregation)
+    document_scores = get_document_scores(
+        path_to_files=path_to_files,
+        aggregation=aggregation,
+        max_score=max_score
+    )
     metrics = {}
     for prompt in document_scores:
         all_document_ids = []
