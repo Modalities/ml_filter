@@ -169,6 +169,9 @@ def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path:
     plt.title(f'Confusion Matrix for {model_name}')
     plt.savefig(output_file_path)
     plt.show()
+    
+    cm_dict = {int(label): {int(pred): int(cm[i, j]) for j, pred in enumerate(np.unique(preds))} for i, label in enumerate(np.unique(labels))}
+    return cm_dict
 
     
 def compute_interrater_reliability_metrics(
@@ -286,12 +289,13 @@ def compute_interrater_reliability_metrics(
                 preds.append(pred)
                 
             # plot confusion matrix
-            plot_confusion_matrix(
+            cm = plot_confusion_matrix(
                 labels=labels,
                 preds=preds,
                 output_file_path=output_dir / f"confusion_matrix_{prompt}_{model_name}.png",
                 model_name=model_name,
             )
+            metrics[prompt]['CM against GT'] = cm
 
     # Print results and save them to file
     print("\n".join(f"{key}: {value}" for key, value in metrics.items()))

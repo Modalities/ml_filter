@@ -3,8 +3,10 @@ import json
 from pathlib import Path
 from typing import List
 
+from matplotlib import pyplot as plt
 import pandas as pd
 from pandas.io.formats.style import Styler
+import seaborn as sns
 
 
 def style_df(df: pd.DataFrame, max_columns: List[str], min_columns: List[str]) -> Styler:
@@ -60,6 +62,7 @@ for file_path in list(input_directory.rglob("ir_*.json")):
                 result["Krippendorff"] = prompt_data.get("Krippendorff Alpha")
                 result["Invalid"] = prompt_data.get("Number of invalid scores", 0)
                 result["Filepath"] = file_path
+                result["CM"] = prompt_data.get("CM against GT")
                 if not lang in results:
                     results[lang] = []
                 results[lang].append(result)
@@ -71,6 +74,7 @@ for file_path in list(input_directory.rglob("ir_*.json")):
 latex_output = ""
 # Initialize a DataFrame to hold the aggregated values for each model
 aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
+aggregated_cm = {}
 min_columns = ["MAE", "MSE", "Invalid"]
 max_columns = [col for col in aggregated_results.columns if col not in (["Model", "Count"] + min_columns)]
 top_n_models = {n: {col: {} for col in min_columns + max_columns} for n in [1, 2, 3, 4]}
@@ -114,6 +118,7 @@ for lang in sorted(results.keys()):
                 "Count": 0
             }])
             aggregated_results = pd.concat([aggregated_results, new_row], ignore_index=True)
+            aggregated_cm[model] = {}
 
         aggregated_results.loc[aggregated_results["Model"] == model, "Acc"] += model_df["Acc"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "MAE"] += model_df["MAE"].sum()
@@ -125,6 +130,15 @@ for lang in sorted(results.keys()):
         aggregated_results.loc[aggregated_results["Model"] == model, "Krippendorff"] += model_df["Krippendorff"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Invalid"] += model_df["Invalid"].sum()
         aggregated_results.loc[aggregated_results["Model"] == model, "Count"] += len(model_df)
+        
+        cm = list(model_df["CM"])[0]
+        for label in cm:
+            if label not in aggregated_cm[model]:
+                aggregated_cm[model][label] = {}
+            for pred in cm[label]:
+                if pred not in aggregated_cm[model][label]:
+                    aggregated_cm[model][label][pred] = 0
+                aggregated_cm[model][label][pred] += cm[label][pred]
 
     # Write the DataFrame to an Excel file
     df.to_excel(output_directory / f"ir_summary_gt_{lang}.xlsx", index=False)
@@ -195,5 +209,24 @@ for n, metrics_dict in top_n_models.items():
 print(latex_output)
 with open(output_directory / "ir_summary_gt.tex", "w") as f:
     f.write(latex_output)
+    
+# Plot the aggregated confusion matrix
+for model in aggregated_cm:
+    labels = set()
+    preds = set()
+    aggregated_cm_list = []
+    for label in aggregated_cm[model]:
+        labels.add(label)
+        label_list = []
+        for pred in aggregated_cm[model][label]:
+            label_list.append(aggregated_cm[model][label][pred])
+            preds.add(pred)
+        aggregated_cm_list.append(label_list)
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(aggregated_cm_list, annot=True, fmt='.2f', cmap='Blues', xticklabels=sorted(preds), yticklabels=sorted(labels))
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title(f'Confusion Matrix for {model}')
+    plt.savefig(output_directory / f"confusion_matrix_across_languages_{model}.png")
 
 print(f"Metrics successfully written")
