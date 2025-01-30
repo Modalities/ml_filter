@@ -17,7 +17,7 @@ from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
-from ml_filter.data_processing.convert_annotated_fineweb import convert_annotated_fineweb, split_dataset, multi_score_transform
+from ml_filter.data_processing.convert_annotated_fineweb import convert_to_jsonl, split_dataset, multi_score_transform
 
 input_file_path_option = click.option(
     "--input_file_path",
