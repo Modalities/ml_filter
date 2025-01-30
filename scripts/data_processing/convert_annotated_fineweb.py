@@ -85,6 +85,9 @@ def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callabl
         base_path: Base directory path for data files
         transform_fns: List of tuples containing (name, transform_function) pairs.
                       The original score will always be kept.
+
+    Raises:
+        KeyError: If 'scores' key is missing in the JSONL entry or if 'score' is missing in the scores dict.
     """
     
     # Always include original score first
@@ -99,6 +102,14 @@ def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callabl
         
         for line in in_f:
             entry = json.loads(line)
+            
+            # Check for required keys
+            if 'scores' not in entry:
+                raise KeyError(f"Required key 'scores' not found in JSONL entry: {entry}")
+            
+            if 'score' not in entry['scores']:
+                raise KeyError(f"Required key 'score' not found in scores dict: {entry['scores']}")
+            
             original_score = entry['scores']['score']
             
             # Apply all transformations
@@ -112,9 +123,14 @@ def multi_score_transform(base_path: str, transform_fns: List[Tuple[str, Callabl
     
     logger.info(f"Score transformation complete! File saved to {output_file}")
 
-def split_dataset(base_path: str, file_path: str, train_ratio: float = 0.8, val_ratio: float = 0.1, test_ratio: float = 0.1, seed: int = 42):
+def split_dataset(output_dir_path: str, file_path: str, train_ratio: float = 0.8, val_ratio: float = 0.1, test_ratio: float = 0.1, seed: int = 42):
     """Split the dataset into train, validation and test sets."""
-    input_file = Path(os.path.join(base_path, file_path + ".jsonl"))
+    
+    # Validate that ratios sum to 1
+    if not math.isclose(train_ratio + val_ratio + test_ratio, 1.0):
+        raise ValueError(f"Split ratios must sum to 1.0, got {train_ratio + val_ratio + test_ratio}")
+    
+    input_file = Path(os.path.join(output_dir_path, file_path + ".jsonl"))
     
     # Count total number of samples
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -136,9 +152,9 @@ def split_dataset(base_path: str, file_path: str, train_ratio: float = 0.8, val_
     test_indices = set(indices[train_size + val_size:])
     
     # Create output files
-    train_file = Path(os.path.join(base_path, f"{file_path}_train.jsonl"))
-    val_file = Path(os.path.join(base_path, f"{file_path}_val.jsonl"))
-    test_file = Path(os.path.join(base_path, f"{file_path}_test.jsonl"))
+    train_file = Path(os.path.join(output_dir_path, f"{file_path}_train.jsonl"))
+    val_file = Path(os.path.join(output_dir_path, f"{file_path}_val.jsonl"))
+    test_file = Path(os.path.join(output_dir_path, f"{file_path}_test.jsonl"))
     
     # Open output files
     with open(train_file, 'w', encoding='utf-8') as train_f, \
