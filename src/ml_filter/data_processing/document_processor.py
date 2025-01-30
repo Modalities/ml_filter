@@ -210,56 +210,58 @@ class DocumentProcessor:
         results_written = 0
         open_files = {}
         total_out_tokens_per_second = 0
-
-        while True:
-            if not self.doc_order and self.result_queue.empty():
-                break
-
-            # Get the next document ID in order
-            if self.doc_order:
-                next_to_write_id = self.doc_order[0]
-            else:
-                next_to_write_id = None
-
-            # Process result queue
-            while not self.result_queue.empty():
-                annotation: Annotation | None = self.result_queue.get()
-                if annotation is None:
+        try:
+            while True:
+                if not self.doc_order and self.result_queue.empty():
                     break
 
-                self.results_dict[annotation.meta_information.raw_data_file_path + annotation.document_id] = annotation
+                # Get the next document ID in order
+                if self.doc_order:
+                    next_to_write_id = self.doc_order[0]
+                else:
+                    next_to_write_id = None
 
-            # Write the next document if available
-            if next_to_write_id and next_to_write_id in self.results_dict:
-                annotation = self.results_dict.pop(next_to_write_id)
-                self.doc_order.pop(0)
+                # Process result queue
+                while not self.result_queue.empty():
+                    annotation: Annotation | None = self.result_queue.get()
+                    if annotation is None:
+                        break
 
-                # Write the annotation to the output file
-                out_file_path = self._create_out_file_path(annotation, common_parents_path)
-                if out_file_path not in open_files:
-                    open_files[out_file_path] = open(out_file_path, "a")  # Append mode
+                    self.results_dict[
+                        annotation.meta_information.raw_data_file_path + annotation.document_id
+                    ] = annotation
 
-                f = open_files[out_file_path]
-                json.dump(annotation.model_dump(), f)
-                f.write("\n")
-                results_written += 1
-                total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
+                # Write the next document if available
+                if next_to_write_id and next_to_write_id in self.results_dict:
+                    annotation = self.results_dict.pop(next_to_write_id)
+                    self.doc_order.pop(0)
 
-                # Periodic flush
-                if results_written % 10 == 0:
-                    for file in open_files.values():
-                        file.flush()
-                    elapsed_time = time.time() - start_time
-                    results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
-                    logger.info(
-                        f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
-                        f"| Results per second: {results_per_second:.2f}"
-                    )
+                    # Write the annotation to the output file
+                    out_file_path = self._create_out_file_path(annotation, common_parents_path)
+                    if out_file_path not in open_files:
+                        open_files[out_file_path] = open(out_file_path, "a")  # Append mode
 
-        # Close all open files
-        for f in open_files.values():
-            f.flush()
-            f.close()
+                    f = open_files[out_file_path]
+                    json.dump(annotation.model_dump(), f)
+                    f.write("\n")
+                    results_written += 1
+                    total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
+
+                    # Periodic flush
+                    if results_written % 10 == 0:
+                        for file in open_files.values():
+                            file.flush()
+                        elapsed_time = time.time() - start_time
+                        results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+                        logger.info(
+                            f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
+                            f"| Results per second: {results_per_second:.2f}"
+                        )
+        finally:
+            # Close all open files
+            for f in open_files.values():
+                f.flush()
+                f.close()
 
         # Final stats logging
         elapsed_time = time.time() - start_time
