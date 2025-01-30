@@ -46,7 +46,7 @@ prompt_builder:
   # The maximum length of the prompt
   # Note that the maximum number of generated tokens is
   # model_context_length - max_prompt_length
-  max_prompt_length: ${eval:'${llm_rest_client.max_tokens} - ${llm_rest_client.max_new_tokens}'}
+  max_prompt_length: ${eval:'${llm_rest_client.max_tokens} - ${llm_rest_client.sampling_params.max_tokens}'}
 
 document_processor:
   output_directory_path: ${settings.paths.output_directory_path}
