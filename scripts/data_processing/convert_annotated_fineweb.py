@@ -13,17 +13,49 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-def convert_to_jsonl(base_path: str):
+def convert_to_jsonl(
+    output_dir_path: str, 
+    output_file_name: str = "annotated_fineweb.jsonl",
+    dataset_name: str = "HuggingFaceFW/fineweb-edu-llama3-annotations"
+):
+    """Converts a Hugging Face dataset into JSONL format compatible with ML Filter Classifier.
+
+    This function downloads a dataset of text ("text" field) that was annotated by LLMs ("score" field) from HuggingFace, processes each example by converting
+    it into a standardized JSONL format with document ID, text content, and scores. The 
+    processed data is saved to a JSONL file, and the downloaded dataset cache is cleaned up
+    afterwards.
+
+    Note: This script is designed to work with the HuggingFaceFW/fineweb-edu-llama3-annotations dataset.
+
+    Args:
+        output_dir_path (str): Directory path where the converted JSONL file will be saved.
+            The directory will be created if it doesn't exist.
+        output_file_name (str, optional): Name of the output JSONL file.
+            Defaults to "annotated_fineweb.jsonl".
+        dataset_name (str, optional): Name of the Hugging Face dataset to download and convert.
+            Defaults to "HuggingFaceFW/fineweb-edu-llama3-annotations".
+
+    Returns:
+        None
+
+    Example:
+        >>> convert_to_jsonl("data", "my_dataset.jsonl", "some/dataset")
+        Loading dataset: some/dataset...
+        Converting to JSONL format...
+        Conversion complete! File saved to data/my_dataset.jsonl
+        Cleaning up downloaded data...
+        Done!
+    """
     # Load the dataset
-    logger.info("Loading dataset...")
-    dataset = load_dataset("HuggingFaceFW/fineweb-edu-llama3-annotations")
+    logger.info(f"Loading dataset: {dataset_name}...")
+    dataset = load_dataset(dataset_name)
     
     # Create output directory if it doesn't exist
-    os.makedirs(base_path, exist_ok=True)
+    os.makedirs(output_dir_path, exist_ok=True)
     
     # Open output file
     logger.info("Converting to JSONL format...")
-    output_file = os.path.join(base_path, "annotated_fineweb.jsonl")
+    output_file = os.path.join(output_dir_path, output_file_name)
     with open(output_file, "w", encoding="utf-8") as f:
         # Process each example
         for idx, example in enumerate(dataset['train']): # note: this dataset only has a "train" split
@@ -129,9 +161,11 @@ def split_dataset(base_path: str, file_path: str, train_ratio: float = 0.8, val_
 
 if __name__ == "__main__":
     base_path = "data"  # Can be changed to any desired path
+    dataset_name = "HuggingFaceFW/fineweb-edu-llama3-annotations"  # Define dataset name
+    output_file = "annotated_fineweb.jsonl"  # Define output file name
 
     # download data and create single score file
-    convert_to_jsonl(base_path)
+    convert_to_jsonl(base_path, output_file, dataset_name)
     split_dataset(base_path, "annotated_fineweb")
 
     # create multi-score file
