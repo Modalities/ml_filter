@@ -69,11 +69,17 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
                     if score == float("-inf") or score is None:
                         scores.append(None)
                     else:
-                        score = int(score)
-                        if max_score is not None and score > max_score:
+                        # validate that score is an integer
+                        int_score = int(score)
+                        if float(score) != int_score:
                             scores.append(None)
                         else:
-                            scores.append(score)
+                            score = int_score
+                            # validate that score is larger than max_score
+                            if max_score is not None and score > max_score:
+                                scores.append(None)
+                            else:
+                                scores.append(score)
                 
                 if aggregation is None:
                     # filter out documents with missing annotations
@@ -102,7 +108,6 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
                     for i, score in enumerate(scores):
                         document_scores[prompt][doc_id][f"{version}_{i}"] = int(score)
                 else:
-                    scores = [int(s) for s in scores if s not in (float("-inf"), None)]
                     if aggregation == "min":
                         aggr_score = min(scores)
                     elif aggregation == "max":
