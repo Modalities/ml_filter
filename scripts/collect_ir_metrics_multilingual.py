@@ -144,7 +144,7 @@ for lang in sorted(results.keys()):
     df.to_excel(output_directory / f"ir_summary_gt_{lang}.xlsx", index=False)
 
     # Write the DataFrame to a LaTeX table
-    df = df.drop(columns=["Filepath", "Prompt"])
+    df = df.drop(columns=["Filepath", "Prompt", "CM"])
     df["Invalid"] = df["Invalid"].astype(int)
     styled_df = style_df(
         df=df,
@@ -222,8 +222,10 @@ for model in aggregated_cm:
             label_list.append(aggregated_cm[model][label][pred])
             preds.add(pred)
         aggregated_cm_list.append(label_list)
+    
+    normalized_aggregated_cm_list = [[n/sum(preds) for n in preds] for preds in aggregated_cm_list]
     plt.figure(figsize=(10, 6))
-    sns.heatmap(aggregated_cm_list, annot=True, fmt='.2f', cmap='Blues', xticklabels=sorted(preds), yticklabels=sorted(labels))
+    sns.heatmap(normalized_aggregated_cm_list, annot=True, fmt='.2f', cmap='Blues', xticklabels=sorted(preds), yticklabels=sorted(labels))
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title(f'Confusion Matrix for {model}')
