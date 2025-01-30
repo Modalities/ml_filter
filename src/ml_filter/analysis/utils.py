@@ -98,7 +98,7 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
                 if version in document_scores[prompt][doc_id]:
                     raise ValueError(f"Found duplicate score for {annotator_id}")
                 
-                # count documents with no annotations
+                # count documents with no valid annotations
                 if all(score is None for score in scores):
                     document_scores[prompt][doc_id][version] = "invalid"   
                     continue
@@ -108,6 +108,8 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
                     for i, score in enumerate(scores):
                         document_scores[prompt][doc_id][f"{version}_{i}"] = int(score)
                 else:
+                    # discard invalid scores for aggregation
+                    scores = [score for score in scores if score is not None]
                     if aggregation == "min":
                         aggr_score = min(scores)
                     elif aggregation == "max":
