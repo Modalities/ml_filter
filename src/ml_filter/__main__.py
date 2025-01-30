@@ -5,6 +5,7 @@ from typing import Optional
 
 import click
 import click_pathlib
+import random
 
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
@@ -16,6 +17,7 @@ from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
+from ml_filter.data_processing.convert_annotated_fineweb import convert_annotated_fineweb, split_dataset, multi_score_transform
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -320,6 +322,49 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
         output_file (Path): Path to the output file (JSONL or YAML format) to save results.
     """
     run_word_count_jsonl_files(directory, output_file)
+
+
+@main.command(name="convert_fineweb")
+@click.option(
+    "--output_dir_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Directory path where the converted files will be saved.",
+)
+@click.option(
+    "--dataset_name",
+    type=str,
+    default="HuggingFaceFW/fineweb-edu-llama3-annotations",
+    help="Name of the Hugging Face dataset to download and convert.",
+)
+@click.option(
+    "--output_file_name",
+    type=str,
+    default="annotated_fineweb.jsonl",
+    help="Name of the output JSONL file.",
+)
+def convert_annotated_fineweb_cli(
+    output_dir_path: Path,
+    dataset_name: str,
+    output_file_name: str,
+):
+    """Convert the FineWeb dataset into JSONL format and create train/val/test splits.
+    
+    This command downloads the dataset from Hugging Face, converts it to JSONL format,
+    creates multiple versions with different score transformations, and splits the data
+    into train/validation/test sets.
+    """
+    # download data and create single score file
+    convert_to_jsonl(output_dir_path, output_file_name, dataset_name)
+    split_dataset(output_dir_path, "annotated_fineweb")
+
+    # create multi-score file
+    multi_score_transform(output_dir_path, transform_fns=[
+        ("score_transform_1", lambda x: min(x + 1, 5)),  # shift up by 1, cap at 5
+        ("score_transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # add random noise between -0.5 and 0.5, clamp to [0,5]
+        ("score_transform_3", lambda x: 1 if x >= 3 else 0)  # binary threshold at 3
+    ])
+    split_dataset(output_dir_path, "annotated_fineweb_multi")
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):

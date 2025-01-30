@@ -174,20 +174,3 @@ def split_dataset(output_dir_path: str, file_path: str, train_ratio: float = 0.8
     logger.info(f"Train ({train_size} samples): {train_file}")
     logger.info(f"Validation ({val_size} samples): {val_file}") 
     logger.info(f"Test ({test_size} samples): {test_file}")
-
-if __name__ == "__main__":
-    base_path = "data"  # Can be changed to any desired path
-    dataset_name = "HuggingFaceFW/fineweb-edu-llama3-annotations"  # Define dataset name
-    output_file = "annotated_fineweb.jsonl"  # Define output file name
-
-    # download data and create single score file
-    convert_to_jsonl(base_path, output_file, dataset_name)
-    split_dataset(base_path, "annotated_fineweb")
-
-    # create multi-score file
-    multi_score_transform(base_path, transform_fns=[
-        ("score_transform_1", lambda x: min(x + 1, 5)),  # shift up by 1, cap at 5
-        ("score_transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # add random noise between -0.5 and 0.5, clamp to [0,5]
-        ("score_transform_3", lambda x: 1 if x >= 3 else 0)  # binary threshold at 3
-    ])
-    split_dataset(base_path, "annotated_fineweb_multi")
