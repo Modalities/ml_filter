@@ -7,7 +7,10 @@ from datasets import Dataset, concatenate_datasets, disable_progress_bar, load_d
 from datasets.formatting.formatting import LazyBatch
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer
+import logging
 
+# Add this near the top of the file after other imports
+logger = logging.getLogger(__name__)
 
 class DatasetTokenizer:
     """Handles loading and tokenizing datasets from JSONL files."""
@@ -24,6 +27,8 @@ class DatasetTokenizer:
         annotation_names: Optional[List[str]] = [],
         document_id_column: Optional[str] = "id",
         annotation_id_column: Optional[str] = "document_id",
+        truncation: bool = True,
+        padding: bool = True,
     ):
         """
         Initialize the dataset tokenizer.
@@ -35,6 +40,12 @@ class DatasetTokenizer:
             output_names: List of output names to extract from labels
             max_length: Maximum sequence length for tokenization
             regression: Whether to treat labels as regression values
+            annotation_aggregation_fn: Function to aggregate multiple annotations
+            annotation_names: List of annotation source names
+            document_id_column: Name of the document ID column
+            annotation_id_column: Name of the annotation ID column
+            truncation: Whether to truncate sequences longer than max_length
+            padding: Whether to pad sequences shorter than max_length
         """
         self.tokenizer = tokenizer
         self.text_column = text_column
@@ -46,9 +57,15 @@ class DatasetTokenizer:
         self.annotation_names = annotation_names
         self.document_id_column = document_id_column
         self.annotation_id_column = annotation_id_column
+        self.truncation = truncation
+        self.padding = padding
 
         # Ensure tokenizer has padding token
-        if not self.tokenizer.pad_token:
+        if not self.tokenizer.pad_token and self.padding:
+            logger.warning(
+                "Tokenizer has no padding token. Using eos_token as padding token. "
+                "This may affect model performance."
+            )
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def load_and_tokenize(
@@ -175,7 +192,11 @@ class DatasetTokenizer:
         def process_batch(batch: LazyBatch) -> Dict[str, Any]:
             # Tokenize the text
             tokenized = self.tokenizer(
-                batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
+                batch[self.text_column],
+                truncation=self.truncation,
+                padding=self.padding,
+                max_length=self.max_length,
+                return_tensors="pt"
             )
 
             # Process labels

@@ -32,9 +32,13 @@ def test_train_classifier():
     classifier_training_pipeline = get_pipeline("test_config.yaml")
     logits, batch_size = _train_and_test(classifier_training_pipeline)
 
-    assert logits.shape == (batch_size, max(classifier_training_pipeline.num_classes_per_output), 1)
+    assert logits.shape == (
+        batch_size, 
+        max(classifier_training_pipeline.num_targets_per_task),
+        1
+    )
     eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline.num_classes_per_output):
+    for i, n_classes in enumerate(classifier_training_pipeline.num_targets_per_task):
         # nothing is masked
         assert (torch.softmax(logits, dim=-1)[:, :n_classes, i] > eps).all()
 
@@ -45,11 +49,11 @@ def test_train_classifier_multiscore():
 
     assert logits.shape == (
         batch_size,
-        max(classifier_training_pipeline_multiscore.num_classes_per_output),
-        classifier_training_pipeline_multiscore.num_regressor_outputs,
+        max(classifier_training_pipeline_multiscore.num_targets_per_task),
+        classifier_training_pipeline_multiscore.num_tasks,
     )
     eps = 1e-30
-    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_classes_per_output):
+    for i, n_classes in enumerate(classifier_training_pipeline_multiscore.num_targets_per_task):
         # logits are masked
         assert (torch.softmax(logits, dim=-1)[:, n_classes:, i] < eps).all()
         assert (torch.softmax(logits, dim=-1)[:, :n_classes, i] > eps).all()
@@ -60,7 +64,10 @@ def test_train_classifier_regression():
         classifier_training_pipeline_regression = get_pipeline(config_path)
         logits, batch_size = _train_and_test(classifier_training_pipeline_regression)
 
-        assert logits.shape == (batch_size, classifier_training_pipeline_regression.num_regressor_outputs)
-        for i, n_classes in enumerate(classifier_training_pipeline_regression.num_classes_per_output):
+        assert logits.shape == (
+            batch_size, 
+            classifier_training_pipeline_regression.num_tasks
+        )
+        for i, n_classes in enumerate(classifier_training_pipeline_regression.num_targets_per_task):
             # logits are clamped to (0, n_classes - 1)
             assert ((0 <= logits[:, i]) <= n_classes - 1).all()

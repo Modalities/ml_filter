@@ -18,12 +18,12 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.dataset_tokenizer import DatasetTokenizer
 from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.utils.evaluate_classifier import compute_metrics_for_single_output
 from ml_filter.utils.train_classifier import (
     BertForMultiTargetClassification,
     XLMRobertaFlashForMultiTargetClassification,
     XLMRobertaForMultiTargetClassification,
     XLMRobertaXLForMultiTargetClassification,
-    compute_metrics_for_single_output,
 )
 
 
@@ -110,18 +110,17 @@ class ClassifierTrainingPipeline:
         self.regression_loss = cfg.training.regression_loss
 
         # multilabel settings
-        self.num_regressor_outputs = cfg.data.num_regressor_outputs
-
-        self.num_classes_per_output = torch.tensor(cfg.data.num_classes_per_output)
+        self.num_tasks = cfg.data.num_tasks
+        self.num_targets_per_task = torch.tensor(cfg.data.num_targets_per_task)
         self.output_names = cfg.data.output_names
 
     def _initialize_model(self, cfg):
         """Initialize and configure the model based on the provided configuration."""
         model_name = cfg.model.name
         model_args = {
-            "num_regressor_outputs": cfg.data.num_regressor_outputs,
-            "num_classes_per_output": torch.tensor(cfg.data.num_classes_per_output),
-            "regression": cfg.training.regression_loss,
+            "num_tasks": self.num_tasks,
+            "num_targets_per_task": self.num_targets_per_task,
+            "is_regression": self.regression_loss,
         }
 
         # Initialize base model
@@ -147,27 +146,35 @@ class ClassifierTrainingPipeline:
             self._freeze_encoder()
 
     def _initialize_dataset_tokenizer(self, cfg):
+        # Get tokenizer config with defaults
+        tokenizer_cfg = cfg.tokenizer
+        truncation = tokenizer_cfg.get("truncation", True)  # Default to True
+        padding = tokenizer_cfg.get("padding", True)  # Default to True
+        max_length = tokenizer_cfg.get("max_length", 512)  # Default to 512
+
         # Tokenizer
         self.tokenizer = PreTrainedHFTokenizer(
-            pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
-            truncation=cfg.tokenizer.truncation,
-            padding=cfg.tokenizer.padding,
-            max_length=cfg.tokenizer.max_length,
+            pretrained_model_name_or_path=tokenizer_cfg.pretrained_model_name_or_path,
+            truncation=truncation,
+            padding=padding,
+            max_length=max_length,
             add_generation_prompt=False,
         )
 
-        # Tokenizer for
+        # Tokenizer for dataset processing
         self.dataset_tokenizer = DatasetTokenizer(
             tokenizer=self.tokenizer.tokenizer,
             text_column=self.sample_key,
             label_column=self.sample_label,
             output_names=self.output_names,
-            max_length=cfg.tokenizer.max_length,
+            max_length=max_length,
             regression=self.regression_loss,
             annotation_aggregation_fn=self.annotation_aggregation_fn,
             annotation_names=self.annotation_names,
             document_id_column=self.document_id_column,
             annotation_id_column=self.annotation_id_column,
+            truncation=truncation,
+            padding=padding,
         )
 
     def _freeze_encoder(self):
@@ -182,7 +189,8 @@ class ClassifierTrainingPipeline:
             for param in self.model.classifier.parameters():
                 param.requires_grad = True
         elif isinstance(self.model, BertForSequenceClassification):
-            # For BERT models, unfreeze both classifier and pooler
+            # For BERT models, unfreeze both classifier and pooler, 
+            # because the pooler is considered part of the classifier.
             for param in self.model.classifier.parameters():
                 param.requires_grad = True
             for param in self.model.bert.pooler.parameters():
@@ -221,7 +229,7 @@ class ClassifierTrainingPipeline:
         """
         return torch.nn.functional.cross_entropy(
             input["logits"],
-            target.view(-1, self.num_regressor_outputs),
+            target.view(-1, self.num_tasks),
         )
 
     def multi_target_mse_loss(
@@ -236,7 +244,7 @@ class ClassifierTrainingPipeline:
         """
         return torch.nn.functional.mse_loss(
             input["logits"],
-            target.view(-1, self.num_regressor_outputs),
+            target.view(-1, self.num_tasks),
         )
 
     def compute_metrics(self, eval_pred: EvalPrediction) -> Dict[str, float]:
@@ -267,7 +275,7 @@ class ClassifierTrainingPipeline:
                 labels=labels[:, i],
                 preds=preds[:, i],
                 preds_raw=preds_raw[:, i],
-                thresholds=list(range(1, self.num_classes_per_output[i])),
+                thresholds=list(range(1, self.num_targets_per_task[i])),
             )
             metric_dict.update({f"{output_name}/{metric}": metrics[metric] for metric in metrics})
         return metric_dict

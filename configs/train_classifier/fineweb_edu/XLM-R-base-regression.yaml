@@ -23,8 +23,8 @@ data:
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_regressor_outputs: 4
-  num_classes_per_output: [6, 6, 6, 2]
+  num_tasks: 4
+  num_targets_per_task: [6, 6, 6, 2]
   output_names: ["score", "score_transform_1", "score_transform_2", "score_transform_3"]
   
 training:

@@ -2,7 +2,6 @@ from typing import Dict, List
 
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
 from torch import Tensor
 from transformers import (
     BertForSequenceClassification,
@@ -11,6 +10,7 @@ from transformers import (
     XLMRobertaForSequenceClassification,
     XLMRobertaXLForSequenceClassification,
 )
+from transformers.configuration_utils import PretrainedConfig
 
 
 class DocumentClassifier:
@@ -158,98 +158,111 @@ class RegressionScalingLayer(torch.nn.Module):
 
 def _init_classifier_head(
     embedding_size: int,
-    num_regressor_outputs: int = 1,
-    num_classes_per_output: List[int] = None,
-    regression: bool = False,
+    num_tasks: int = 1,
+    num_targets_per_task: List[int] = None,
+    is_regression: bool = False,
+    use_bias: bool = True,
 ) -> torch.nn.Module:
-    if regression:
+    if is_regression:
         return MultiTargetRegressionHead(
             in_features=embedding_size,
-            num_outputs=num_regressor_outputs,
-            num_classes_per_output=num_classes_per_output,
+            num_outputs=num_tasks,
+            num_classes_per_output=num_targets_per_task,
+            use_bias=use_bias,
         )
     else:
         return MultiTargetClassificationHead(
             in_features=embedding_size,
-            num_outputs=num_regressor_outputs,
-            num_classes_per_output=num_classes_per_output,
+            num_outputs=num_tasks,
+            num_classes_per_output=num_targets_per_task,
+            use_bias=use_bias,
         )
 
 
-class XLMRobertaForMultiTargetClassification(XLMRobertaForSequenceClassification):
-    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
-        """
+class MultiTargetMixin:
+    def _init_multi_target(
+        self,
+        config: PretrainedConfig,
+        num_tasks: int = 1,
+        num_targets_per_task: torch.Tensor | None = None,
+        is_regression: bool = False,
+        use_bias: bool = True,
+    ):
+        """Common initialization for multi-target models.
+        
         Args:
             config: Model configuration
-            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
-            num_classes_per_output: Tensor containing the number of classes for each output
-            regression: If True, use regression head, otherwise use classification head
+            num_tasks: Number of prediction tasks (either regression or classification tasks)
+            num_targets_per_task: Tensor containing the number of target classes/values for each task
+            is_regression: If True, use regression head, otherwise use classification head
+            use_bias: Whether to use bias in the linear layer
         """
         super().__init__(config)
 
-        # Get the embedding size from the dense layer
-        embedding_size = self.classifier.dense.in_features
+        # Get the embedding size - handle both BERT and XLMRoberta cases
+        if hasattr(self.classifier, "dense"):
+            embedding_size = self.classifier.dense.in_features
+        else:
+            embedding_size = self.classifier.in_features
 
-        self.classifier.out_proj = _init_classifier_head(
-            embedding_size, num_regressor_outputs, num_classes_per_output, regression
+        # Initialize the classifier head
+        head = _init_classifier_head(
+            embedding_size, num_tasks, num_targets_per_task, is_regression, use_bias
         )
+        
+        # Handle different model architectures
+        if hasattr(self.classifier, "out_proj"):
+            self.classifier.out_proj = head
+        else:
+            self.classifier = head
 
 
-class XLMRobertaXLForMultiTargetClassification(XLMRobertaXLForSequenceClassification):
-    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
-        """
-        Args:
-            config: Model configuration
-            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
-            num_classes_per_output: Tensor containing the number of classes for each output
-            regression: If True, use regression head, otherwise use classification head
-        """
-        super().__init__(config)
-
-        # Get the embedding size from the dense layer
-        embedding_size = self.classifier.dense.in_features
-
-        self.classifier.out_proj = _init_classifier_head(
-            embedding_size, num_regressor_outputs, num_classes_per_output, regression
-        )
+class XLMRobertaForMultiTargetClassification(MultiTargetMixin, XLMRobertaForSequenceClassification):
+    def __init__(
+        self, 
+        config: PretrainedConfig,
+        num_tasks: int = 1,
+        num_targets_per_task: torch.Tensor | None = None,
+        is_regression: bool = False,
+        use_bias: bool = True,
+    ):
+        self._init_multi_target(config, num_tasks, num_targets_per_task, is_regression, use_bias)
 
 
-class BertForMultiTargetClassification(BertForSequenceClassification):
-    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
-        """
-        Args:
-            config: Model configuration
-            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
-            num_classes_per_output: Tensor containing the number of classes for each output
-            regression: If True, use regression head, otherwise use classification head
-        """
-        super().__init__(config)
-
-        # Get the embedding size from the classifier
-        embedding_size = self.classifier.in_features
-
-        self.classifier = _init_classifier_head(
-            embedding_size, num_regressor_outputs, num_classes_per_output, regression
-        )
+class XLMRobertaXLForMultiTargetClassification(MultiTargetMixin, XLMRobertaXLForSequenceClassification):
+    def __init__(
+        self,
+        config: PretrainedConfig,
+        num_tasks: int = 1,
+        num_targets_per_task: torch.Tensor | None = None,
+        is_regression: bool = False,
+        use_bias: bool = True,
+    ):
+        self._init_multi_target(config, num_tasks, num_targets_per_task, is_regression, use_bias)
 
 
-class XLMRobertaFlashForMultiTargetClassification(XLMRobertaForSequenceClassification):
-    def __init__(self, config, num_regressor_outputs=1, num_classes_per_output=None, regression=False):
-        """
-        Args:
-            config: Model configuration
-            num_regressor_outputs: Number of outputs (either regression targets or classification targets)
-            num_classes_per_output: Tensor containing the number of classes for each output
-            regression: If True, use regression head, otherwise use classification head
-        """
-        super().__init__(config)
+class BertForMultiTargetClassification(MultiTargetMixin, BertForSequenceClassification):
+    def __init__(
+        self,
+        config: PretrainedConfig,
+        num_tasks: int = 1,
+        num_targets_per_task: torch.Tensor | None = None,
+        is_regression: bool = False,
+        use_bias: bool = True,
+    ):
+        self._init_multi_target(config, num_tasks, num_targets_per_task, is_regression, use_bias)
 
-        # Get the embedding size from the dense layer
-        embedding_size = self.classifier.dense.in_features
 
-        self.classifier.out_proj = _init_classifier_head(
-            embedding_size, num_regressor_outputs, num_classes_per_output, regression
-        )
+class XLMRobertaFlashForMultiTargetClassification(MultiTargetMixin, XLMRobertaForSequenceClassification):
+    def __init__(
+        self,
+        config: PretrainedConfig,
+        num_tasks: int = 1,
+        num_targets_per_task: torch.Tensor | None = None,
+        is_regression: bool = False,
+        use_bias: bool = True,
+    ):
+        self._init_multi_target(config, num_tasks, num_targets_per_task, is_regression, use_bias)
 
 
 class MultiTargetRegressionHead(torch.nn.Module):
@@ -259,16 +272,23 @@ class MultiTargetRegressionHead(torch.nn.Module):
     multiple regression outputs with different scales.
     """
 
-    def __init__(self, in_features: int, num_outputs: int, num_classes_per_output: torch.Tensor):
+    def __init__(
+        self, 
+        in_features: int, 
+        num_outputs: int, 
+        num_classes_per_output: torch.Tensor,
+        use_bias: bool = True,
+    ):
         """
         Args:
             in_features: Number of input features from the encoder
             num_outputs: Number of regression outputs
             num_classes_per_output: Tensor containing the number of classes for each output
                                   (used for scaling)
+            use_bias: Whether to use bias in the linear layer
         """
         super().__init__()
-        self.linear = torch.nn.Linear(in_features, num_outputs, bias=True)
+        self.linear = torch.nn.Linear(in_features, num_outputs, bias=use_bias)
         self.scaling = RegressionScalingLayer(num_classes_per_output)
 
     def forward(self, x):
@@ -284,79 +304,26 @@ class MultiTargetClassificationHead(torch.nn.Module):
     multiple classification outputs with different numbers of classes.
     """
 
-    def __init__(self, in_features: int, num_outputs: int, num_classes_per_output: Tensor):
+    def __init__(
+        self, 
+        in_features: int, 
+        num_outputs: int, 
+        num_classes_per_output: Tensor,
+        use_bias: bool = True,
+    ):
         """
         Args:
             in_features: Number of input features from the encoder
             num_outputs: Number of classification outputs
             num_classes_per_output: Tensor containing the number of classes for each output
+            use_bias: Whether to use bias in the linear layer
         """
         super().__init__()
         total_logits = num_outputs * max(num_classes_per_output)
-        self.linear = torch.nn.Linear(in_features, total_logits, bias=True)
+        self.linear = torch.nn.Linear(in_features, total_logits, bias=use_bias)
         self.logit_mask = LogitMaskLayer(num_classes_per_output)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.linear(x)
         x = self.logit_mask(x)
         return x
-
-
-def compute_metrics_for_single_output(
-    labels: np.ndarray, preds: np.ndarray, preds_raw: np.ndarray, thresholds: List[int]
-) -> Dict[str, float]:
-    """
-    Computes evaluation metrics for a specific output.
-
-    Args:
-        labels (np.ndarray): Ground truth labels of shape (batch_size,)
-        preds (np.ndarray): Predicted class indices of shape (batch_size,)
-        preds_raw (np.ndarray): Raw predictions (logits or regression values) of shape (batch_size,) for regression
-                               and (batch_size, num_classes) for classification.
-        thresholds (list): List of thresholds to use for binary metrics
-
-    Returns:
-        dict: Dictionary containing the following metrics:
-            - accuracy: Overall classification accuracy
-            - f1_weighted: F1 score with weighted averaging
-            - f1_micro: F1 score with micro averaging
-            - f1_macro: F1 score with macro averaging
-            - binary_accuracy_t{t}: Binary accuracy for each threshold t
-            - binary_f1_weighted_t{t}: Binary F1 weighted for each threshold t
-            - binary_f1_micro_t{t}: Binary F1 micro for each threshold t
-            - binary_f1_macro_t{t}: Binary F1 macro for each threshold t
-            - mse: Mean squared error between raw predictions and labels
-            - mae: Mean absolute error between raw predictions and labels
-            - f1_class_{c}: F1 score for each individual class c
-    """
-    metrics = {}
-
-    # Compute classification metrics
-    metrics["classification/accuracy"] = accuracy_score(labels, preds)
-    metrics["classification/f1_weighted"] = f1_score(labels, preds, average="weighted")
-    metrics["classification/f1_micro"] = f1_score(labels, preds, average="micro")
-    metrics["classification/f1_macro"] = f1_score(labels, preds, average="macro")
-
-    # Calculate binary metrics for different thresholds
-    for threshold in thresholds:
-        # Convert to binary predictions using threshold
-        binary_preds = np.where(preds >= threshold, 1, 0)
-        binary_labels = np.where(labels >= threshold, 1, 0)
-
-        metrics[f"binary/t{threshold}/accuracy"] = accuracy_score(binary_labels, binary_preds)
-        metrics[f"binary/t{threshold}/f1_weighted"] = f1_score(binary_labels, binary_preds, average="weighted")
-        metrics[f"binary/t{threshold}/f1_micro"] = f1_score(binary_labels, binary_preds, average="micro")
-        metrics[f"binary/t{threshold}/f1_macro"] = f1_score(binary_labels, binary_preds, average="macro")
-
-    # Compute regression-like metrics
-    metrics["regression/mse"] = mean_squared_error(labels, preds_raw)
-    metrics["regression/mae"] = mean_absolute_error(labels, preds_raw)
-
-    # Add f1 scores for each class
-    classes = np.unique(labels)
-    classes.sort()
-    f1_per_class = f1_score(labels, preds, average=None)
-    for i, c in enumerate(classes):
-        metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
-
-    return metrics
