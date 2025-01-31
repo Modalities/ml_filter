@@ -211,21 +211,20 @@ with open(output_directory / "ir_summary_gt.tex", "w") as f:
     f.write(latex_output)
     
 # Plot the aggregated confusion matrix
+labels = ["0", "1", "2", "3", "4", "5"]
+predictions = labels + ["-1"]
 for model in aggregated_cm:
-    labels = set()
-    preds = set()
     aggregated_cm_list = []
-    for label in aggregated_cm[model]:
-        labels.add(label)
+    for label in labels:
         label_list = []
-        for pred in aggregated_cm[model][label]:
-            label_list.append(aggregated_cm[model][label][pred])
-            preds.add(pred)
+        for pred in predictions:
+            label_list.append(aggregated_cm[model][label].get(pred, 0))
         aggregated_cm_list.append(label_list)
     
-    normalized_aggregated_cm_list = [[n/sum(preds) for n in preds] for preds in aggregated_cm_list]
+    normalized_aggregated_cm_list = [[n/sum(preds) if sum(preds) > 0 else 0 for n in preds] for preds in aggregated_cm_list]
     plt.figure(figsize=(10, 6))
-    sns.heatmap(normalized_aggregated_cm_list, annot=True, fmt='.2f', cmap='Blues', xticklabels=sorted(preds), yticklabels=sorted(labels))
+    xlabels = [p if p != "-1" else "invalid" for p in predictions]
+    sns.heatmap(normalized_aggregated_cm_list, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=labels)
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title(f'Confusion Matrix for {model}')
