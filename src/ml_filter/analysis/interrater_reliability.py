@@ -156,6 +156,7 @@ def plot_histogram(missing_scores: Dict[str, List[int]], gt_file_idx: int, outpu
     
 def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path: str, model_name: str) -> None:
     # Plot the confusion matrix for missing scores
+    preds = [p if p != "invalid" else -1 for p in preds]
     cm = confusion_matrix(labels, preds)
     
     # Normalize the confusion matrix
@@ -163,7 +164,11 @@ def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path:
     
     # Plot the confusion matrix
     plt.figure(figsize=(10, 6))
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=np.unique(preds), yticklabels=np.unique(labels))
+    xlabels = [f'{pred}' if pred != -1 else "invalid" for pred in np.unique(preds)]
+    if "invalid" in xlabels:
+        # drop row for label "invalid", as it is not a gold label
+        cm = np.delete(cm, 0, axis=0)
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=np.unique(labels))
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title(f'Confusion Matrix for {model_name}')
@@ -277,9 +282,10 @@ def compute_interrater_reliability_metrics(
                 model_name=model_name,
             )
             
+            # compute confusion matrix
             labels = []
             preds = []
-            for scores in all_scores_rounded:
+            for scores in all_scores_rounded + list(missing_scores.values()):
                 if len(scores) != 2:
                     raise ValueError("Confusion matrix can only be computed for two annotators.")
                 
@@ -288,12 +294,12 @@ def compute_interrater_reliability_metrics(
                         label = score
                     else:
                         pred = score
-                if pred == "invalid":
-                    continue
-                labels.append(label)
+                # convert scores from missing scores to integers
+                labels.append(int(label))
+                if pred != "invalid":
+                    pred = int(pred)
                 preds.append(pred)
                 
-            # plot confusion matrix
             cm = plot_confusion_matrix(
                 labels=labels,
                 preds=preds,
