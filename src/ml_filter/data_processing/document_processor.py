@@ -85,7 +85,7 @@ class DocumentProcessor:
             str: The formatted string with specified characters or strings removed.
         """
 
-        text = text.replace("\n", "").replace("\r", " ")
+        text = text.replace("\n", " ").replace("\r", " ")
         for string in list(self.strings_to_remove):
             text = text.replace(string, " ")
 
@@ -112,6 +112,7 @@ class DocumentProcessor:
         # text generation
         all_processed_documents = []
         processed_documents = self.llm_rest_client.generate(processed_document=processed_document)
+
         for processed_document in processed_documents:
             # score filtering
             score = DocumentProcessor.find_last_pattern(
