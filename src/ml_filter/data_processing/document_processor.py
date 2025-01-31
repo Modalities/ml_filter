@@ -13,6 +13,7 @@ from tqdm import tqdm
 from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus, MetaInformation, ProcessedDocument
 from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
+from ml_filter.data_processing.report_statistics import ThroughputStatistics
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
 
 # Set up logging
@@ -38,6 +39,7 @@ class DocumentProcessor:
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
         self.prompt_builder = prompt_builder
+        self.queue_size = queue_size
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         self.num_processes = num_processes
@@ -94,7 +96,7 @@ class DocumentProcessor:
 
     def _process_document(self, document: Dict[str, Any]) -> List[ProcessedDocument]:
         processed_document = ProcessedDocument(
-            document_id=document["id"],
+            document_id=document["document_id"],
             original_text=document["text"],
             raw_data_file_path=document["raw_data_file_path"],
             language=document["language"],
@@ -124,7 +126,7 @@ class DocumentProcessor:
 
             if len(processed_document.errors) > 0:
                 error_string = " | ".join(processed_document.errors)
-                logger.warning(f"Error processing document with id {document['id']}: {error_string}")
+                logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
@@ -148,6 +150,7 @@ class DocumentProcessor:
                 prompt_lang=processed_document_variations[0].language,
                 model_name=self.llm_rest_client.model_name,
                 raw_data_file_path=str(processed_document_variations[0].raw_data_file_path),
+                out_tokens_per_second=processed_document_variations[0].out_tokens_per_second,
             ),
         )
         for processed_document_variation in processed_document_variations:
@@ -160,7 +163,7 @@ class DocumentProcessor:
         return annotation
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        return len(document["text"]) > 0 and len(document["id"]) > 0 and len(document["language"]) > 0
+        return len(document["text"]) > 0 and len(document["document_id"]) > 0 and len(document["language"]) > 0
 
     def _load_documents(self, raw_data_file_paths: List[Path]):
         for raw_data_file_path in raw_data_file_paths:
@@ -185,7 +188,7 @@ class DocumentProcessor:
 
                     if not self._is_valid_document(document):
                         logger.warning(
-                            f"Invalid document with id: {document['id']}. "
+                            f"Invalid document with id: {document['document_id']}. "
                             + "Value of key 'text' has length of 0. Skipping."
                         )
                         continue
@@ -199,7 +202,7 @@ class DocumentProcessor:
         start_time = time.time()
         results_written = 0
         open_files = {}
-
+        total_out_tokens_per_second = 0
         while True:
             annotation: Annotation = self.result_queue.get()
             if annotation is None:
@@ -225,6 +228,7 @@ class DocumentProcessor:
             json.dump(annotation.model_dump(), f)
             f.write("\n")
             results_written += 1
+            total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
 
             if results_written % 10 == 0:
                 for file in open_files.values():
@@ -242,6 +246,20 @@ class DocumentProcessor:
             f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
             f" | Results per second: {results_per_second:.2f}"
         )
+        with open(self.experiment_dir_path / "throughput.json", "w") as f:
+            json.dump(
+                ThroughputStatistics(
+                    num_documents_written=results_written,
+                    elapsed_time_s=elapsed_time,
+                    documents_per_second=results_per_second,
+                    mean_out_tokens_per_second=total_out_tokens_per_second / results_written,
+                    model_name=self.llm_rest_client.model_name,
+                    queue_size=self.queue_size,
+                    num_processes=self.num_processes,
+                    max_new_tokens=self.llm_rest_client.sampling_params["max_tokens"],
+                ).model_dump(),
+                f,
+            )
 
     def _create_out_file_path(self, annotation: Annotation, common_parents_path: Path) -> Path:
         input_file_path = Path(annotation.meta_information.raw_data_file_path)
@@ -250,7 +268,7 @@ class DocumentProcessor:
             [
                 input_file_path.stem,
                 "_annotations",
-                annotation.meta_information.model.replace("/", "--"),
+                annotation.meta_information.model_name.replace("/", "--"),
                 annotation.meta_information.prompt_name,
                 annotation.meta_information.prompt_lang,
                 input_file_path.suffix,

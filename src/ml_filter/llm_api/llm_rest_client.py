@@ -3,7 +3,7 @@ import logging
 import time
 import traceback
 from http import HTTPStatus
-from typing import List
+from typing import Any, Dict, List
 
 from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
@@ -28,10 +28,8 @@ class LLMRestClient:
         max_pool_connections: int,
         max_pool_maxsize: int,
         max_tokens: int,
-        max_new_tokens: int,
-        temperature: float,
         verbose: bool,
-        num_return_sequences: int,
+        sampling_params: Dict[str, Any],
     ):
         """Initializes the LLMRestClient."""
         self.max_retries = max_retries
@@ -39,12 +37,10 @@ class LLMRestClient:
         self.model_name = model_name
         self.timeout = timeout
         self.max_tokens = max_tokens
-        self.max_new_tokens = max_new_tokens
-        self.temperature = temperature
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         self.session = session
-        self.num_return_sequences = num_return_sequences
+        self.sampling_params = sampling_params
 
         # TODO: Not entirely sure why this is needed now, but it worked fine previously
         self.session.mount("http://", HTTPAdapter(pool_connections=max_pool_connections, pool_maxsize=max_pool_maxsize))
@@ -67,11 +63,9 @@ class LLMRestClient:
         request = dict(
             model=self.model_name,
             prompt=processed_document.prompt,
-            max_tokens=self.max_new_tokens,
-            temperature=self.temperature,
-            n=self.num_return_sequences,
+            **self.sampling_params,
         )
-
+        start_time_generation = time.time()
         for i in range(self.max_retries):
             try:
                 response = self.session.post(
@@ -102,7 +96,13 @@ class LLMRestClient:
                 else:
                     new_document.document_processing_status = DocumentProcessingStatus.ERROR_NO_GENERATED_TEXT
                     new_document.errors.append(f"Response could not be parsed: {response_dict}")
-                new_document.timestamp = int(time.time())
+                end_time_generation = time.time()
+                time_diff_generation = end_time_generation - start_time_generation
+                # note, we only get 'prompt_tokens', 'total_tokens' and 'completion_tokens' on request basis and
+                # measure time for the full request. We cannot decompose the time for the different parts of the request
+                out_token_per_second = response_dict["usage"]["completion_tokens"] / time_diff_generation
+                new_document.out_tokens_per_second = out_token_per_second
+                new_document.timestamp = int(end_time_generation)
                 new_documents.append(new_document)
         else:
             processed_document.document_processing_status = DocumentProcessingStatus.ERROR_SERVER

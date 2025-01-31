@@ -29,3 +29,4 @@ prompt: 'Az alábbiakban egy részletet közlünk egy weboldalról. Értékelje,
   után:\n Röviden indokolja meg az összpontszámot, legfeljebb 100 szóval.\nZárja le
   a pontszámot a következő formátumban: <notranslate>''Educational score: <total
   points>''</notranslate>'
+prompt_name: fine_web_edu

@@ -30,3 +30,4 @@ prompt: 'Mai jos este prezentat un extras dintr-o pagină web. Evaluați dacă p
   examinarea extrasului:\n Justificați pe scurt punctajul total, în maximum 100 de
   cuvinte.\nConcluzionați cu punctajul folosind formatul: <notranslate>''Educational
   score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

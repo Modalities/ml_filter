@@ -26,3 +26,4 @@ prompt: 'Níže je uveden výňatek z webové stránky. Posuďte, zda má strán
   prostudování úryvku:\n Stručně zdůvodněte svůj celkový počet bodů, maximálně 100
   slov.\nZávěrem uveďte bodové hodnocení ve formátu: <notranslate>''Educational score:
   <total points>''</notranslate>'
+prompt_name: fine_web_edu

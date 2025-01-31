@@ -26,3 +26,4 @@ prompt: 'Aşağıda bir web sayfasından bir alıntı yer almaktadır. Sayfanın
   extract: {placeholder}.</notranslate>\nÖzeti inceledikten sonra:\n Toplam puanınızı
   100 kelimeye kadar kısaca gerekçelendirin.\nPuanınızı formatı kullanarak sonuçlandırın:
   <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

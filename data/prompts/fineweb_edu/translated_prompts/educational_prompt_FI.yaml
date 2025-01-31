@@ -27,3 +27,4 @@ prompt: 'Alla on ote eräältä verkkosivulta. Arvioi, onko sivulla suuri pedago
   ei-opettavaista tai monimutkaista sisältöä.\n <notranslate>The extract: {placeholder}.</notranslate>\nKatsottuasi
   otteen:\n Perustele lyhyesti kokonaispistemääräsi, enintään 100 sanaa.\nLopeta pistemäärän
   antaminen muotoa käyttäen: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu

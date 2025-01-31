@@ -27,3 +27,4 @@ prompt: 'Zemāk ir izvilkums no tīmekļa vietnes. Izvērtējiet, vai šai lapai
   {placeholder}.</notranslate>\n Pēc izraksta izskatīšanas:\n Īsi pamatojiet savu
   kopējo punktu skaitu, līdz 100 vārdiem.\nNoslēdziet, norādot punktu skaitu, izmantojot
   šādu formātu: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu
