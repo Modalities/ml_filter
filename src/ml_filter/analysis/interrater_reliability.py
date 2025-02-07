@@ -159,23 +159,32 @@ def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path:
     preds = [p if p != "invalid" else -1 for p in preds]
     cm = confusion_matrix(labels, preds)
     
-    # Normalize the confusion matrix
-    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    label_classes = list(range(6))
+    pred_classes = [-1] + label_classes
+    cm_dict = {label: {pred: 0 for pred in pred_classes} for label in label_classes}
+    
+    for l, p in zip(labels, preds):
+        cm_dict[l][p] += 1
+    
+    # Convert cm_dict to a 2D list
+    cm_array = [[cm_dict[label][pred] for pred in pred_classes] for label in label_classes]
+
+    # Convert the 2D list to a NumPy array
+    cm_array = np.array(cm_array)
     
     # Plot the confusion matrix
     plt.figure(figsize=(10, 6))
-    xlabels = [f'{pred}' if pred != -1 else "invalid" for pred in np.unique(preds)]
-    if "invalid" in xlabels:
-        # drop row for label "invalid", as it is not a gold label
-        cm = np.delete(cm, 0, axis=0)
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=np.unique(labels))
+        
+    # Normalize the confusion matrix
+    cm_normalized = cm_array.astype('float') / cm_array.sum(axis=1)[:, np.newaxis]
+    xlabels = [p if p != -1 else "invalid" for p in pred_classes]
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=label_classes)
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title(f'Confusion Matrix for {model_name}')
     plt.savefig(output_file_path)
     plt.show()
     
-    cm_dict = {int(label): {int(pred): int(cm[i, j]) for j, pred in enumerate(np.unique(preds))} for i, label in enumerate(np.unique(labels))}
     return cm_dict
 
     
