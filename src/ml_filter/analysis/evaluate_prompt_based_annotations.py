@@ -3,7 +3,7 @@ from ml_filter.analysis.interrater_reliability import compute_interrater_reliabi
 
 
 #### Parameters ####
-input_directory = Path("/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/multilinguality/experiments/2025-01-21__17-19-01__e4cd1989/generated_annotations/Qwen--QwQ-32B-Preview")
+input_directory = Path("/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/multilinguality/experiments")
 output_directory = input_directory / "comparison"
 gt_data = Path('/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/model_size_architecture/annotations/annotations_edu_en_gt.jsonl')
 aggregation = "majority"
@@ -21,7 +21,7 @@ if len(files) < 2:
 output_directory.mkdir(parents=True, exist_ok=True)
 
 # Function to extract the model name from the filename
-def extract_model_name(filename):
+def extract_model_name(filename: Path) -> str:
     basename = filename.stem
     # Extract the part after the last underscore
     return basename.split("_")[-1]
