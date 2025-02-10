@@ -7,6 +7,7 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
@@ -256,6 +257,22 @@ def evaluate_prompt_based_annotations_cli(
         gt_data=gt_data,
         aggregation=aggregation,
         max_score=max_score
+    )
+
+
+@main.command(name="collect_ir_metrics")
+@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option("--compare_to_gt_only", is_flag=True, default=True, help="Flag to compare to ground truth only.")
+def collect_ir_metrics_cli(
+    input_directory: Path,
+    output_directory: Path,
+    compare_to_gt_only: bool = True):
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    collect_ir_metrics(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        compare_to_gt_only=compare_to_gt_only
     )
 
 
