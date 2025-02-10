@@ -14,8 +14,8 @@ max_score = 5
 files = list(input_directory.rglob("annotations_*.jsonl"))
 
 # Check if there are at least two files
-if len(files) < 2:
-    print("Not enough files to create tuples. Exiting.")
+if len(files) == 0:
+    print(f"No annotation files found in {input_directory} or its subdirectories. Exiting.")
     exit(1)
 
 output_directory.mkdir(parents=True, exist_ok=True)
