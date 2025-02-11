@@ -18,8 +18,8 @@ def style_df(df: pd.DataFrame, max_columns: List[str], min_columns: List[str]) -
 
 def collect_ir_metrics(
     input_directory: Path,
-    output_directory: Path,
-    compare_to_gt_only: bool = True):
+    output_directory: Path
+):
     output_directory.mkdir(exist_ok=True)
 
     # List to hold the extracted data
@@ -35,25 +35,16 @@ def collect_ir_metrics(
                 model2 = filename_without_ext.split("_")[-1]
                 lang = file_path.parent.name
                 
-                if compare_to_gt_only and (model1 != "gt" and model2 != "gt"):
-                    continue
-                if model1 == model2:
-                    continue
-                
                 # Extract values from the JSON structure
                 content = json.load(f)       
                 for prompt in content:
                     prompt_data = content.get(prompt, {})     
                     result = {}
                     result["Prompt"] = prompt
-                    if compare_to_gt_only:
-                        result["Model"] = model1 if model1 != "gt" else model2
-                        result["Acc"] = prompt_data.get("Accuracy against GT (avg pairwise)")
-                        result["MAE"] = prompt_data.get("MAE against GT (avg pairwise)")
-                        result["MSE"] = prompt_data.get("MSE against GT (avg pairwise)")
-                    else:
-                        result["Model 1"] = model1
-                        result["Model 2"] = model2
+                    result["Model"] = model1 if model1 != "gt" else model2
+                    result["Acc"] = prompt_data.get("Accuracy against GT (avg pairwise)")
+                    result["MAE"] = prompt_data.get("MAE against GT (avg pairwise)")
+                    result["MSE"] = prompt_data.get("MSE against GT (avg pairwise)")
                     result["Fleiss"] = prompt_data.get("Fleiss Kappa")
                     result["Cohen"] = prompt_data.get("Cohen Kappa (avg pairwise)")
                     result["Spearman"] = prompt_data.get("Spearman Rank Correlation (avg pairwise)")
