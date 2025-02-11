@@ -113,15 +113,17 @@ def collect_ir_metrics(
             max_columns=max_metrics,
             min_columns=min_metrics
         )
-        latex_output += f"""
-    \\begin{{table}}[ht]
-    \\centering
-    \\scriptsize
-    {styled_df.to_latex()}
-    \\caption{{Measures of agreement between LLM annotated and human annotated scores for language \\textbf{{{lang}}}}}
-    \\label{{tab:llm_scores_{lang}}}
-    \\end{{table}}
-    """
+        latex_output += (
+            f"""
+            \\begin{{table}}[ht]
+            \\centering
+            \\scriptsize
+            {styled_df.to_latex()}
+            \\caption{{Measures of agreement between LLM annotated and human annotated scores for language \\textbf{{{lang}}}}}
+            \\label{{tab:llm_scores_{lang}}}
+            \\end{{table}}
+            """
+        )
 
     # scores aggregated over all languages
     aggregated_results_df = pd.DataFrame.from_dict(aggregated_results, orient='index')
@@ -140,15 +142,17 @@ def collect_ir_metrics(
         max_columns=max_metrics,
         min_columns=min_metrics
     )
-    latex_output += f"""
-    \\begin{{table}}[ht]
-    \\centering
-    \\scriptsize
-    {styled_aggregated_results_df.to_latex()}
-    \\caption{{Measures of agreement between LLM annotated and human annotated scores across languages}}
-    \\label{{tab:llm_scores_all_langs}}
-    \\end{{table}}
-    """
+    latex_output += (
+        f"""
+        \\begin{{table}}[ht]
+        \\centering
+        \\scriptsize
+        {styled_aggregated_results_df.to_latex()}
+        \\caption{{Measures of agreement between LLM annotated and human annotated scores across languages}}
+        \\label{{tab:llm_scores_all_langs}}
+        \\end{{table}}
+        """
+    )
 
     # Add top n models to latex output
     for n, metrics_dict in top_n_models.items():
@@ -158,15 +162,17 @@ def collect_ir_metrics(
             max_columns=[],
             min_columns=[],
         )
-        latex_output += f"""
-    \\begin{{table}}[ht]
-    \\centering
-    \\scriptsize
-    {styled_df.to_latex()}
-    \\caption{{Number of times each LLM was under top {n} performing models across languages}}
-    \\label{{tab:llm_top_n_all_langs}}
-    \\end{{table}}
-    """
+        latex_output += (
+            f"""
+            \\begin{{table}}[ht]
+            \\centering
+            \\scriptsize
+            {styled_df.to_latex()}
+            \\caption{{Number of times each LLM was under top {n} performing models across languages}}
+            \\label{{tab:llm_top_n_all_langs}}
+            \\end{{table}}
+            """
+        )
 
     print(latex_output)
     with open(output_directory / "ir_summary_gt.tex", "w") as f:
