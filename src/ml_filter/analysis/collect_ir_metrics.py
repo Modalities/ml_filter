@@ -1,4 +1,4 @@
-
+from collections import defaultdict
 import json
 from pathlib import Path
 from typing import List
@@ -39,95 +39,67 @@ def collect_ir_metrics(
                 content = json.load(f)       
                 for prompt in content:
                     prompt_data = content.get(prompt, {})     
-                    result = {}
-                    result["Prompt"] = prompt
-                    result["Model"] = model1 if model1 != "gt" else model2
-                    result["Acc"] = prompt_data.get("Accuracy against GT (avg pairwise)")
-                    result["MAE"] = prompt_data.get("MAE against GT (avg pairwise)")
-                    result["MSE"] = prompt_data.get("MSE against GT (avg pairwise)")
-                    result["Fleiss"] = prompt_data.get("Fleiss Kappa")
-                    result["Cohen"] = prompt_data.get("Cohen Kappa (avg pairwise)")
-                    result["Spearman"] = prompt_data.get("Spearman Rank Correlation (avg pairwise)")
-                    result["Kendall"] = prompt_data.get("Kendall Tau (avg pairwise)")
-                    result["Krippendorff"] = prompt_data.get("Krippendorff Alpha")
-                    result["Invalid"] = prompt_data.get("Number of invalid scores", 0)
-                    result["Filepath"] = file_path
-                    result["CM"] = prompt_data.get("CM against GT")
+                    result = {
+                        "Prompt": prompt,
+                        "Model": model1 if model1 != "gt" else model2,
+                        "Acc": prompt_data.get("Accuracy against GT (avg pairwise)"),
+                        "MAE": prompt_data.get("MAE against GT (avg pairwise)"),
+                        "MSE": prompt_data.get("MSE against GT (avg pairwise)"),
+                        "Fleiss": prompt_data.get("Fleiss Kappa"),
+                        "Cohen": prompt_data.get("Cohen Kappa (avg pairwise)"),
+                        "Spearman": prompt_data.get("Spearman Rank Correlation (avg pairwise)"),
+                        "Kendall": prompt_data.get("Kendall Tau (avg pairwise)"),
+                        "Krippendorff": prompt_data.get("Krippendorff Alpha"),
+                        "Invalid": prompt_data.get("Number of invalid scores", 0),
+                        "Filepath": file_path,
+                        "CM": prompt_data.get("CM against GT")
+                    }
                     if not lang in results:
                         results[lang] = []
                     results[lang].append(result)
-                    
-            
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON file {file_path}: {e}")
 
     latex_output = ""
     # Initialize a DataFrame to hold the aggregated values for each model
-    aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
-    aggregated_cm = {}
-    min_columns = ["MAE", "MSE", "Invalid"]
-    max_columns = [col for col in aggregated_results.columns if col not in (["Model", "Count"] + min_columns)]
-    top_n_models = {n: {col: {} for col in min_columns + max_columns} for n in [1, 2, 3, 4]}
+    # aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
+    # aggregated_cm = {}
+    aggregated_results = defaultdict(lambda: defaultdict(float))
+    aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
+    metrics = ["Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid"]
+    min_metrics = ["MAE", "MSE", "Invalid"]
+    max_metrics = [metric for metric in metrics if metric not in min_metrics]
+    top_n = range(1, 5)
+    top_n_models = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
     for lang in sorted(results.keys()):
         # Convert the data to a DataFrame
         df = pd.DataFrame(results[lang])
         
-        # get the top n models for each metric
-        for col in max_columns + min_columns:
-            for model in df["Model"].unique():
-                for n in top_n_models.keys():
-                    if model not in top_n_models[n][col]:
-                        top_n_models[n][col][model] = 0
-            
-        for col in max_columns:
-            for n in top_n_models.keys():
-                for model in df.nlargest(n, col)["Model"].to_list():
-                    top_n_models[n][col][model] += 1
-
-        for col in min_columns:
-            for n in top_n_models.keys():
-                for model in df.nsmallest(n, col)["Model"].to_list():
-                    top_n_models[n][col][model] += 1
+        # get the top n models for each metric  
+        for n in top_n:
+            for metric in max_metrics:
+                for model in df.nlargest(n, metric)["Model"].to_list():
+                    top_n_models[n][metric][model] += 1
+            for metric in min_metrics:
+                for model in df.nsmallest(n, metric)["Model"].to_list():
+                    top_n_models[n][metric][model] += 1          
 
         # Aggregate the values for each model
         for model in df["Model"].unique():
             model_df = df[df["Model"] == model]
-            if model not in aggregated_results["Model"].values:
-                new_row = pd.DataFrame([{
-                    "Model": model,
-                    "Acc": 0,
-                    "MAE": 0,
-                    "MSE": 0,
-                    "Fleiss": 0,
-                    "Cohen": 0,
-                    "Spearman": 0,
-                    "Kendall": 0,
-                    "Krippendorff": 0,
-                    "Invalid": 0,
-                    "Count": 0
-                }])
-                aggregated_results = pd.concat([aggregated_results, new_row], ignore_index=True)
-                aggregated_cm[model] = {}
+            if model not in aggregated_results:
+                aggregated_results[model]["Model"] = model
+                aggregated_results[model]["Count"] = 0
 
-            aggregated_results.loc[aggregated_results["Model"] == model, "Acc"] += model_df["Acc"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "MAE"] += model_df["MAE"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "MSE"] += model_df["MSE"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Fleiss"] += model_df["Fleiss"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Cohen"] += model_df["Cohen"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Spearman"] += model_df["Spearman"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Kendall"] += model_df["Kendall"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Krippendorff"] += model_df["Krippendorff"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Invalid"] += model_df["Invalid"].sum()
-            aggregated_results.loc[aggregated_results["Model"] == model, "Count"] += len(model_df)
-            
+            for metric in metrics:
+                aggregated_results[model][metric] += model_df[metric].sum()
+            aggregated_results[model]["Count"] += len(model_df)
+
             cm = list(model_df["CM"])[0]
             for label in cm:
-                if label not in aggregated_cm[model]:
-                    aggregated_cm[model][label] = {}
                 for pred in cm[label]:
-                    if pred not in aggregated_cm[model][label]:
-                        aggregated_cm[model][label][pred] = 0
                     aggregated_cm[model][label][pred] += cm[label][pred]
 
         # Write the DataFrame to an Excel file
@@ -138,8 +110,8 @@ def collect_ir_metrics(
         df["Invalid"] = df["Invalid"].astype(int)
         styled_df = style_df(
             df=df,
-            max_columns=max_columns,
-            min_columns=min_columns
+            max_columns=max_metrics,
+            min_columns=min_metrics
         )
         latex_output += f"""
     \\begin{{table}}[ht]
@@ -152,33 +124,33 @@ def collect_ir_metrics(
     """
 
     # scores aggregated over all languages
+    aggregated_results_df = pd.DataFrame.from_dict(aggregated_results, orient='index')
     # Divide the values in each row by the value in the column Count
-    for col in ["Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff"]:
-        aggregated_results[col] = aggregated_results.apply(lambda row: row[col] / row["Count"] if row["Count"] != 0 else 0, axis=1)
-    aggregated_results = aggregated_results.drop(columns=["Count"])
-    aggregated_results["Invalid"] = aggregated_results["Invalid"].astype(int)
+    for metric in ["Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff"]:
+        aggregated_results_df[metric] = aggregated_results_df.apply(lambda row: row[metric] / row["Count"] if row["Count"] != 0 else 0, axis=1)
+    aggregated_results_df = aggregated_results_df.drop(columns=["Count"])
+    aggregated_results_df["Invalid"] = aggregated_results_df["Invalid"].astype(int)
 
     # Write the DataFrame to an Excel file
-    aggregated_results.to_excel(output_directory / f"ir_summary_gt_all_langs.xlsx", index=False)
+    aggregated_results_df.to_excel(output_directory / f"ir_summary_gt_all_langs.xlsx", index=False)
 
     # add to latex output
-    styled_aggregated_results = style_df(
-        df=aggregated_results,
-        max_columns=max_columns,
-        min_columns=min_columns
+    styled_aggregated_results_df = style_df(
+        df=aggregated_results_df,
+        max_columns=max_metrics,
+        min_columns=min_metrics
     )
     latex_output += f"""
     \\begin{{table}}[ht]
     \\centering
     \\scriptsize
-    {styled_aggregated_results.to_latex()}
+    {styled_aggregated_results_df.to_latex()}
     \\caption{{Measures of agreement between LLM annotated and human annotated scores across languages}}
     \\label{{tab:llm_scores_all_langs}}
     \\end{{table}}
     """
 
     # Add top n models to latex output
-    top_n_models_dfs = {}
     for n, metrics_dict in top_n_models.items():
         df = pd.DataFrame(metrics_dict).reset_index().rename(columns={"index": "Model"})
         styled_df = style_df(
