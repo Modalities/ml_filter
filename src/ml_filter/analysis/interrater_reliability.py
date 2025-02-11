@@ -157,7 +157,6 @@ def plot_histogram(missing_scores: Dict[str, List[int]], truth_file_idx: int, ou
 def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path: str, model_name: str) -> None:
     # Plot the confusion matrix for missing scores
     preds = [p if p != "invalid" else -1 for p in preds]
-    cm = confusion_matrix(labels, preds)
     
     label_classes = list(range(6))
     pred_classes = [-1] + label_classes
