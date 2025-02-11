@@ -61,9 +61,6 @@ def collect_ir_metrics(
                 print(f"Error decoding JSON file {file_path}: {e}")
 
     latex_output = ""
-    # Initialize a DataFrame to hold the aggregated values for each model
-    # aggregated_results = pd.DataFrame(columns=["Model", "Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid", "Count"])
-    # aggregated_cm = {}
     aggregated_results = defaultdict(lambda: defaultdict(float))
     aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
@@ -75,20 +72,20 @@ def collect_ir_metrics(
 
     for lang in sorted(results.keys()):
         # Convert the data to a DataFrame
-        df = pd.DataFrame(results[lang])
+        metrics_df = pd.DataFrame(results[lang])
         
         # get the top n models for each metric  
         for n in top_n:
             for metric in max_metrics:
-                for model in df.nlargest(n, metric)["Model"].to_list():
+                for model in metrics_df.nlargest(n, metric)["Model"].to_list():
                     top_n_models[n][metric][model] += 1
             for metric in min_metrics:
-                for model in df.nsmallest(n, metric)["Model"].to_list():
+                for model in metrics_df.nsmallest(n, metric)["Model"].to_list():
                     top_n_models[n][metric][model] += 1          
 
         # Aggregate the values for each model
-        for model in df["Model"].unique():
-            model_df = df[df["Model"] == model]
+        for model in metrics_df["Model"].unique():
+            model_df = metrics_df[metrics_df["Model"] == model]
             if model not in aggregated_results:
                 aggregated_results[model]["Model"] = model
                 aggregated_results[model]["Count"] = 0
@@ -103,13 +100,13 @@ def collect_ir_metrics(
                     aggregated_cm[model][label][pred] += cm[label][pred]
 
         # Write the DataFrame to an Excel file
-        df.to_excel(output_directory / f"ir_summary_gt_{lang}.xlsx", index=False)
+        metrics_df.to_excel(output_directory / f"ir_summary_gt_{lang}.xlsx", index=False)
 
         # Write the DataFrame to a LaTeX table
-        df = df.drop(columns=["Filepath", "Prompt", "CM"])
-        df["Invalid"] = df["Invalid"].astype(int)
-        styled_df = style_df(
-            df=df,
+        metrics_df = metrics_df.drop(columns=["Filepath", "Prompt", "CM"])
+        metrics_df["Invalid"] = metrics_df["Invalid"].astype(int)
+        styled_metrics_df = style_df(
+            df=metrics_df,
             max_columns=max_metrics,
             min_columns=min_metrics
         )
@@ -118,7 +115,7 @@ def collect_ir_metrics(
             \\begin{{table}}[ht]
             \\centering
             \\scriptsize
-            {styled_df.to_latex()}
+            {styled_metrics_df.to_latex()}
             \\caption{{Measures of agreement between LLM annotated and human annotated scores for language \\textbf{{{lang}}}}}
             \\label{{tab:llm_scores_{lang}}}
             \\end{{table}}
@@ -127,8 +124,9 @@ def collect_ir_metrics(
 
     # scores aggregated over all languages
     aggregated_results_df = pd.DataFrame.from_dict(aggregated_results, orient='index')
+    
     # Divide the values in each row by the value in the column Count
-    for metric in ["Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff"]:
+    for metric in [m for m in metrics if m != "Invalid"]:
         aggregated_results_df[metric] = aggregated_results_df.apply(lambda row: row[metric] / row["Count"] if row["Count"] != 0 else 0, axis=1)
     aggregated_results_df = aggregated_results_df.drop(columns=["Count"])
     aggregated_results_df["Invalid"] = aggregated_results_df["Invalid"].astype(int)
@@ -156,18 +154,14 @@ def collect_ir_metrics(
 
     # Add top n models to latex output
     for n, metrics_dict in top_n_models.items():
-        df = pd.DataFrame(metrics_dict).reset_index().rename(columns={"index": "Model"})
-        styled_df = style_df(
-            df=df,
-            max_columns=[],
-            min_columns=[],
-        )
+        metrics_df = pd.DataFrame(metrics_dict).reset_index().rename(columns={"index": "Model"})
+        styled_metrics_df = style_df(df=metrics_df)
         latex_output += (
             f"""
             \\begin{{table}}[ht]
             \\centering
             \\scriptsize
-            {styled_df.to_latex()}
+            {styled_metrics_df.to_latex()}
             \\caption{{Number of times each LLM was under top {n} performing models across languages}}
             \\label{{tab:llm_top_n_all_langs}}
             \\end{{table}}
