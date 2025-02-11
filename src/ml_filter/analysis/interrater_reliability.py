@@ -100,25 +100,25 @@ def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: L
     return results
 
 
-def compute_average_accuracy_mae_mse_against_gt(all_scores: List[List[int]], all_scores_rounded: List[List[int]], gt_file_idx: int) -> Tuple[float, float]:
+def compute_average_accuracy_mae_mse_against_gt(all_scores: List[List[int]], all_scores_rounded: List[List[int]], truth_file_idx: int) -> Tuple[float, float]:
     """
     Computes the accuracy of the annotators' scores against the ground truth.
 
     Args:
         all_scores (List[List[int]]): A list where each sublist contains scores assigned by all raters for one item.
-        gt_file_idx (int): The index of the ground truth file in the list of all files.
+        truth_file_idx (int): The index of the ground truth file in the list of all files.
 
     Returns:
         None
     """
-    gt_scores = [item[gt_file_idx] for item in all_scores]
-    gt_scores_rounded = [item[gt_file_idx] for item in all_scores_rounded]
+    gt_scores = [item[truth_file_idx] for item in all_scores]
+    gt_scores_rounded = [item[truth_file_idx] for item in all_scores_rounded]
     num_annotators = len(all_scores[0]) - 1
     total_acc = 0
     total_mae = 0
     total_mse = 0
     for i in range(len(all_scores[0])):
-        if i == gt_file_idx:
+        if i == truth_file_idx:
             continue
         annotator_scores = [item[i] for item in all_scores]
         annotator_scores_rounded = [item[i] for item in all_scores_rounded]
@@ -138,11 +138,11 @@ def compute_average_accuracy_mae_mse_against_gt(all_scores: List[List[int]], all
     return avg_metrics
     
     
-def plot_histogram(missing_scores: Dict[str, List[int]], gt_file_idx: int, output_file_path: str, model_name: str) -> None:
+def plot_histogram(missing_scores: Dict[str, List[int]], truth_file_idx: int, output_file_path: str, model_name: str) -> None:
     # Plot the histogram for missing scores
     plt.figure(figsize=(10, 6))
     plt.hist(
-        [scores[gt_file_idx] for scores in missing_scores.values()],
+        [scores[truth_file_idx] for scores in missing_scores.values()],
         bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
         alpha=0.5,
         edgecolor='black'
@@ -193,7 +193,7 @@ def compute_interrater_reliability_metrics(
     output_dir: Path,
     model_name: str,
     aggregation: Optional[str] = None,
-    gt_file_idx: Optional[int] = None,
+    truth_file_idx: Optional[int] = None,
     max_score: Optional[int] = None,
 ) -> None:
     """
@@ -273,11 +273,11 @@ def compute_interrater_reliability_metrics(
         }
         
         # compute accuracy and mse if ground truth is provided
-        if gt_file_idx is not None:
+        if truth_file_idx is not None:
             avg_metrics = compute_average_accuracy_mae_mse_against_gt(
                 all_scores=all_scores, 
                 all_scores_rounded=all_scores_rounded,
-                gt_file_idx=gt_file_idx
+                truth_file_idx=truth_file_idx
             )
             metrics[prompt]['Accuracy against GT (avg pairwise)'] = avg_metrics["acc"]
             metrics[prompt]['MAE against GT (avg pairwise)'] = avg_metrics["mae"]
@@ -286,7 +286,7 @@ def compute_interrater_reliability_metrics(
             # plot the distribution of invalid scores
             plot_histogram(
                 missing_scores=missing_scores,
-                gt_file_idx=gt_file_idx,
+                truth_file_idx=truth_file_idx,
                 output_file_path=output_dir / f"histogram_{prompt}_{model_name}.png",
                 model_name=model_name,
             )
@@ -299,7 +299,7 @@ def compute_interrater_reliability_metrics(
                     raise ValueError("Confusion matrix can only be computed for two annotators.")
                 
                 for i, score in enumerate(scores):
-                    if i == gt_file_idx:
+                    if i == truth_file_idx:
                         label = score
                     else:
                         pred = score

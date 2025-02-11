@@ -40,7 +40,7 @@ def evaluate_prompt_based_annotations(
             path_to_files=([gt_data, file]),
             output_dir=lang_dir,
             aggregation=aggregation,
-            gt_file_idx=0,
+            truth_file_idx=0,
             model_name=model,
             max_score=max_score,
         )
