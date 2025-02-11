@@ -263,7 +263,7 @@ def evaluate_prompt_based_annotations_cli(
 @main.command(name="collect_ir_metrics")
 @click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
-@click.option("--compare_to_gt_only", is_flag=True, default=True, help="Flag to compare to ground truth only.")
+@click.option("--compare_to_gt_only", is_flag=True, default=False, help="Flag to compare to ground truth only.")
 def collect_ir_metrics_cli(
     input_directory: Path,
     output_directory: Path,
