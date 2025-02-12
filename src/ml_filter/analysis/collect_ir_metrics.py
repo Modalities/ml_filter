@@ -31,11 +31,7 @@ def collect_ir_metrics(
     latex_output = ""
     aggregated_results = defaultdict(lambda: defaultdict(float))
     aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    metrics = ["Acc", "MAE", "MSE", "Fleiss", "Cohen", "Spearman", "Kendall", "Krippendorff", "Invalid"]
-    min_metrics = ["MAE", "MSE", "Invalid"]
-    max_metrics = [metric for metric in metrics if metric not in min_metrics]
-    top_n = range(1, 5)
-    top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in metrics} for n in top_n}
+    metrics = set()
 
     # Iterate through all JSON files in the input directory
     for file_path in list(input_directory.rglob("ir_*.json")):     
@@ -50,24 +46,22 @@ def collect_ir_metrics(
                 # Extract values from the JSON structure
                 content = json.load(f)       
                 for prompt in content:
-                    prompt_data = content.get(prompt, {})     
-                    results[prompt][lang].append({
-                        "Model": model1 if model1 != "gt" else model2,
-                        "Acc": prompt_data.get("Accuracy against GT (avg pairwise)"),
-                        "MAE": prompt_data.get("MAE against GT (avg pairwise)"),
-                        "MSE": prompt_data.get("MSE against GT (avg pairwise)"),
-                        "Fleiss": prompt_data.get("Fleiss Kappa"),
-                        "Cohen": prompt_data.get("Cohen Kappa (avg pairwise)"),
-                        "Spearman": prompt_data.get("Spearman Rank Correlation (avg pairwise)"),
-                        "Kendall": prompt_data.get("Kendall Tau (avg pairwise)"),
-                        "Krippendorff": prompt_data.get("Krippendorff Alpha"),
-                        "Invalid": prompt_data.get("Number of invalid scores", 0),
-                        "Filepath": file_path,
-                        "CM": prompt_data.get("CM against GT")
-                    })
+                    prompt_data = content.get(prompt, {})  
+                    result = {metric: value for metric, value in prompt_data["metrics"].items()} 
+                    metrics.update(result.keys())  
+                    result["Model"] = model1 if model1 != "gt" else model2
+                    result["Filepath"] = file_path
+                    result["CM"] = prompt_data.get("CM")
+                    results[prompt][lang].append(result)
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON file {file_path}: {e}")
 
+    metrics = sorted(list(metrics))
+    min_metrics = ["MAE", "MSE", "Invalid"]
+    max_metrics = [metric for metric in metrics if metric not in min_metrics]
+    top_n = range(1, 5)
+    top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in metrics} for n in top_n}
+    
     for prompt in results:
         for lang in sorted(results[prompt]):
             # Convert the data to a DataFrame

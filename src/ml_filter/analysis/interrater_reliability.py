@@ -1,5 +1,5 @@
 
-from collections import Counter
+from collections import Counter, defaultdict
 import json
 from pathlib import Path
 import statistics
@@ -224,7 +224,7 @@ def compute_interrater_reliability_metrics(
         aggregation=aggregation,
         max_score=max_score
     )
-    metrics = {}
+    metrics = defaultdict(dict)
     for prompt in document_scores:
         all_document_ids = []
         all_scores = []
@@ -261,15 +261,15 @@ def compute_interrater_reliability_metrics(
         num_invalid_scores = len(missing_scores)
         
         # Store results
-        metrics[prompt] = {
-            'Fleiss Kappa': fk,
-            'Cohen Kappa (avg pairwise)': cohen_kappa,
-            'Spearman Rank Correlation (avg pairwise)': spearman_corr,
-            'Kendall Tau (avg pairwise)': kendall_corr,
-            'Krippendorff Alpha': kripp_alpha,
-            "Variation per Document": doc_vars,
-            "Number of invalid scores": num_invalid_scores
+        metrics[prompt]["metrics"] = {
+            'Fleiss': fk,
+            'Cohen': cohen_kappa,
+            'Spearman': spearman_corr,
+            'Kendall': kendall_corr,
+            'Krippendorff': kripp_alpha,
+            "Invalid": num_invalid_scores
         }
+        metrics[prompt]["Variation per Document"] = doc_vars
         
         # compute accuracy and mse if ground truth is provided
         if truth_file_idx is not None:
@@ -278,9 +278,9 @@ def compute_interrater_reliability_metrics(
                 all_scores_rounded=all_scores_rounded,
                 truth_file_idx=truth_file_idx
             )
-            metrics[prompt]['Accuracy against GT (avg pairwise)'] = avg_metrics["acc"]
-            metrics[prompt]['MAE against GT (avg pairwise)'] = avg_metrics["mae"]
-            metrics[prompt]['MSE against GT (avg pairwise)'] = avg_metrics["mse"]
+            metrics[prompt]["metrics"]['Acc'] = avg_metrics["acc"]
+            metrics[prompt]["metrics"]['MAE'] = avg_metrics["mae"]
+            metrics[prompt]["metrics"]['MSE'] = avg_metrics["mse"]
             
             # plot the distribution of invalid scores
             plot_histogram(
@@ -314,7 +314,7 @@ def compute_interrater_reliability_metrics(
                 output_file_path=output_dir / f"confusion_matrix_{prompt}_{model_name}.png",
                 model_name=model_name,
             )
-            metrics[prompt]['CM against GT'] = cm
+            metrics[prompt]['CM'] = cm
 
     # Print results and save them to file
     print("\n".join(f"{key}: {value}" for key, value in metrics.items()))
