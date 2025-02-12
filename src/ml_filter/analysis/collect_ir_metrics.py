@@ -2,7 +2,7 @@ from collections import defaultdict
 import json
 from pathlib import Path
 import re
-from typing import List
+from typing import List, Optional
 
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -10,11 +10,14 @@ from pandas.io.formats.style import Styler
 import seaborn as sns
 
 
-def style_df(df: pd.DataFrame, max_columns: List[str], min_columns: List[str], sort_key: str) -> Styler:
+def style_df(df: pd.DataFrame, sort_key: str, max_columns: Optional[List[str]] = None, min_columns: Optional[List[str]] = None) -> Styler:
     df_sorted = df.sort_values(by=sort_key)
-    styled_df = df_sorted.style.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
-    styled_df = styled_df.highlight_min(axis=0, subset=min_columns, props='textbf:--rwrap;')
-    return styled_df.hide(axis='index')
+    styled_df = df_sorted.style.hide(axis='index')
+    if max_columns is not None:
+        styled_df = styled_df.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
+    if min_columns is not None:
+        styled_df = styled_df.highlight_min(axis=0, subset=min_columns, props='textbf:--rwrap;')
+    return styled_df
 
 
 def collect_ir_metrics(
@@ -32,7 +35,7 @@ def collect_ir_metrics(
     min_metrics = ["MAE", "MSE", "Invalid"]
     max_metrics = [metric for metric in metrics if metric not in min_metrics]
     top_n = range(1, 5)
-    top_n_models = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in metrics} for n in top_n}
 
     # Iterate through all JSON files in the input directory
     for file_path in list(input_directory.rglob("ir_*.json")):     
@@ -72,6 +75,12 @@ def collect_ir_metrics(
             
             # get the top n models for each metric  
             for n in top_n:
+                # initialize the dictionary with 0 for each model
+                for model in metrics_df["Model"].unique():
+                    for metric in metrics:
+                        if model not in top_n_models[n][metric]: 
+                            top_n_models[n][metric][model] = 0
+                # count the number of times each model is in the top n
                 for metric in max_metrics:
                     for model in metrics_df.nlargest(n, metric)["Model"].to_list():
                         top_n_models[n][metric][model] += 1
@@ -125,8 +134,7 @@ def collect_ir_metrics(
         aggregated_results_df["Invalid"] = aggregated_results_df["Invalid"].astype(int)
 
         # convert index to column
-        aggregated_results_df.reset_index(inplace=True)
-        aggregated_results_df.rename(columns={"index": "Model"}, inplace=True)
+        aggregated_results_df = aggregated_results_df.reset_index().rename(columns={"index": "Model"})
         
         # Write the DataFrame to an Excel file
         aggregated_results_df.to_excel(output_directory / f"ir_summary_{prompt}_gt_all_langs.xlsx", index=False)
@@ -155,8 +163,7 @@ def collect_ir_metrics(
             metrics_df = pd.DataFrame(metrics_dict).reset_index().rename(columns={"index": "Model"})
             styled_metrics_df = style_df(
                 df=metrics_df,
-                max_columns=max_metrics,
-                min_columns=min_metrics,
+                max_columns=metrics,
                 sort_key="Model"
             )
             latex_output += (
