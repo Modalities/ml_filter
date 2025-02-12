@@ -1,6 +1,7 @@
 from collections import defaultdict
 import json
 from pathlib import Path
+import re
 from typing import List
 
 from matplotlib import pyplot as plt
@@ -9,8 +10,8 @@ from pandas.io.formats.style import Styler
 import seaborn as sns
 
 
-def style_df(df: pd.DataFrame, max_columns: List[str], min_columns: List[str]) -> Styler:
-    df_sorted = df.sort_values(by="Model")
+def style_df(df: pd.DataFrame, max_columns: List[str], min_columns: List[str], sort_key: str) -> Styler:
+    df_sorted = df.sort_values(by=sort_key)
     styled_df = df_sorted.style.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
     styled_df = styled_df.highlight_min(axis=0, subset=min_columns, props='textbf:--rwrap;')
     return styled_df.hide(axis='index')
@@ -99,7 +100,8 @@ def collect_ir_metrics(
             styled_metrics_df = style_df(
                 df=metrics_df,
                 max_columns=max_metrics,
-                min_columns=min_metrics
+                min_columns=min_metrics,
+                sort_key="Model"
             )
             latex_output += (
                 f"""
@@ -122,6 +124,10 @@ def collect_ir_metrics(
         aggregated_results_df = aggregated_results_df.drop(columns=["Count"])
         aggregated_results_df["Invalid"] = aggregated_results_df["Invalid"].astype(int)
 
+        # convert index to column
+        aggregated_results_df.reset_index(inplace=True)
+        aggregated_results_df.rename(columns={"index": "Model"}, inplace=True)
+        
         # Write the DataFrame to an Excel file
         aggregated_results_df.to_excel(output_directory / f"ir_summary_{prompt}_gt_all_langs.xlsx", index=False)
 
@@ -129,7 +135,8 @@ def collect_ir_metrics(
         styled_aggregated_results_df = style_df(
             df=aggregated_results_df,
             max_columns=max_metrics,
-            min_columns=min_metrics
+            min_columns=min_metrics,
+            sort_key="Model"
         )
         latex_output += (
             f"""
@@ -146,7 +153,12 @@ def collect_ir_metrics(
         # Add top n models to latex output
         for n, metrics_dict in top_n_models.items():
             metrics_df = pd.DataFrame(metrics_dict).reset_index().rename(columns={"index": "Model"})
-            styled_metrics_df = style_df(df=metrics_df)
+            styled_metrics_df = style_df(
+                df=metrics_df,
+                max_columns=max_metrics,
+                min_columns=min_metrics,
+                sort_key="Model"
+            )
             latex_output += (
                 f"""
                 \\begin{{table}}[ht]
@@ -158,6 +170,9 @@ def collect_ir_metrics(
                 \\end{{table}}
                 """
             )
+
+        # Replace newline characters followed by whitespaces with just a newline character
+        latex_output = re.sub(r'\n\s+', '\n', latex_output)
 
         print(latex_output)
         with open(output_directory / f"ir_summary_{prompt}_gt.tex", "w") as f:
