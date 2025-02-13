@@ -27,6 +27,7 @@ dependencies = [
     "seaborn",
     "python-dotenv",
     "jq",
+    "sentencepiece",
     "tabulate",
 ]
 
