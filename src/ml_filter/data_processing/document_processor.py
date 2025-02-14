@@ -180,11 +180,11 @@ class DocumentProcessor:
                         continue
 
                     # Add langauge to document based on jq pattern
-                    langauge = self.jq_language_pattern.input(document).first()
-                    if not langauge:
+                    language = self.jq_language_pattern.input(document).first()
+                    if not language:
                         raise ValueError(f"Could not find language in document: {document}. Check your jq pattern.")
 
-                    document["language"] = langauge
+                    document["language"] = language
                     document["raw_data_file_path"] = raw_data_file_path
 
                     if not self._is_valid_document(document):
