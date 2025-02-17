@@ -183,21 +183,25 @@ def collect_ir_metrics(
         with open(output_directory / f"ir_summary_{prompt}_gt.tex", "w") as f:
             f.write(latex_output)
             
-        # Plot the aggregated confusion matrix
+        # plot the confusion matrix
         labels = sorted(set(str(label) for model in aggregated_cm for label in aggregated_cm[model]))
         predictions = sorted(set(str(pred) for model in aggregated_cm for label in aggregated_cm[model] for pred in aggregated_cm[model][label]))
         for model in aggregated_cm:
-            aggregated_cm_list = []
+            # get the confusion matrix for the model and convert it to a list
+            aggregated_cm_model = []
             for label in labels:
-                label_list = []
+                preds_for_label = []
                 for pred in predictions:
-                    label_list.append(aggregated_cm[model][label].get(pred, 0))
-                aggregated_cm_list.append(label_list)
+                    preds_for_label.append(aggregated_cm[model][label].get(pred, 0))
+                aggregated_cm_model.append(preds_for_label)
             
-            normalized_aggregated_cm_list = [[n/sum(preds) if sum(preds) > 0 else 0 for n in preds] for preds in aggregated_cm_list]
+            # normalize the confusion matrix
+            normalized_aggregated_cm_model = [[n/sum(preds) if sum(preds) > 0 else 0 for n in preds] for preds in aggregated_cm_model]
+            
+            # plot the confusion matrix
             plt.figure(figsize=(10, 6))
             xlabels = [p if p != "-1" else "invalid" for p in predictions]
-            sns.heatmap(normalized_aggregated_cm_list, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=labels)
+            sns.heatmap(normalized_aggregated_cm_model, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=labels)
             plt.xlabel('Predicted')
             plt.ylabel('True')
             plt.title(f'Confusion Matrix for {model}')
