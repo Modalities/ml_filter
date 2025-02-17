@@ -184,8 +184,8 @@ def collect_ir_metrics(
             f.write(latex_output)
             
         # Plot the aggregated confusion matrix
-        labels = ["0", "1", "2", "3", "4", "5"] # TODO: make this dynamic
-        predictions = labels + ["-1"]
+        labels = sorted(set(str(label) for model in aggregated_cm for label in aggregated_cm[model]))
+        predictions = sorted(set(str(pred) for model in aggregated_cm for label in aggregated_cm[model] for pred in aggregated_cm[model][label]))
         for model in aggregated_cm:
             aggregated_cm_list = []
             for label in labels:
