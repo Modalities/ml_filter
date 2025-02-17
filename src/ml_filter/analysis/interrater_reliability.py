@@ -236,7 +236,7 @@ def compute_interrater_reliability_metrics(
             for version in scores_per_version:
                 scores.append(scores_per_version[version])
 
-            # Skip documents where not all versions have scores
+            # Skip documents where not all versions have (valid) scores
             if len(scores) != num_versions:
                 continue
             
@@ -247,7 +247,7 @@ def compute_interrater_reliability_metrics(
             all_scores.append(scores)
             all_document_ids.append(document_id)
 
-        # Metrics for rounded scores
+        # Some metrics require integer scores
         all_scores_rounded = [[round(val) for val in scores] for scores in all_scores]
         
         # Compute metrics
@@ -302,8 +302,9 @@ def compute_interrater_reliability_metrics(
                         label = score
                     else:
                         pred = score
-                # convert scores from missing scores to integers
+                
                 labels.append(int(label))
+                # convert scores from missing scores to integers
                 if pred != "invalid":
                     pred = int(pred)
                 preds.append(pred)

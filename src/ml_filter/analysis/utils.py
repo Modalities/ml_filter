@@ -69,7 +69,7 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
                     if score == float("-inf") or score is None:
                         scores.append(None)
                     else:
-                        # validate that score is an integer
+                        # check that score is an integer, else mark it as invalid
                         int_score = int(score)
                         if float(score) != int_score:
                             scores.append(None)

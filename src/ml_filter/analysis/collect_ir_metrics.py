@@ -22,7 +22,8 @@ def style_df(df: pd.DataFrame, sort_key: str, max_columns: Optional[List[str]] =
 
 def collect_ir_metrics(
     input_directory: Path,
-    output_directory: Path
+    output_directory: Path,
+    top_n: int = 4,
 ) -> None:
     output_directory.mkdir(exist_ok=True)
 
@@ -59,8 +60,8 @@ def collect_ir_metrics(
     metrics = sorted(list(metrics))
     min_metrics = ["MAE", "MSE", "Invalid"]
     max_metrics = [metric for metric in metrics if metric not in min_metrics]
-    top_n = range(1, 5)
-    top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in metrics} for n in top_n}
+    top_n_range = range(1, top_n + 1)
+    top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in metrics} for n in top_n_range}
     
     for prompt in results:
         for lang in sorted(results[prompt]):
@@ -68,7 +69,7 @@ def collect_ir_metrics(
             metrics_df = pd.DataFrame(results[prompt][lang])
             
             # get the top n models for each metric  
-            for n in top_n:
+            for n in top_n_range:
                 # initialize the dictionary with 0 for each model
                 for model in metrics_df["Model"].unique():
                     for metric in metrics:
@@ -89,17 +90,20 @@ def collect_ir_metrics(
                     aggregated_results[model][metric] += model_df[metric].sum()
                 aggregated_results[model]["Count"] += len(model_df)
 
-                cm = list(model_df["CM"])[0]
-                for label in cm:
-                    for pred in cm[label]:
-                        aggregated_cm[model][label][pred] += cm[label][pred]
+                if len(model_df["CM"]) != 1:
+                    raise ValueError(f"Expected exactly one confusion matrix for model {model} in prompt {prompt} and language {lang}")
+                else:
+                    cm = list(model_df["CM"])[0]
+                    for label in cm:
+                        for pred in cm[label]:
+                            aggregated_cm[model][label][pred] += cm[label][pred]
 
             # Write the DataFrame to an Excel file
             metrics_df.to_excel(output_directory / f"ir_summary_{prompt}_gt_{lang}.xlsx", index=False)
 
             # Write the DataFrame to a LaTeX table
             metrics_df = metrics_df.drop(columns=["Filepath", "CM"])
-            metrics_df["Invalid"] = metrics_df["Invalid"].astype(int)
+            metrics_df["Invalid"] = metrics_df["Invalid"].astype(int) # TODO is this necessary?
             styled_metrics_df = style_df(
                 df=metrics_df,
                 max_columns=max_metrics,
