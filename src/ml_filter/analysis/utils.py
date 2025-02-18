@@ -28,13 +28,17 @@ def most_frequent_average(values: List[int]) -> float:
     return sum(most_frequent_values) / len(most_frequent_values)
 
 
-def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], max_score: Optional[int] = None) -> dict[str, dict[str, float]]:
+def get_document_scores(
+    path_to_files: list[Path],
+    labels: List[float],
+    aggregation: Optional[str],
+    ) -> dict[str, dict[str, float]]:
     """
     Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
     Args:
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
-        output_file_path (Path): The output path to save computed metrics as a JSON file.
+        labels (List[float]): A list of possible labels for the annotators.
         aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
@@ -50,7 +54,7 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
         None
     """
     document_scores = {}
-
+        
     # Loop through each file
     for file_path in path_to_files:
         # Extract the first part of the filename for labeling (e.g., the version)
@@ -60,27 +64,19 @@ def get_document_scores(path_to_files: list[Path], aggregation: Optional[str], m
         with open(file_path, 'r') as f:
             for line in f:
                 json_obj = json.loads(line)
-                orig_scores = json_obj.get('scores')
-                
-                # there are two variants for missing annotations: -inf and None. We standardize to None here.
-                # In addition, convert scores to ints and discard scores larger than max_score
+
+                # replace invalid scores with None
                 scores = []
-                for score in orig_scores:
-                    if score == float("-inf") or score is None:
+                for score in json_obj.get('scores'):
+                    if score is None:
                         scores.append(None)
                     else:
-                        # check that score is an integer, else mark it as invalid
-                        int_score = int(score)
-                        if float(score) != int_score:
-                            scores.append(None)
+                        score = float(score)
+                        if score in labels:
+                            scores.append(score)
                         else:
-                            score = int_score
-                            # validate that score is larger than max_score
-                            if max_score is not None and score > max_score:
-                                scores.append(None)
-                            else:
-                                scores.append(score)
-                
+                            scores.append(None)
+                    
                 if aggregation is None:
                     # filter out documents with missing annotations
                     if None in scores:

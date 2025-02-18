@@ -1,6 +1,7 @@
 
 import logging
 from pathlib import Path
+from typing import List
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.utils.logging import get_logger
 
@@ -18,7 +19,7 @@ def evaluate_prompt_based_annotations(
     output_directory: Path,
     gt_data: Path,
     aggregation: str,
-    max_score: int
+    labels: List[float]
 ) -> None:
     # Find all files matching the pattern in the directory and subdirectories
     files = list(input_directory.rglob("annotations_*.jsonl"))
@@ -47,6 +48,6 @@ def evaluate_prompt_based_annotations(
             aggregation=aggregation,
             truth_file_idx=0,
             model_name=model,
-            max_score=max_score,
+            labels=labels,
         )
         logger.info(f"Metrics successfully written to {lang_dir}")

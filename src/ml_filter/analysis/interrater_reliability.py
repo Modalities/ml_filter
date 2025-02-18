@@ -196,9 +196,9 @@ def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_dir: Path,
     model_name: str,
+    labels: List[float],
     aggregation: Optional[str] = None,
     truth_file_idx: Optional[int] = None,
-    max_score: Optional[int] = None,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -227,7 +227,7 @@ def compute_interrater_reliability_metrics(
     document_scores = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation,
-        max_score=max_score
+        labels=labels,
     )
     metrics = defaultdict(dict)
     for prompt in document_scores:

@@ -242,13 +242,13 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: Op
 @click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
 @click.argument("gt_data", type=click.Path(exists=True, path_type=Path))
 @click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
-@click.option("--max_score", type=int, default=5, help="Maximum score value.")
+@click.option("--labels", type=str, help="Comma-separated list of labels.")
 def evaluate_prompt_based_annotations_cli(
     input_directory: Path,
     output_directory: Path,
     gt_data: Path,
     aggregation: str,
-    max_score: int
+    labels: str,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
     evaluate_prompt_based_annotations(
@@ -256,7 +256,7 @@ def evaluate_prompt_based_annotations_cli(
         output_directory=output_directory,
         gt_data=gt_data,
         aggregation=aggregation,
-        max_score=max_score
+        labels=[float(l) for l in labels.split(",")],
     )
 
 
