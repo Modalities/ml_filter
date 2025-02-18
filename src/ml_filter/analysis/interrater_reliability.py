@@ -1,6 +1,7 @@
 
 from collections import Counter, defaultdict
 import json
+import logging
 from pathlib import Path
 import statistics
 from typing import Dict, List, Tuple, Optional
@@ -14,6 +15,10 @@ from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.utils import get_document_scores
+from ml_filter.utils.logging import get_logger
+
+
+logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
 def prepare_fleiss_data(all_scores: List[List[int]]) -> np.ndarray:
@@ -317,8 +322,8 @@ def compute_interrater_reliability_metrics(
             )
             metrics[prompt]['CM'] = cm
 
-    # Print results and save them to file
-    print("\n".join(f"{key}: {value}" for key, value in metrics.items()))
+    # Log results and save them to file
+    logger.info("\n".join(f"{key}: {value}" for key, value in metrics.items()))
     output_file_path = output_dir / f"ir_{model_name}_gt.json"
     with output_file_path.open("w") as f:
         json.dump(metrics, f, indent=4)

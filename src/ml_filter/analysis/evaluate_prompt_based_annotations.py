@@ -2,11 +2,9 @@
 import logging
 from pathlib import Path
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+from ml_filter.utils.logging import get_logger
 
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
-logger = logging.getLogger(__name__)  # Create a logger instance
+logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
 def extract_model_name(filename: Path) -> str:

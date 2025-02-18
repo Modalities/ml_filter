@@ -1,5 +1,6 @@
 from collections import defaultdict
 import json
+import logging
 from pathlib import Path
 import re
 from typing import List, Optional
@@ -8,6 +9,10 @@ from matplotlib import pyplot as plt
 import pandas as pd
 from pandas.io.formats.style import Styler
 import seaborn as sns
+
+from ml_filter.utils.logging import get_logger
+
+logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
 def style_df(df: pd.DataFrame, sort_key: str, max_columns: Optional[List[str]] = None, min_columns: Optional[List[str]] = None) -> Styler:
@@ -55,7 +60,7 @@ def collect_ir_metrics(
                     result["CM"] = prompt_data.get("CM")
                     results[prompt][lang].append(result)
             except json.JSONDecodeError as e:
-                print(f"Error decoding JSON file {file_path}: {e}")
+                logging.error(f"Error decoding JSON file {file_path}: {e}")
 
     metrics = sorted(list(metrics))
     min_metrics = ["MAE", "MSE", "Invalid"]
@@ -179,7 +184,7 @@ def collect_ir_metrics(
         # Replace newline characters followed by whitespaces with just a newline character
         latex_output = re.sub(r'\n\s+', '\n', latex_output)
 
-        print(latex_output)
+        logging.info(f"Generated LaTeX tables:\n\n{latex_output}")
         with open(output_directory / f"ir_summary_{prompt}_gt.tex", "w") as f:
             f.write(latex_output)
             
@@ -207,4 +212,4 @@ def collect_ir_metrics(
             plt.title(f'Confusion Matrix for {model}')
             plt.savefig(output_directory / f"confusion_matrix_{prompt}_across_languages_{model}.png")
 
-    print(f"Metrics successfully written")
+    logging.info(f"Metrics successfully written")
