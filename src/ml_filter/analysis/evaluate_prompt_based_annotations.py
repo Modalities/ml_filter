@@ -1,5 +1,12 @@
+
+import logging
 from pathlib import Path
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
+logger = logging.getLogger(__name__)  # Create a logger instance
 
 
 def extract_model_name(filename: Path) -> str:
@@ -20,7 +27,7 @@ def evaluate_prompt_based_annotations(
 
     # Check if there are at least two files
     if len(files) == 0:
-        print(f"No annotation files found in {input_directory} or its subdirectories. Exiting.")
+        logger.info(f"No annotation files found in {input_directory} or its subdirectories. Exiting.")
         exit(1)
 
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -31,8 +38,8 @@ def evaluate_prompt_based_annotations(
         model = extract_model_name(file)
         lang = file.parent.name
         
-        # Print the tuple of model names
-        print(f"Compare model {model} to ground truth")
+        # Log the tuple of model names
+        logger.info(f"Compare model {model} to ground truth")
         lang_dir = output_directory / lang
         lang_dir.mkdir(parents=True, exist_ok=True)
         
@@ -44,4 +51,4 @@ def evaluate_prompt_based_annotations(
             model_name=model,
             max_score=max_score,
         )
-        print(f"Metrics successfully written to {lang_dir}")
+        logger.info(f"Metrics successfully written to {lang_dir}")
