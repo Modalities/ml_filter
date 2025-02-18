@@ -9,10 +9,9 @@ from omegaconf import OmegaConf
 from pydantic import BaseModel
 
 from ml_filter.data_processing.document import Annotation, DocumentProcessingStatus
+from ml_filter.utils.logging import get_logger
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
-logger = logging.getLogger(__name__)  # Create a logger instance
+logger = get_logger(name=__name__, level=logging.INFO) # Create a logger instance
 
 
 class ThroughputStatistics(BaseModel):

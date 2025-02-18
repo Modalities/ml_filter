@@ -9,6 +9,7 @@ from requests import RequestException, Session
 from requests.adapters import HTTPAdapter
 
 from ml_filter.data_processing.document import DocumentProcessingStatus, ProcessedDocument
+from ml_filter.utils.logging import get_logger
 
 
 class LLMRestClient:
@@ -38,7 +39,7 @@ class LLMRestClient:
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.verbose = verbose
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_logger(name=self.__class__.__name__, level=logging.INFO)
         self.session = session
         self.sampling_params = sampling_params
 
