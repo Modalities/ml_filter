@@ -235,14 +235,14 @@ def compute_interrater_reliability_metrics(
         all_scores = []
         missing_scores = {}
         
-        num_versions = max(len(versions) for versions in document_scores[prompt].values())
-        for document_id, scores_per_version in document_scores[prompt].items():
+        num_annotators = max(len(annotators) for annotators in document_scores[prompt].values())
+        for document_id, score_per_annotator in document_scores[prompt].items():
             scores = []
-            for version in scores_per_version:
-                scores.append(scores_per_version[version])
+            for annotator in score_per_annotator:
+                scores.append(score_per_annotator[annotator])
 
             # Skip documents where not all versions have (valid) scores
-            if len(scores) != num_versions:
+            if len(scores) != num_annotators:
                 continue
             
             if "invalid" in scores:
