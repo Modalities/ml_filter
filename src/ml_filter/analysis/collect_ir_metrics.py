@@ -15,9 +15,14 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
-def style_df(df: pd.DataFrame, sort_key: str, max_columns: Optional[List[str]] = None, min_columns: Optional[List[str]] = None) -> Styler:
+def style_df(df: pd.DataFrame, sort_key: str, max_columns: List[str], min_columns: List[str]) -> Styler:
     df_sorted = df.sort_values(by=sort_key)
+    # Ensure sort column is first and other columns are sorted alphabetically
+    columns = [sort_key] + sorted([col for col in df.columns if col != sort_key and col in min_columns + max_columns])
+    df_sorted = df_sorted[columns]
     styled_df = df_sorted.style.hide(axis='index')
+    
+    # highlight best values in each column
     if max_columns is not None:
         styled_df = styled_df.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
     if min_columns is not None:
@@ -70,10 +75,10 @@ def get_top_n_models(df, top_n, max_metrics, min_metrics):
                         top_n_models[n][metric][model] = 0
             # count the number of times each model is in the top n
             for metric in max_metrics:
-                for model in lang_df.nlargest(n, metric)["Model"].to_list():
+                for model in lang_df.nlargest(n, metric, keep="all")["Model"].to_list():
                     top_n_models[n][metric][model] += 1
             for metric in min_metrics:
-                for model in lang_df.nsmallest(n, metric)["Model"].to_list():
+                for model in lang_df.nsmallest(n, metric, keep="all")["Model"].to_list():
                     top_n_models[n][metric][model] += 1          
 
     return top_n_models
@@ -111,7 +116,7 @@ def write_latex_output(df, aggregated_metrics_df, top_n_models, output_directory
         min_columns=min_metrics,
         sort_key="Model"
     )
-    # results aggregated over all languages
+    # add results aggregated over all languages
     latex_str += (
         f"""
         \\begin{{table}}[ht]
@@ -123,16 +128,16 @@ def write_latex_output(df, aggregated_metrics_df, top_n_models, output_directory
         \\end{{table}}
         """
     )
+    # add tables for top n models
     for n in top_n_models:
         top_models_df = pd.DataFrame.from_dict(top_n_models[n])
         top_models_df = top_models_df.reset_index().rename(columns={"index": "Model"})
         styled_top_models_df = style_df(
             df=top_models_df,
-            max_columns=max_metrics,
-            min_columns=min_metrics,
+            max_columns=max_metrics + min_metrics,
+            min_columns=[],
             sort_key="Model"
         )
-        # top n models
         latex_str += (
             f"""
             \\begin{{table}}[ht]
