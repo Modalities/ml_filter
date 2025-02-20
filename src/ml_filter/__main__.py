@@ -263,14 +263,16 @@ def evaluate_prompt_based_annotations_cli(
 @main.command(name="collect_ir_metrics")
 @click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option("--min_metrics", type=str, help="Comma-separated list of metrics for which lower is better. All other metrics are considered to be better when higher.")
 def collect_ir_metrics_cli(
     input_directory: Path,
     output_directory: Path,
-    compare_to_gt_only: bool = True):
+    min_metrics: str):
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
     collect_ir_metrics(
         input_directory=input_directory,
         output_directory=output_directory,
+        min_metrics=[metric for metric in min_metrics.split(",")],
     )
 
 
