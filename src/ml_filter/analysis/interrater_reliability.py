@@ -1,14 +1,16 @@
 
-from collections import Counter, defaultdict
+from collections import Counter
+from itertools import combinations
 import json
 import logging
 from pathlib import Path
 import statistics
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 
 import krippendorff
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy.stats import spearmanr, kendalltau
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
@@ -105,49 +107,39 @@ def compute_doc_level_variation(all_scores: List[List[int]], all_document_ids: L
     return results
 
 
-def compute_average_accuracy_mae_mse_against_gt(all_scores: List[List[int]], all_scores_rounded: List[List[int]], truth_file_idx: int) -> Tuple[float, float]:
+def compute_accuracy_mae_mse_against_gt(scores_0: List[int], scores_1: List[int]) -> Dict[str, float]:
     """
-    Computes the accuracy of the annotators' scores against the ground truth.
-
+    Computes the average accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
+    
     Args:
-        all_scores (List[List[int]]): A list where each sublist contains scores assigned by all raters for one item.
+        preds (List[int]): A list of predicted scores.
+        labels (List[int]): A list of ground truth scores.
+        all_scores_rounded (List[List[int]]): A list where each sublist contains scores for a single document.
         truth_file_idx (int): The index of the ground truth file in the list of all files.
-
+    
     Returns:
-        None
-    """
-    gt_scores = [item[truth_file_idx] for item in all_scores]
-    gt_scores_rounded = [item[truth_file_idx] for item in all_scores_rounded]
-    num_annotators = len(all_scores[0]) - 1
-    total_acc = 0
-    total_mae = 0
-    total_mse = 0
-    for i in range(len(all_scores[0])):
-        if i == truth_file_idx:
-            continue
-        annotator_scores = [item[i] for item in all_scores]
-        annotator_scores_rounded = [item[i] for item in all_scores_rounded]
-        acc = sum(1 for s1, s2 in zip(gt_scores_rounded, annotator_scores_rounded) if s1 == s2) / len(gt_scores_rounded)
-        total_acc += acc
-        mae = sum(abs(a - b) for a, b in zip(gt_scores, annotator_scores)) / len(gt_scores)
-        total_mae += mae
-        squared_diffs = [(a - b) ** 2 for a, b in zip(gt_scores, annotator_scores)]
-        mse = sum(squared_diffs) / len(squared_diffs)
-        total_mse += mse
-    
-    avg_metrics = {
-        'acc': total_acc / num_annotators,
-        'mae': total_mae / num_annotators,
-        'mse': total_mse / num_annotators,
-    }
-    return avg_metrics
+        Dict[str, float]: A dictionary containing the computed metrics.
+    """      
+    if len(scores_0) != len(scores_1):
+        raise ValueError("The number of predictions and labels must be equal.")
+    scores_0_rounded = [round(p) for p in scores_0]
+    scores_1_rounded = [round(t) for t in scores_1]
+    acc = sum(1 for s1, s2 in zip(scores_0_rounded, scores_1_rounded) if s1 == s2) / len(scores_1_rounded)
+    mae = sum(abs(a - b) for a, b in zip(scores_0, scores_1)) / len(scores_1)
+    squared_diffs = [(a - b) ** 2 for a, b in zip(scores_0, scores_1)]
+    mse = sum(squared_diffs) / len(squared_diffs)
+    return {'acc': acc, 'mae': mae, 'mse': mse}
     
     
-def plot_histogram(missing_scores: Dict[str, List[int]], truth_file_idx: int, output_file_path: str, model_name: str) -> None:
-    # Plot the histogram for missing scores
+def plot_invalid_docs_histogram(
+    correct_scores_of_invalid_docs: List[int],
+    output_file_path: str,
+    model_name: str
+    ) -> None:
+    # Plot the histogram for correct scores of invalid documents
     plt.figure(figsize=(10, 6))
     plt.hist(
-        [scores[truth_file_idx] for scores in missing_scores.values()],
+        correct_scores_of_invalid_docs,
         bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
         alpha=0.5,
         edgecolor='black'
@@ -159,7 +151,7 @@ def plot_histogram(missing_scores: Dict[str, List[int]], truth_file_idx: int, ou
     plt.savefig(output_file_path)
     
     
-def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path: str, model_name: str) -> None:
+def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_path: str, model_name: str) -> None:
     # Plot the confusion matrix for missing scores
     preds = [p if p != "invalid" else -1 for p in preds]
     
@@ -191,14 +183,18 @@ def plot_confusion_matrix(labels: List[int], preds: List[int], output_file_path:
     
     return cm_dict
 
+
+def round_scores(value: Union[str, int, float]) -> int:
+    if value == "invalid":
+        return value
+    return round(value)
+
     
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_dir: Path,
-    model_name: str,
     labels: List[float],
     aggregation: Optional[str] = None,
-    truth_file_idx: Optional[int] = None,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -224,49 +220,38 @@ def compute_interrater_reliability_metrics(
     Returns:
         None
     """    
-    document_scores = get_document_scores(
+    document_scores_df = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation,
         labels=labels,
     )
-    metrics = defaultdict(dict)
-    for prompt in document_scores:
-        all_document_ids = []
-        all_scores = []
-        missing_scores = {}
+    metrics = dict()
+    for annotator_0, annotator_1 in combinations(document_scores_df["model"].unique(), 2):
+        annotator_0_df = document_scores_df[document_scores_df["model"] == annotator_0]
+        annotator_1_df = document_scores_df[document_scores_df["model"] == annotator_1]
         
-        num_annotators = max(len(annotators) for annotators in document_scores[prompt].values())
-        for document_id, score_per_annotator in document_scores[prompt].items():
-            scores = []
-            for annotator in score_per_annotator:
-                scores.append(score_per_annotator[annotator])
+        # only consider documents that are annotated by both annotators and have valid scores
+        common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
+        # add rounded scores for each annotator
+        for idx in (0, 1):
+            common_docs_df[f'rounded_score_{idx}'] = common_docs_df[f'score_{idx}'].apply(round_scores)
 
-            # Skip documents where not all versions have (valid) scores
-            if len(scores) != num_annotators:
-                continue
-            
-            if "invalid" in scores:
-                missing_scores[document_id] = scores
-                continue
-            
-            all_scores.append(scores)
-            all_document_ids.append(document_id)
-
-        # Some metrics require integer scores
-        all_scores_rounded = [[round(val) for val in scores] for scores in all_scores]
-        
-        # Compute metrics
-        fleiss_data = prepare_fleiss_data(all_scores_rounded)
+        # filter out invalid scores and compute metrics
+        valid_docs_df = common_docs_df[(common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")]
+        valid_scores = list(zip(valid_docs_df["score_0"], valid_docs_df["score_1"]))
+        rounded_valid_scores = list(zip(valid_docs_df["rounded_score_0"], valid_docs_df["rounded_score_1"]))
+ 
+        fleiss_data = prepare_fleiss_data(rounded_valid_scores)
         fk = fleiss_kappa(fleiss_data, method='fleiss')
-        spearman_corr = compute_pairwise_correlations(all_scores, metric='spearman')
-        kendall_corr = compute_pairwise_correlations(all_scores, metric='kendall')
-        cohen_kappa = compute_pairwise_correlations(all_scores_rounded, metric='cohen')
-        kripp_alpha = compute_krippendorffs_alpha(all_scores)
-        doc_vars = compute_doc_level_variation(all_scores_rounded, all_document_ids)
-        num_invalid_scores = len(missing_scores)
+        spearman_corr = compute_pairwise_correlations(valid_scores, metric='spearman')
+        kendall_corr = compute_pairwise_correlations(valid_scores, metric='kendall')
+        cohen_kappa = compute_pairwise_correlations(rounded_valid_scores, metric='cohen')
+        kripp_alpha = compute_krippendorffs_alpha(valid_scores)
+        doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
+        num_invalid_scores = len(common_docs_df) - len(valid_docs_df)
         
         # Store results
-        metrics[prompt]["metrics"] = {
+        metrics["metrics"] = {
             'Fleiss': fk,
             'Cohen': cohen_kappa,
             'Spearman': spearman_corr,
@@ -274,56 +259,46 @@ def compute_interrater_reliability_metrics(
             'Krippendorff': kripp_alpha,
             "Invalid": num_invalid_scores
         }
-        metrics[prompt]["Variation per Document"] = doc_vars
+        metrics["Variation per Document"] = doc_vars
         
-        # compute accuracy and mse if ground truth is provided
-        if truth_file_idx is not None:
-            avg_metrics = compute_average_accuracy_mae_mse_against_gt(
-                all_scores=all_scores, 
-                all_scores_rounded=all_scores_rounded,
-                truth_file_idx=truth_file_idx
+        # compute accuracy, mae and mse if ground truth is provided
+        annotators = [annotator_0, annotator_1]
+        if "gt" in annotators:
+            # in this case only one model exists, the other annotator is the ground truth
+            if annotator_0 == "gt":
+                model_idx = 1
+                gt_idx = 0
+            else:
+                model_idx = 0
+                gt_idx = 1
+            model_name = annotators[model_idx]
+            gt_metrics = compute_accuracy_mae_mse_against_gt(
+                scores_0=valid_docs_df["score_0"].to_list(), 
+                scores_1=valid_docs_df["score_1"].to_list()
             )
-            metrics[prompt]["metrics"]['Acc'] = avg_metrics["acc"]
-            metrics[prompt]["metrics"]['MAE'] = avg_metrics["mae"]
-            metrics[prompt]["metrics"]['MSE'] = avg_metrics["mse"]
+            metrics["metrics"]['Acc'] = gt_metrics["acc"]
+            metrics["metrics"]['MAE'] = gt_metrics["mae"]
+            metrics["metrics"]['MSE'] = gt_metrics["mse"]
             
             # plot the distribution of invalid scores
-            plot_histogram(
-                missing_scores=missing_scores,
-                truth_file_idx=truth_file_idx,
-                output_file_path=output_dir / f"histogram_{prompt}_{model_name}.png",
-                model_name=model_name,
+            invalid_docs_df = common_docs_df[common_docs_df[f"score_{model_idx}"] == "invalid"]
+            plot_invalid_docs_histogram(
+                correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
+                output_file_path=output_dir / f"histogram_{model_name}_invalid_scores.png",
+                model_name=model_name
             )
             
-            # compute confusion matrix
-            labels = []
-            preds = []
-            for scores in all_scores_rounded + list(missing_scores.values()):
-                if len(scores) != 2:
-                    raise ValueError("Confusion matrix can only be computed for two annotators.")
-                
-                for i, score in enumerate(scores):
-                    if i == truth_file_idx:
-                        label = score
-                    else:
-                        pred = score
-                
-                labels.append(int(label))
-                # convert scores from missing scores to integers
-                if pred != "invalid":
-                    pred = int(pred)
-                preds.append(pred)
-                
-            cm = plot_confusion_matrix(
-                labels=labels,
-                preds=preds,
-                output_file_path=output_dir / f"confusion_matrix_{prompt}_{model_name}.png",
+            # compute confusion matrix                
+            cm = compute_confusion_matrix(
+                labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
+                preds=common_docs_df[f"rounded_score_{model_idx}"].to_list(),
+                output_file_path=output_dir / f"confusion_matrix_{model_name}_gt.png",
                 model_name=model_name,
             )
-            metrics[prompt]['CM'] = cm
+            metrics['CM'] = cm
 
     # Log results and save them to file
     logger.info("\n".join(f"{key}: {value}" for key, value in metrics.items()))
-    output_file_path = output_dir / f"ir_{model_name}_gt.json"
+    output_file_path = output_dir / f"ir_{annotator_0}_{annotator_1}.json"
     with output_file_path.open("w") as f:
         json.dump(metrics, f, indent=4)
