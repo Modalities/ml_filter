@@ -43,6 +43,7 @@ devices="\"device=$CUDA_VISIBLE_DEVICES\""
 docker run --runtime nvidia \
     --gpus $devices \
     --name $CONTAINER_NAME \
+    --rm \
     -v $HF_HOME:/root/.cache/huggingface \
     --env "HUGGING_FACE_HUB_TOKEN=$HF_TOKEN" \
     -p $PORT:8000 \
