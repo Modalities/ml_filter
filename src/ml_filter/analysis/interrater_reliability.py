@@ -281,7 +281,7 @@ def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
     output_dir: Path,
     labels: List[float],
-    aggregation: Optional[str] = None,
+    aggregation: str,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -293,13 +293,12 @@ def compute_interrater_reliability_metrics(
     Args:
         path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
         output_file_path (Path): The output path to save computed metrics as a JSON file.
-        aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
+        aggregation (str): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
             - "max": Use the maximum score.
             - "min": Use the minimum score.
             - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
-            - None: No aggregation (used for individual annotator analysis).
 
     Raises:
         ValueError: If invalid parameter combinations are provided.
