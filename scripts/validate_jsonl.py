@@ -47,6 +47,3 @@ def validate_jsonl(file_path: str) -> bool:
         print(f"Error reading file: {e}")
         return False
 
-
-if __name__ == "__main__":
-    validate_jsonl("data/fineweb_test/cc_annotations/0/1/cc_merged_annotations.jsonl")
