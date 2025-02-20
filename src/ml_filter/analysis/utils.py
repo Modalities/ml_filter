@@ -31,23 +31,22 @@ def most_frequent_average(values: List[int]) -> float:
 
 
 def get_document_scores(
-    path_to_files: list[Path],
+    path_to_files: List[Path],
     labels: List[float],
-    aggregation: Optional[str],
+    aggregation: str,
     ) -> dict[str, dict[str, float]]:
     """
     Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
     Args:
-        path_to_files (Tuple[Path]): A tuple of file paths containing annotation scores in JSONL format.
+        path_to_files (List[Path]): A tuple of file paths containing annotation scores in JSONL format.
         labels (List[float]): A list of possible labels for the annotators.
-        aggregation (Optional[str], optional): Specifies how scores for a document from the same file are aggregated.
+        aggregation (str, optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
             - "max": Use the maximum score.
             - "min": Use the minimum score.
             - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
-            - None: No aggregation (used for individual annotator analysis).
 
     Raises:
         ValueError: If invalid parameter combinations are provided.
