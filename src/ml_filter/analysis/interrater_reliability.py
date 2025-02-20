@@ -189,6 +189,93 @@ def round_scores(value: Union[str, int, float]) -> int:
         return value
     return round(value)
 
+
+def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotator_1: str) -> pd.DataFrame:
+    annotator_0_df = document_scores_df[document_scores_df["model"] == annotator_0]
+    annotator_1_df = document_scores_df[document_scores_df["model"] == annotator_1]
+    
+    # only consider documents that are annotated by both annotators and have valid scores
+    common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
+    
+    # add rounded scores for each annotator
+    for idx in (0, 1):
+        common_docs_df[f'rounded_score_{idx}'] = common_docs_df[f'score_{idx}'].apply(round_scores)
+    return common_docs_df
+
+
+def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> Dict:
+    # prepare data
+    valid_scores = list(zip(valid_docs_df["score_0"], valid_docs_df["score_1"]))
+    rounded_valid_scores = list(zip(valid_docs_df["rounded_score_0"], valid_docs_df["rounded_score_1"]))
+
+    # compute metrics
+    fleiss_data = prepare_fleiss_data(rounded_valid_scores)
+    fk = fleiss_kappa(fleiss_data, method='fleiss')
+    spearman_corr = compute_pairwise_correlations(valid_scores, metric='spearman')
+    kendall_corr = compute_pairwise_correlations(valid_scores, metric='kendall')
+    cohen_kappa = compute_pairwise_correlations(rounded_valid_scores, metric='cohen')
+    kripp_alpha = compute_krippendorffs_alpha(valid_scores)
+    doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
+    
+    # Store results
+    metrics = dict()
+    metrics["metrics"] = {
+        'Fleiss': fk,
+        'Cohen': cohen_kappa,
+        'Spearman': spearman_corr,
+        'Kendall': kendall_corr,
+        'Krippendorff': kripp_alpha,
+        'Invalid': num_total_docs - len(valid_docs_df),
+    }
+    metrics["Variation per Document"] = doc_vars
+    
+    return metrics
+
+
+def compare_model_to_gt(
+    annotators: List[str],
+    valid_docs_df: pd.DataFrame,
+    common_docs_df: pd.DataFrame,
+    metrics: Dict,
+    output_dir: Path,
+) -> None:
+    # in this case only one annotator is a model, the other one is the ground truth
+    if annotators[0] == "gt":
+        model_idx = 1
+        gt_idx = 0
+    else:
+        model_idx = 0
+        gt_idx = 1
+    model_name = annotators[model_idx]
+    
+    # compute accuracy, mae and mse against ground truth
+    gt_metrics = compute_accuracy_mae_mse_against_gt(
+        scores_0=valid_docs_df["score_0"].to_list(), 
+        scores_1=valid_docs_df["score_1"].to_list()
+    )
+    metrics["metrics"]['Acc'] = gt_metrics["acc"]
+    metrics["metrics"]['MAE'] = gt_metrics["mae"]
+    metrics["metrics"]['MSE'] = gt_metrics["mse"]
+    
+    # plot the distribution of invalid scores
+    invalid_docs_df = common_docs_df[common_docs_df[f"score_{model_idx}"] == "invalid"]
+    plot_invalid_docs_histogram(
+        correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
+        output_file_path=output_dir / f"histogram_{model_name}_invalid_scores.png",
+        model_name=model_name
+    )
+    
+    # compute confusion matrix                
+    cm = compute_confusion_matrix(
+        labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
+        preds=common_docs_df[f"rounded_score_{model_idx}"].to_list(),
+        output_file_path=output_dir / f"confusion_matrix_{model_name}_gt.png",
+        model_name=model_name,
+    )
+    metrics['CM'] = cm
+    
+    return metrics
+
     
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path],
@@ -227,75 +314,26 @@ def compute_interrater_reliability_metrics(
     )
     metrics = dict()
     for annotator_0, annotator_1 in combinations(document_scores_df["model"].unique(), 2):
-        annotator_0_df = document_scores_df[document_scores_df["model"] == annotator_0]
-        annotator_1_df = document_scores_df[document_scores_df["model"] == annotator_1]
-        
-        # only consider documents that are annotated by both annotators and have valid scores
-        common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
-        # add rounded scores for each annotator
-        for idx in (0, 1):
-            common_docs_df[f'rounded_score_{idx}'] = common_docs_df[f'score_{idx}'].apply(round_scores)
-
-        # filter out invalid scores and compute metrics
+        # filter on documents that are annotated by both annotators and filter out invalid scores
+        common_docs_df = get_common_docs(document_scores_df, annotator_0, annotator_1)
         valid_docs_df = common_docs_df[(common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")]
-        valid_scores = list(zip(valid_docs_df["score_0"], valid_docs_df["score_1"]))
-        rounded_valid_scores = list(zip(valid_docs_df["rounded_score_0"], valid_docs_df["rounded_score_1"]))
- 
-        fleiss_data = prepare_fleiss_data(rounded_valid_scores)
-        fk = fleiss_kappa(fleiss_data, method='fleiss')
-        spearman_corr = compute_pairwise_correlations(valid_scores, metric='spearman')
-        kendall_corr = compute_pairwise_correlations(valid_scores, metric='kendall')
-        cohen_kappa = compute_pairwise_correlations(rounded_valid_scores, metric='cohen')
-        kripp_alpha = compute_krippendorffs_alpha(valid_scores)
-        doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
-        num_invalid_scores = len(common_docs_df) - len(valid_docs_df)
         
-        # Store results
-        metrics["metrics"] = {
-            'Fleiss': fk,
-            'Cohen': cohen_kappa,
-            'Spearman': spearman_corr,
-            'Kendall': kendall_corr,
-            'Krippendorff': kripp_alpha,
-            "Invalid": num_invalid_scores
-        }
-        metrics["Variation per Document"] = doc_vars
+        # compute metrics
+        metrics = compute_metrics(
+            num_total_docs=len(common_docs_df),
+            valid_docs_df=valid_docs_df
+        )
         
-        # compute accuracy, mae and mse if ground truth is provided
+        # compute additional metrics if one of the annotators is the ground truth
         annotators = [annotator_0, annotator_1]
         if "gt" in annotators:
-            # in this case only one model exists, the other annotator is the ground truth
-            if annotator_0 == "gt":
-                model_idx = 1
-                gt_idx = 0
-            else:
-                model_idx = 0
-                gt_idx = 1
-            model_name = annotators[model_idx]
-            gt_metrics = compute_accuracy_mae_mse_against_gt(
-                scores_0=valid_docs_df["score_0"].to_list(), 
-                scores_1=valid_docs_df["score_1"].to_list()
+            metrics = compare_model_to_gt(
+                annotators=annotators,
+                valid_docs_df=valid_docs_df,
+                common_docs_df=common_docs_df,
+                metrics=metrics,
+                output_dir=output_dir
             )
-            metrics["metrics"]['Acc'] = gt_metrics["acc"]
-            metrics["metrics"]['MAE'] = gt_metrics["mae"]
-            metrics["metrics"]['MSE'] = gt_metrics["mse"]
-            
-            # plot the distribution of invalid scores
-            invalid_docs_df = common_docs_df[common_docs_df[f"score_{model_idx}"] == "invalid"]
-            plot_invalid_docs_histogram(
-                correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
-                output_file_path=output_dir / f"histogram_{model_name}_invalid_scores.png",
-                model_name=model_name
-            )
-            
-            # compute confusion matrix                
-            cm = compute_confusion_matrix(
-                labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
-                preds=common_docs_df[f"rounded_score_{model_idx}"].to_list(),
-                output_file_path=output_dir / f"confusion_matrix_{model_name}_gt.png",
-                model_name=model_name,
-            )
-            metrics['CM'] = cm
 
     # Log results and save them to file
     logger.info("\n".join(f"{key}: {value}" for key, value in metrics.items()))
