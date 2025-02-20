@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
+from ml_filter.training.classifier_training_pipeline import ClassifierTrainingPipeline
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 working_dir = Path(os.path.dirname(__file__))
@@ -32,11 +32,7 @@ def test_train_classifier():
     classifier_training_pipeline = get_pipeline("test_config.yaml")
     logits, batch_size = _train_and_test(classifier_training_pipeline)
 
-    assert logits.shape == (
-        batch_size, 
-        max(classifier_training_pipeline.num_targets_per_task),
-        1
-    )
+    assert logits.shape == (batch_size, max(classifier_training_pipeline.num_targets_per_task), 1)
     eps = 1e-30
     for i, n_classes in enumerate(classifier_training_pipeline.num_targets_per_task):
         # nothing is masked
@@ -64,10 +60,7 @@ def test_train_classifier_regression():
         classifier_training_pipeline_regression = get_pipeline(config_path)
         logits, batch_size = _train_and_test(classifier_training_pipeline_regression)
 
-        assert logits.shape == (
-            batch_size, 
-            classifier_training_pipeline_regression.num_tasks
-        )
+        assert logits.shape == (batch_size, classifier_training_pipeline_regression.num_tasks)
         for i, n_classes in enumerate(classifier_training_pipeline_regression.num_targets_per_task):
             # logits are clamped to (0, n_classes - 1)
             assert ((0 <= logits[:, i]) <= n_classes - 1).all()

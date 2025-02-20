@@ -1,25 +1,25 @@
 import hashlib
-from datetime import datetime
 import os
+import random
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import click
 import click_pathlib
-import random
 
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
-from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
+from ml_filter.training.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
+from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
-from ml_filter.data_processing.convert_annotated_fineweb import convert_to_jsonl, split_dataset, multi_score_transform
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -280,25 +280,22 @@ def compute_num_words_in_jsonl_cli(
     "--dataset_name",
     required=True,
     type=str,
-    help="Name of the Hugging Face dataset to sample from (e.g., 'HuggingFaceFW/fineweb-edu-llama3-annotations')."
+    help="Name of the Hugging Face dataset to sample from (e.g., 'HuggingFaceFW/fineweb-edu-llama3-annotations').",
 )
 @click.option(
     "--dataset_split",
     required=True,
     type=str,
-    help="The split of the Hugging Face dataset that is used for sampling (e.g., 'train')."
+    help="The split of the Hugging Face dataset that is used for sampling (e.g., 'train').",
 )
 @click.option(
     "--output_file_path",
     required=True,
     type=click.Path(),
-    help="Path to save the sampled data as a JSON file (e.g., 'output.json')."
+    help="Path to save the sampled data as a JSON file (e.g., 'output.json').",
 )
 @click.option(
-    "--column_name",
-    required=True,
-    type=str,
-    help="Column in the dataset used for filtering (e.g., 'score')."
+    "--column_name", required=True, type=str, help="Column in the dataset used for filtering (e.g., 'score')."
 )
 @click.option(
     "--column_values",
@@ -310,14 +307,14 @@ def compute_num_words_in_jsonl_cli(
     "--num_docs_per_value",
     required=True,
     type=int,
-    help="Number of documents to sample for each column value (e.g., 100)."
+    help="Number of documents to sample for each column value (e.g., 100).",
 )
 @click.option(
     "--seed",
     default=42,
     type=int,
     show_default=True,
-    help="Seed value for random operations to ensure reproducibility."
+    help="Seed value for random operations to ensure reproducibility.",
 )
 def sample_from_hf_dataset_cli(
     dataset_name: str,
@@ -326,7 +323,7 @@ def sample_from_hf_dataset_cli(
     column_name: str,
     column_values: str,
     num_docs_per_value: int,
-    seed: int
+    seed: int,
 ):
     column_values_list = [x.strip() for x in column_values.split(",")]
     sample_from_hf_dataset(
@@ -338,8 +335,8 @@ def sample_from_hf_dataset_cli(
         num_docs_per_value=num_docs_per_value,
         seed=seed,
     )
-    
-    
+
+
 @main.command(name="upload_file_to_hf")
 @click.option(
     "--file_path",
@@ -439,47 +436,108 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
     run_word_count_jsonl_files(directory, output_file)
 
 
-@main.command(name="convert_fineweb")
+@main.command(name="convert_hf_dataset_to_jsonl")
 @click.option(
-    "--output_dir_path",
+    "--output_file_path",
     type=click_pathlib.Path(exists=False),
     required=True,
-    help="Directory path where the converted files will be saved.",
+    help="Path to output file.",
 )
 @click.option(
-    "--dataset_name",
+    "--hf_dataset_name",
     type=str,
-    default="HuggingFaceFW/fineweb-edu-llama3-annotations",
     help="Name of the Hugging Face dataset to download and convert.",
 )
 @click.option(
-    "--output_file_name",
+    "--hf_dataset_split",
     type=str,
-    default="annotated_fineweb.jsonl",
-    help="Name of the output JSONL file.",
+    default="train",
+    show_default=True,
+    help="The split of the Hugging Face dataset that is used for conversion.",
 )
-def convert_annotated_fineweb_cli(
+def convert_hf_dataset_to_jsonl_cli(
     output_dir_path: Path,
-    dataset_name: str,
-    output_file_name: str,
+    hf_dataset_name: str,
+    hf_dataset_split: str,
 ):
     """Convert the FineWeb dataset into JSONL format and create train/val/test splits.
-    
+
     This command downloads the dataset from Hugging Face, converts it to JSONL format,
     creates multiple versions with different score transformations, and splits the data
     into train/validation/test sets.
     """
     # download data and create single score file
-    convert_to_jsonl(output_dir_path, output_file_name, dataset_name)
-    split_dataset(output_dir_path, "annotated_fineweb")
+    convert_hf_dataset_to_jsonl(
+        hf_dataset_name=hf_dataset_name,
+        output_dir_path=output_dir_path,
+        hf_dataset_split=hf_dataset_split,
+    )
 
-    # create multi-score file
-    multi_score_transform(output_dir_path, transform_fns=[
-        ("score_transform_1", lambda x: min(x + 1, 5)),  # shift up by 1, cap at 5
-        ("score_transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # add random noise between -0.5 and 0.5, clamp to [0,5]
-        ("score_transform_3", lambda x: 1 if x >= 3 else 0)  # binary threshold at 3
-    ])
-    split_dataset(output_dir_path, "annotated_fineweb_multi")
+
+@main.command(name="create_train_val_test_split")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to input file.",
+)
+@click.option(
+    "--output_dir_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to output directory.",
+)
+@click.option(
+    "--split_ratio",
+    type=str,
+    help="Comma seprated train, validation, test split raio.",
+)
+def create_train_val_test_split_cli(
+    input_file_path: Path,
+    output_dir_path: Path,
+    split_ratio: str,
+):
+    train_ratio, val_ratio, test_ratio = (float(ratio) for ratio in split_ratio.split(","))
+    split_dataset(
+        input_file_path=input_file_path,
+        output_dir_path=output_dir_path,
+        train_ratio=train_ratio,
+        val_ratio=val_ratio,
+        test_ratio=test_ratio,
+    )
+
+
+@click.command(name="apply_score_transforms")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=False, resolve_path=True),
+    required=True,
+    help="Path to input file.",
+)
+@click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=False, resolve_path=True),
+    required=True,
+    help="Path to input file.",
+)
+def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) -> None:
+    """CLI command to apply score transformations and save results."""
+
+    def get_transform_functions():
+        """Returns a list of transformation functions for scores."""
+        return [
+            # TODO: Assign names to the transformations
+            ("score_transform_1", lambda x: min(x + 1, 5)),  # Shift up by 1, cap at 5
+            ("score_transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # Add noise, clamp to [0,5]
+            ("score_transform_3", lambda x: 1 if x >= 3 else 0),  # Binary threshold at 3
+        ]
+
+    # Apply transformations
+    apply_score_transforms(
+        input_file_path=input_file_path,
+        output_path=output_file_path,
+        transform_fns=get_transform_functions(),
+    )
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
