@@ -18,8 +18,8 @@ logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 def style_df(
     df: pd.DataFrame,
     sort_key: str,
-    max_columns: Optional[List[str]] = None,
-    min_columns: Optional[List[str]] = None
+    max_columns: List[str],
+    min_columns: List[str]
 ) -> Styler:
     """
     Styles a DataFrame by sorting it and highlighting the maximum and minimum values in specified columns.
@@ -27,8 +27,8 @@ def style_df(
     Args:
         df (pd.DataFrame): The DataFrame to style.
         sort_key (str): The column to sort the DataFrame by.
-        max_columns (Optional[List[str]]): Columns to highlight the maximum values.
-        min_columns (Optional[List[str]]): Columns to highlight the minimum values.
+        max_columns (List[str]): Columns to highlight the maximum values.
+        min_columns (List[str]): Columns to highlight the minimum values.
 
     Returns:
         Styler: A styled DataFrame.
@@ -40,10 +40,8 @@ def style_df(
     styled_df = df_sorted.style.hide(axis='index')
     
     # highlight best values in each column
-    if max_columns is not None:
-        styled_df = styled_df.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
-    if min_columns is not None:
-        styled_df = styled_df.highlight_min(axis=0, subset=min_columns, props='textbf:--rwrap;')
+    styled_df = styled_df.highlight_max(axis=0, subset=max_columns, props='textbf:--rwrap;')
+    styled_df = styled_df.highlight_min(axis=0, subset=min_columns, props='textbf:--rwrap;')
     return styled_df
 
 
@@ -199,6 +197,7 @@ def write_latex_output(
         styled_top_models_df = style_df(
             df=top_models_df,
             max_columns=max_metrics + min_metrics,
+            min_columns=[],
             sort_key="Model"
         )
         latex_str += (
