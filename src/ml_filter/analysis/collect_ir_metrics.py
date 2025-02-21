@@ -15,7 +15,12 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
-def style_df(df: pd.DataFrame, sort_key: str, max_columns: Optional[List[str]] = None, min_columns: Optional[List[str]] = None) -> Styler:
+def style_df(
+    df: pd.DataFrame,
+    sort_key: str,
+    max_columns: Optional[List[str]] = None,
+    min_columns: Optional[List[str]] = None
+) -> Styler:
     """
     Styles a DataFrame by sorting it and highlighting the maximum and minimum values in specified columns.
 
@@ -81,7 +86,12 @@ def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
     return df, metrics
     
 
-def get_top_n_models(df: pd.DataFrame, top_n: int, max_metrics: List[str], min_metrics: List[str]) -> Dict[int, Dict[str, Dict[str, int]]]:
+def get_top_n_models(
+    df: pd.DataFrame,
+    top_n: int,
+    max_metrics: List[str],
+    min_metrics: List[str]
+) -> Dict[int, Dict[str, Dict[str, int]]]:
     """
     Gets the top n models for each metric.
 
@@ -117,7 +127,14 @@ def get_top_n_models(df: pd.DataFrame, top_n: int, max_metrics: List[str], min_m
     return top_n_models
 
 
-def write_latex_output(df: pd.DataFrame, aggregated_metrics_df: pd.DataFrame, top_n_models: Dict[int, Dict[str, Dict[str, int]]], output_directory: Path, max_metrics: List[str], min_metrics: List[str]) -> None:
+def write_latex_output(
+    df: pd.DataFrame,
+    aggregated_metrics_df: pd.DataFrame,
+    top_n_models: Dict[int, Dict[str, Dict[str, int]]],
+    output_directory: Path,
+    max_metrics: List[str],
+    min_metrics: List[str]
+) -> None:
     """
     Writes the metric data to a LaTeX table.
 
@@ -204,7 +221,10 @@ def write_latex_output(df: pd.DataFrame, aggregated_metrics_df: pd.DataFrame, to
         f.write(latex_str)
           
           
-def aggregate_across_languages(df: pd.DataFrame, metrics: List[str]) -> Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]:
+def aggregate_across_languages(
+    df: pd.DataFrame,
+    metrics: List[str]
+) -> Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]:
     """
     Aggregates the metric data across languages.
 
@@ -246,7 +266,10 @@ def aggregate_across_languages(df: pd.DataFrame, metrics: List[str]) -> Tuple[pd
     return aggregated_metrics_df, aggregated_cm
 
 
-def plot_confusion_matrix(aggregated_cm: Dict[str, Dict[str, Dict[str, int]]], output_directory: Path) -> None:
+def plot_confusion_matrix(
+    aggregated_cm: Dict[str, Dict[str, Dict[str, int]]],
+    output_directory: Path
+) -> None:
     """
     Plots the confusion matrix for each model.
 
