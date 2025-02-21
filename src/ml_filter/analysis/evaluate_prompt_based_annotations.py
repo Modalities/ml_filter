@@ -1,4 +1,3 @@
-
 import logging
 from pathlib import Path
 from typing import List
@@ -9,7 +8,15 @@ logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
 def extract_model_name(filename: Path) -> str:
-    # Function to extract the model name from the filename
+    """
+    Extracts the model name from the filename.
+
+    Args:
+        filename (Path): The path to the file.
+
+    Returns:
+        str: The extracted model name.
+    """
     basename = filename.stem
     return basename.split("_")[-1]
 
@@ -21,6 +28,19 @@ def evaluate_prompt_based_annotations(
     aggregation: str,
     labels: List[float]
 ) -> None:
+    """
+    Evaluates prompt-based annotations by comparing model annotations to ground truth data.
+
+    Args:
+        input_directory (Path): The directory containing the annotation files.
+        output_directory (Path): The directory to save the evaluation results.
+        gt_data (Path): The path to the ground truth data file.
+        aggregation (str): The aggregation method to use for the scores.
+        labels (List[float]): The list of possible labels.
+
+    Returns:
+        None
+    """
     # Find all files matching the pattern in the directory and subdirectories
     files = list(input_directory.rglob("annotations_*.jsonl"))
 
