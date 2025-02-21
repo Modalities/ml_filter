@@ -11,7 +11,7 @@ from statistics import mean, stdev
 
 # Import functions to be tested
 from ml_filter.analysis.interrater_reliability import (
-    compare_model_to_gt,
+    compare_annotator_to_gt,
     compute_accuracy_mae_mse_against_gt,
     compute_metrics,
     prepare_fleiss_data,
@@ -107,7 +107,7 @@ def test_compare_model_to_gt(tmp_path):
     df = pd.DataFrame(data)
     metrics = {"metrics": {}}
     output_dir = tmp_path
-    updated_metrics = compare_model_to_gt(
+    updated_metrics = compare_annotator_to_gt(
         annotators=["gt", "model"],
         valid_docs_df=df,
         common_docs_df=df,

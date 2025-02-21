@@ -7,15 +7,15 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
-def extract_model_name(filename: Path) -> str:
+def extract_annotator_name(filename: Path) -> str:
     """
-    Extracts the model name from the filename.
+    Extracts the annotator name from the filename.
 
     Args:
         filename (Path): The path to the file.
 
     Returns:
-        str: The extracted model name.
+        str: The extracted annotator name.
     """
     basename = filename.stem
     return basename.split("_")[-1]
@@ -29,7 +29,7 @@ def evaluate_prompt_based_annotations(
     labels: List[float]
 ) -> None:
     """
-    Evaluates prompt-based annotations by comparing model annotations to ground truth data.
+    Evaluates prompt-based annotations by comparing annotations to ground truth data.
 
     Args:
         input_directory (Path): The directory containing the annotation files.
@@ -53,12 +53,12 @@ def evaluate_prompt_based_annotations(
 
     # Iterate over all pairs of files (tuples)
     for file in files:
-        # Extract model names
-        model = extract_model_name(file)
+        # Extract annotator names
+        annotator = extract_annotator_name(file)
         lang = file.parent.name
         
-        # Log the tuple of model names
-        logger.info(f"Compare model {model} to ground truth")
+        # Log the tuple of annotator names
+        logger.info(f"Compare annotator {annotator} to ground truth")
         lang_dir = output_directory / lang
         lang_dir.mkdir(parents=True, exist_ok=True)
         

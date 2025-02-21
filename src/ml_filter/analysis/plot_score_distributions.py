@@ -25,14 +25,12 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, labels: List[str],
         aggregation=aggregation,
         labels=labels
     )
-    
-        # df = _prepare_df(document_scores[prompt])
 
     # Iterate over different prompts
     for prompt in document_scores["prompt"].unique():
         prompt_df = document_scores[document_scores["prompt"] == prompt]
-        for annotator in prompt_df["model"].unique():
-            annotator_df = prompt_df[prompt_df["model"] == annotator]
+        for annotator in prompt_df["annotator"].unique():
+            annotator_df = prompt_df[prompt_df["annotator"] == annotator]
 
             # Plotting the distributions
             sns.set_theme(style='whitegrid')
@@ -62,7 +60,7 @@ def plot_scores(path_to_files: Tuple[Path], output_dir: Path, labels: List[str],
 
 def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, labels: List[str], aggregation: Optional[str]) -> None:
     """
-    Plots histograms and boxplots of score differences between different versions of models.
+    Plots histograms and boxplots of score differences between different annotators.
 
     Args:
         path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
@@ -83,12 +81,12 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, lab
     for prompt in document_scores["prompt"].unique():
         prompt_df = document_scores[document_scores["prompt"] == prompt]
         
-        # Initialize a list to store the differences for each consecutive version pair
+        # Initialize a list to store the differences for each consecutive annotator pair
         score_differences = {}
             
-        # Compute differences for each document for all pairs of versions 
-        for (annotator_1, annotator_2) in combinations(prompt_df["model"].unique(), 2):
-            # Compute the difference between the two versions for all documents that have scores in both versions
+        # Compute differences for each document for all pairs of annotators 
+        for (annotator_1, annotator_2) in combinations(prompt_df["annotator"].unique(), 2):
+            # Compute the difference between the two annotators for all documents that have scores for both annotators
             common_docs_df = get_common_docs(prompt_df, annotator_1, annotator_2)
             score_differences[(annotator_1, annotator_2)] = (common_docs_df['rounded_score_1'] - common_docs_df['rounded_score_0']).to_list()
 
@@ -96,7 +94,7 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, lab
         # Plotting the differences as histograms where x-axis represents the difference and y-axis represents the frequency
         plt.figure(figsize=(12, 8))
         
-        # Loop through the computed differences and plot histograms for each consecutive version pair
+        # Loop through the computed differences and plot histograms for each consecutive annotator pair
         for i, (annotator_1, annotator_2) in enumerate(score_differences):
             differences = score_differences[(annotator_1, annotator_2)]
             plt.subplot(len(score_differences), 1, i + 1)
@@ -114,7 +112,7 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, lab
         # Plot boxplot of the score differences
         sns.reset_defaults()
         plt.figure(figsize=(12, 8))
-        labels = [f'{version2} - {version1}' for (version1, version2) in score_differences]
+        labels = [f'{annotator_2} - {annotator_1}' for (annotator_1, annotator_2) in score_differences]
         score_differences_values = list(score_differences.values())
         plt.boxplot(score_differences_values, labels=labels, showmeans=True, meanprops=dict(marker='x', markerfacecolor='red', markeredgecolor='red'))
         
@@ -122,7 +120,7 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, lab
         plt.boxplot(score_differences_values, labels=labels, showmeans=True)
 
         plt.ylabel('Score Differences')
-        plt.title(f'Boxplot of {prompt} Score Differences Between Versions - Aggregation Method {aggregation}')
+        plt.title(f'Boxplot of {prompt} Score Differences between Annotators - Aggregation Method {aggregation}')
         plt.annotate(f'Number of Documents: {len(differences)}', xy=(0.95, 0.95), xycoords='axes fraction', 
                     fontsize=10, ha='right', va='top', bbox=dict(boxstyle='round,pad=0.3', edgecolor='black', facecolor='white'))
         

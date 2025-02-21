@@ -64,15 +64,15 @@ def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
         with open(file_path, "r") as f:
             try:
                 filename_without_ext = file_path.stem
-                model1 = filename_without_ext.split("_")[-2]
-                model2 = filename_without_ext.split("_")[-1]
+                annotator_1 = filename_without_ext.split("_")[-2]
+                annotator_2 = filename_without_ext.split("_")[-1]
                 lang = file_path.parent.name
                 
                 # Extract values from the JSON structure
                 content = json.load(f)       
                 doc = {metric: value for metric, value in content["metrics"].items()} 
                 metrics.update(doc.keys())  
-                doc["Model"] = model1 if model1 != "gt" else model2
+                doc["Annotator"] = annotator_1 if annotator_1 != "gt" else annotator_2
                 doc["Filepath"] = file_path
                 doc["CM"] = content.get("CM")
                 doc["lang"] = lang
@@ -84,51 +84,51 @@ def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
     return df, metrics
     
 
-def get_top_n_models(
+def get_top_n_annotators(
     df: pd.DataFrame,
     top_n: int,
     max_metrics: List[str],
     min_metrics: List[str]
 ) -> Dict[int, Dict[str, Dict[str, int]]]:
     """
-    Gets the top n models for each metric.
+    Gets the top n annotators for each metric.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the metric data.
-        top_n (int): The number of top models to select.
+        top_n (int): The number of top annotators to select.
         max_metrics (List[str]): Metrics where higher values are better.
         min_metrics (List[str]): Metrics where lower values are better.
 
     Returns:
-        Dict[int, Dict[str, Dict[str, int]]]: A dictionary containing the top n models for each metric.
+        Dict[int, Dict[str, Dict[str, int]]]: A dictionary containing the top n annotators for each metric.
     """
     top_n_range = range(1, top_n + 1)
-    top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in max_metrics + min_metrics} for n in top_n_range}
+    top_n_annotators = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in max_metrics + min_metrics} for n in top_n_range}
     
     # get the top n models for each metric  
     for n in top_n_range:
         for lang in df["lang"].unique():
             lang_df = df[df["lang"] == lang]
-            # initialize the dictionary with 0 for each model
-            for model in lang_df["Model"].unique():
+            # initialize the dictionary with 0 for each annotator
+            for annotator in lang_df["Annotator"].unique():
                 for metric in max_metrics + min_metrics:
-                    if model not in top_n_models[n][metric]: 
-                        top_n_models[n][metric][model] = 0
-            # count the number of times each model is in the top n
+                    if annotator not in top_n_annotators[n][metric]: 
+                        top_n_annotators[n][metric][annotator] = 0
+            # count the number of times each annotator is in the top n
             for metric in max_metrics:
-                for model in lang_df.nlargest(n, metric, keep="all")["Model"].to_list():
-                    top_n_models[n][metric][model] += 1
+                for annotator in lang_df.nlargest(n, metric, keep="all")["Annotator"].to_list():
+                    top_n_annotators[n][metric][annotator] += 1
             for metric in min_metrics:
-                for model in lang_df.nsmallest(n, metric, keep="all")["Model"].to_list():
-                    top_n_models[n][metric][model] += 1          
+                for annotator in lang_df.nsmallest(n, metric, keep="all")["Annotator"].to_list():
+                    top_n_annotators[n][metric][annotator] += 1          
 
-    return top_n_models
+    return top_n_annotators
 
 
 def write_latex_output(
     df: pd.DataFrame,
     aggregated_metrics_df: pd.DataFrame,
-    top_n_models: Dict[int, Dict[str, Dict[str, int]]],
+    top_n_annotators: Dict[int, Dict[str, Dict[str, int]]],
     output_directory: Path,
     max_metrics: List[str],
     min_metrics: List[str]
@@ -139,7 +139,7 @@ def write_latex_output(
     Args:
         df (pd.DataFrame): The DataFrame containing the metric data.
         aggregated_metrics_df (pd.DataFrame): The DataFrame containing the aggregated metric data.
-        top_n_models (Dict[int, Dict[str, Dict[str, int]]]): A dictionary containing the top n models for each metric.
+        top_n_annotators (Dict[int, Dict[str, Dict[str, int]]]): A dictionary containing the top n annotators for each metric.
         output_directory (Path): The directory to save the LaTeX file.
         max_metrics (List[str]): Metrics where higher values are better.
         min_metrics (List[str]): Metrics where lower values are better.
@@ -156,7 +156,7 @@ def write_latex_output(
             df=lang_df,
             max_columns=max_metrics,
             min_columns=min_metrics,
-            sort_key="Model"
+            sort_key="Annotator"
         )
         latex_str += (
             f"""
@@ -169,14 +169,14 @@ def write_latex_output(
             \\end{{table}}
             """
         )
-    # add models in index as a column
-    aggregated_metrics_df = aggregated_metrics_df.reset_index().rename(columns={"index": "Model"})
+    # add annotators in index as a column
+    aggregated_metrics_df = aggregated_metrics_df.reset_index().rename(columns={"index": "Annotator"})
     
     styled_aggregated_metrics_df = style_df(
         df=aggregated_metrics_df,
         max_columns=max_metrics,
         min_columns=min_metrics,
-        sort_key="Model"
+        sort_key="Annotator"
     )
     # add results aggregated over all languages
     latex_str += (
@@ -190,23 +190,23 @@ def write_latex_output(
         \\end{{table}}
         """
     )
-    # add tables for top n models
-    for n in top_n_models:
-        top_models_df = pd.DataFrame.from_dict(top_n_models[n])
-        top_models_df = top_models_df.reset_index().rename(columns={"index": "Model"})
-        styled_top_models_df = style_df(
-            df=top_models_df,
+    # add tables for top n annotators
+    for n in top_n_annotators:
+        top_annotators_df = pd.DataFrame.from_dict(top_n_annotators[n])
+        top_annotators_df = top_annotators_df.reset_index().rename(columns={"index": "Annotator"})
+        styled_top_annotators_df = style_df(
+            df=top_annotators_df,
             max_columns=max_metrics + min_metrics,
             min_columns=[],
-            sort_key="Model"
+            sort_key="Annotator"
         )
         latex_str += (
             f"""
             \\begin{{table}}[ht]
             \\centering
             \\scriptsize
-            {styled_top_models_df.to_latex()}
-            \\caption{{Number of times each LLM was under top {n} performing models across languages}}
+            {styled_top_annotators_df.to_latex()}
+            \\caption{{Number of times each LLM was under top {n} performing annotators across languages}}
             \\label{{tab:llm_top_n_all_langs}}
             \\end{{table}}
             """
@@ -234,26 +234,26 @@ def aggregate_across_languages(
     Returns:
         Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]: A DataFrame containing the aggregated metric data and a dictionary containing the aggregated confusion matrices.
     """
-    # Aggregate the values for each model across languages
+    # Aggregate the values for each annotator across languages
     aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     aggregated_metrics = defaultdict(lambda: defaultdict(float))
     for lang in df["lang"].unique():
         lang_df = df[df["lang"] == lang]
-        for model in lang_df["Model"].unique():         
-            model_df = lang_df[lang_df["Model"] == model]
+        for annotator in lang_df["Annotator"].unique():         
+            annotator_df = lang_df[lang_df["Annotator"] == annotator]
             # aggregate metrics
             for metric in metrics:
-                aggregated_metrics[model][metric] += model_df[metric].sum()
-            aggregated_metrics[model]["Count"] += len(model_df)
+                aggregated_metrics[annotator][metric] += annotator_df[metric].sum()
+            aggregated_metrics[annotator]["Count"] += len(annotator_df)
 
             # aggregate confusion matrices
-            if len(model_df["CM"]) != 1:
-                raise ValueError(f"Expected exactly one confusion matrix for model {model} language {lang}")
+            if len(annotator_df["CM"]) != 1:
+                raise ValueError(f"Expected exactly one confusion matrix for annotator {annotator} language {lang}")
             else:
-                cm = list(model_df["CM"])[0]
+                cm = list(annotator_df["CM"])[0]
                 for label in cm:
                     for pred in cm[label]:
-                        aggregated_cm[model][label][pred] += cm[label][pred]
+                        aggregated_cm[annotator][label][pred] += cm[label][pred]
                   
     aggregated_metrics_df = pd.DataFrame.from_dict(aggregated_metrics, orient='index')  
     # Divide the values in each row by the value in the column Count
@@ -270,7 +270,7 @@ def plot_confusion_matrix(
     output_directory: Path
 ) -> None:
     """
-    Plots the confusion matrix for each model.
+    Plots the confusion matrix for each annotator.
 
     Args:
         aggregated_cm (Dict[str, Dict[str, Dict[str, int]]]): A dictionary containing the aggregated confusion matrices.
@@ -279,28 +279,28 @@ def plot_confusion_matrix(
     Returns:
         None
     """
-    labels = sorted(set(str(label) for model in aggregated_cm for label in aggregated_cm[model]))
-    predictions = sorted(set(str(pred) for model in aggregated_cm for label in aggregated_cm[model] for pred in aggregated_cm[model][label]))
-    for model in aggregated_cm:
-        # get the confusion matrix for the model and convert it to a list
-        aggregated_cm_model = []
+    labels = sorted(set(str(label) for annotator in aggregated_cm for label in aggregated_cm[annotator]))
+    predictions = sorted(set(str(pred) for annotator in aggregated_cm for label in aggregated_cm[annotator] for pred in aggregated_cm[annotator][label]))
+    for annotator in aggregated_cm:
+        # get the confusion matrix for the annotator and convert it to a list
+        aggregated_cm_annotator = []
         for label in labels:
             preds_for_label = []
             for pred in predictions:
-                preds_for_label.append(aggregated_cm[model][label].get(pred, 0))
-            aggregated_cm_model.append(preds_for_label)
+                preds_for_label.append(aggregated_cm[annotator][label].get(pred, 0))
+            aggregated_cm_annotator.append(preds_for_label)
         
         # normalize the confusion matrix
-        normalized_aggregated_cm_model = [[n/sum(preds) if sum(preds) > 0 else 0 for n in preds] for preds in aggregated_cm_model]
+        normalized_aggregated_cm_annotator = [[n/sum(preds) if sum(preds) > 0 else 0 for n in preds] for preds in aggregated_cm_annotator]
         
         # plot the confusion matrix
         plt.figure(figsize=(10, 6))
         xlabels = [p if p != "-1" else "invalid" for p in predictions]
-        sns.heatmap(normalized_aggregated_cm_model, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=labels)
+        sns.heatmap(normalized_aggregated_cm_annotator, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=labels)
         plt.xlabel('Predicted')
         plt.ylabel('True')
-        plt.title(f'Confusion Matrix for {model}')
-        plt.savefig(output_directory / f"confusion_matrix_across_languages_{model}.png")
+        plt.title(f'Confusion Matrix for {annotator}')
+        plt.savefig(output_directory / f"confusion_matrix_across_languages_{annotator}.png")
 
                 
 def collect_ir_metrics(
@@ -315,7 +315,7 @@ def collect_ir_metrics(
     Args:
         input_directory (Path): The directory containing the input JSON files.
         output_directory (Path): The directory to save the LaTeX file and confusion matrix plots.
-        top_n (int): The number of top models to select.
+        top_n (int): The number of top annotators to select.
         min_metrics (Optional[List[str]]): Metrics where lower values are better.
 
     Returns:
@@ -332,10 +332,10 @@ def collect_ir_metrics(
     
     # scores aggregated over all languages
     aggregated_metrics_df, aggregated_cm = aggregate_across_languages(df, metrics)
-    top_n_models = get_top_n_models(df, top_n, max_metrics, min_metrics)
+    top_n_annotators = get_top_n_annotators(df, top_n, max_metrics, min_metrics)
     
     # Write the results to a LaTeX table
-    write_latex_output(df, aggregated_metrics_df, top_n_models, output_directory, max_metrics, min_metrics)
+    write_latex_output(df, aggregated_metrics_df, top_n_annotators, output_directory, max_metrics, min_metrics)
         
     # plot the confusion matrix
     plot_confusion_matrix(aggregated_cm=aggregated_cm, output_directory=output_directory)

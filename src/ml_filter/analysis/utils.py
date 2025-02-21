@@ -59,7 +59,7 @@ def get_document_scores(
     # Loop through each file
     for file_path in path_to_files:
         # Extract relevant metadata from the filename
-        prompt, prompt_lang, model = file_path.stem.split('_')[1:4]
+        prompt, prompt_lang, annotator = file_path.stem.split('_')[1:4]
 
         # Read the JSONL file and extract scores for each document
         with open(file_path, 'r') as f:
@@ -97,7 +97,7 @@ def get_document_scores(
                 document_scores.append({
                     'prompt': prompt,
                     'prompt_lang': prompt_lang,
-                    'model': model,
+                    'annotator': annotator,
                     'doc_id': json_obj.get('document_id'),
                     'score': aggr_score,
                 })
@@ -133,8 +133,8 @@ def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotato
     Returns:
         pd.DataFrame: A DataFrame containing the common documents annotated by both annotators.
     """
-    annotator_0_df = document_scores_df[document_scores_df["model"] == annotator_0]
-    annotator_1_df = document_scores_df[document_scores_df["model"] == annotator_1]
+    annotator_0_df = document_scores_df[document_scores_df["annotator"] == annotator_0]
+    annotator_1_df = document_scores_df[document_scores_df["annotator"] == annotator_1]
     
     # only consider documents that are annotated by both annotators and have valid scores
     common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))

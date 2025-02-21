@@ -26,8 +26,8 @@ def test_get_document_scores():
     # Create temporary JSONL files for testing
     with TemporaryDirectory() as temp_dir:
         path = Path(temp_dir)
-        file1 = path / "scores_prompt1_lang1_model1.jsonl"
-        file2 = path / "scores_prompt2_lang2_model2.jsonl"
+        file1 = path / "scores_prompt1_lang1_annotator1.jsonl"
+        file2 = path / "scores_prompt2_lang2_annotator2.jsonl"
 
         # Write JSONL data to files
         data1 = [
@@ -50,7 +50,7 @@ def test_get_document_scores():
         expected = pd.DataFrame.from_dict({
             'prompt': {0: 'prompt1', 1: 'prompt1', 2: 'prompt1', 3: 'prompt2', 4: 'prompt2'},
             'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
-            'model': {0: 'model1', 1: 'model1', 2: 'model1', 3: 'model2', 4: 'model2'},
+            'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
             'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
             'score': {0: 3.3333333333333335, 1: 1.6666666666666667, 2: 2.5, 3: 5.0, 4: 4.0}
         })
@@ -61,7 +61,7 @@ def test_get_document_scores():
         expected = pd.DataFrame.from_dict({
             'prompt': {0: 'prompt1', 1: 'prompt1', 2: 'prompt1', 3: 'prompt2', 4: 'prompt2'},
             'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
-            'model': {0: 'model1', 1: 'model1', 2: 'model1', 3: 'model2', 4: 'model2'},
+            'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
             'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
             'score': {0: 4.0, 1: 2.0, 2: 3.0, 3: 5.0, 4: 4.0}
         })
@@ -72,7 +72,7 @@ def test_get_document_scores():
         expected = pd.DataFrame.from_dict({
             'prompt': {0: 'prompt1', 1: 'prompt1', 2: 'prompt1', 3: 'prompt2', 4: 'prompt2'},
             'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
-            'model': {0: 'model1', 1: 'model1', 2: 'model1', 3: 'model2', 4: 'model2'},
+            'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
             'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
             'score': {0: 3.0, 1: 1.0, 2: 2.0, 3: 5.0, 4: 4.0}
         })
@@ -83,7 +83,7 @@ def test_get_document_scores():
         expected = pd.DataFrame.from_dict({
             'prompt': {0: 'prompt1', 1: 'prompt1', 2: 'prompt1', 3: 'prompt2', 4: 'prompt2'},
             'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
-            'model': {0: 'model1', 1: 'model1', 2: 'model1', 3: 'model2', 4: 'model2'},
+            'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
             'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
             'score': {0: 3.0, 1: 2.0, 2: 2.5, 3: 5.0, 4: 4.0}
         })
@@ -97,7 +97,7 @@ def test_round_scores():
     
 def test_get_common_docs():
     data = {
-        "model": ["annotator_0", "annotator_0", "annotator_1", "annotator_1"],
+        "annotator": ["annotator_0", "annotator_0", "annotator_1", "annotator_1"],
         "doc_id": [1, 2, 1, 2],
         "prompt": ["p1", "p2", "p1", "p2"],
         "score": [1, 2, 1, 2]

@@ -131,7 +131,7 @@ def compute_accuracy_mae_mse_against_gt(scores_0: List[int], scores_1: List[int]
 def plot_invalid_docs_histogram(
     correct_scores_of_invalid_docs: List[int],
     output_file_path: Path,
-    model_name: str
+    annotator_name: str
 ) -> None:
     """
     Plots a histogram of the correct scores for invalid documents.
@@ -139,7 +139,7 @@ def plot_invalid_docs_histogram(
     Args:
         correct_scores_of_invalid_docs (List[int]): A list of correct scores for invalid documents.
         output_file_path (Path): The path to save the histogram plot.
-        model_name (str): The name of the model.
+        annotator_name (str): The name of the annotator.
 
     Returns:
         None
@@ -153,12 +153,12 @@ def plot_invalid_docs_histogram(
     )
     plt.xlabel('Scores')
     plt.ylabel('Frequency')
-    plt.title(f'Histogram of Invalid Scores for {model_name}')
+    plt.title(f'Histogram of Invalid Scores for {annotator_name}')
     plt.grid(True)
     plt.savefig(output_file_path)
     
     
-def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_path: Path, model_name: str) -> Dict[int, Dict[int, int]]:
+def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_path: Path, annotator_name: str) -> Dict[int, Dict[int, int]]:
     """
     Computes and plots the confusion matrix for the given labels and predictions.
 
@@ -166,7 +166,7 @@ def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_pa
         labels (List[int]): The ground truth labels.
         preds (List[int]): The predicted labels.
         output_file_path (Path): The path to save the confusion matrix plot.
-        model_name (str): The name of the model.
+        annotator_name (str): The name of the annotator.
 
     Returns:
         Dict[int, Dict[int, int]]: The confusion matrix as a dictionary.
@@ -195,7 +195,7 @@ def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_pa
     sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=label_classes)
     plt.xlabel('Predicted')
     plt.ylabel('True')
-    plt.title(f'Confusion Matrix for {model_name}')
+    plt.title(f'Confusion Matrix for {annotator_name}')
     plt.savefig(output_file_path)
     plt.show()
     
@@ -241,7 +241,7 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> Dict:
     return metrics
 
 
-def compare_model_to_gt(
+def compare_annotator_to_gt(
     annotators: List[str],
     valid_docs_df: pd.DataFrame,
     common_docs_df: pd.DataFrame,
@@ -249,7 +249,7 @@ def compare_model_to_gt(
     output_dir: Path,
 ) -> Dict:
     """
-    Compares model annotations to ground truth annotations and computes additional metrics.
+    Compares annotator annotations to ground truth annotations and computes additional metrics.
 
     Args:
         annotators (List[str]): A list of annotator names.
@@ -261,14 +261,14 @@ def compare_model_to_gt(
     Returns:
         Dict: The updated metrics dictionary.
     """
-    # in this case only one annotator is a model, the other one is the ground truth
+    # in this case there is only one annotator, the other one is the ground truth
     if annotators[0] == "gt":
-        model_idx = 1
+        annotator_idx = 1
         gt_idx = 0
     else:
-        model_idx = 0
+        annotator_idx = 0
         gt_idx = 1
-    model_name = annotators[model_idx]
+    annotator_name = annotators[annotator_idx]
     
     # compute accuracy, mae and mse against ground truth
     gt_metrics = compute_accuracy_mae_mse_against_gt(
@@ -280,19 +280,19 @@ def compare_model_to_gt(
     metrics["metrics"]['MSE'] = gt_metrics["mse"]
     
     # plot the distribution of invalid scores
-    invalid_docs_df = common_docs_df[common_docs_df[f"score_{model_idx}"] == "invalid"]
+    invalid_docs_df = common_docs_df[common_docs_df[f"score_{annotator_idx}"] == "invalid"]
     plot_invalid_docs_histogram(
         correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
-        output_file_path=output_dir / f"histogram_{model_name}_invalid_scores.png",
-        model_name=model_name
+        output_file_path=output_dir / f"histogram_{annotator_name}_invalid_scores.png",
+        annotator_name=annotator_name
     )
     
     # compute confusion matrix                
     cm = compute_confusion_matrix(
         labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
-        preds=common_docs_df[f"rounded_score_{model_idx}"].to_list(),
-        output_file_path=output_dir / f"confusion_matrix_{model_name}_gt.png",
-        model_name=model_name,
+        preds=common_docs_df[f"rounded_score_{annotator_idx}"].to_list(),
+        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
+        annotator_name=annotator_name,
     )
     metrics['CM'] = cm
     
@@ -308,10 +308,6 @@ def compute_interrater_reliability_metrics(
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
     
-    The different annotators can be placed in separate files or in a single file. 
-    In the first case, the scores for each document in each file have to be aggregated first, as they all represent the same annotator.
-    In the second case, there should no aggregation happen, which is specified by setting the parameter "aggregation" to None.
-
     Args:
         path_to_files (Tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
@@ -336,7 +332,7 @@ def compute_interrater_reliability_metrics(
         labels=labels,
     )
     metrics = dict()
-    for annotator_0, annotator_1 in combinations(document_scores_df["model"].unique(), 2):
+    for annotator_0, annotator_1 in combinations(document_scores_df["annotator"].unique(), 2):
         # filter on documents that are annotated by both annotators and filter out invalid scores
         common_docs_df = get_common_docs(document_scores_df, annotator_0, annotator_1)
         valid_docs_df = common_docs_df[(common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")]
@@ -350,7 +346,7 @@ def compute_interrater_reliability_metrics(
         # compute additional metrics if one of the annotators is the ground truth
         annotators = [annotator_0, annotator_1]
         if "gt" in annotators:
-            metrics = compare_model_to_gt(
+            metrics = compare_annotator_to_gt(
                 annotators=annotators,
                 valid_docs_df=valid_docs_df,
                 common_docs_df=common_docs_df,
