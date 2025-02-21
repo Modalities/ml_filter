@@ -396,8 +396,7 @@ def compute_interrater_reliability_metrics(
                 output_dir=output_dir
             )
 
-    # Log results and save them to file
-    logger.info("\n".join(f"{key}: {value}" for key, value in metrics.items()))
+    # save results
     output_file_path = output_dir / f"ir_{annotator_0}_{annotator_1}.json"
     with output_file_path.open("w") as f:
         json.dump(metrics, f, indent=4)
