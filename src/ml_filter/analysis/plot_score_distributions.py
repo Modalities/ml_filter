@@ -1,7 +1,6 @@
 from itertools import combinations
 from typing import List, Tuple, Optional
 import matplotlib.pyplot as plt
-import pandas as pd
 from pathlib import Path
 import seaborn as sns
 from ml_filter.analysis.utils import get_common_docs, get_document_scores
