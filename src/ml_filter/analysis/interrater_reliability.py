@@ -368,6 +368,7 @@ def compute_interrater_reliability_metrics(
     Returns:
         None
     """    
+    output_dir.mkdir(exist_ok=True, parents=True)
     document_scores_df = get_document_scores(
         path_to_files=path_to_files,
         aggregation=aggregation,
@@ -396,7 +397,7 @@ def compute_interrater_reliability_metrics(
                 output_dir=output_dir
             )
 
-    # save results
-    output_file_path = output_dir / f"ir_{annotator_0}_{annotator_1}.json"
-    with output_file_path.open("w") as f:
-        json.dump(metrics, f, indent=4)
+        # save results
+        output_file_path = output_dir / f"ir_{annotator_0}_{annotator_1}.json"
+        with output_file_path.open("w") as f:
+            json.dump(metrics, f, indent=4)
