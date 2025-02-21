@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict
 
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -15,7 +15,19 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
-def style_df(df: pd.DataFrame, sort_key: str, max_columns: List[str], min_columns: List[str]) -> Styler:
+def style_df(df: pd.DataFrame, sort_key: str, max_columns: Optional[List[str]] = None, min_columns: Optional[List[str]] = None) -> Styler:
+    """
+    Styles a DataFrame by sorting it and highlighting the maximum and minimum values in specified columns.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to style.
+        sort_key (str): The column to sort the DataFrame by.
+        max_columns (Optional[List[str]]): Columns to highlight the maximum values.
+        min_columns (Optional[List[str]]): Columns to highlight the minimum values.
+
+    Returns:
+        Styler: A styled DataFrame.
+    """
     df_sorted = df.sort_values(by=sort_key)
     # Ensure sort column is first and other columns are sorted alphabetically
     columns = [sort_key] + sorted([col for col in df.columns if col != sort_key and col in min_columns + max_columns])
@@ -30,7 +42,16 @@ def style_df(df: pd.DataFrame, sort_key: str, max_columns: List[str], min_column
     return styled_df
 
 
-def read_metric_data(input_directory: Path) -> None:
+def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
+    """
+    Reads metric data from JSON files in the input directory and returns a DataFrame and a list of metrics.
+
+    Args:
+        input_directory (Path): The directory containing the JSON files.
+
+    Returns:
+        Tuple[pd.DataFrame, List[str]]: A DataFrame containing the metric data and a list of metrics.
+    """
     metrics = set()
     data = list()
     
@@ -60,7 +81,19 @@ def read_metric_data(input_directory: Path) -> None:
     return df, metrics
     
 
-def get_top_n_models(df, top_n, max_metrics, min_metrics):
+def get_top_n_models(df: pd.DataFrame, top_n: int, max_metrics: List[str], min_metrics: List[str]) -> Dict[int, Dict[str, Dict[str, int]]]:
+    """
+    Gets the top n models for each metric.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the metric data.
+        top_n (int): The number of top models to select.
+        max_metrics (List[str]): Metrics where higher values are better.
+        min_metrics (List[str]): Metrics where lower values are better.
+
+    Returns:
+        Dict[int, Dict[str, Dict[str, int]]]: A dictionary containing the top n models for each metric.
+    """
     top_n_range = range(1, top_n + 1)
     top_n_models = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in max_metrics + min_metrics} for n in top_n_range}
     
@@ -84,7 +117,21 @@ def get_top_n_models(df, top_n, max_metrics, min_metrics):
     return top_n_models
 
 
-def write_latex_output(df, aggregated_metrics_df, top_n_models, output_directory, max_metrics, min_metrics):
+def write_latex_output(df: pd.DataFrame, aggregated_metrics_df: pd.DataFrame, top_n_models: Dict[int, Dict[str, Dict[str, int]]], output_directory: Path, max_metrics: List[str], min_metrics: List[str]) -> None:
+    """
+    Writes the metric data to a LaTeX table.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the metric data.
+        aggregated_metrics_df (pd.DataFrame): The DataFrame containing the aggregated metric data.
+        top_n_models (Dict[int, Dict[str, Dict[str, int]]]): A dictionary containing the top n models for each metric.
+        output_directory (Path): The directory to save the LaTeX file.
+        max_metrics (List[str]): Metrics where higher values are better.
+        min_metrics (List[str]): Metrics where lower values are better.
+
+    Returns:
+        None
+    """
     # Write the DataFrame to a LaTeX table
     latex_str = ""
     df = df.drop(columns=["Filepath", "CM"])
@@ -135,7 +182,6 @@ def write_latex_output(df, aggregated_metrics_df, top_n_models, output_directory
         styled_top_models_df = style_df(
             df=top_models_df,
             max_columns=max_metrics + min_metrics,
-            min_columns=[],
             sort_key="Model"
         )
         latex_str += (
@@ -158,7 +204,17 @@ def write_latex_output(df, aggregated_metrics_df, top_n_models, output_directory
         f.write(latex_str)
           
           
-def aggregate_across_languages(df, metrics):
+def aggregate_across_languages(df: pd.DataFrame, metrics: List[str]) -> Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]:
+    """
+    Aggregates the metric data across languages.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the metric data.
+        metrics (List[str]): The list of metrics to aggregate.
+
+    Returns:
+        Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]: A DataFrame containing the aggregated metric data and a dictionary containing the aggregated confusion matrices.
+    """
     # Aggregate the values for each model across languages
     aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     aggregated_metrics = defaultdict(lambda: defaultdict(float))
@@ -190,7 +246,17 @@ def aggregate_across_languages(df, metrics):
     return aggregated_metrics_df, aggregated_cm
 
 
-def plot_confusion_matrix(aggregated_cm, output_directory):
+def plot_confusion_matrix(aggregated_cm: Dict[str, Dict[str, Dict[str, int]]], output_directory: Path) -> None:
+    """
+    Plots the confusion matrix for each model.
+
+    Args:
+        aggregated_cm (Dict[str, Dict[str, Dict[str, int]]]): A dictionary containing the aggregated confusion matrices.
+        output_directory (Path): The directory to save the confusion matrix plots.
+
+    Returns:
+        None
+    """
     labels = sorted(set(str(label) for model in aggregated_cm for label in aggregated_cm[model]))
     predictions = sorted(set(str(pred) for model in aggregated_cm for label in aggregated_cm[model] for pred in aggregated_cm[model][label]))
     for model in aggregated_cm:
@@ -219,8 +285,20 @@ def collect_ir_metrics(
     input_directory: Path,
     output_directory: Path,
     top_n: int = 4,
-    min_metrics: Optional[List[str]] = None, # TODO add to calling function and click command
+    min_metrics: Optional[List[str]] = None,
 ) -> None:
+    """
+    Collects inter-rater reliability metrics and writes the results to plots and a LaTeX table.
+
+    Args:
+        input_directory (Path): The directory containing the input JSON files.
+        output_directory (Path): The directory to save the LaTeX file and confusion matrix plots.
+        top_n (int): The number of top models to select.
+        min_metrics (Optional[List[str]]): Metrics where lower values are better.
+
+    Returns:
+        None
+    """
     output_directory.mkdir(exist_ok=True)
 
     # Read the data from the input directory
