@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 
 # Import the functions to be tested
-from ml_filter.analysis.utils import most_frequent_average, get_document_scores  # Replace 'your_module' with the actual module name
+from ml_filter.analysis.utils import get_common_docs, most_frequent_average, get_document_scores, round_scores  # Replace 'your_module' with the actual module name
 
 
 def test_most_frequent_average():
@@ -88,3 +88,22 @@ def test_get_document_scores():
             'score': {0: 3.0, 1: 2.0, 2: 2.5, 3: 5.0, 4: 4.0}
         })
         pd.testing.assert_frame_equal(result, expected)
+
+
+def test_round_scores():
+    assert round_scores(1.5) == 2
+    assert round_scores("invalid") == "invalid"
+    
+    
+def test_get_common_docs():
+    data = {
+        "model": ["annotator_0", "annotator_0", "annotator_1", "annotator_1"],
+        "doc_id": [1, 2, 1, 2],
+        "prompt": ["p1", "p2", "p1", "p2"],
+        "score": [1, 2, 1, 2]
+    }
+    df = pd.DataFrame(data)
+    common_docs_df = get_common_docs(df, "annotator_0", "annotator_1")
+    assert isinstance(common_docs_df, pd.DataFrame)
+    assert "rounded_score_0" in common_docs_df.columns
+    assert "rounded_score_1" in common_docs_df.columns

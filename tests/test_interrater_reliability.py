@@ -14,13 +14,11 @@ from ml_filter.analysis.interrater_reliability import (
     compare_model_to_gt,
     compute_accuracy_mae_mse_against_gt,
     compute_metrics,
-    get_common_docs,
     prepare_fleiss_data,
     compute_pairwise_correlations,
     compute_krippendorffs_alpha,
     compute_doc_level_variation,
     compute_interrater_reliability_metrics,
-    round_scores,
 )
 
 
@@ -81,25 +79,6 @@ def test_compute_accuracy_mae_mse_against_gt():
     assert "acc" in metrics
     assert "mae" in metrics
     assert "mse" in metrics
-    
-    
-def test_round_scores():
-    assert round_scores(1.5) == 2
-    assert round_scores("invalid") == "invalid"
-
-
-def test_get_common_docs():
-    data = {
-        "model": ["annotator_0", "annotator_0", "annotator_1", "annotator_1"],
-        "doc_id": [1, 2, 1, 2],
-        "prompt": ["p1", "p2", "p1", "p2"],
-        "score": [1, 2, 1, 2]
-    }
-    df = pd.DataFrame(data)
-    common_docs_df = get_common_docs(df, "annotator_0", "annotator_1")
-    assert isinstance(common_docs_df, pd.DataFrame)
-    assert "rounded_score_0" in common_docs_df.columns
-    assert "rounded_score_1" in common_docs_df.columns
 
 
 def test_compute_metrics():
