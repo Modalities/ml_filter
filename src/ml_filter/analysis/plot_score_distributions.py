@@ -133,19 +133,3 @@ def plot_differences_in_scores(path_to_files: Tuple[Path], output_dir: Path, lab
         # Save boxplot
         plt.savefig(output_dir / (prompt + f'_score_distributions_difference_boxplot_{aggregation}.png'))
         plt.close()
-
-
-# def _prepare_df(document_scores: dict[str, dict[str, float]]) -> pd.DataFrame:
-#     """
-#     Prepares a DataFrame from the document scores dictionary, filtering out incomplete rows.
-
-#     Args:
-#         document_scores (dict[str, dict[str, float]]): A dictionary where keys are document IDs and 
-#                                                        values are dictionaries of version-to-score mappings.
-
-#     Returns:
-#         pd.DataFrame: A DataFrame with rows as document IDs and columns as versions, containing valid scores only.
-#     """            
-#     df = pd.DataFrame(document_scores).T  # Transpose for better structure (rows are IDs, columns are versions)
-#     df = df[sorted(df.columns)]  # Sort columns by version
-#     return df.dropna()  # Filter out documents not present in all versions
