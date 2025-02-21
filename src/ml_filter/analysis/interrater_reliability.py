@@ -15,7 +15,7 @@ from scipy.stats import spearmanr, kendalltau
 from sklearn.metrics import cohen_kappa_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
-from ml_filter.analysis.utils import get_document_scores
+from ml_filter.analysis.utils import get_common_docs, get_document_scores
 from ml_filter.utils.logging import get_logger
 
 
@@ -200,45 +200,6 @@ def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_pa
     plt.show()
     
     return cm_dict
-
-
-def round_scores(value: Union[str, int, float]) -> Union[str, int]:
-    """
-    Rounds the given value if it is a number, but keeps the value for invalid scores unchanged.
-
-    Args:
-        value (Union[str, int, float]): The value to round.
-
-    Returns:
-        Union[str, int]: The rounded value or the original value if it is not a number.
-    """
-    if value == "invalid":
-        return value
-    return round(value)
-
-
-def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotator_1: str) -> pd.DataFrame:
-    """
-    Gets the common documents annotated by both annotators.
-
-    Args:
-        document_scores_df (pd.DataFrame): The DataFrame containing document scores.
-        annotator_0 (str): The name of the first annotator.
-        annotator_1 (str): The name of the second annotator.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the common documents annotated by both annotators.
-    """
-    annotator_0_df = document_scores_df[document_scores_df["model"] == annotator_0]
-    annotator_1_df = document_scores_df[document_scores_df["model"] == annotator_1]
-    
-    # only consider documents that are annotated by both annotators and have valid scores
-    common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
-    
-    # add rounded scores for each annotator
-    for idx in (0, 1):
-        common_docs_df[f'rounded_score_{idx}'] = common_docs_df[f'score_{idx}'].apply(round_scores)
-    return common_docs_df
 
 
 def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> Dict:
