@@ -12,6 +12,7 @@ from transformers import (
 from transformers.configuration_utils import PretrainedConfig
 
 
+# TODO: Remove if not needed
 class DocumentClassifier:
     def __init__(self, model):
         self.model = model
