@@ -1,12 +1,21 @@
 # Contributing to MLFilter
 ## Table of Contents
 
-- [Getting Started](#getting-started)
-- [Contribution Guidelines](#contribution-guidelines)
-- [Commit Guidelines](#commit-guidelines)
-- [Submitting a Merge Request](#submitting-a-merge-request)
+- [Contributing to MLFilter](#contributing-to-mlfilter)
+  - [Table of Contents](#table-of-contents)
+  - [Getting started](#getting-started)
+  - [Contribution Guidelines](#contribution-guidelines)
+  - [Commit Guidelines](#commit-guidelines)
+  - [Submitting a Merge Request](#submitting-a-merge-request)
 
 ## Getting started
+
+Create venv with fitting python:
+```shell
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv --seed --python 3.10 --prompt ml_filter
+```
+This will create a venv with Python3.11 and pip under `.venv`.
 
 Install the project via
 ```shell
