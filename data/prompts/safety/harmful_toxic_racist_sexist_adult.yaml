@@ -14,3 +14,5 @@ prompt: |
   After examining the extract:
   - Briefly justify your score, up to 100 words.
   - Conclude with the score using the format: 'Adult score: <total points>'
+
+prompt_name: adult_content_filter
