@@ -18,7 +18,7 @@ class AnnotatorHead(nn.Module, ABC):
         Returns:
             torch.Tensor: Output tensor.
         """
-        pass
+        raise NotImplementedError("AnnotatorHead subclasses must implement the forward method.")
 
 
 class AnnotatorModel(nn.Module):
