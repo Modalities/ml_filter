@@ -14,8 +14,6 @@ class TokenizedDatasetBuilder:
         self,
         tokenizer: PreTrainedTokenizer,
         text_column: str,
-        label_column: str,
-        output_names: list[str],
         max_length: int,
         document_id_column: str = "document_id",
         truncation: bool = True,
@@ -26,8 +24,6 @@ class TokenizedDatasetBuilder:
         Args:
             tokenizer (PreTrainedTokenizer): A Hugging Face tokenizer for processing text.
             text_column (str): The name of the column containing text to tokenize.
-            label_column (str): The name of the column containing target labels.
-            output_names (list[str]): A list of output names to extract from labels.
             max_length (int): The maximum tokenized sequence length.
             document_id_column (str, optional): Column name for unique document IDs. Defaults to "id".
             truncation (bool, optional): Whether to truncate sequences exceeding `max_length`. Defaults to True.
@@ -41,8 +37,6 @@ class TokenizedDatasetBuilder:
 
         self.tokenizer = tokenizer
         self.text_column = text_column
-        self.label_column = label_column
-        self.output_names = output_names
         self.max_length = max_length
         self.document_id_column = document_id_column
         self.truncation = truncation
