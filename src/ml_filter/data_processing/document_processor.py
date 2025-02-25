@@ -317,15 +317,18 @@ class DocumentProcessor:
         reader = multiprocessing.Process(target=self._load_documents, args=(self.raw_data_file_paths,))
         reader.start()
 
-        writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
-        writer.start()
-
         processor_threads = [
             multiprocessing.Process(target=self._process_documents)
             for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()
+
+        while self.result_queue.empty():
+            time.sleep(0.1)
+        writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
+        writer.start()
+
         for p in processor_threads:
             p.join()
 
