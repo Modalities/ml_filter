@@ -4,9 +4,9 @@ settings:
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths:
-    - data/nob_Latn_sampled_500k_first200.jsonl
+    - data/deu_Latn_sampled_500k_first200.jsonl
     output_directory_path: data/output
-    prompt_template_file_path: data/prompts/safety/adult_content_scoring_prompt.yaml
+    prompt_template_file_path: data/prompts/adult/adult_content_scoring_prompt.yaml
 llm_rest_client:
   model_name: ${settings.model_name}
   max_tokens: 8192

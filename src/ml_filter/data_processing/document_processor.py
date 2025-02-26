@@ -45,7 +45,6 @@ class DocumentProcessor:
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         manager = multiprocessing.Manager()
         self.doc_order = manager.list()  # Use a shared list for document IDs
-        self.results_dict = manager.dict()  # Use a shared dict for results
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
@@ -210,19 +209,20 @@ class DocumentProcessor:
         """
         start_time = time.time()
         results_written = 0
+        results_dict = {}
         open_files = {}
         total_out_tokens_per_second = 0
         terminate_signal_received = False
         try:
             while True:
-                if terminate_signal_received and not self.doc_order:
+                if terminate_signal_received and len(self.doc_order) == 0:
                     break
                 try:
                     annotation: Annotation | None = self.result_queue.get(timeout=1)
                     if annotation is None:
                         terminate_signal_received = True
                     else:
-                        self.results_dict[
+                        results_dict[
                             annotation.meta_information.raw_data_file_path + annotation.document_id
                         ] = annotation
                 except Empty:
@@ -235,8 +235,8 @@ class DocumentProcessor:
                     next_to_write_id = None
 
                 # Write the next document if available
-                if next_to_write_id and next_to_write_id in self.results_dict:
-                    annotation = self.results_dict.pop(next_to_write_id)
+                if next_to_write_id and next_to_write_id in results_dict:
+                    annotation = results_dict.pop(next_to_write_id)
                     self.doc_order.pop(0)
 
                     # Write the annotation to the output file
