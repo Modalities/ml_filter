@@ -6,7 +6,7 @@ settings:
     raw_data_file_paths:
     - data/nob_Latn_sampled_500k_first200.jsonl
     output_directory_path: data/output
-    prompt_template_file_path: data/prompts/safety/harmful_toxic_racist_sexist_adult2.yaml
+    prompt_template_file_path: data/prompts/safety/adult_content_scoring_prompt.yaml
 llm_rest_client:
   model_name: ${settings.model_name}
   max_tokens: 8192
