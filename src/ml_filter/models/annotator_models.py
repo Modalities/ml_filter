@@ -24,7 +24,12 @@ class AnnotatorHead(nn.Module, ABC):
 class AnnotatorModel(nn.Module):
     """Base Annotator Model that wraps a pre-trained Transformer with a custom head."""
 
-    def __init__(self, base_model: PreTrainedModel, head: nn.Module):
+    def __init__(
+        self,
+        base_model: PreTrainedModel,
+        freeze_base_model_parameters: bool,
+        head: nn.Module,
+    ):
         """Initializes the AnnotatorModel.
 
         Args:
@@ -33,8 +38,11 @@ class AnnotatorModel(nn.Module):
         """
         super().__init__()
         self.base_model = base_model
+        self.freeze_base_model_parameters = freeze_base_model_parameters
         self.head = head
         self._overwrite_head()
+        if self.freeze_base_model_parameters:
+            self._freeze_base_model()
 
     def _overwrite_head(self):
         """Replaces the classifier in the base model with the custom head."""
@@ -45,6 +53,27 @@ class AnnotatorModel(nn.Module):
                 self.base_model.classifier = self.head
         else:
             raise AttributeError("The base model does not have a 'classifier' attribute.")
+
+    def _freeze_base_model(self):
+        """Freezes all base model parameters, so that only the classification head is trainable.
+
+        This function works with any Transformer model that has a `classifier` or
+        `out_proj` layer, ensuring that only the classifier is fine-tuned.
+        """
+        # Freeze all base model parameters
+        for param in self.base_model.parameters():
+            param.requires_grad = False
+
+        # Unfreeze classifier head
+        if hasattr(self.base_model, "classifier"):
+            for param in self.base_model.classifier.parameters():
+                param.requires_grad = True
+
+        # Special case (BERT): Handle cases where the model has an additional `pooler` layer.
+        # TODO: check for more general solution
+        if hasattr(self.base_model, "bert") and hasattr(self.base_model.bert, "pooler"):
+            for param in self.base_model.bert.pooler.parameters():
+                param.requires_grad = True
 
     def forward(self, **kwargs):
         """Passes input through the base model."""
