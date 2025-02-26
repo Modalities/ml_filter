@@ -213,24 +213,17 @@ class DocumentProcessor:
         total_out_tokens_per_second = 0
         try:
             while True:
-                if not self.doc_order and self.result_queue.empty():
+                annotation: Annotation | None = self.result_queue.get()
+                if annotation is None:
                     break
+
+                self.results_dict[annotation.meta_information.raw_data_file_path + annotation.document_id] = annotation
 
                 # Get the next document ID in order
                 if self.doc_order:
                     next_to_write_id = self.doc_order[0]
                 else:
                     next_to_write_id = None
-
-                # Process result queue
-                while not self.result_queue.empty():
-                    annotation: Annotation | None = self.result_queue.get()
-                    if annotation is None:
-                        break
-
-                    self.results_dict[
-                        annotation.meta_information.raw_data_file_path + annotation.document_id
-                    ] = annotation
 
                 # Write the next document if available
                 if next_to_write_id and next_to_write_id in self.results_dict:
@@ -317,17 +310,15 @@ class DocumentProcessor:
         reader = multiprocessing.Process(target=self._load_documents, args=(self.raw_data_file_paths,))
         reader.start()
 
+        writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
+        writer.start()
+
         processor_threads = [
             multiprocessing.Process(target=self._process_documents)
             for _ in tqdm(range(self.num_processes), desc="Creating processor threads")
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()
-
-        while self.result_queue.empty():
-            time.sleep(0.1)
-        writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
-        writer.start()
 
         for p in processor_threads:
             p.join()
