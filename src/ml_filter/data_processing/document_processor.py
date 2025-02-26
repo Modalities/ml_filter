@@ -235,7 +235,7 @@ class DocumentProcessor:
                     next_to_write_id = None
 
                 # Write the next document if available
-                if next_to_write_id and next_to_write_id in results_dict:
+                if next_to_write_id is not None and next_to_write_id in results_dict:
                     annotation = results_dict.pop(next_to_write_id)
                     self.doc_order.pop(0)
 
