@@ -3,8 +3,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+import torch
 import yaml
+from transformers import AutoConfig, BertForSequenceClassification
 
+from ml_filter.models.annotator_models import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
@@ -187,3 +190,30 @@ def tmp_nested_jsonl_directory(tmp_path: Path):
             f.write(json.dumps({"text": f"Sub file {i}"}) + "\n")
 
     return root_directory, expected_word_counts
+
+
+@pytest.fixture
+def dummy_base_model():
+    """Creates a dummy BERT model with a classifier."""
+    config = AutoConfig.from_pretrained("bert-base-uncased", num_labels=2)
+    return BertForSequenceClassification(config)
+
+
+@pytest.fixture
+def regression_head():
+    """Creates a dummy MultiTargetRegressionHead."""
+    return MultiTargetRegressionHead(
+        input_dim=768,
+        num_prediction_tasks=2,
+        num_targets_per_prediction_task=torch.tensor([6, 6]),
+    )
+
+
+@pytest.fixture
+def classification_head():
+    """Creates a dummy MultiTargetClassificationHead."""
+    return MultiTargetClassificationHead(
+        input_dim=768,
+        num_prediction_tasks=2,
+        num_targets_per_prediction_task=torch.tensor([6, 6]),
+    )
