@@ -204,8 +204,10 @@ class RegressionScalingLayer(nn.Module):
         Returns:
             Tensor: Scaled output tensor of shape (batch_size, num_regressor_outputs)
         """
-
-        return torch.where(self.training, x * self.scaling_constants, torch.clamp(x, 0.0, 1.0) * self.scaling_constants)
+        if self.training:
+            return x * self.scaling_constants
+        else:
+            return torch.clamp(x, 0.0, 1.0) * self.scaling_constants
 
 
 class LogitMaskLayer(nn.Module):
@@ -253,4 +255,4 @@ class LogitMaskLayer(nn.Module):
         Returns:
             Tensor: shape (batch_size, max_num_targets_per_task, num_tasks)
         """
-        return x.view(-1, *self.mask_shape) + self.logit_mask
+        return x.view(-1, *self.logit_mask.shape) + self.logit_mask
