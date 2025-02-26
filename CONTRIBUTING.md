@@ -13,7 +13,7 @@
 Create venv with fitting python:
 ```shell
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv --seed --python 3.10 --prompt ml_filter
+uv venv --seed --python 3.11 --prompt ml_filter
 ```
 This will create a venv with Python3.11 and pip under `.venv`.
 
