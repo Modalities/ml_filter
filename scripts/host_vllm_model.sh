@@ -48,7 +48,7 @@ docker run \
     --env "HF_TOKEN=$HF_TOKEN" \
     -p $PORT:8000 \
     --ipc=host \
-    vllm/vllm-openai:v0.6.3 \
+    vllm/vllm-openai:v0.7.3 \
     --model $MODEL_NAME \
     --tensor-parallel-size $num_gpus
 
