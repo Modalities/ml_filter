@@ -74,7 +74,7 @@ class DocumentProcessor:
         matches = re.findall(pattern, text)
 
         # Return the last occurrence if there are any matches
-        return matches[-1][-1] if matches else None
+        return matches[-1] if matches else None
 
     def _remove_special_strings(self, text: str) -> str:
         """

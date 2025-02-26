@@ -30,7 +30,26 @@ class EducationalScoreMetric(LLMScoreMetric):
     """
 
     metric_name: str = "educational_score"
-    pattern: str = r"Educational score:\s*(\d+)"
+    pattern: str = r"Educational score:\s*(\d+(?:\.\d+)?)"
 
 
-score_metrics = {"educational_score": EducationalScoreMetric}
+@dataclass
+class AdultScoreMetric(LLMScoreMetric):
+    """
+    A metric class for extracting educational scores from text.
+
+    This class inherits from `LLMScoreMetric` and is designed to identify and
+    process educational scores using a specific regex pattern.
+
+    Attributes:
+        metric_name (str): The name of the metric, set to "educational_score".
+        pattern (str): The regex pattern used to extract the educational score
+            from text. The pattern looks for the phrase "Educational score:"
+            followed by one or more digits.
+    """
+
+    metric_name: str = "adult_score"
+    pattern: str = r"Adult score:\s*(\d+(?:\.\d+)?)"
+
+
+score_metrics = {"educational_score": EducationalScoreMetric, "adult_score": AdultScoreMetric}
