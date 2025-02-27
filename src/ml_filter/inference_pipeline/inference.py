@@ -1,130 +1,102 @@
-import argparse
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Dict, List, Set
 
 import torch
-from modalities.dataloader.dataset import PackedMemMapDatasetContinuous
-from torch.nn.utils.rnn import pad_sequence
+import torch.nn as nn
 from torch.utils.data import DataLoader
-from transformers import AutoModelForSequenceClassification
 
-from ml_filter.utils.train_classifier import AutoModelForMultiTargetClassification
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Parallel Inference with BERT")
-    parser.add_argument("--input_files_list", type=str, help="Path to the list of input dataset files")
-    parser.add_argument("--output_dir", type=str, default="outputs", help="Directory for output files")
-    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Checkpoint directory")
-    parser.add_argument("--task_id", type=int, default=0, help="Task ID for parallel execution")
-    parser.add_argument("--num_tasks", type=int, default=1, help="Total number of tasks")
-    parser.add_argument("--batch_size", type=int, default=512, help="Batch size for inference")
-    parser.add_argument("--model_checkpoint", type=str, default="bert-base-uncased", help="Model checkpoint to load")
-    parser.add_argument("--model_arch", type=str, default="bert-base-uncased", help="Base model architecture")
-    parser.add_argument("--num_regressor_outputs", type=int, default=1, help="Number of regressor outputs")
-    parser.add_argument(
-        "--num_classes_per_output",
-        nargs="+",
-        type=int,
-        default=2,
-        help="Number of classes per regressor output, should be space-separated e.g. --num_classes_per_output 6 6 2 2",
-    )
-    parser.add_argument(
-        "--use_regression",
-        type=bool,
-        default=False,
-        help="Use regression head if True, otherwise use classification head",
-    )
-    return parser.parse_args()
+from ml_filter.inference_pipeline.data_factory import DataFactory
 
 
-def setup_logging(task_id: int) -> logging.Logger:
-    log_dir: str = "logs"
-    os.makedirs(log_dir, exist_ok=True)
-    logging.basicConfig(
-        filename=os.path.join(log_dir, f"task_{task_id}.log"),
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-    return logging.getLogger(f"task_{task_id}")
+class InferencePipeline:
+    def __init__(
+        self,
+        model: nn.Module,
+        sequence_length: int,
+        device: torch.device,
+        logger: logging.Logger,
+        batch_size: int,
+        prediction_key: str,
+        output_dir: Path,
+        input_files_list_path: Path,
+        processed_files_list_path: Path,
+    ):
+        self._model = model
+        self._sequence_length = sequence_length
+        self._device = device
+        self._output_dir = output_dir
+        self._input_files_list_path = input_files_list_path
+        self._processed_files_list_path = processed_files_list_path
+        self._batch_size = batch_size
+        self._prediction_key = prediction_key
+        self._logger = logger
+        self._input_file_list = self._get_non_processed_file_path_list(input_files_list_path, processed_files_list_path)
 
+    def _get_file_list(self, input_file_list_path: Path) -> list[Path]:
+        with open(input_file_list_path, "r") as f:
+            input_file_list = [Path(line.strip()) for line in f]
+        return input_file_list
 
-def collate_fn(batch: List[Dict[str, List[int]]]) -> Dict[str, torch.Tensor]:
-    input_ids = [torch.tensor(example["input_ids"], dtype=torch.long) for example in batch]
-    attention_mask = [torch.ones(len(example["input_ids"]), dtype=torch.long) for example in batch]
+    def _get_non_processed_file_path_list(self, file_list_path: Path, processed_file_list_path: Path) -> list[Path]:
+        # load input file list
+        input_file_list = self._get_file_list(file_list_path)
+        # load processed file list
+        if processed_file_list_path.exists():
+            processed_file_set = set(self._get_file_list(processed_file_list_path))
+        else:
+            processed_file_set = set()
+        # get non-processed files
+        non_processed_file_list = []
+        for input_file_path in input_file_list:
+            if input_file_path not in processed_file_set:
+                non_processed_file_list.append(input_file_path)
+            else:
+                self._logger.info(f"Skipping already processed file: {input_file_path}")
+        return non_processed_file_list
 
-    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
-    attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
+    @staticmethod
+    def _write_out_prediction_results(predictions: list[int], output_file: Path, prediction_key: str) -> None:
+        with open(output_file, "w") as f:
+            for pred in predictions:
+                f.write(json.dumps({prediction_key: pred}) + "\n")
 
-    return {"input_ids": input_ids, "attention_mask": attention_mask}
-
-
-def main() -> None:
-    args = parse_args()
-    os.makedirs(args.output_dir, exist_ok=True)
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
-
-    logger: logging.Logger = setup_logging(args.task_id)
-    device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    logger.info("Loading model...")
-    model_args = {
-        "model_type": args.model_arch,
-        "num_regressor_outputs": args.num_regressor_outputs,
-        "num_classes_per_output": torch.tensor(args.num_classes_per_output),
-        "regression": args.use_regression,
-    }
-    try:
-        model = AutoModelForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
-    except NotImplementedError:
-        logger.info(
-            f"Custom model architecture for {args.model_checkpoint=} not implemented, falling back to AutoModel..."
-        )
-        model = AutoModelForSequenceClassification.from_pretrained(
-            args.model_checkpoint,
-            num_labels=args.num_classes_per_output[0],
-        )
-    model.to(device).eval()
-
-    with open(args.input_files_list, "r") as f:
-        input_files: List[str] = [line.strip() for line in f]
-
-    checkpoint_file: str = os.path.join(args.checkpoint_dir, f"checkpoint_task{args.task_id}.json")
-    completed_files: Set[str] = set()
-
-    if os.path.exists(checkpoint_file):
-        with open(checkpoint_file, "r") as f:
-            completed_files = set(json.load(f))
-
-    for file_path in input_files:
-        if file_path in completed_files:
-            logger.info(f"Skipping already processed file: {file_path}")
-            continue
-
-        logger.info(f"Processing file: {file_path}")
-        # dataset: Dataset = load_from_disk(file_path).shard(args.num_tasks, args.task_id)
-        dataset = PackedMemMapDatasetContinuous(Path(file_path), "input_ids", block_size=512)
-        dataloader: DataLoader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
-
-        output_file: str = os.path.join(args.output_dir, f"output_task{args.task_id}.jsonl")
-        with torch.no_grad(), open(output_file, "a") as f:
+    @staticmethod
+    def _get_predictions(dataloader: DataLoader, model: torch.nn.Module, device: torch.device) -> list[int]:
+        predictions = []
+        with torch.no_grad():
             for batch in dataloader:
                 batch = {k: v.to(device) for k, v in batch.items()}
                 outputs = model(**batch)
-                predictions = torch.argmax(outputs.logits, dim=-1)
+                batch_predictions = torch.argmax(outputs.logits, dim=-1)
+                predictions.extend(batch_predictions.cpu().tolist())
+        return predictions
 
-                for pred in predictions.cpu().tolist():
-                    f.write(json.dumps({"prediction": pred}) + "\n")
+    def run(self) -> None:
+        # create output and progress report directory
+        self._output_dir.mkdir(parents=True, exist_ok=True)
+        self._processed_files_list_path.parent.mkdir(parents=True, exist_ok=True)
 
-        completed_files.add(file_path)
-        with open(checkpoint_file, "w") as f:
-            json.dump(list(completed_files), f)
+        for input_file_path in self._input_file_list:
+            self._logger.info(f"Processing file: {input_file_path}")
+            output_file_path: str = self._output_dir / f"{input_file_path.stem}_annotations.jsonl"
 
-    logger.info(f"Task {args.task_id} completed successfully.")
+            # create dataloader
+            collate_fn = DataFactory.get_standard_collate_fn(sequence_length=self._sequence_length)
+            dataloader = DataFactory.get_dataloader(
+                input_file_path=input_file_path, batch_size=self._batch_size, collate_fn=collate_fn
+            )
 
+            # get predictions
+            predictions = InferencePipeline._get_predictions(dataloader, self._model, self._device)
 
-if __name__ == "__main__":
-    main()
+            # write out results
+            InferencePipeline._write_out_prediction_results(
+                predictions, output_file_path, prediction_key=self._prediction_key
+            )
+
+            # update processed files list
+            with open(self._processed_files_list_path, "a") as f:
+                f.write(f"{input_file_path}\n")
+
+        self._logger.info("Completed successfully.")
