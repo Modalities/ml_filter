@@ -67,8 +67,7 @@ class InferencePipeline:
         with torch.no_grad():
             for batch in dataloader:
                 batch = {k: v.to(device) for k, v in batch.items()}
-                outputs = model(**batch)
-                batch_predictions = torch.argmax(outputs.logits, dim=-1)
+                batch_predictions = model(**batch)
                 predictions.extend(batch_predictions.cpu().tolist())
         return predictions
 
