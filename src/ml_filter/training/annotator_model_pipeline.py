@@ -6,17 +6,19 @@ from pathlib import Path
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
-from transformers import AutoConfig, AutoModel, DataCollatorWithPadding, EvalPrediction, Trainer, TrainingArguments
+from transformers import AutoConfig, DataCollatorWithPadding, EvalPrediction, Trainer, TrainingArguments
+from transformers.modeling_outputs import SequenceClassifierOutput
 
+from constants import MODEL_CLASS_MAP
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
 from ml_filter.models.annotator_models import AnnotatorModel, MultiTargetRegressionHead
-from ml_filter.tokenization.tokenized_dataset_builder import TokenizedDatasetBuilder
+from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
 logger = logging.getLogger(__name__)
 
 
-def run_annotator_pipeline(config_file_path: Path):
+def run_annotator_training_pipeline(config_file_path: Path):
     """Runs the entire classifier training pipeline using AnnotatorModel."""
     logger.info(f"Loading configuration from {config_file_path}")
     try:
@@ -31,10 +33,13 @@ def run_annotator_pipeline(config_file_path: Path):
         training_args = _init_training_args(cfg=cfg)
 
         # Load datasets
-        train_dataset, eval_datasets, data_collator = _load_datasets(
+        train_dataset, eval_datasets = _load_datasets(
             cfg=cfg,
             tokenized_dataset_builder=tokenized_dataset_builder,
         )
+
+        # TODO: Check case when tokenized_dataset_builder.padding = False
+        data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
         # Train classifier
         _train_annotator_model(
@@ -43,6 +48,7 @@ def run_annotator_pipeline(config_file_path: Path):
             train_dataset=train_dataset,
             eval_datasets=eval_datasets,
             data_collator=data_collator,
+            compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
         )
 
@@ -70,16 +76,34 @@ def _set_seeds(seed: int):
 def _init_tokenizer(cfg) -> PreTrainedHFTokenizer:
     """Initializes the tokenizer."""
     logger.info("Initializing tokenizer.")
-    tokenizer = PreTrainedHFTokenizer(cfg.tokenizer.pretrained_model_name_or_path)
+    tokenizer = PreTrainedHFTokenizer(
+        pretrained_model_name_or_path=cfg.tokenizer.pretrained_model_name_or_path,
+        add_generation_prompt=cfg.tokenizer.add_generation_prompt,
+    )
     return tokenizer
+
+
+def _init_loss_fn(cfg) -> partial:
+    num_tasks = cfg.data.num_tasks
+
+    if cfg.training.is_regression:
+        return partial(multi_target_mse_loss, num_tasks=num_tasks)
+    else:
+        return partial(multi_target_cross_entropy_loss, num_tasks=num_tasks)
 
 
 def _init_model(cfg) -> AnnotatorModel:
     """Initializes the model."""
     logger.info("Initializing model.")
     model_config = AutoConfig.from_pretrained(cfg.model.name)
+    try:
+        model_class = MODEL_CLASS_MAP.get(cfg.model.name.lower())
+    except KeyError:
+        raise ValueError(f"Model class not found for {cfg.model.name}. Available models: {MODEL_CLASS_MAP.keys()}")
+    base_model = model_class.from_pretrained(cfg.model.name)
     model = AnnotatorModel(
-        base_model=AutoModel.from_pretrained(pretrained_model_name_or_path=cfg.model.name),
+        base_model=base_model,
+        freeze_base_model_parameters=cfg.model.get("freeze_base_model_parameters"),
         head=MultiTargetRegressionHead(
             input_dim=model_config.hidden_size,
             num_prediction_tasks=cfg.data.num_tasks,
@@ -89,14 +113,15 @@ def _init_model(cfg) -> AnnotatorModel:
     return model
 
 
-def _init_tokenized_dataset_builder(cfg, tokenizer) -> TokenizedDatasetBuilder:
+def _init_tokenized_dataset_builder(cfg, tokenizer) -> DataPreprocessor:
     """Initializes the dataset tokenizer."""
     logger.info("Initializing dataset tokenizer.")
-    tokenized_dataset_builder = TokenizedDatasetBuilder(
+    tokenized_dataset_builder = DataPreprocessor(
         tokenizer=tokenizer.tokenizer,
         text_column=cfg.data.text_column,
         document_id_column=cfg.data.document_id_column,
         max_length=cfg.tokenizer.get("max_length"),
+        is_regression=cfg.training.is_regression,
         padding=cfg.tokenizer.get("padding"),
         truncation=cfg.tokenizer.get("truncation"),
     )
@@ -141,8 +166,8 @@ def _init_training_args(cfg) -> TrainingArguments:
 
 def _load_datasets(
     cfg: DictConfig,
-    tokenized_dataset_builder: TokenizedDatasetBuilder,
-) -> tuple[torch.utils.data.Dataset, dict[str, torch.utils.data.Dataset], DataCollatorWithPadding]:
+    tokenized_dataset_builder: DataPreprocessor,
+) -> tuple[torch.utils.data.Dataset, dict[str, torch.utils.data.Dataset]]:
     """Loads and tokenizes datasets for training and evaluation.
 
     Args:
@@ -170,14 +195,11 @@ def _load_datasets(
     if cfg.data.test_file_path:
         test_dataset = tokenized_dataset_builder.load_and_tokenize(
             file_path=Path(cfg.data.test_file_path),
-            split=cfg.data.gt_file_split,
+            split=cfg.data.test_file_split,
         )
         eval_datasets["test"] = test_dataset
 
-    # TODO: Check case when tokenized_dataset_builder.padding = False
-    data_collator = DataCollatorWithPadding(tokenizer=tokenized_dataset_builder.tokenizer)
-
-    return train_dataset, eval_datasets, data_collator
+    return train_dataset, eval_datasets
 
 
 def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
@@ -185,8 +207,8 @@ def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
     # Create a partial function with pre-configured arguments
     return partial(
         compute_metrics,
-        regression_loss=cfg.training.regression_loss,
-        output_names=cfg.data.output_names,
+        is_regression=cfg.training.is_regression,
+        task_names=cfg.data.task_names,
         num_targets_per_task=cfg.data.num_targets_per_task,
     )
 
@@ -197,6 +219,7 @@ def _train_annotator_model(
     train_dataset: torch.utils.data.Dataset,
     eval_datasets: dict[str, torch.utils.data.Dataset],
     data_collator: DataCollatorWithPadding,
+    compute_loss_fn: partial,
     compute_metrics_fn: partial,
 ) -> None:
     """Trains the annotator model.
@@ -210,12 +233,17 @@ def _train_annotator_model(
     """
     logger.info("Initializing Trainer and starting training...")
 
+    for name, param in model.named_parameters():
+        if param.is_shared():
+            print(f"{name}: shared = {param.is_shared()}")
+
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_datasets,
         data_collator=data_collator,
+        compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
     )
 
@@ -227,7 +255,7 @@ def _train_annotator_model(
 
 def compute_metrics(
     eval_pred: EvalPrediction,
-    regression_loss: bool,
+    is_regression: bool,
     task_names: list[str],
     num_targets_per_task: list[int],
 ) -> dict[str, float]:
@@ -239,7 +267,7 @@ def compute_metrics(
                 (batch_size, num_classes, num_regressor_outputs) for classification, or
                 (batch_size, num_regressor_outputs) for regression.
             - `labels` (np.ndarray): Ground truth labels of shape (batch_size, num_regressor_outputs).
-        regression_loss (bool): Whether the task is a regression or classification task.
+        is_regression (bool): Whether the task is a regression or classification task.
         output_names (list[str]): List of output names for each target.
         num_targets_per_task (list[int]): Number of target classes per task.
 
@@ -255,9 +283,9 @@ def compute_metrics(
         raise ValueError(f"Shape mismatch: predictions {predictions.shape}, labels {labels.shape}")
 
     # Convert logits to predictions
-    preds = np.round(predictions) if regression_loss else predictions.argmax(axis=1)
+    preds = np.round(predictions) if is_regression else predictions.argmax(axis=1)
     # TODO: Check
-    preds_raw = predictions if regression_loss else preds
+    preds_raw = predictions if is_regression else preds
 
     # Compute metrics for each target
     metric_dict = {
@@ -272,3 +300,55 @@ def compute_metrics(
     }
 
     return metric_dict
+
+
+def multi_target_cross_entropy_loss(
+    input: SequenceClassifierOutput,
+    target: torch.Tensor,
+    # Signature required by Trainer
+    num_items_in_batch: int,
+    num_tasks: int,
+    reduction: str = "mean",
+    **kwargs,
+) -> torch.Tensor:
+    """Computes multi-target cross-entropy loss for classification.
+
+    Args:
+        input (SequenceClassifierOutput): Model output containing logits.
+        target (Tensor): Target labels of shape (batch_size, num_tasks).
+        num_items_in_batch (int): Required by Trainer but unused.
+        num_tasks (int): Number of classification targets per sample.
+        reduction (str, optional): Reduction mode (`"mean"`, `"sum"`, `"none"`). Defaults to `"mean"`.
+
+    Returns:
+        Tensor: Computed cross-entropy loss.
+    """
+    logits = input.logits
+    target = target.to(dtype=logits.dtype)
+    return torch.nn.functional.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
+
+
+def multi_target_mse_loss(
+    input: SequenceClassifierOutput,
+    target: torch.Tensor,
+    # Signature required by Trainer
+    num_items_in_batch: int,
+    num_tasks: int,
+    reduction: str = "mean",
+    **kwargs,
+) -> torch.Tensor:
+    """Computes multi-target mean squared error (MSE) loss for regression.
+
+    Args:
+        input (SequenceClassifierOutput): Model output containing logits.
+        target (Tensor): Target labels of shape (batch_size, num_tasks).
+        num_items_in_batch (int): Required by Trainer but unused.
+        num_tasks (int): Number of regression targets per sample.
+        reduction (str, optional): Reduction mode (`"mean"`, `"sum"`, `"none"`). Defaults to `"mean"`.
+
+    Returns:
+        Tensor: Computed MSE loss.
+    """
+    logits = input.logits
+    target = target.to(dtype=logits.dtype)
+    return torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction=reduction)

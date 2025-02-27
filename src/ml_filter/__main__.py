@@ -13,7 +13,7 @@ from ml_filter.analysis.plot_score_distributions import plot_differences_in_scor
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
-from ml_filter.training.classifier_training_pipeline import ClassifierTrainingPipeline
+from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
@@ -120,16 +120,15 @@ def entry_point_compare_experiments(config_file_path: Path):
     compare_experiments(config_file_path)
 
 
-@main.command(name="train_classifier")
+@main.command(name="annotator_training_pipeline")
 @click.option(
     "--config_file_path",
     type=click_pathlib.Path(exists=False),
     required=True,
-    help="Path to the training config file.",
+    help="Path to the config file.",
 )
-def entry_train_classifier(config_file_path: Path):
-    classifier_pipeline = ClassifierTrainingPipeline(config_file_path=config_file_path)
-    classifier_pipeline.train_classifier()
+def entry_annotator_training_pipeline(config_file_path: Path):
+    run_annotator_training_pipeline(config_file_path=config_file_path)
 
 
 @main.command(name="chunk_jsonl")
