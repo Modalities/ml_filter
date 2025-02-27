@@ -10,6 +10,7 @@ from ml_filter.analysis.interrater_reliability import compute_interrater_reliabi
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
+from ml_filter.inference_pipeline.run_pipeline import run_pipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
@@ -331,6 +332,17 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
+
+
+@main.command(name="inference_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_inference_pipeline(config_file_path: Path):
+    run_pipeline(config_file_path)
 
 
 if __name__ == "__main__":
