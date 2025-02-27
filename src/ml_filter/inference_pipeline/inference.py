@@ -1,9 +1,11 @@
 import json
 import logging
+import time
 from pathlib import Path
 
 import torch
 import torch.nn as nn
+import tqdm
 from torch.utils.data import DataLoader
 
 from ml_filter.inference_pipeline.data_factory import DataFactory
@@ -64,11 +66,17 @@ class InferencePipeline:
     @staticmethod
     def _get_predictions(dataloader: DataLoader, model: torch.nn.Module, device: torch.device) -> list[int]:
         predictions = []
-        with torch.no_grad():
+
+        progress_bar = tqdm.tqdm(
+            total=dataloader.batch_size * len(dataloader), desc="Generating scores", unit="samples"
+        )
+        with torch.inference_mode():
             for batch in dataloader:
                 batch = {k: v.to(device) for k, v in batch.items()}
                 batch_predictions = model(**batch)
                 predictions.extend(batch_predictions.cpu().tolist())
+                progress_bar.update(dataloader.batch_size)
+        progress_bar.close()
         return predictions
 
     def run(self) -> None:
@@ -76,7 +84,7 @@ class InferencePipeline:
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._processed_files_list_path.parent.mkdir(parents=True, exist_ok=True)
 
-        for input_file_path in self._input_file_list:
+        for input_file_path in tqdm.tqdm(self._input_file_list, desc="Processing files"):
             self._logger.info(f"Processing file: {input_file_path}")
             output_file_path: str = self._output_dir / f"{input_file_path.stem}_annotations.jsonl"
 
@@ -87,7 +95,13 @@ class InferencePipeline:
             )
 
             # get predictions
+            start_time = time.time()
             predictions = InferencePipeline._get_predictions(dataloader, self._model, self._device)
+            end_time = time.time()
+            self._logger.info(
+                f"Throuput:  {(end_time - start_time)/(dataloader.batch_size*len(dataloader))*1000:.2f} "
+                "seconds / 1000 samples for {input_file_path}."
+            )
 
             # write out results
             InferencePipeline._write_out_prediction_results(
