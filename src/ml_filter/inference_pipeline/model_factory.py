@@ -17,9 +17,9 @@ class ModelWrapper(nn.Module):
     def forward(self, *args, **kwargs):
         outputs = self._model(*args, **kwargs)
         if self._use_regression:
-            predictions = torch.argmax(outputs.logits.squeeze(-1), dim=-1)
-        else:
             predictions = torch.round(outputs.logits)
+        else:
+            predictions = torch.argmax(outputs.logits.squeeze(-1), dim=-1)
         return predictions
 
 
