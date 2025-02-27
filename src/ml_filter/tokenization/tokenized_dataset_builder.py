@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import torch
 from datasets import Dataset, load_dataset
 from datasets.formatting.formatting import LazyBatch
 from transformers import PreTrainedTokenizer
@@ -9,12 +10,13 @@ from transformers import PreTrainedTokenizer
 logger = logging.getLogger(__name__)
 
 
-class TokenizedDatasetBuilder:
+class DataPreprocessor:
     def __init__(
         self,
         tokenizer: PreTrainedTokenizer,
         text_column: str,
         max_length: int,
+        is_regression: bool,
         document_id_column: str = "document_id",
         truncation: bool = True,
         padding: bool = True,
@@ -25,6 +27,7 @@ class TokenizedDatasetBuilder:
             tokenizer (PreTrainedTokenizer): A Hugging Face tokenizer for processing text.
             text_column (str): The name of the column containing text to tokenize.
             max_length (int): The maximum tokenized sequence length.
+            is_regression (bool): Whether the task is regression or classification.
             document_id_column (str, optional): Column name for unique document IDs. Defaults to "id".
             truncation (bool, optional): Whether to truncate sequences exceeding `max_length`. Defaults to True.
             padding (bool, optional): Whether to pad sequences shorter than `max_length`. Defaults to True.
@@ -38,6 +41,7 @@ class TokenizedDatasetBuilder:
         self.tokenizer = tokenizer
         self.text_column = text_column
         self.max_length = max_length
+        self.is_regression = is_regression
         self.document_id_column = document_id_column
         self.truncation = truncation
         self.padding = padding
@@ -86,16 +90,16 @@ class TokenizedDatasetBuilder:
             )
             logger.info("Dataset loaded successfully. Tokenize dataset...")
 
-            return self._tokenize_dataset(dataset)
+            return self._preprocess_dataset(dataset)
 
         # Invalid case
         else:
             raise ValueError(f"Invalid file path: {file_path}. Expected a JSONL file or a dataset directory.")
 
-    def _tokenize_dataset(self, dataset: Dataset) -> Dataset:
+    def _preprocess_dataset(self, dataset: Dataset) -> Dataset:
         """Tokenizes text in a Hugging Face dataset."""
 
-        def tokenize_batch(batch: LazyBatch) -> dict[str, Any]:
+        def process_batch(batch: LazyBatch) -> dict[str, Any]:
             # Tokenize the text
             tokenized = self.tokenizer(
                 batch[self.text_column],
@@ -104,7 +108,11 @@ class TokenizedDatasetBuilder:
                 max_length=self.max_length,
                 return_tensors="pt",
             )
+            if self.is_regression:
+                labels = torch.tensor(batch["labels"], dtype=torch.float)
+            else:
+                labels = torch.tensor(batch["labels"], dtype=torch.long)
 
-            return {**tokenized}
+            return {**tokenized, "labels": labels}
 
-        return dataset.map(tokenize_batch, batched=True, remove_columns=dataset.column_names)
+        return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)
