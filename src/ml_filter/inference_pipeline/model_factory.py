@@ -39,6 +39,7 @@ class ModelFactory:
             "num_regressor_outputs": num_regressor_outputs,
             "num_classes_per_output": torch.tensor(num_classes_per_output),
             "regression": use_regression,
+            "torch_dtype": torch.bfloat16,
         }
 
         try:
@@ -53,4 +54,7 @@ class ModelFactory:
             )
         wrapped_model = ModelWrapper(model, use_regression)
         wrapped_model.to(device).eval()
-        return wrapped_model
+        logger.info("Compiling model...")
+        compiled_model = torch.compile(wrapped_model, mode="reduce-overhead")
+        logger.info("Compiling done.")
+        return compiled_model
