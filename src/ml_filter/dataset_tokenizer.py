@@ -16,9 +16,9 @@ class DatasetTokenizer:
         self,
         tokenizer: PreTrainedTokenizer,
         text_column: str,
-        label_column: str,
         output_names: List[str],
         max_length: int,
+        label_column: Optional[str] = None,
         regression: bool = False,
         annotation_aggregation_fn: Optional[Callable] = np.median,
         annotation_names: Optional[List[str]] = [],
@@ -178,6 +178,9 @@ class DatasetTokenizer:
                 batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
             )
 
+            if self.label_column is None:
+                return {**tokenized, "uid": batch[self.document_id_column]}
+
             # Process labels
             labels = []
             for item in batch[self.label_column]:
@@ -199,6 +202,9 @@ class DatasetTokenizer:
             tokenized = self.tokenizer(
                 batch[self.text_column], truncation=True, padding=True, max_length=self.max_length, return_tensors="pt"
             )
+
+            if self.label_column is None:
+                return {**tokenized, "uid": batch[self.document_id_column]}
 
             # Process labels
             labels = []

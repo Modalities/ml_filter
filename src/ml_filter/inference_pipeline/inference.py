@@ -2,16 +2,18 @@ import argparse
 import json
 import logging
 import os
-from pathlib import Path
-from typing import Dict, List, Set
+import sys
+from typing import Dict, List, Set, Tuple
 
 import torch
-from modalities.dataloader.dataset import PackedMemMapDatasetContinuous
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+from ml_filter.dataset_tokenizer import DatasetTokenizer
 from ml_filter.utils.train_classifier import AutoModelForMultiTargetClassification
+
+sys.path.append("..")
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_tasks", type=int, default=1, help="Total number of tasks")
     parser.add_argument("--batch_size", type=int, default=512, help="Batch size for inference")
     parser.add_argument("--model_checkpoint", type=str, default="bert-base-uncased", help="Model checkpoint to load")
+    parser.add_argument("--tokenizer_path", type=str, help="Path to tokenizer folder")
     parser.add_argument("--model_arch", type=str, default="bert-base-uncased", help="Base model architecture")
     parser.add_argument("--num_regressor_outputs", type=int, default=1, help="Number of regressor outputs")
     parser.add_argument(
@@ -35,8 +38,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--use_regression",
         type=bool,
-        default=False,
-        help="Use regression head if True, otherwise use classification head",
+        action=argparse.BooleanOptionalAction,
+        help="Use regression head if passed, otherwise use classification head",
     )
     return parser.parse_args()
 
@@ -52,14 +55,15 @@ def setup_logging(task_id: int) -> logging.Logger:
     return logging.getLogger(f"task_{task_id}")
 
 
-def collate_fn(batch: List[Dict[str, List[int]]]) -> Dict[str, torch.Tensor]:
+def collate_fn(batch: List[Dict[str, List[int]]]) -> Tuple[Dict[str, torch.Tensor], List[str]]:
     input_ids = [torch.tensor(example["input_ids"], dtype=torch.long) for example in batch]
     attention_mask = [torch.ones(len(example["input_ids"]), dtype=torch.long) for example in batch]
+    uids = [example["uid"] for example in batch]
 
     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
     attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
 
-    return {"input_ids": input_ids, "attention_mask": attention_mask}
+    return {"input_ids": input_ids, "attention_mask": attention_mask}, uids
 
 
 def main() -> None:
@@ -76,6 +80,7 @@ def main() -> None:
         "num_regressor_outputs": args.num_regressor_outputs,
         "num_classes_per_output": torch.tensor(args.num_classes_per_output),
         "regression": args.use_regression,
+        "torch_dtype": torch.bfloat16,
     }
     try:
         model = AutoModelForMultiTargetClassification.from_pretrained(args.model_checkpoint, **model_args)
@@ -88,6 +93,17 @@ def main() -> None:
             num_labels=args.num_classes_per_output[0],
         )
     model.to(device).eval()
+
+    model = torch.compile(model, mode="reduce-overhead")
+
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
+    dataset_tokenizer = DatasetTokenizer(
+        tokenizer=tokenizer,
+        text_column="text",
+        output_names=[],
+        max_length=512,
+        label_column=None,
+    )
 
     with open(args.input_files_list, "r") as f:
         input_files: List[str] = [line.strip() for line in f]
@@ -106,18 +122,23 @@ def main() -> None:
 
         logger.info(f"Processing file: {file_path}")
         # dataset: Dataset = load_from_disk(file_path).shard(args.num_tasks, args.task_id)
-        dataset = PackedMemMapDatasetContinuous(Path(file_path), "input_ids", block_size=512)
-        dataloader: DataLoader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
+        # dataset = PackedMemMapDatasetContinuous(Path(file_path), "input_ids", block_size=512)
+        # dataset = dataset.shard(args.num_tasks, args.task_id)
+        dataset = dataset_tokenizer.load_and_tokenize(file_path).shard(args.num_tasks, args.task_id)
+        dataloader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
 
         output_file: str = os.path.join(args.output_dir, f"output_task{args.task_id}.jsonl")
-        with torch.no_grad(), open(output_file, "a") as f:
-            for batch in dataloader:
+        with torch.inference_mode(), open(output_file, "a") as f:
+            for batch, uids in dataloader:
                 batch = {k: v.to(device) for k, v in batch.items()}
                 outputs = model(**batch)
-                predictions = torch.argmax(outputs.logits, dim=-1)
+                if not args.use_regression:
+                    predictions = torch.argmax(outputs.logits.squeeze(-1), dim=-1)
+                else:
+                    predictions = torch.round(outputs.logits)
 
-                for pred in predictions.cpu().tolist():
-                    f.write(json.dumps({"prediction": pred}) + "\n")
+                for pred, uid in zip(predictions.cpu().tolist(), uids):
+                    f.write(json.dumps({"id": uid, "prediction": pred}) + "\n")
 
         completed_files.add(file_path)
         with open(checkpoint_file, "w") as f:
