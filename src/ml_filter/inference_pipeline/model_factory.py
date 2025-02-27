@@ -2,9 +2,25 @@ import logging
 from pathlib import Path
 
 import torch
+import torch.nn as nn
 from transformers import AutoModelForSequenceClassification
 
 from ml_filter.utils.train_classifier import AutoModelForMultiTargetClassification
+
+
+class ModelWrapper(nn.Module):
+    def __init__(self, model: nn.Module, use_regression: bool, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._model = model
+        self._use_regression = use_regression
+
+    def forward(self, *args, **kwargs):
+        outputs = self._model(*args, **kwargs)
+        if self._use_regression:
+            predictions = torch.argmax(outputs.logits.squeeze(-1), dim=-1)
+        else:
+            predictions = torch.round(outputs.logits)
+        return predictions
 
 
 class ModelFactory:
@@ -17,7 +33,7 @@ class ModelFactory:
         use_regression: bool,
         device: torch.device,
         logger: logging.Logger,
-    ) -> torch.nn.Module:
+    ) -> nn.Module:
         model_args = {
             "model_type": model_type,
             "num_regressor_outputs": num_regressor_outputs,
@@ -35,5 +51,6 @@ class ModelFactory:
                 model_checkpoint_path,
                 num_labels=num_classes_per_output[0],
             )
-        model.to(device).eval()
-        return model
+        wrapped_model = ModelWrapper(model, use_regression)
+        wrapped_model.to(device).eval()
+        return wrapped_model
