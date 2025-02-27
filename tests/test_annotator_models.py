@@ -18,8 +18,7 @@ def test_annotator_model_initialization(dummy_base_model, regression_head):
     )
 
     assert model.base_model is not None
-    assert model.head is not None
-    assert isinstance(model.head, MultiTargetRegressionHead)
+    assert isinstance(model.base_model.classifier, MultiTargetRegressionHead)
 
 
 def test_annotator_model_freezing(dummy_base_model, regression_head):

@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 import pytest
 import torch
 import yaml
+from omegaconf import OmegaConf
 from transformers import AutoConfig, BertForSequenceClassification
 
 from ml_filter.models.annotator_models import MultiTargetClassificationHead, MultiTargetRegressionHead
@@ -217,3 +218,58 @@ def classification_head():
         num_prediction_tasks=2,
         num_targets_per_prediction_task=torch.tensor([6, 6]),
     )
+
+
+@pytest.fixture
+def temp_output_dir(tmp_path):
+    """Creates a temporary output directory for testing."""
+    return tmp_path / "output"
+
+
+@pytest.fixture
+def config_file(temp_output_dir):
+    """Creates a real configuration file for testing."""
+    temp_output_dir.mkdir(parents=True, exist_ok=True)
+    cfg = {
+        "training": {
+            "output_dir_path": str(temp_output_dir),
+            "batch_size": 2,
+            "epochs": 1,
+            "weight_decay": 0.01,
+            "learning_rate": 5e-5,
+            "save_strategy": "epoch",
+            "logging_steps": 10,
+            "logging_dir_path": str(temp_output_dir / "logs"),
+            "metric_for_best_model": "accuracy",
+            "use_bf16": False,
+            "greater_is_better": True,
+            "is_regression": True,
+            "eval_strategy": "steps",
+            "dataloader_num_workers": 1,
+        },
+        "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": True},
+        "data": {
+            "text_column": "text",
+            "document_id_column": "id",
+            "train_file_path": str(temp_output_dir / "train.jsonl"),
+            "train_file_split": "train",
+            "val_file_path": str(temp_output_dir / "val.jsonl"),
+            "val_file_split": "train",
+            "test_file_path": str(temp_output_dir / "test.jsonl"),
+            "test_file_split": "train",
+            "num_tasks": 3,
+            "task_names": ["edu", "toxicity"],
+            "num_targets_per_task": [2, 3, 4],
+        },
+        "tokenizer": {
+            "pretrained_model_name_or_path": "facebookai/xlm-roberta-base",
+            "add_generation_prompt": False,
+            "max_length": 128,
+            "padding": "max_length",
+            "truncation": True,
+        },
+    }
+
+    config_path = temp_output_dir / "config.yaml"
+    OmegaConf.save(cfg, config_path)
+    return config_path
