@@ -40,15 +40,15 @@ MODEL_NAME=$3
 
 num_gpus=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 devices="\"device=$CUDA_VISIBLE_DEVICES\""
-docker run --runtime nvidia \
+docker run \
     --gpus $devices \
     --name $CONTAINER_NAME \
     --rm \
     -v $HF_HOME:/root/.cache/huggingface \
-    --env "HUGGING_FACE_HUB_TOKEN=$HF_TOKEN" \
+    --env "HF_TOKEN=$HF_TOKEN" \
     -p $PORT:8000 \
     --ipc=host \
-    vllm/vllm-openai:v0.6.3 \
+    vllm/vllm-openai:v0.7.3 \
     --model $MODEL_NAME \
     --tensor-parallel-size $num_gpus
 
