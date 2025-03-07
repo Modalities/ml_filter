@@ -3,7 +3,6 @@ import json
 import logging
 from pathlib import Path
 import re
-from typing import Optional
 
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -307,7 +306,7 @@ def collect_ir_metrics(
     input_directory: Path,
     output_directory: Path,
     top_n: int = 4,
-    min_metrics: Optional[list[str]] = None,
+    min_metrics: list[str] | None = None,
 ) -> None:
     """
     Collects inter-rater reliability metrics and writes the results to plots and a LaTeX table.
@@ -316,7 +315,7 @@ def collect_ir_metrics(
         input_directory (Path): The directory containing the input JSON files.
         output_directory (Path): The directory to save the LaTeX file and confusion matrix plots.
         top_n (int): The number of top annotators to select.
-        min_metrics (Optional[list[str]]): Metrics where lower values are better.
+        min_metrics (list[str] or None, optional): Metrics where lower values are better.
 
     Returns:
         None

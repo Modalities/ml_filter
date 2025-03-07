@@ -3,12 +3,11 @@ from collections import Counter
 import json
 from pathlib import Path
 from statistics import mean
-from typing import List, Union
 
 import pandas as pd
 
 
-def most_frequent_average(values: List[int]) -> float:
+def most_frequent_average(values: list[int]) -> float:
     """
     Finds the most frequent value(s) in a list. If there are ties, returns the average of the tied values.
 
@@ -31,8 +30,8 @@ def most_frequent_average(values: List[int]) -> float:
 
 
 def get_document_scores(
-    path_to_files: List[Path],
-    labels: List[float],
+    path_to_files: list[Path],
+    labels: list[float],
     aggregation: str,
     ) -> dict[str, dict[str, float]]:
     """
@@ -106,7 +105,7 @@ def get_document_scores(
     return document_scores_df
 
 
-def round_scores(value: Union[str, int, float]) -> Union[str, int]:
+def round_scores(value: str | int | float) -> str | int:
     """
     Rounds the given value if it is a number, but keeps the value for invalid scores unchanged.
 

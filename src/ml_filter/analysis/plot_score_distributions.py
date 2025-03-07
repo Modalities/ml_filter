@@ -1,5 +1,4 @@
 from itertools import combinations
-from typing import List, Tuple, Optional
 import matplotlib.pyplot as plt
 from pathlib import Path
 import seaborn as sns
@@ -7,10 +6,10 @@ from ml_filter.analysis.utils import get_common_docs, get_document_scores
 
 
 def plot_scores(
-    path_to_files: Tuple[Path],
+    path_to_files: tuple[Path],
     output_dir: Path,
-    labels: List[str],
-    aggregation: Optional[str]
+    labels: list[str],
+    aggregation: str
 ) -> None:
     """
     Plots score distributions for each prompt based on the input JSONL files.
@@ -19,7 +18,7 @@ def plot_scores(
         path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
         output_dir (Path): The directory to save the generated plots.
         labels (List[float]): A list of possible labels for the annotators.
-        aggregation (Optional[str]): Aggregation method for scores ("min", "max", "mean", "majority").
+        aggregation (str): Aggregation method for scores ("min", "max", "mean", "majority").
 
     Returns:
         None
@@ -64,10 +63,10 @@ def plot_scores(
 
 
 def plot_differences_in_scores(
-    path_to_files: Tuple[Path],
+    path_to_files: tuple[Path],
     output_dir: Path,
-    labels: List[str],
-    aggregation: Optional[str]
+    labels: list[str],
+    aggregation: str
 ) -> None:
     """
     Plots histograms and boxplots of score differences between different annotators.
@@ -76,7 +75,7 @@ def plot_differences_in_scores(
         path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
         output_dir (Path): The directory to save the generated plots.
         labels (List[float]): A list of possible labels for the annotators.
-        aggregation (Optional[str]): Aggregation method for scores ("min", "max", "mean", "majority").
+        aggregation (str): Aggregation method for scores ("min", "max", "mean", "majority").
 
     Returns:
         None
