@@ -4,7 +4,7 @@ import json
 import logging
 from pathlib import Path
 import statistics
-from typing import Tuple, Union
+from typing import tuple, Union
 
 import krippendorff
 import matplotlib.pyplot as plt
@@ -300,7 +300,7 @@ def compare_annotator_to_gt(
 
     
 def compute_interrater_reliability_metrics(
-    path_to_files: Tuple[Path, ...],
+    path_to_files: tuple[Path, ...],
     output_dir: Path,
     labels: list[float],
     aggregation: str,
@@ -309,7 +309,7 @@ def compute_interrater_reliability_metrics(
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
     
     Args:
-        path_to_files (Tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
+        path_to_files (tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
         labels (list[float]): The list of possible labels.
         aggregation (str): Specifies how scores for a document from the same file are aggregated.

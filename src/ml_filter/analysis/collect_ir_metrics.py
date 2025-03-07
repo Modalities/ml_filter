@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 import re
-from typing import Optional, Tuple
+from typing import Optional
 
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -45,7 +45,7 @@ def style_df(
     return styled_df
 
 
-def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, list[str]]:
+def read_metric_data(input_directory: Path) -> tuple[pd.DataFrame, list[str]]:
     """
     Reads metric data from JSON files in the input directory and returns a DataFrame and a list of metrics.
 
@@ -53,7 +53,7 @@ def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, list[str]]:
         input_directory (Path): The directory containing the JSON files.
 
     Returns:
-        Tuple[pd.DataFrame, list[str]]: A DataFrame containing the metric data and a list of metrics.
+        tuple[pd.DataFrame, list[str]]: A DataFrame containing the metric data and a list of metrics.
     """
     metrics = set()
     data = list()
@@ -223,7 +223,7 @@ def write_latex_output(
 def aggregate_across_languages(
     df: pd.DataFrame,
     metrics: list[str]
-) -> Tuple[pd.DataFrame, dict[str, dict[str, dict[str, int]]]]:
+) -> tuple[pd.DataFrame, dict[str, dict[str, dict[str, int]]]]:
     """
     Aggregates the metric data across languages.
 
@@ -232,7 +232,7 @@ def aggregate_across_languages(
         metrics (list[str]): The list of metrics to aggregate.
 
     Returns:
-        Tuple[pd.DataFrame, dict[str, dict[str, dict[str, int]]]]: A DataFrame containing the aggregated metric data and a dictionary containing the aggregated confusion matrices.
+        tuple[pd.DataFrame, dict[str, dict[str, dict[str, int]]]]: A DataFrame containing the aggregated metric data and a dictionary containing the aggregated confusion matrices.
     """
     # Aggregate the values for each annotator across languages
     aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
