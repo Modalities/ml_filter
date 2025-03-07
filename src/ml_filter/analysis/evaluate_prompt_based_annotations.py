@@ -6,7 +6,7 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
-def extract_annotator_name(filename: Path) -> str:
+def _extract_annotator_name(filename: Path) -> str:
     """
     Extracts the annotator name from the filename.
 
@@ -43,17 +43,16 @@ def evaluate_prompt_based_annotations(
     # Find all files matching the pattern in the directory and subdirectories
     files = list(input_directory.rglob("annotations_*.jsonl"))
 
-    # Check if there are at least two files
+    # Check if there is at least one file
     if len(files) == 0:
-        logger.info(f"No annotation files found in {input_directory} or its subdirectories. Exiting.")
-        exit(1)
+        raise ValueError(f"No annotation files found in {input_directory} or its subdirectories.")
 
     output_directory.mkdir(parents=True, exist_ok=True)
 
     # Iterate over all pairs of files (tuples)
     for file in files:
         # Extract annotator names
-        annotator = extract_annotator_name(file)
+        annotator = _extract_annotator_name(file)
         lang = file.parent.name
         
         # Log the tuple of annotator names
