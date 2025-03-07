@@ -57,7 +57,7 @@ def evaluate_prompt_based_annotations(
         lang = file.parent.name
         
         # Log the tuple of annotator names
-        logger.info(f"Compare annotator {annotator} to ground truth")
+        logger.info(f"Compare annotator {annotator} to ground truth.")
         lang_dir = output_directory / lang
         lang_dir.mkdir(parents=True, exist_ok=True)
         
