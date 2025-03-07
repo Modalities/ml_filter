@@ -80,8 +80,14 @@ def read_metric_data(input_directory: Path) -> tuple[pd.DataFrame, list[str]]:
                 # Extract values from the JSON structure
                 content = json.load(f)       
                 doc = {metric: value for metric, value in content["metrics"].items()} 
-                metrics.update(doc.keys())  
-                doc["Annotator"] = annotator_1 if annotator_1 != "gt" else annotator_2
+                metrics.update(doc.keys())
+                if annotator_1 == "gt":
+                    annotator = annotator_2
+                elif annotator_2 == "gt":
+                    annotator = annotator_1
+                else:
+                    raise ValueError(f"Expected one annotator to be 'gt' but got {annotator_1} and {annotator_2}")
+                doc["Annotator"] = annotator
                 doc["Filepath"] = file_path
                 doc["CM"] = content.get("CM")
                 doc["lang"] = lang
