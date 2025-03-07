@@ -4,7 +4,6 @@ import json
 import logging
 from pathlib import Path
 import statistics
-from typing import tuple, Union
 
 import krippendorff
 import matplotlib.pyplot as plt

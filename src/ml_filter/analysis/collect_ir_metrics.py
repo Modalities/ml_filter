@@ -48,6 +48,16 @@ def read_metric_data(input_directory: Path) -> tuple[pd.DataFrame, list[str]]:
     """
     Reads metric data from JSON files in the input directory and returns a DataFrame and a list of metrics.
 
+    Example for returned dataframe:
+    
+    df.head():
+        Fleiss     Cohen  Spearman  ...     Filepath                                                CM      lang
+    0 -0.304884 -0.000976  0.102076  ...  /path/to/json  {'0': {'-1': 2, '0': 0, '1': 0, '2': 0, '3': 1...    bg
+    1 -0.053517  0.009249  0.637778  ...  /path/to/json  {'0': {'-1': 0, '0': 11, '1': 71, '2': 66, '3'...    bg
+    2  0.275123  0.282199  0.629632  ...  /path/to/json  {'0': {'-1': 0, '0': 94, '1': 60, '2': 17, '3'...    bg
+    3 -0.094009 -0.015461  0.608285  ...  /path/to/json  {'0': {'-1': 0, '0': 0, '1': 83, '2': 65, '3':...    bg
+    4  0.117063  0.147602  0.682103  ...  /path/to/json  {'0': {'-1': 22, '0': 65, '1': 51, '2': 35, '3...    bg
+
     Args:
         input_directory (Path): The directory containing the JSON files.
 
