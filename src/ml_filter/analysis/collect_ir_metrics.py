@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 import re
-from typing import List, Optional, Tuple, Dict
+from typing import Optional, Tuple
 
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -18,8 +18,8 @@ logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 def style_df(
     df: pd.DataFrame,
     sort_key: str,
-    max_columns: List[str],
-    min_columns: List[str]
+    max_columns: list[str],
+    min_columns: list[str]
 ) -> Styler:
     """
     Styles a DataFrame by sorting it and highlighting the maximum and minimum values in specified columns.
@@ -27,8 +27,8 @@ def style_df(
     Args:
         df (pd.DataFrame): The DataFrame to style.
         sort_key (str): The column to sort the DataFrame by.
-        max_columns (List[str]): Columns to highlight the maximum values.
-        min_columns (List[str]): Columns to highlight the minimum values.
+        max_columns (list[str]): Columns to highlight the maximum values.
+        min_columns (list[str]): Columns to highlight the minimum values.
 
     Returns:
         Styler: A styled DataFrame.
@@ -45,7 +45,7 @@ def style_df(
     return styled_df
 
 
-def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
+def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, list[str]]:
     """
     Reads metric data from JSON files in the input directory and returns a DataFrame and a list of metrics.
 
@@ -53,7 +53,7 @@ def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
         input_directory (Path): The directory containing the JSON files.
 
     Returns:
-        Tuple[pd.DataFrame, List[str]]: A DataFrame containing the metric data and a list of metrics.
+        Tuple[pd.DataFrame, list[str]]: A DataFrame containing the metric data and a list of metrics.
     """
     metrics = set()
     data = list()
@@ -87,20 +87,20 @@ def read_metric_data(input_directory: Path) -> Tuple[pd.DataFrame, List[str]]:
 def get_top_n_annotators(
     df: pd.DataFrame,
     top_n: int,
-    max_metrics: List[str],
-    min_metrics: List[str]
-) -> Dict[int, Dict[str, Dict[str, int]]]:
+    max_metrics: list[str],
+    min_metrics: list[str]
+) -> dict[int, dict[str, dict[str, int]]]:
     """
     Gets the top n annotators for each metric.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the metric data.
         top_n (int): The number of top annotators to select.
-        max_metrics (List[str]): Metrics where higher values are better.
-        min_metrics (List[str]): Metrics where lower values are better.
+        max_metrics (list[str]): Metrics where higher values are better.
+        min_metrics (list[str]): Metrics where lower values are better.
 
     Returns:
-        Dict[int, Dict[str, Dict[str, int]]]: A dictionary containing the top n annotators for each metric.
+        dict[int, dict[str, dict[str, int]]]: A dictionary containing the top n annotators for each metric.
     """
     top_n_range = range(1, top_n + 1)
     top_n_annotators = {n: {metric: defaultdict(lambda: defaultdict(int)) for metric in max_metrics + min_metrics} for n in top_n_range}
@@ -128,10 +128,10 @@ def get_top_n_annotators(
 def write_latex_output(
     df: pd.DataFrame,
     aggregated_metrics_df: pd.DataFrame,
-    top_n_annotators: Dict[int, Dict[str, Dict[str, int]]],
+    top_n_annotators: dict[int, dict[str, dict[str, int]]],
     output_directory: Path,
-    max_metrics: List[str],
-    min_metrics: List[str]
+    max_metrics: list[str],
+    min_metrics: list[str]
 ) -> None:
     """
     Writes the metric data to a LaTeX table.
@@ -139,10 +139,10 @@ def write_latex_output(
     Args:
         df (pd.DataFrame): The DataFrame containing the metric data.
         aggregated_metrics_df (pd.DataFrame): The DataFrame containing the aggregated metric data.
-        top_n_annotators (Dict[int, Dict[str, Dict[str, int]]]): A dictionary containing the top n annotators for each metric.
+        top_n_annotators (dict[int, dict[str, dict[str, int]]]): A dictionary containing the top n annotators for each metric.
         output_directory (Path): The directory to save the LaTeX file.
-        max_metrics (List[str]): Metrics where higher values are better.
-        min_metrics (List[str]): Metrics where lower values are better.
+        max_metrics (list[str]): Metrics where higher values are better.
+        min_metrics (list[str]): Metrics where lower values are better.
 
     Returns:
         None
@@ -222,17 +222,17 @@ def write_latex_output(
           
 def aggregate_across_languages(
     df: pd.DataFrame,
-    metrics: List[str]
-) -> Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]:
+    metrics: list[str]
+) -> Tuple[pd.DataFrame, dict[str, dict[str, dict[str, int]]]]:
     """
     Aggregates the metric data across languages.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the metric data.
-        metrics (List[str]): The list of metrics to aggregate.
+        metrics (list[str]): The list of metrics to aggregate.
 
     Returns:
-        Tuple[pd.DataFrame, Dict[str, Dict[str, Dict[str, int]]]]: A DataFrame containing the aggregated metric data and a dictionary containing the aggregated confusion matrices.
+        Tuple[pd.DataFrame, dict[str, dict[str, dict[str, int]]]]: A DataFrame containing the aggregated metric data and a dictionary containing the aggregated confusion matrices.
     """
     # Aggregate the values for each annotator across languages
     aggregated_cm = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
@@ -266,14 +266,14 @@ def aggregate_across_languages(
 
 
 def plot_confusion_matrix(
-    aggregated_cm: Dict[str, Dict[str, Dict[str, int]]],
+    aggregated_cm: dict[str, dict[str, dict[str, int]]],
     output_directory: Path
 ) -> None:
     """
     Plots the confusion matrix for each annotator.
 
     Args:
-        aggregated_cm (Dict[str, Dict[str, Dict[str, int]]]): A dictionary containing the aggregated confusion matrices.
+        aggregated_cm (dict[str, dict[str, dict[str, int]]]): A dictionary containing the aggregated confusion matrices.
         output_directory (Path): The directory to save the confusion matrix plots.
 
     Returns:
@@ -307,7 +307,7 @@ def collect_ir_metrics(
     input_directory: Path,
     output_directory: Path,
     top_n: int = 4,
-    min_metrics: Optional[List[str]] = None,
+    min_metrics: Optional[list[str]] = None,
 ) -> None:
     """
     Collects inter-rater reliability metrics and writes the results to plots and a LaTeX table.
@@ -316,7 +316,7 @@ def collect_ir_metrics(
         input_directory (Path): The directory containing the input JSON files.
         output_directory (Path): The directory to save the LaTeX file and confusion matrix plots.
         top_n (int): The number of top annotators to select.
-        min_metrics (Optional[List[str]]): Metrics where lower values are better.
+        min_metrics (Optional[list[str]]): Metrics where lower values are better.
 
     Returns:
         None

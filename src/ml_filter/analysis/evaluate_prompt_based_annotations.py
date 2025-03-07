@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import List
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.utils.logging import get_logger
 
@@ -26,7 +25,7 @@ def evaluate_prompt_based_annotations(
     output_directory: Path,
     gt_data: Path,
     aggregation: str,
-    labels: List[float]
+    labels: list[float]
 ) -> None:
     """
     Evaluates prompt-based annotations by comparing annotations to ground truth data.
@@ -36,7 +35,7 @@ def evaluate_prompt_based_annotations(
         output_directory (Path): The directory to save the evaluation results.
         gt_data (Path): The path to the ground truth data file.
         aggregation (str): The aggregation method to use for the scores.
-        labels (List[float]): The list of possible labels.
+        labels (list[float]): The list of possible labels.
 
     Returns:
         None

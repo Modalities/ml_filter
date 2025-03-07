@@ -4,7 +4,7 @@ import json
 import logging
 from pathlib import Path
 import statistics
-from typing import Dict, List, Tuple, Union
+from typing import Tuple, Union
 
 import krippendorff
 import matplotlib.pyplot as plt
@@ -22,12 +22,12 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
 
 
-def prepare_fleiss_data(scores: List[List[int]]) -> np.ndarray:
+def prepare_fleiss_data(scores: list[list[int]]) -> np.ndarray:
     """
     Prepares data for computing Fleiss' Kappa by transforming scores into a matrix format.
 
     Args:
-        scores (List[List[int]]): A list where each sublist contains scores assigned by raters.
+        scores (list[list[int]]): A list where each sublist contains scores assigned by raters.
 
     Returns:
         np.ndarray: A 2D matrix where rows correspond to items and columns represent score frequencies.
@@ -40,12 +40,12 @@ def prepare_fleiss_data(scores: List[List[int]]) -> np.ndarray:
     return fleiss_data
 
 
-def compute_pairwise_correlations(scores: List[List[float]], metric: str) -> float:
+def compute_pairwise_correlations(scores: list[list[float]], metric: str) -> float:
     """
     Computes the average pairwise correlation between raters' scores.
 
     Args:
-        scores (List[List[float]]): A list where each sublist contains scores from all raters for one item.
+        scores (list[list[float]]): A list where each sublist contains scores from all raters for one item.
         metric (str): The correlation metric to use ("spearman", "kendall", or "cohen").
 
     Returns:
@@ -67,12 +67,12 @@ def compute_pairwise_correlations(scores: List[List[float]], metric: str) -> flo
     return np.mean(results)
 
 
-def compute_krippendorffs_alpha(scores: List[List[float]]) -> float:
+def compute_krippendorffs_alpha(scores: list[list[float]]) -> float:
     """
     Computes Krippendorff's Alpha, a measure of inter-rater reliability.
 
     Args:
-        scores (List[List[float]]): A list where each sublist contains scores assigned by all raters for one item.
+        scores (list[list[float]]): A list where each sublist contains scores assigned by all raters for one item.
 
     Returns:
         float: The Krippendorff's Alpha score.
@@ -81,13 +81,13 @@ def compute_krippendorffs_alpha(scores: List[List[float]]) -> float:
     return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
 
 
-def compute_doc_level_variation(scores: List[List[int]], document_ids: List[str]) -> Dict:
+def compute_doc_level_variation(scores: list[list[int]], document_ids: list[str]) -> dict:
     """
     Computes variation in scores at the document level.
 
     Args:
-        scores (List[List[int]]): A list where each sublist contains scores for a single document.
-        document_ids (List[str]): A list of document IDs corresponding to `scores`.
+        scores (list[list[int]]): A list where each sublist contains scores for a single document.
+        document_ids (list[str]): A list of document IDs corresponding to `scores`.
 
     Returns:
         dict: A dictionary containing variation statistics (mean, standard deviation, counts, etc.).
@@ -106,16 +106,16 @@ def compute_doc_level_variation(scores: List[List[int]], document_ids: List[str]
     return results
 
 
-def compute_accuracy_mae_mse_against_gt(scores_0: List[int], scores_1: List[int]) -> Dict[str, float]:
+def compute_accuracy_mae_mse_against_gt(scores_0: list[int], scores_1: list[int]) -> dict[str, float]:
     """
     Computes the average accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
     
     Args:
-        scores_0 (List[int]): A list of scores from annotator 0.
-        scores_1 (List[int]): A list of scores from annotator 1.
+        scores_0 (list[int]): A list of scores from annotator 0.
+        scores_1 (list[int]): A list of scores from annotator 1.
     
     Returns:
-        Dict[str, float]: A dictionary containing the computed metrics.
+        dict[str, float]: A dictionary containing the computed metrics.
     """      
     if len(scores_0) != len(scores_1):
         raise ValueError("The number of predictions and labels must be equal.")
@@ -129,7 +129,7 @@ def compute_accuracy_mae_mse_against_gt(scores_0: List[int], scores_1: List[int]
     
     
 def plot_invalid_docs_histogram(
-    correct_scores_of_invalid_docs: List[int],
+    correct_scores_of_invalid_docs: list[int],
     output_file_path: Path,
     annotator_name: str
 ) -> None:
@@ -137,7 +137,7 @@ def plot_invalid_docs_histogram(
     Plots a histogram of the correct scores for invalid documents.
 
     Args:
-        correct_scores_of_invalid_docs (List[int]): A list of correct scores for invalid documents.
+        correct_scores_of_invalid_docs (list[int]): A list of correct scores for invalid documents.
         output_file_path (Path): The path to save the histogram plot.
         annotator_name (str): The name of the annotator.
 
@@ -158,18 +158,18 @@ def plot_invalid_docs_histogram(
     plt.savefig(output_file_path)
     
     
-def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_path: Path, annotator_name: str) -> Dict[int, Dict[int, int]]:
+def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_path: Path, annotator_name: str) -> dict[int, dict[int, int]]:
     """
     Computes and plots the confusion matrix for the given labels and predictions.
 
     Args:
-        labels (List[int]): The ground truth labels.
-        preds (List[int]): The predicted labels.
+        labels (list[int]): The ground truth labels.
+        preds (list[int]): The predicted labels.
         output_file_path (Path): The path to save the confusion matrix plot.
         annotator_name (str): The name of the annotator.
 
     Returns:
-        Dict[int, Dict[int, int]]: The confusion matrix as a dictionary.
+        dict[int, dict[int, int]]: The confusion matrix as a dictionary.
     """
     preds = [p if p != "invalid" else -1 for p in preds]
     
@@ -202,7 +202,7 @@ def compute_confusion_matrix(labels: List[int], preds: List[int], output_file_pa
     return cm_dict
 
 
-def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> Dict:
+def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> dict:
     """
     Computes various inter-rater reliability metrics.
 
@@ -211,7 +211,7 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> Dict:
         valid_docs_df (pd.DataFrame): The DataFrame containing valid document scores.
 
     Returns:
-        Dict: A dictionary containing the computed metrics.
+        dict: A dictionary containing the computed metrics.
     """
     # prepare data
     valid_scores = list(zip(valid_docs_df["score_0"], valid_docs_df["score_1"]))
@@ -242,24 +242,24 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> Dict:
 
 
 def compare_annotator_to_gt(
-    annotators: List[str],
+    annotators: list[str],
     valid_docs_df: pd.DataFrame,
     common_docs_df: pd.DataFrame,
-    metrics: Dict,
+    metrics: dict,
     output_dir: Path,
-) -> Dict:
+) -> dict:
     """
     Compares annotator annotations to ground truth annotations and computes additional metrics.
 
     Args:
-        annotators (List[str]): A list of annotator names.
+        annotators (list[str]): A list of annotator names.
         valid_docs_df (pd.DataFrame): The DataFrame containing valid document scores.
         common_docs_df (pd.DataFrame): The DataFrame containing common document scores.
-        metrics (Dict): A dictionary to store the computed metrics.
+        metrics (dict): A dictionary to store the computed metrics.
         output_dir (Path): The directory to save the output files.
 
     Returns:
-        Dict: The updated metrics dictionary.
+        dict: The updated metrics dictionary.
     """
     # in this case there is only one annotator, the other one is the ground truth
     if annotators[0] == "gt":
@@ -302,7 +302,7 @@ def compare_annotator_to_gt(
 def compute_interrater_reliability_metrics(
     path_to_files: Tuple[Path, ...],
     output_dir: Path,
-    labels: List[float],
+    labels: list[float],
     aggregation: str,
 ) -> None:
     """
@@ -311,7 +311,7 @@ def compute_interrater_reliability_metrics(
     Args:
         path_to_files (Tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
-        labels (List[float]): The list of possible labels.
+        labels (list[float]): The list of possible labels.
         aggregation (str): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
