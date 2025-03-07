@@ -29,12 +29,22 @@ def test_read_metric_data(tmp_path):
         "metrics": {"metric1": 0.8, "metric2": 0.2},
         "CM": {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}}
     }
-    file_path = tmp_path / "ir_annotator1_annotator2.json"
+    test_dir = tmp_path / "en"
+    test_dir.mkdir()
+    file_path = test_dir / "ir_annotator1_gt.json"
     with file_path.open("w") as f:
         json.dump(example_data, f)
     
     df, metrics = read_metric_data(tmp_path)
-    assert isinstance(df, pd.DataFrame)
+    expected_df = pd.DataFrame.from_dict({
+        'metric1': {0: 0.8},
+        'metric2': {0: 0.2},
+        'Annotator': {0: 'annotator1'},
+        'Filepath': {0: file_path},
+        'CM': {0: {'0': {'0': 1, '1': 0}, '1': {'0': 0, '1': 1}}},
+        'lang': {0: 'en'}
+    })
+    pd.testing.assert_frame_equal(df, expected_df)
     assert isinstance(metrics, list)
     assert "Annotator" in df.columns
     assert "metric1" in metrics
@@ -74,11 +84,18 @@ def test_aggregate_across_languages(example_df):
         df=example_df,
         metrics=metrics
     )
-    assert isinstance(aggregated_metrics_df, pd.DataFrame)
-    assert isinstance(aggregated_cm, dict)
-    assert "metric1" in aggregated_metrics_df.columns
-    assert "metric2" in aggregated_metrics_df.columns
-    assert "Invalid" in aggregated_metrics_df.columns
+    expected_aggregated_metrics_df = pd.DataFrame.from_dict({
+        'metric1': {'annotator1': 0.8, 'annotator2': 0.9, 'annotator3': 0.85},
+        'metric2': {'annotator1': 0.2, 'annotator2': 0.1, 'annotator3': 0.15},
+        'Invalid': {'annotator1': 2, 'annotator2': 3, 'annotator3': 4}
+    })
+    pd.testing.assert_frame_equal(aggregated_metrics_df, expected_aggregated_metrics_df)
+    expected_aggregated_cm = {
+        "annotator1": {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+        "annotator2": {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+        "annotator3": {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}}
+    }
+    assert aggregated_cm == expected_aggregated_cm
 
 
 def test_plot_confusion_matrix(tmp_path):
