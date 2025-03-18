@@ -186,6 +186,30 @@ Solustion as by https://github.com/vllm-project/vllm/issues/10024
 ```
 export VLLM_RPC_TIMEOUT= 20000
 ```
+## Converting docker containers to singularity containers
+
+### Build from docker hub
+1. Find the required version of vllm on [docker hub](https://hub.docker.com/)
+2. Run 
+   ```bash
+    singularity build singulairty_container_name.sif docker://path/to/vllm/on/docker-hub
+   ```
+### Build from source   
+1. clone the [vllm repo](https://github.com/vllm-project/vllm)
+2. change requirements files as necessary i.e transformer version
+3. cd vllm and run
+   ```bash
+   # optionally specifies: --build-arg max_jobs=8 --build-arg nvcc_threads=2
+   DOCKER_BUILDKIT=1 docker build . --target vllm-openai --tag vllm/your-build-name
+   ```
+4. Save the container into a tar file by running
+   ```bash
+   docker save -o vllm-openai-gemma.tar vllm/your-build-name
+   ```
+5. Transfer the tar file to (virtual) machine where you have singularity setup and run
+   ```bash
+   sudo singularity singulairty_container_name.sif docker-archive://path/to/docker/tar/file
+   ```    
 
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)
