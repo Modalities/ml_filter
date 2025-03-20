@@ -1,5 +1,6 @@
 import hashlib
 import os
+import random
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -11,13 +12,14 @@ from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
-from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.inference_pipeline.run_pipeline import run_pipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
+from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
+from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
@@ -121,16 +123,15 @@ def entry_point_compare_experiments(config_file_path: Path):
     compare_experiments(config_file_path)
 
 
-@main.command(name="train_classifier")
+@main.command(name="annotator_training_pipeline")
 @click.option(
     "--config_file_path",
     type=click_pathlib.Path(exists=False),
     required=True,
-    help="Path to the training config file.",
+    help="Path to the config file.",
 )
-def entry_train_classifier(config_file_path: Path):
-    classifier_pipeline = ClassifierTrainingPipeline(config_file_path=config_file_path)
-    classifier_pipeline.train_classifier()
+def entry_annotator_training_pipeline(config_file_path: Path):
+    run_annotator_training_pipeline(config_file_path=config_file_path)
 
 
 @main.command(name="chunk_jsonl")
@@ -267,7 +268,8 @@ def evaluate_prompt_based_annotations_cli(
 @click.option(
     "--min_metrics",
     type=str,
-    help="Comma-separated list of metrics for which lower is better. All other metrics are considered to be better when higher.",  # noqa
+    help="Comma-separated list of metrics for which lower is better."
+    + "All other metrics are considered to be better when higher.",
 )
 def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str):
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
@@ -475,6 +477,110 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
         output_file (Path): Path to the output file (JSONL or YAML format) to save results.
     """
     run_word_count_jsonl_files(directory, output_file)
+
+
+@main.command(name="convert_hf_dataset_to_jsonl")
+@click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to output file.",
+)
+@click.option(
+    "--hf_dataset_name",
+    type=str,
+    help="Name of the Hugging Face dataset to download and convert.",
+)
+@click.option(
+    "--hf_dataset_split",
+    type=str,
+    default="train",
+    show_default=True,
+    help="The split of the Hugging Face dataset that is used for conversion.",
+)
+def convert_hf_dataset_to_jsonl_cli(
+    output_dir_path: Path,
+    hf_dataset_name: str,
+    hf_dataset_split: str,
+):
+    """Convert the FineWeb dataset into JSONL format and create train/val/test splits.
+
+    This command downloads the dataset from Hugging Face, converts it to JSONL format,
+    creates multiple versions with different score transformations, and splits the data
+    into train/validation/test sets.
+    """
+    # download data and create single score file
+    convert_hf_dataset_to_jsonl(
+        hf_dataset_name=hf_dataset_name,
+        output_dir_path=output_dir_path,
+        hf_dataset_split=hf_dataset_split,
+    )
+
+
+@main.command(name="create_train_val_test_split")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to input file.",
+)
+@click.option(
+    "--output_dir_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to output directory.",
+)
+@click.option(
+    "--split_ratio",
+    type=str,
+    help="Comma seprated train, validation, test split raio.",
+)
+def create_train_val_test_split_cli(
+    input_file_path: Path,
+    output_dir_path: Path,
+    split_ratio: str,
+):
+    train_ratio, val_ratio, test_ratio = (float(ratio) for ratio in split_ratio.split(","))
+    split_dataset(
+        input_file_path=input_file_path,
+        output_dir_path=output_dir_path,
+        train_ratio=train_ratio,
+        val_ratio=val_ratio,
+        test_ratio=test_ratio,
+    )
+
+
+@click.command(name="apply_score_transforms")
+@click.option(
+    "--input_file_path",
+    type=click_pathlib.Path(exists=False, resolve_path=True),
+    required=True,
+    help="Path to input file.",
+)
+@click.option(
+    "--output_file_path",
+    type=click_pathlib.Path(exists=False, resolve_path=True),
+    required=True,
+    help="Path to input file.",
+)
+def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) -> None:
+    """CLI command to apply score transformations and save results."""
+
+    def get_transform_functions():
+        """Returns a list of transformation functions for scores."""
+        return [
+            # TODO: Assign names to the transformations
+            ("shift_up_capped", lambda x: min(x + 1, 5)),  # Shift up by 1, cap at 5
+            ("add_noise_clamped", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # Add noise, clamp to [0,5]
+            ("binary_threshold", lambda x: 1 if x >= 3 else 0),  # Binary threshold at 3
+        ]
+
+    # Apply transformations
+    apply_score_transforms(
+        input_file_path=input_file_path,
+        output_path=output_file_path,
+        transform_fns=get_transform_functions(),
+    )
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):

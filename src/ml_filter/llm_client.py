@@ -9,7 +9,7 @@ from ml_filter.config.annotation_pipeline_config import AnnotationPipelineConfig
 from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
-from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 

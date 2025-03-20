@@ -11,7 +11,7 @@ from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.llm_score_metrics import EducationalScoreMetric
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
-from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
 
 def generate_mock(processed_document: ProcessedDocument) -> List[ProcessedDocument]:
