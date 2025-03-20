@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
@@ -96,3 +96,7 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
         return self.tokenizer.apply_chat_template(
             prompt, tokenize=tokenize, add_generation_prompt=self.add_generation_prompt
         )
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegates missing method calls to the underlying Hugging Face tokenizer."""
+        return getattr(self.tokenizer, name)

@@ -14,18 +14,23 @@ tokenizer:
 
 data: 
   train_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  train_annotation_path: null
   train_file_split: train
   test_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
   test_file_split: train
   val_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl
+  val_annotation_path: null
   val_file_split: train
   gt_file_path: tests/resources/data/lorem_ipsum_multiscore.jsonl # ground truth data; can be null (optional)
+  gt_annotation_path: null
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_regressor_outputs: 4
-  num_classes_per_output: [6, 6, 2, 2]
+  num_tasks: 4
+  num_targets_per_task: [6, 6, 2, 2]
   output_names: ["edu_en", "edu_de", "toxicity_en", "toxicity_de"]
+  annotation_names: []
+  annotation_aggregation_fn: median 
   
 training:
   batch_size: 32
@@ -36,8 +41,9 @@ training:
   save_strategy: epoch
   logging_steps: 1
   seed: 42
+  learning_rate: 0.0003
   regression_loss: true
   greater_is_better: false # save model with lowest loss
-  metric_for_best_model: eval_loss
+  metric_for_best_model: eval_val_loss
   logging_dir_path: tests/cache
   output_dir_path: tests/cache
