@@ -258,7 +258,7 @@ def config_file(temp_output_dir):
             "test_file_path": str(temp_output_dir / "test.jsonl"),
             "test_file_split": "train",
             "num_tasks": 3,
-            "task_names": ["edu", "toxicity"],
+            "task_names": ["edu", "toxicity", "adult"],
             "num_targets_per_task": [2, 3, 4],
         },
         "tokenizer": {
