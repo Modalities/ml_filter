@@ -1,0 +1,18 @@
+prompt: |
+  Below is an extract from a web page. Evaluate the level of explicit sexual material or content inappropriate for general audiences using the additive 5-point scoring system described below. 
+  Points are accumulated based on the degree of inappropriateness:
+
+  - Add 1 point if the extract contains mild sexual innuendo or suggestive content that is not explicit, generally acceptable for most audiences but possibly unsuitable for young children.
+  - Add another point if the extract includes moderate sexual content or references that are more direct but not graphic, inappropriate for children though potentially acceptable for teens.
+  - Award a third point if the extract contains explicit sexual references or mild explicit imagery, clearly unsuitable for minors.
+  - Grant a fourth point if the extract includes strong explicit sexual content or graphic imagery, intended for adults only.
+  - Bestow a fifth point if the extract is dominated by hardcore explicit sexual material, such as pornography, highly inappropriate for general audiences.
+  Note: Topics like sexual education, health-related sexual organ discussions, LGBTQ+ issues, contraception, or intimate hygiene should 
+  be scored 0 if presented educationally and without explicit intent.
+  The extract:
+  {placeholder}
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'Adult score: <total points>'
+
+prompt_name: adult_content_filter

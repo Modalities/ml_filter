@@ -5,6 +5,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from requests import Session
 
+from ml_filter.config.annotation_pipeline_config import AnnotationPipelineConfig
 from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
@@ -20,12 +21,16 @@ class LLMClient:
         self.rest_endpoint = rest_endpoint
 
         OmegaConf.register_new_resolver("eval", eval)
-        cfg = OmegaConf.load(config_file_path)
+        config_omegaconf = OmegaConf.load(config_file_path)
+        config_resolved = OmegaConf.to_container(config_omegaconf, resolve=True)
+        cfg = AnnotationPipelineConfig.model_validate(config_resolved)
 
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
         # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
         self.experiment_dir_path.mkdir(parents=True, exist_ok=True)
+
+        print(f"Experiment directory created at: {self.experiment_dir_path}")
         shutil.copy(config_file_path, self.experiment_dir_path / config_file_path.name)
         shutil.copy(
             cfg.prompt_builder.prompt_template_file_path,
@@ -42,10 +47,9 @@ class LLMClient:
         self.max_pool_connections = cfg.llm_rest_client.max_pool_connections
         self.max_pool_maxsize = cfg.llm_rest_client.max_pool_maxsize
         self.max_tokens = cfg.llm_rest_client.max_tokens
-        self.max_new_tokens = cfg.llm_rest_client.max_new_tokens
-        self.temperature = cfg.llm_rest_client.temperature
+
         self.verbose = cfg.llm_rest_client.verbose
-        self.num_return_sequences = cfg.llm_rest_client.num_return_sequences
+        self.sampling_params = cfg.llm_rest_client.sampling_params
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
@@ -88,10 +92,8 @@ class LLMClient:
             max_pool_connections=self.max_pool_connections,
             max_pool_maxsize=self.max_pool_maxsize,
             max_tokens=self.max_tokens,
-            max_new_tokens=self.max_new_tokens,
-            temperature=self.temperature,
+            sampling_params=self.sampling_params,
             verbose=self.verbose,
-            num_return_sequences=self.num_return_sequences,
         )
 
         # Get DocumentProcessor

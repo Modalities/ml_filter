@@ -44,6 +44,7 @@ class ProcessedDocument:
     document_text_detokenized: str = ""
     truncated_preprocessed_text: str = ""
     timestamp: int = 0
+    out_tokens_per_second: float = 0
 
 
 class MetaInformation(BaseModel):
@@ -53,6 +54,7 @@ class MetaInformation(BaseModel):
     prompt_lang: str
     model_name: str
     raw_data_file_path: str
+    out_tokens_per_second: float
 
 
 class Annotation(BaseModel):

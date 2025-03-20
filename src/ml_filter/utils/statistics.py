@@ -1,6 +1,5 @@
 import json
 
-# Configure logging
 import logging
 from collections import Counter
 from multiprocessing import Pool, cpu_count
@@ -8,8 +7,9 @@ from pathlib import Path
 
 import jq
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from ml_filter.utils.logging import get_logger
+
+logger = get_logger(name=__name__, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")  # Create a logger instance
 
 
 def compute_num_words_and_chars_in_jsonl(input_file_path: Path, output_file_path: Path) -> None:
@@ -46,11 +46,6 @@ def compute_num_words_and_chars_in_jsonl(input_file_path: Path, output_file_path
     # Write the result to a JSON file
     with output_file_path.open("w", encoding="utf-8") as outfile:
         json.dump(output_data, outfile, indent=4)
-
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
 
 
 def _count_words_in_file(file_path: Path) -> tuple[Path, int]:

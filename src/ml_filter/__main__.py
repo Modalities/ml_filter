@@ -1,4 +1,5 @@
 import hashlib
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -6,12 +7,15 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
+from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.inference_pipeline.run_pipeline import run_pipeline
 from ml_filter.llm_client import LLMClient
+from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
@@ -93,10 +97,14 @@ def main() -> None:
     help="The endpoint for the LLM service.",
 )
 def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
+    with open(config_file_path, "rb") as f:
+        hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
+    experiment_id_postfix = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
+
     if experiment_id is None:
-        with open(config_file_path, "rb") as f:
-            hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
-        experiment_id = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
+        experiment_id = experiment_id_postfix
+    else:
+        experiment_id = experiment_id + f"/{experiment_id_postfix}"
     llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
     llm_service.run()
 
@@ -148,7 +156,7 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     chunk_jsonl(input_file_path=input_file_path, output_dir=output_dir, lines_per_chunk=lines_per_chunk)
 
 
-@main.command(name="add_target_langauge_to_prompt_yaml")
+@main.command(name="add_target_language_to_prompt_yaml")
 @click.option(
     "--input_file_path",
     type=click_pathlib.Path(exists=True),
@@ -161,7 +169,7 @@ def chunk_jsonl_file(input_file_path: Path, output_dir: Path, lines_per_chunk: i
     required=True,
     help="Directory where chunk files will be saved.",
 )
-def add_target_langauge_to_prompt_yaml(input_file_path: Path, output_dir: Path):
+def add_target_language_to_prompt_yaml(input_file_path: Path, output_dir: Path):
     add_target_language_to_prompt(input_file_path=input_file_path, output_dir=output_dir)
 
 
@@ -230,6 +238,46 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: Op
     plot_differences_in_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
 
 
+@main.command(name="evaluate_prompt_based_annotations")
+@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.argument("gt_data", type=click.Path(exists=True, path_type=Path))
+@click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
+@click.option("--labels", type=str, help="Comma-separated list of labels.")
+def evaluate_prompt_based_annotations_cli(
+    input_directory: Path,
+    output_directory: Path,
+    gt_data: Path,
+    aggregation: str,
+    labels: str,
+) -> None:
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    evaluate_prompt_based_annotations(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        gt_data=gt_data,
+        aggregation=aggregation,
+        labels=[float(label) for label in labels.split(",")],
+    )
+
+
+@main.command(name="collect_ir_metrics")
+@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option(
+    "--min_metrics",
+    type=str,
+    help="Comma-separated list of metrics for which lower is better. All other metrics are considered to be better when higher.",  # noqa
+)
+def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str):
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    collect_ir_metrics(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        min_metrics=[metric for metric in min_metrics.split(",")],
+    )
+
+
 @main.command(name="translate_jsonl_to_multiple_languages_cli")
 @input_file_path_option
 @output_folder_path_option
@@ -266,6 +314,112 @@ def compute_num_words_in_jsonl_cli(
     output_file_path: Path,
 ):
     compute_num_words_and_chars_in_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+
+
+@main.command(name="sample_from_hf_dataset")
+@click.option(
+    "--dataset_name",
+    required=True,
+    type=str,
+    help="Name of the Hugging Face dataset to sample from (e.g., 'HuggingFaceFW/fineweb-edu-llama3-annotations').",
+)
+@click.option(
+    "--dataset_split",
+    required=True,
+    type=str,
+    help="The split of the Hugging Face dataset that is used for sampling (e.g., 'train').",
+)
+@click.option(
+    "--output_file_path",
+    required=True,
+    type=click.Path(),
+    help="Path to save the sampled data as a JSON file (e.g., 'output.json').",
+)
+@click.option(
+    "--column_name", required=True, type=str, help="Column in the dataset used for filtering (e.g., 'score')."
+)
+@click.option(
+    "--column_values",
+    required=True,
+    type=str,
+    help="Comma-separated list of relevant column values to sample.",
+)
+@click.option(
+    "--num_docs_per_value",
+    required=True,
+    type=int,
+    help="Number of documents to sample for each column value (e.g., 100).",
+)
+@click.option(
+    "--seed",
+    default=42,
+    type=int,
+    show_default=True,
+    help="Seed value for random operations to ensure reproducibility.",
+)
+def sample_from_hf_dataset_cli(
+    dataset_name: str,
+    dataset_split: str,
+    output_file_path: Path,
+    column_name: str,
+    column_values: str,
+    num_docs_per_value: int,
+    seed: int,
+):
+    column_values_list = [x.strip() for x in column_values.split(",")]
+    sample_from_hf_dataset(
+        dataset_name=dataset_name,
+        dataset_split=dataset_split,
+        output_file_path=output_file_path,
+        column_name=column_name,
+        column_values=column_values_list,
+        num_docs_per_value=num_docs_per_value,
+        seed=seed,
+    )
+
+
+@main.command(name="upload_file_to_hf")
+@click.option(
+    "--file_path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="The local path to the file to be uploaded.",
+)
+@click.option(
+    "--hf_repo_path",
+    type=str,
+    required=True,
+    help="The path in the Hugging Face repository where the file will be stored.",
+)
+@click.option(
+    "--hf_repo_id",
+    type=str,
+    required=True,
+    help="The ID of the Hugging Face repository.",
+)
+@click.option(
+    "--repo_type",
+    type=str,
+    default="dataset",
+    show_default=True,
+    help="The type of the repository (default is 'dataset').",
+)
+@click.option(
+    "--hf_token",
+    type=str,
+    default=os.environ.get("HF_TOKEN", ""),
+    show_default=True,
+    help="The Hugging Face authentication token (default is taken from the environment variable 'HF_TOKEN').",
+)
+def upload_file_to_hf_cli(file_path: Path, hf_repo_path: str, hf_repo_id: str, repo_type: str, hf_token: str):
+    """Upload a file to the Hugging Face Hub."""
+    upload_file_to_hf(
+        file_path=str(file_path),
+        hf_repo_path=hf_repo_path,
+        hf_repo_id=hf_repo_id,
+        repo_type=repo_type,
+        hf_token=hf_token,
+    )
 
 
 @main.command(name="merge_and_sort_jsonl_files_cli")

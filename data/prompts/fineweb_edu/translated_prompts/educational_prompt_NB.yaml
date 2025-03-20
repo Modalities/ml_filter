@@ -26,3 +26,4 @@ prompt: 'Nedenfor er et utdrag fra en nettside. Vurder om siden har høy pedagog
   innhold.\n <notranslate>The extract: {placeholder}.</notranslate>\nEtter å ha lest
   utdraget:\n Begrunn kort den totale poengsummen din, opptil 100 ord.\nSlutt med
   poengsummen ved å bruke formatet: <notranslate>''Educational score: <total points>''</notranslate>'
+prompt_name: fine_web_edu
