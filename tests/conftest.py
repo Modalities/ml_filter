@@ -278,6 +278,7 @@ def config_file(temp_output_dir):
     return config_path
 
 
+@pytest.fixture
 def example_df():
     data = {
         "Annotator": ["annotator1", "annotator2", "annotator3"],
