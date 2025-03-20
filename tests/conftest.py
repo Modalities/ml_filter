@@ -250,6 +250,7 @@ def config_file(temp_output_dir):
         "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": True},
         "data": {
             "text_column": "text",
+            "label_column": "labels",
             "document_id_column": "id",
             "train_file_path": str(temp_output_dir / "train.jsonl"),
             "train_file_split": "train",

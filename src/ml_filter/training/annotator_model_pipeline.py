@@ -119,6 +119,7 @@ def _init_tokenized_dataset_builder(cfg, tokenizer) -> DataPreprocessor:
     tokenized_dataset_builder = DataPreprocessor(
         tokenizer=tokenizer.tokenizer,
         text_column=cfg.data.text_column,
+        label_column=cfg.data.label_column,
         document_id_column=cfg.data.document_id_column,
         max_length=cfg.tokenizer.get("max_length"),
         is_regression=cfg.training.is_regression,
