@@ -8,6 +8,8 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
+from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
@@ -234,6 +236,47 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: Op
     path_to_files = [Path(p) for p in path_to_files]
     plot_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
     plot_differences_in_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
+
+
+@main.command(name="evaluate_prompt_based_annotations")
+@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.argument("gt_data", type=click.Path(exists=True, path_type=Path))
+@click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
+@click.option("--labels", type=str, help="Comma-separated list of labels.")
+def evaluate_prompt_based_annotations_cli(
+    input_directory: Path,
+    output_directory: Path,
+    gt_data: Path,
+    aggregation: str,
+    labels: str,
+) -> None:
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    evaluate_prompt_based_annotations(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        gt_data=gt_data,
+        aggregation=aggregation,
+        labels=[float(label) for label in labels.split(",")],
+    )
+
+
+@main.command(name="collect_ir_metrics")
+@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option(
+    "--min_metrics",
+    type=str,
+    help="Comma-separated list of metrics for which lower is better."
+    + "All other metrics are considered to be better when higher.",
+)
+def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str):
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    collect_ir_metrics(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        min_metrics=[metric for metric in min_metrics.split(",")],
+    )
 
 
 @main.command(name="translate_jsonl_to_multiple_languages_cli")

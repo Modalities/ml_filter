@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pandas as pd
 import pytest
 import torch
 import yaml
@@ -275,3 +276,47 @@ def config_file(temp_output_dir):
     config_path = temp_output_dir / "config.yaml"
     OmegaConf.save(cfg, config_path)
     return config_path
+
+
+def example_df():
+    data = {
+        "Annotator": ["annotator1", "annotator2", "annotator3"],
+        "metric1": [0.8, 0.9, 0.85],
+        "metric2": [0.2, 0.1, 0.15],
+        "Invalid": [2, 3, 4],
+        "lang": ["en", "en", "en"],
+        "Filepath": ["path1", "path2", "path3"],
+        "CM": [
+            {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+            {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+            {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+        ],
+    }
+    return pd.DataFrame(data)
+
+
+@pytest.fixture
+def example_aggregated_metrics_df():
+    data = {
+        "metric1": {
+            "annotator1": 0.8,
+            "annotator2": 0.4,
+            "annotator3": 0.5,
+        },
+        "metric2": {
+            "annotator1": 0.2,
+            "annotator2": 0.3,
+            "annotator3": 0.5,
+        },
+    }
+    return pd.DataFrame(data)
+
+
+@pytest.fixture
+def example_top_n_annotators():
+    return {
+        1: {
+            "metric1": {"annotator1": 1, "annotator2": 1, "annotator3": 1},
+            "metric2": {"annotator1": 1, "annotator2": 1, "annotator3": 1},
+        }
+    }

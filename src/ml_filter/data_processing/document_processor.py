@@ -5,6 +5,7 @@ import os
 import re
 import time
 from pathlib import Path
+from queue import Empty
 from typing import Any, Dict, List, Optional
 
 import jq
@@ -15,10 +16,9 @@ from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.data_processing.report_statistics import ThroughputStatistics
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+from ml_filter.utils.logging import get_logger
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
-logger = logging.getLogger(__name__)  # Create a logger instance
+logger = get_logger(name=__name__, level=logging.INFO)  # Create a logger instance
 
 
 class DocumentProcessor:
@@ -43,8 +43,7 @@ class DocumentProcessor:
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
         manager = multiprocessing.Manager()
-        self.doc_order = manager.list()  # Use a shared list for document I Ds
-        self.results_dict = manager.dict()  # Use a shared dict for results
+        self.doc_order = manager.list()  # Use a shared list for document IDs
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
@@ -74,7 +73,7 @@ class DocumentProcessor:
         matches = re.findall(pattern, text)
 
         # Return the last occurrence if there are any matches
-        return matches[-1][-1] if matches else None
+        return matches[-1] if matches else None
 
     def _remove_special_strings(self, text: str) -> str:
         """
@@ -209,12 +208,24 @@ class DocumentProcessor:
         """
         start_time = time.time()
         results_written = 0
+        results_dict = {}
         open_files = {}
         total_out_tokens_per_second = 0
+        terminate_signal_received = False
         try:
             while True:
-                if not self.doc_order and self.result_queue.empty():
+                if terminate_signal_received and len(self.doc_order) == 0:
                     break
+                try:
+                    annotation: Annotation | None = self.result_queue.get(timeout=1)
+                    if annotation is None:
+                        terminate_signal_received = True
+                    else:
+                        results_dict[
+                            annotation.meta_information.raw_data_file_path + annotation.document_id
+                        ] = annotation
+                except Empty:
+                    pass
 
                 # Get the next document ID in order
                 if self.doc_order:
@@ -222,19 +233,9 @@ class DocumentProcessor:
                 else:
                     next_to_write_id = None
 
-                # Process result queue
-                while not self.result_queue.empty():
-                    annotation: Annotation | None = self.result_queue.get()
-                    if annotation is None:
-                        break
-
-                    self.results_dict[
-                        annotation.meta_information.raw_data_file_path + annotation.document_id
-                    ] = annotation
-
                 # Write the next document if available
-                if next_to_write_id and next_to_write_id in self.results_dict:
-                    annotation = self.results_dict.pop(next_to_write_id)
+                if next_to_write_id is not None and next_to_write_id in results_dict:
+                    annotation = results_dict.pop(next_to_write_id)
                     self.doc_order.pop(0)
 
                     # Write the annotation to the output file
@@ -326,6 +327,7 @@ class DocumentProcessor:
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()
+
         for p in processor_threads:
             p.join()
 
