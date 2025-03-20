@@ -34,6 +34,7 @@ class AnnotatorModel(nn.Module):
 
         Args:
             base_model (PreTrainedModel): A pre-trained Transformer model.
+            freeze_base_model_parameters (bool): Whether to freeze the base model's parameters.
             head (nn.Module): The custom classification or regression head.
         """
         super().__init__()

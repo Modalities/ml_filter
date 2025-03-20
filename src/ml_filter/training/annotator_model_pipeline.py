@@ -284,7 +284,6 @@ def compute_metrics(
 
     # Convert logits to predictions
     preds = np.round(predictions) if is_regression else predictions.argmax(axis=1)
-    # TODO: Check
     preds_raw = predictions if is_regression else preds
 
     # Compute metrics for each target

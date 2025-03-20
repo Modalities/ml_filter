@@ -526,9 +526,9 @@ def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) ->
         """Returns a list of transformation functions for scores."""
         return [
             # TODO: Assign names to the transformations
-            ("score_transform_1", lambda x: min(x + 1, 5)),  # Shift up by 1, cap at 5
-            ("score_transform_2", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # Add noise, clamp to [0,5]
-            ("score_transform_3", lambda x: 1 if x >= 3 else 0),  # Binary threshold at 3
+            ("shift_up_capped", lambda x: min(x + 1, 5)),  # Shift up by 1, cap at 5
+            ("add_noise_clamped", lambda x: min(max(x + random.uniform(-0.5, 0.5), 0), 5)),  # Add noise, clamp to [0,5]
+            ("binary_threshold", lambda x: 1 if x >= 3 else 0),  # Binary threshold at 3
         ]
 
     # Apply transformations
