@@ -102,7 +102,8 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
     """Runs the full pipeline end-to-end."""
     import os
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Use only GPUs 0 and 1
+    if os.environ.get('CUDA_VISIBLE_DEVICES') is None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Use only GPUs 0 and 1
 
     _dummy_dataset_files(temp_output_dir)
     run_annotator_training_pipeline(config_file)
