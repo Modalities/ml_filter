@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
-from transformers import AutoConfig, DataCollatorWithPadding, EvalPrediction, Trainer, TrainingArguments
+from transformers import AutoConfig, EvalPrediction, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 from constants import MODEL_CLASS_MAP
@@ -38,16 +38,12 @@ def run_annotator_training_pipeline(config_file_path: Path):
             tokenized_dataset_builder=tokenized_dataset_builder,
         )
 
-        # TODO: Check case when tokenized_dataset_builder.padding = False
-        data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
         # Train classifier
         _train_annotator_model(
             model=model,
             training_args=training_args,
             train_dataset=train_dataset,
             eval_datasets=eval_datasets,
-            data_collator=data_collator,
             compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
         )
@@ -220,7 +216,6 @@ def _train_annotator_model(
     training_args: TrainingArguments,
     train_dataset: torch.utils.data.Dataset,
     eval_datasets: dict[str, torch.utils.data.Dataset],
-    data_collator: DataCollatorWithPadding,
     compute_loss_fn: partial,
     compute_metrics_fn: partial,
 ) -> None:
@@ -244,7 +239,6 @@ def _train_annotator_model(
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_datasets,
-        data_collator=data_collator,
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
     )
