@@ -1,4 +1,5 @@
 import json
+import random
 import shutil
 from unittest.mock import MagicMock
 
@@ -24,6 +25,14 @@ def test_set_seeds():
     _set_seeds(42)
     assert torch.initial_seed() == 42
     assert np.random.get_state()[1][0] == 42
+
+    # Python's built-in random module does not have a direct function to
+    # retrieve the currently set seed. Therefore, we test the random sequence.
+    random.seed(42)
+    expected_sequence = [random.randint(0, 100) for _ in range(5)]
+    _set_seeds(42)
+    random_numbers = [random.randint(0, 100) for _ in range(5)]
+    assert random_numbers == expected_sequence, f"Random sequence mismatch: {random_numbers}"
 
 
 def test_init_tokenizer():
@@ -102,7 +111,7 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
     """Runs the full pipeline end-to-end."""
     import os
 
-    if os.environ.get('CUDA_VISIBLE_DEVICES') is None:
+    if os.environ.get("CUDA_VISIBLE_DEVICES") is None:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Use only GPUs 0 and 1
 
     _dummy_dataset_files(temp_output_dir)

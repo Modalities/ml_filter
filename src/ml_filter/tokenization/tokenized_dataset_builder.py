@@ -15,6 +15,7 @@ class DataPreprocessor:
         self,
         tokenizer: PreTrainedTokenizer,
         text_column: str,
+        label_column: str,
         max_length: int,
         is_regression: bool,
         document_id_column: str = "document_id",
@@ -26,6 +27,7 @@ class DataPreprocessor:
         Args:
             tokenizer (PreTrainedTokenizer): A Hugging Face tokenizer for processing text.
             text_column (str): The name of the column containing text to tokenize.
+            label_column (str): The name of the column containing labels.
             max_length (int): The maximum tokenized sequence length.
             is_regression (bool): Whether the task is regression or classification.
             document_id_column (str, optional): Column name for unique document IDs. Defaults to "document_id".
@@ -40,6 +42,7 @@ class DataPreprocessor:
 
         self.tokenizer = tokenizer
         self.text_column = text_column
+        self.label_column = label_column
         self.max_length = max_length
         self.is_regression = is_regression
         self.document_id_column = document_id_column
@@ -109,9 +112,9 @@ class DataPreprocessor:
                 return_tensors="pt",
             )
             if self.is_regression:
-                labels = torch.tensor(batch["labels"], dtype=torch.float)
+                labels = torch.tensor(batch[self.label_column], dtype=torch.float)
             else:
-                labels = torch.tensor(batch["labels"], dtype=torch.long)
+                labels = torch.tensor(batch[self.label_column], dtype=torch.long)
 
             return {**tokenized, "labels": labels}
 
