@@ -47,7 +47,7 @@ def convert_hf_dataset_to_jsonl(
     """
     # Load the dataset
     logger.info(f"Loading dataset: {hf_dataset_name}...")
-    dataset = load_dataset(hf_dataset_name)[hf_dataset_split]
+    dataset = load_dataset(hf_dataset_name, split=hf_dataset_split)
 
     # Create output directory if it doesn't exist
     os.makedirs(output_file_path, exist_ok=True)
