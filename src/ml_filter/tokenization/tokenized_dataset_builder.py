@@ -28,7 +28,7 @@ class DataPreprocessor:
             text_column (str): The name of the column containing text to tokenize.
             max_length (int): The maximum tokenized sequence length.
             is_regression (bool): Whether the task is regression or classification.
-            document_id_column (str, optional): Column name for unique document IDs. Defaults to "id".
+            document_id_column (str, optional): Column name for unique document IDs. Defaults to "document_id".
             truncation (bool, optional): Whether to truncate sequences exceeding `max_length`. Defaults to True.
             padding (bool, optional): Whether to pad sequences shorter than `max_length`. Defaults to True.
 
