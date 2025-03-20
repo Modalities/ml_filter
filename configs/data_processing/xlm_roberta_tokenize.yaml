@@ -1,0 +1,18 @@
+settings:
+  src_path: data/inference_pipeline/fineweb_2_10k/nld_Latn_sampled_10k.jsonl
+  dest_path: data/inference_pipeline/fineweb_2_10k/nld_Latn_sampled_10k.pbin
+  index_path: data/inference_pipeline/fineweb_2_10k/nld_Latn_sampled_10k.idx
+  jq_pattern: .text
+  num_cpus: ${node_env:num_cpus}
+  eod_token: <|endoftext|>
+  processing_batch_size: 10
+  raw_samples_queue_size: 300
+  processed_samples_queue_size: 300
+
+tokenizer:
+  component_key: tokenizer
+  variant_key: pretrained_hf_tokenizer
+  config:
+    pretrained_model_name_or_path: data/xlm-roberta-tokenizer
+    padding: false
+    truncation: true
