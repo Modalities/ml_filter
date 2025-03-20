@@ -261,6 +261,7 @@ def config_file(temp_output_dir):
             "num_tasks": 3,
             "task_names": ["edu", "toxicity", "adult"],
             "num_targets_per_task": [2, 3, 4],
+            "num_processes": 2,
         },
         "tokenizer": {
             "pretrained_model_name_or_path": "facebookai/xlm-roberta-base",

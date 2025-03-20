@@ -18,6 +18,7 @@ class DataPreprocessor:
         label_column: str,
         max_length: int,
         is_regression: bool,
+        num_processes: int,
         document_id_column: str = "document_id",
         truncation: bool = True,
         padding: bool = True,
@@ -33,6 +34,7 @@ class DataPreprocessor:
             document_id_column (str, optional): Column name for unique document IDs. Defaults to "document_id".
             truncation (bool, optional): Whether to truncate sequences exceeding `max_length`. Defaults to True.
             padding (bool, optional): Whether to pad sequences shorter than `max_length`. Defaults to True.
+            num_processes (int): Number of processes to use for tokenization.
 
         Raises:
             Warning: If the tokenizer does not have a padding token, a warning is logged and `eos_token`
@@ -48,6 +50,7 @@ class DataPreprocessor:
         self.document_id_column = document_id_column
         self.truncation = truncation
         self.padding = padding
+        self.num_processes = num_processes
 
         # Ensure tokenizer has padding token
         if not self.tokenizer.pad_token and self.padding:
@@ -118,4 +121,9 @@ class DataPreprocessor:
 
             return {**tokenized, "labels": labels}
 
-        return dataset.map(process_batch, batched=True, remove_columns=dataset.column_names)
+        return dataset.map(
+            process_batch,
+            batched=True,
+            remove_columns=dataset.column_names,
+            num_proc=self.num_processes,
+        )

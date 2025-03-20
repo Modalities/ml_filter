@@ -125,6 +125,7 @@ def _init_tokenized_dataset_builder(cfg, tokenizer) -> DataPreprocessor:
         is_regression=cfg.training.is_regression,
         padding=cfg.tokenizer.get("padding"),
         truncation=cfg.tokenizer.get("truncation"),
+        num_processes=cfg.data.num_processes,
     )
     return tokenized_dataset_builder
 
