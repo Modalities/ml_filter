@@ -32,11 +32,12 @@ def organize_experiment_output(folder_path, educational_prompt="edu"):
                 except Exception as e:
                     print(f"Error deleting {file_to_delete}: {e}")
             # Extract <lang_name> and <model_name> using regex
-            match = re.match(r"511_test_documents_educational_content_(.*?)_.*?__annotations_(.*?)_fine_web_edu_en_.jsonl", file_name)
+            match = re.match(r".*__annotations_(.*?)_fine_web_edu_(.*?)_.jsonl", file_name)
             if match:
-                lang_name = match.group(1)
-                model_name = match.group(2)
+                model_name = match.group(1)
+                lang_name = match.group(2)
             else:
+                raise NotImplementedError(f"File name format not recognized: {file_name}")
                 # Special case for `en` folder
                 match_en = re.match(r"511_test_documents_educational_content_en__annotations_(.*?)_fine_web_edu_en_.jsonl", file_name)
                 if match_en:
@@ -71,7 +72,7 @@ def find_generated_annotations(root_dir):
     return generated_paths
 
 
-root_directory = "/Users/akhan/Downloads/mn5_experiments/experiments"
+root_directory = "/raid/s3/opengptx/user/richard-rutmann/data/ml_filter/gemma-3-27b-it"
 paths = find_generated_annotations(root_directory)        
 
 for path in paths:
