@@ -99,6 +99,7 @@ def get_document_scores(
                     'annotator': annotator,
                     'doc_id': json_obj.get('document_id'),
                     'score': aggr_score,
+                    'raw_data_file_path': json_obj['meta_information'].get('raw_data_file_path')
                 })
     
     document_scores_df = pd.DataFrame(document_scores)

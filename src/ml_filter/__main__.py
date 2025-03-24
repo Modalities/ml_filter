@@ -7,6 +7,7 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.aggregate_scores import aggregate_scores
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
@@ -259,6 +260,26 @@ def evaluate_prompt_based_annotations_cli(
         labels=[float(l) for l in labels.split(",")],
     )
 
+
+@main.command(name="aggregate_scores")
+@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
+@click.option("--labels", type=str, help="Comma-separated list of labels.")
+def evaluate_prompt_based_annotations_cli(
+    input_directory: Path,
+    output_directory: Path,
+    aggregation: str,
+    labels: str,
+) -> None:
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    aggregate_scores(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        aggregation=aggregation,
+        labels=[float(l) for l in labels.split(",")],
+    )
+    
 
 @main.command(name="collect_ir_metrics")
 @click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
