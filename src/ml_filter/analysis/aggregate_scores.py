@@ -70,9 +70,10 @@ def aggregate_scores_in_directory(
         
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
             document_scores_for_raw_data_df = document_scores_df[document_scores_df["raw_data_file_path"] == raw_data_file_path]
-            if document_scores_for_raw_data_df["doc_id"].duplicated().any():
+            duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
+            if duplicated.any():
                 duplicate_doc_ids = document_scores_for_raw_data_df.loc[
-                    document_scores_for_raw_data_df["doc_id"].duplicated(), "doc_id"
+                    duplicated, "doc_id"
                 ].tolist()
                 print(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
             raw_data_file_path = Path(raw_data_file_path)
