@@ -71,12 +71,15 @@ def aggregate_scores_in_directory(
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
             document_scores_for_raw_data_df = document_scores_df[document_scores_df["raw_data_file_path"] == raw_data_file_path]
             if document_scores_for_raw_data_df["doc_id"].duplicated().any():
-                raise ValueError("Duplicate doc_id values found in the DataFrame.")
+                duplicate_doc_ids = document_scores_for_raw_data_df.loc[
+                    document_scores_for_raw_data_df["doc_id"].duplicated(), "doc_id"
+                ].tolist()
+                print(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
             raw_data_file_path = Path(raw_data_file_path)
             aggr_scores_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
 
-            aggregate_scores(
+            add_scores_to_documents(
                 aggr_scores_file_path=aggr_scores_file_path,
                 raw_data_file_path=raw_data_file_path,
                 document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
@@ -86,9 +89,9 @@ def aggregate_scores_in_directory(
             logger.info(f"Aggregated scores added to {aggr_scores_file_path} for all entries in {file}.")
                     
 
-def aggregate_scores(aggr_scores_file_path: Path, raw_data_file_path: Path, document_scores_for_raw_data_dict: dict, aggregation: str, batch_size: int) -> None:
+def add_scores_to_documents(aggr_scores_file_path: Path, raw_data_file_path: Path, document_scores_for_raw_data_dict: dict, aggregation: str, batch_size: int) -> None:
     """
-    Aggregate scores for a batch of documents and write them to a JSONL file.
+    Write scores and corresponding documents to a JSONL file.
     
     Args:
         aggr_scores_file_path (Path): The path to the output file.
