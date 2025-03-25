@@ -31,6 +31,7 @@ class DocumentProcessor:
         prompt_builder: PromptBuilder,
         queue_size: int,
         raw_data_file_paths: List[Path],
+        start_indexes: List[int],
         experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
@@ -47,6 +48,11 @@ class DocumentProcessor:
         self.doc_order = manager.list()  # Use a shared list for document IDs
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
+        # If start_indexes is shorter than raw_data_file_paths, extend it with 0s.
+        if len(start_indexes) < len(raw_data_file_paths):
+            start_indexes.extend([0] * (len(raw_data_file_paths) - len(start_indexes)))
+
+        self.start_indexes = start_indexes
         self.experiment_dir_path = experiment_dir_path
         self.common_parents_path = Path(os.path.commonpath(raw_data_file_paths))
 
@@ -169,13 +175,20 @@ class DocumentProcessor:
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
         return len(document["text"]) > 0 and len(document["document_id"]) > 0 and len(document["language"]) > 0
 
-    def _load_documents(self, raw_data_file_paths: List[Path]):
-        for raw_data_file_path in raw_data_file_paths:
+    def _load_documents(self, raw_data_file_paths: List[Path], start_indexes: List[int]):
+        for raw_data_file_path, index in zip(raw_data_file_paths, start_indexes):
+            doc_count = 0
             with open(raw_data_file_path, "r") as fin:
                 while True:
                     document_string = fin.readline()
                     if len(document_string) == 0:
                         break
+
+                    # If we haven't reached the start_index yet, skip this document.
+                    if doc_count < index:
+                        doc_count += 1
+                        continue
+
                     try:
                         document = json.loads(document_string)
                     except json.JSONDecodeError:
@@ -316,7 +329,9 @@ class DocumentProcessor:
         Args:
             documents (Iterable): An iterable containing the documents to be processed.
         """
-        reader = multiprocessing.Process(target=self._load_documents, args=(self.raw_data_file_paths,))
+        reader = multiprocessing.Process(
+            target=self._load_documents, args=(self.raw_data_file_paths, self.start_indexes)
+        )
         reader.start()
 
         writer = multiprocessing.Process(target=self._write_results, args=(self.common_parents_path,))
