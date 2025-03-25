@@ -7,7 +7,7 @@ from typing import Optional
 import click
 import click_pathlib
 
-from ml_filter.analysis.aggregate_scores import aggregate_scores
+from ml_filter.analysis.aggregate_scores import aggregate_scores_in_directory
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
@@ -274,7 +274,7 @@ def evaluate_prompt_based_annotations_cli(
     labels: str,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
-    aggregate_scores(
+    aggregate_scores_in_directory(
         input_directory=input_directory,
         output_directory=output_directory,
         aggregation=aggregation,

@@ -22,11 +22,12 @@ def _extract_annotator_name(filename: Path) -> str:
     return basename.split("_")[-1]
 
 
-def aggregate_scores(
+def aggregate_scores_in_directory(
     input_directory: Path,
     output_directory: Path,
     aggregation: str,
-    labels: list[float]
+    labels: list[float],
+    batch_size: int = 100000,
 ) -> None:
     """
     Evaluates prompt-based annotations by comparing annotations to ground truth data.
@@ -67,31 +68,52 @@ def aggregate_scores(
             labels=labels,
         )
         
-        batch_size = 100000
-        batch = []
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
             document_scores_for_raw_data_df = document_scores_df[document_scores_df["raw_data_file_path"] == raw_data_file_path]
             if document_scores_for_raw_data_df["doc_id"].duplicated().any():
                 raise ValueError("Duplicate doc_id values found in the DataFrame.")
-            raw_data_file_path = Path(raw_data_file_path)
+            raw_data_file_path = Path(raw_data_file_path) TODO
             aggr_scores_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
 
-            with aggr_scores_file_path.open("w") as f_out, raw_data_file_path.open("r") as f_in:
-                for i, line in enumerate(f_in):
-                    json_obj = json.loads(line)
-                    document_id = json_obj["id"]
-                    if document_id not in document_scores_for_raw_data_dict:
-                        raise ValueError(f"No scores found for document {document_id}.")
-                    score = document_scores_for_raw_data_dict[document_id]
-                    json_obj["score"] = score
-                    json_obj["aggregation_type"] = aggregation
-                    batch.append(json_obj)
-                    if len(batch) == batch_size:
-                        f_out.write("\n".join(json.dumps(obj) for obj in batch) + "\n")
-                        batch = []  # Clear the batch after writing
-                        logger.info(f"Processed {i+1} documents.")
-                        
+            aggregate_scores(
+                aggr_scores_file_path=aggr_scores_file_path,
+                raw_data_file_path=raw_data_file_path,
+                document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
+                aggregation=aggregation,
+                batch_size=batch_size,
+            )                        
             logger.info(f"Aggregated scores added to {aggr_scores_file_path} for all entries in {file}.")
                     
 
+def aggregate_scores(aggr_scores_file_path: Path, raw_data_file_path: Path, document_scores_for_raw_data_dict: dict, aggregation: str, batch_size: int) -> None:
+    """
+    Aggregate scores for a batch of documents and write them to a JSONL file.
+    
+    Args:
+        aggr_scores_file_path (Path): The path to the output file.
+        raw_data_file_path (Path): The path to the raw data file.
+        document_scores_for_raw_data_dict (dict): A dictionary mapping document IDs to scores.
+        aggregation (str): The aggregation method used to compute the scores.
+        batch_size (int): The number of documents to process in each batch.     
+
+    Returns:
+        None    
+    """
+    batch = []
+    with aggr_scores_file_path.open("w", encoding="utf-8") as f_out, raw_data_file_path.open("r", encoding="utf-8") as f_in:
+        for i, line in enumerate(f_in):
+            json_obj = json.loads(line)
+            document_id = json_obj["id"]
+            if document_id not in document_scores_for_raw_data_dict:
+                raise ValueError(f"No scores found for document {document_id}.")
+            score = document_scores_for_raw_data_dict[document_id]
+            json_obj["score"] = score
+            json_obj["aggregation_type"] = aggregation
+            batch.append(json_obj)
+            if len(batch) == batch_size:
+                f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
+                batch = []  # Clear the batch after writing
+                logger.info(f"Processed {i+1} documents.")
+        if batch:
+            f_out.write("\n" + "\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
