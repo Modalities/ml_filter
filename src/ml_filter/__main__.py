@@ -14,6 +14,7 @@ from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.classifier_training_pipeline import ClassifierTrainingPipeline
 from ml_filter.compare_experiments import compare_experiments
+from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
@@ -498,6 +499,33 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
     """
     run_word_count_jsonl_files(directory, output_file)
 
+
+@main.command(name="deduplicate_jsonl")
+@click.option(
+    "--input_dir",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the directory with JSONL files.",
+)
+@click.option(
+    "--output_dir",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the output directory with deduplicated entries.",
+)
+def deduplicate_jsonl_cli(input_dir: Path, output_dir: Path):
+    """
+    CLI command to deduplicate entries in a JSONL file based on 'doc_id' and 'text' fields.
+    """
+    # Ensure the output directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Iterate over all JSONL files in the input directory
+    for input_file in input_dir.glob("*.jsonl"):
+        output_file = output_dir / input_file.name  # Keep the same filename in the output directory
+        deduplicate_jsonl(input_file_path=input_file, output_file_path=output_file)
+        print(f"Processed {input_file} -> {output_file}")
+    
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
     translation_service_type = TranslationServiceType[translation_service]
