@@ -515,7 +515,7 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
 )
 def deduplicate_jsonl_cli(input_dir: Path, output_dir: Path):
     """
-    CLI command to deduplicate entries in a JSONL file based on 'doc_id' and 'text' fields.
+    CLI command to deduplicate entries in all JSONL files in a directory based on 'doc_id' and 'text' fields.
     """
     # Ensure the output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
