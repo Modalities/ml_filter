@@ -72,7 +72,7 @@ def aggregate_scores_in_directory(
             document_scores_for_raw_data_df = document_scores_df[document_scores_df["raw_data_file_path"] == raw_data_file_path]
             if document_scores_for_raw_data_df["doc_id"].duplicated().any():
                 raise ValueError("Duplicate doc_id values found in the DataFrame.")
-            raw_data_file_path = Path(raw_data_file_path) TODO
+            raw_data_file_path = Path(raw_data_file_path)
             aggr_scores_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
 
