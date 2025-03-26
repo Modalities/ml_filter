@@ -502,6 +502,27 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
 
 @main.command(name="deduplicate_jsonl")
 @click.option(
+    "--input_file",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the input JSONL file.",
+)
+@click.option(
+    "--output_file",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the output file with deduplicated entries.",
+)
+def deduplicate_jsonl_cli(input_file: Path, output_file: Path):
+    """
+    CLI command to deduplicate entries in a JSONL file based on 'doc_id' and 'text' fields.
+    """
+    deduplicate_jsonl(input_file_path=input_file, output_file_path=output_file)
+    print(f"Processed {input_file} -> {output_file}")
+    
+    
+@main.command(name="deduplicate_dir")
+@click.option(
     "--input_dir",
     type=click_pathlib.Path(exists=True),
     required=True,
@@ -513,7 +534,7 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
     required=True,
     help="Path to the output directory with deduplicated entries.",
 )
-def deduplicate_jsonl_cli(input_dir: Path, output_dir: Path):
+def deduplicate_dir_cli(input_dir: Path, output_dir: Path):
     """
     CLI command to deduplicate entries in all JSONL files in a directory based on 'doc_id' and 'text' fields.
     """
@@ -525,7 +546,7 @@ def deduplicate_jsonl_cli(input_dir: Path, output_dir: Path):
         output_file = output_dir / input_file.name  # Keep the same filename in the output directory
         deduplicate_jsonl(input_file_path=input_file, output_file_path=output_file)
         print(f"Processed {input_file} -> {output_file}")
-    
+        
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
     translation_service_type = TranslationServiceType[translation_service]
