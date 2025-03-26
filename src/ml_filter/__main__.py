@@ -267,11 +267,13 @@ def evaluate_prompt_based_annotations_cli(
 @click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
 @click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
 @click.option("--labels", type=str, help="Comma-separated list of labels.")
+@click.option("--raw_data_lookup_dir", type=click.Path(exists=False, path_type=Path), required=False)
 def evaluate_prompt_based_annotations_cli(
     input_directory: Path,
     output_directory: Path,
     aggregation: str,
     labels: str,
+    raw_data_lookup_dir: Optional[Path] = None,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
     aggregate_scores_in_directory(
@@ -279,6 +281,7 @@ def evaluate_prompt_based_annotations_cli(
         output_directory=output_directory,
         aggregation=aggregation,
         labels=[float(l) for l in labels.split(",")],
+        raw_data_lookup_dir=raw_data_lookup_dir,
     )
     
 

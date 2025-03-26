@@ -28,6 +28,7 @@ def aggregate_scores_in_directory(
     aggregation: str,
     labels: list[float],
     batch_size: int = 100000,
+    raw_data_lookup_dir: Path = None,
 ) -> None:
     """
     Evaluates prompt-based annotations by comparing annotations to ground truth data.
@@ -76,7 +77,10 @@ def aggregate_scores_in_directory(
                     duplicated, "doc_id"
                 ].tolist()
                 print(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
-            raw_data_file_path = Path(raw_data_file_path)
+            if raw_data_lookup_dir is not None:
+                raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
+            else:
+                raw_data_file_path = Path(raw_data_file_path)
             aggr_scores_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
 
