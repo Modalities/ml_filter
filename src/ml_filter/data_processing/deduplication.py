@@ -3,7 +3,7 @@ import hashlib
 from pathlib import Path
 
 
-def deduplicate_jsonl(input_file_path: Path, output_file_path: Path) -> None:
+def deduplicate_jsonl(input_file_path: Path, output_file_path: Path, batch_size: int = 10000) -> None:
     """
     Deduplicates entries in a JSONL file based on 'doc_id' and 'text' fields.
 
@@ -17,19 +17,34 @@ def deduplicate_jsonl(input_file_path: Path, output_file_path: Path) -> None:
     seen_doc_ids = set()
     seen_text_hashes = set()
     deduplicated_entries = []
-
+    print(f"Processing file {input_file_path}")
     with input_file_path.open("r") as f_in:
-        for line in f_in:
-            entry = json.loads(line)
-            # Hash the 'text' field for efficient comparison
-            text_hash = hashlib.sha256(entry.get("text", "").encode("utf-8")).hexdigest()
-            doc_id = entry.get("id")
-            if doc_id not in seen_doc_ids:
-                seen_doc_ids.add(doc_id)
-                if text_hash not in seen_text_hashes:
-                    seen_text_hashes.add(text_hash)
-                    deduplicated_entries.append(entry)
+        with output_file_path.open("w") as f_out:
+            for line in f_in:
+                if line == "\n":
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.decoder.JSONDecodeError:
+                    print(f"{line=}")
+                    raise
+                # Hash the 'text' field for efficient comparison
+                text_hash = hashlib.sha256(entry.get("text", "").encode("utf-8")).hexdigest()
+                doc_id = entry.get("id")
+                if doc_id not in seen_doc_ids:
+                    seen_doc_ids.add(doc_id)
+                    if text_hash not in seen_text_hashes:
+                        seen_text_hashes.add(text_hash)
+                        deduplicated_entries.append(entry)
 
-    with output_file_path.open("w") as f_out:
-        for entry in deduplicated_entries:
-            f_out.write(json.dumps(entry) + "\n")
+                if len(deduplicated_entries) == batch_size:
+                    write_to_output_file(f_out, deduplicated_entries)
+                    deduplicated_entries = []
+                    
+            if deduplicated_entries:
+                write_to_output_file(f_out, deduplicated_entries)
+
+
+def write_to_output_file(f_out, entries):
+    for entry in entries:
+        f_out.write(json.dumps(entry) + "\n")
