@@ -53,18 +53,18 @@ def aggregate_scores_in_directory(
     output_directory.mkdir(parents=True, exist_ok=True)
 
     # Iterate over all pairs of files (tuples)
-    for file in files:
+    for f in files:
         # Extract annotator names
-        annotator = _extract_annotator_name(file)
-        lang = file.parent.name
+        annotator = _extract_annotator_name(f)
+        lang = f.parent.name
         
         # Log the tuple of annotator names
-        logger.info(f"Aggregate scores in {file}.")
+        logger.info(f"Aggregate scores in {f}.")
         lang_dir = output_directory / lang
         lang_dir.mkdir(parents=True, exist_ok=True)
         
         document_scores_df = get_document_scores(
-            path_to_files=[file],
+            path_to_files=[f],
             aggregation=aggregation,
             labels=labels,
         )
@@ -81,20 +81,21 @@ def aggregate_scores_in_directory(
                 raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
             else:
                 raw_data_file_path = Path(raw_data_file_path)
-            aggr_scores_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
+            output_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
 
             add_scores_to_documents(
-                aggr_scores_file_path=aggr_scores_file_path,
+                output_file_path=output_file_path,
                 raw_data_file_path=raw_data_file_path,
                 document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
                 aggregation=aggregation,
                 batch_size=batch_size,
+                id_field="id",
             )                        
-            logger.info(f"Aggregated scores added to {aggr_scores_file_path} for all entries in {file}.")
+            
                     
 
-def add_scores_to_documents(aggr_scores_file_path: Path, raw_data_file_path: Path, document_scores_for_raw_data_dict: dict, aggregation: str, batch_size: int) -> None:
+def add_scores_to_documents(output_file_path: Path, raw_data_file_path: Path, document_scores_for_raw_data_dict: dict, aggregation: str, batch_size: int, id_field: str) -> None:
     """
     Write scores and corresponding documents to a JSONL file.
     
@@ -109,19 +110,28 @@ def add_scores_to_documents(aggr_scores_file_path: Path, raw_data_file_path: Pat
         None    
     """
     batch = []
-    with aggr_scores_file_path.open("w", encoding="utf-8") as f_out, raw_data_file_path.open("r", encoding="utf-8") as f_in:
-        for i, line in enumerate(f_in):
-            json_obj = json.loads(line)
-            document_id = json_obj["id"]
-            if document_id not in document_scores_for_raw_data_dict:
-                raise ValueError(f"No scores found for document {document_id}.")
-            score = document_scores_for_raw_data_dict[document_id]
-            json_obj["score"] = score
-            json_obj["aggregation_type"] = aggregation
-            batch.append(json_obj)
-            if len(batch) == batch_size:
-                f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
-                batch = []  # Clear the batch after writing
-                logger.info(f"Processed {i+1} documents.")
-        if batch:
-            f_out.write("\n" + "\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
+    output_file_path.parent.mkdir(exist_ok=True, parents=True)
+    try:
+        with output_file_path.open("w", encoding="utf-8") as f_out, raw_data_file_path.open("r", encoding="utf-8") as f_in:
+            for i, line in enumerate(f_in):
+                json_obj = json.loads(line)
+                document_id = json_obj[id_field]
+                if document_id not in document_scores_for_raw_data_dict:
+                    logger.error(f"No scores found for document {document_id}. Skip this file.")
+                    raise ValueError()
+                score = document_scores_for_raw_data_dict[document_id]
+                json_obj["score"] = score
+                json_obj["aggregation_type"] = aggregation
+                batch.append(json_obj)
+                if len(batch) == batch_size:
+                    f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
+                    batch = []  # Clear the batch after writing
+                    logger.info(f"Processed {i+1} documents.")
+            if batch:
+                f_out.write("\n" + "\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
+        logger.info(f"Aggregated scores added to {output_file_path}.")
+    except ValueError:
+        logger.error(f"Error processing {raw_data_file_path}.")
+        if output_file_path.exists():
+            output_file_path.unlink()
+    
