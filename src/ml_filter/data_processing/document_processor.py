@@ -5,6 +5,7 @@ import os
 import re
 import time
 from pathlib import Path
+from queue import Empty
 from typing import Any, Dict, List, Optional
 
 import jq
@@ -41,10 +42,12 @@ class DocumentProcessor:
         self.queue_size = queue_size
         self.documents_queue = multiprocessing.Queue(maxsize=queue_size)
         self.result_queue = multiprocessing.Queue(maxsize=queue_size)
+        manager = multiprocessing.Manager()
+        self.doc_order = manager.list()  # Use a shared list for document IDs
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
         self.experiment_dir_path = experiment_dir_path
-        self.common_parents_path = os.path.commonpath(raw_data_file_paths)
+        self.common_parents_path = Path(os.path.commonpath(raw_data_file_paths))
 
         self.strings_to_remove = strings_to_remove
         self.jq_language_pattern = jq.compile(jq_language_pattern)
@@ -70,7 +73,7 @@ class DocumentProcessor:
         matches = re.findall(pattern, text)
 
         # Return the last occurrence if there are any matches
-        return matches[-1][-1] if matches else None
+        return matches[-1] if matches else None
 
     def _remove_special_strings(self, text: str) -> str:
         """
@@ -84,7 +87,7 @@ class DocumentProcessor:
             str: The formatted string with specified characters or strings removed.
         """
 
-        text = text.replace("\n", "").replace("\r", " ")
+        text = text.replace("\n", " ").replace("\r", " ")
         for string in list(self.strings_to_remove):
             text = text.replace(string, " ")
 
@@ -111,6 +114,7 @@ class DocumentProcessor:
         # text generation
         all_processed_documents = []
         processed_documents = self.llm_rest_client.generate(processed_document=processed_document)
+
         for processed_document in processed_documents:
             # score filtering
             score = DocumentProcessor.find_last_pattern(
@@ -125,7 +129,7 @@ class DocumentProcessor:
 
             if len(processed_document.errors) > 0:
                 error_string = " | ".join(processed_document.errors)
-                logger.warning(f"Error processing document with id {document['id']}: {error_string}")
+                logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
@@ -178,19 +182,20 @@ class DocumentProcessor:
                         continue
 
                     # Add langauge to document based on jq pattern
-                    langauge = self.jq_language_pattern.input(document).first()
-                    if not langauge:
+                    language = self.jq_language_pattern.input(document).first()
+                    if not language:
                         raise ValueError(f"Could not find language in document: {document}. Check your jq pattern.")
 
-                    document["language"] = langauge
+                    document["language"] = language
                     document["raw_data_file_path"] = raw_data_file_path
 
                     if not self._is_valid_document(document):
                         logger.warning(
-                            f"Invalid document with id: {document['id']}. "
+                            f"Invalid document with id: {document['document_id']}. "
                             + "Value of key 'text' has length of 0. Skipping."
                         )
                         continue
+                    self.doc_order.append(str(raw_data_file_path) + document["document_id"])
                     self.documents_queue.put(document)
 
         # Add termination signal (None) once all documents are in the queue
@@ -198,52 +203,74 @@ class DocumentProcessor:
             self.documents_queue.put(None)
 
     def _write_results(self, common_parents_path: Path):
+        """
+        Writes processed annotations to output files in the correct order.
+        """
         start_time = time.time()
         results_written = 0
+        results_dict = {}
         open_files = {}
         total_out_tokens_per_second = 0
-        while True:
-            annotation: Annotation = self.result_queue.get()
-            if annotation is None:
-                for f in open_files.values():
-                    f.flush()
-                    f.close()
-                break
+        terminate_signal_received = False
+        try:
+            while True:
+                if terminate_signal_received and len(self.doc_order) == 0:
+                    break
+                try:
+                    annotation: Annotation | None = self.result_queue.get(timeout=1)
+                    if annotation is None:
+                        terminate_signal_received = True
+                    else:
+                        results_dict[
+                            annotation.meta_information.raw_data_file_path + annotation.document_id
+                        ] = annotation
+                except Empty:
+                    pass
 
-            out_file_path = self._create_out_file_path(annotation, common_parents_path)
+                # Get the next document ID in order
+                if self.doc_order:
+                    next_to_write_id = self.doc_order[0]
+                else:
+                    next_to_write_id = None
 
-            # Open the file if not already open
-            if out_file_path not in open_files:
-                open_files[out_file_path] = open(out_file_path, "a")  # Append mode
+                # Write the next document if available
+                if next_to_write_id is not None and next_to_write_id in results_dict:
+                    annotation = results_dict.pop(next_to_write_id)
+                    self.doc_order.pop(0)
 
-            f = open_files[out_file_path]
+                    # Write the annotation to the output file
+                    out_file_path = self._create_out_file_path(annotation, common_parents_path)
+                    if out_file_path not in open_files:
+                        open_files[out_file_path] = open(out_file_path, "a")  # Append mode
 
-            if annotation is None:
-                for file in open_files.values():
-                    file.flush()
-                    file.close()
-                break
+                    f = open_files[out_file_path]
+                    json.dump(annotation.model_dump(), f)
+                    f.write("\n")
+                    results_written += 1
+                    total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
 
-            json.dump(annotation.model_dump(), f)
-            f.write("\n")
-            results_written += 1
-            total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
+                    # Periodic flush
+                    if results_written % 10 == 0:
+                        for file in open_files.values():
+                            file.flush()
+                        elapsed_time = time.time() - start_time
+                        results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+                        logger.info(
+                            f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
+                            f"| Results per second: {results_per_second:.2f}"
+                        )
+        finally:
+            # Close all open files
+            for f in open_files.values():
+                f.flush()
+                f.close()
 
-            if results_written % 10 == 0:
-                for file in open_files.values():
-                    file.flush()
-                end_time = time.time()
-                elapsed_time = end_time - start_time
-                results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
-
-                logger.info(
-                    f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
-                    f" | Results per second: {results_per_second:.2f}"
-                )
-
+        # Final stats logging
+        elapsed_time = time.time() - start_time
+        results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
         logger.info(
-            f"Results written final: {results_written} | Elapsed time: {elapsed_time:.2f} seconds"
-            f" | Results per second: {results_per_second:.2f}"
+            f"Final results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
+            f"| Results per second: {results_per_second:.2f}"
         )
         with open(self.experiment_dir_path / "throughput.json", "w") as f:
             json.dump(
@@ -300,6 +327,7 @@ class DocumentProcessor:
         ]
         for p in tqdm(processor_threads, desc="Starting processor threads"):
             p.start()
+
         for p in processor_threads:
             p.join()
 

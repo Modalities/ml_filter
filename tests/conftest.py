@@ -4,8 +4,12 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 import pytest
+import torch
 import yaml
+from omegaconf import OmegaConf
+from transformers import AutoConfig, BertForSequenceClassification
 
+from ml_filter.models.annotator_models import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
@@ -191,6 +195,90 @@ def tmp_nested_jsonl_directory(tmp_path: Path):
 
 
 @pytest.fixture
+def dummy_base_model():
+    """Creates a dummy BERT model with a classifier."""
+    config = AutoConfig.from_pretrained("bert-base-uncased", num_labels=2)
+    return BertForSequenceClassification(config)
+
+
+@pytest.fixture
+def regression_head():
+    """Creates a dummy MultiTargetRegressionHead."""
+    return MultiTargetRegressionHead(
+        input_dim=768,
+        num_prediction_tasks=2,
+        num_targets_per_prediction_task=torch.tensor([6, 6]),
+    )
+
+
+@pytest.fixture
+def classification_head():
+    """Creates a dummy MultiTargetClassificationHead."""
+    return MultiTargetClassificationHead(
+        input_dim=768,
+        num_prediction_tasks=2,
+        num_targets_per_prediction_task=torch.tensor([6, 6]),
+    )
+
+
+@pytest.fixture
+def temp_output_dir(tmp_path):
+    """Creates a temporary output directory for testing."""
+    return tmp_path / "output"
+
+
+@pytest.fixture
+def config_file(temp_output_dir):
+    """Creates a real configuration file for testing."""
+    temp_output_dir.mkdir(parents=True, exist_ok=True)
+    cfg = {
+        "training": {
+            "output_dir_path": str(temp_output_dir),
+            "batch_size": 2,
+            "epochs": 1,
+            "weight_decay": 0.01,
+            "learning_rate": 5e-5,
+            "save_strategy": "epoch",
+            "logging_steps": 10,
+            "logging_dir_path": str(temp_output_dir / "logs"),
+            "metric_for_best_model": "accuracy",
+            "use_bf16": False,
+            "greater_is_better": True,
+            "is_regression": True,
+            "eval_strategy": "steps",
+            "dataloader_num_workers": 1,
+        },
+        "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": True},
+        "data": {
+            "text_column": "text",
+            "label_column": "labels",
+            "document_id_column": "id",
+            "train_file_path": str(temp_output_dir / "train.jsonl"),
+            "train_file_split": "train",
+            "val_file_path": str(temp_output_dir / "val.jsonl"),
+            "val_file_split": "train",
+            "test_file_path": str(temp_output_dir / "test.jsonl"),
+            "test_file_split": "train",
+            "num_tasks": 3,
+            "task_names": ["edu", "toxicity", "adult"],
+            "num_targets_per_task": [2, 3, 4],
+            "num_processes": 2,
+        },
+        "tokenizer": {
+            "pretrained_model_name_or_path": "facebookai/xlm-roberta-base",
+            "add_generation_prompt": False,
+            "max_length": 128,
+            "padding": "max_length",
+            "truncation": True,
+        },
+    }
+
+    config_path = temp_output_dir / "config.yaml"
+    OmegaConf.save(cfg, config_path)
+    return config_path
+
+
+@pytest.fixture
 def example_df():
     data = {
         "Annotator": ["annotator1", "annotator2", "annotator3"],
@@ -199,9 +287,11 @@ def example_df():
         "Invalid": [2, 3, 4],
         "lang": ["en", "en", "en"],
         "Filepath": ["path1", "path2", "path3"],
-        "CM": [{"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
-               {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
-               {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}}]
+        "CM": [
+            {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+            {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+            {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}},
+        ],
     }
     return pd.DataFrame(data)
 
@@ -218,7 +308,7 @@ def example_aggregated_metrics_df():
             "annotator1": 0.2,
             "annotator2": 0.3,
             "annotator3": 0.5,
-        }
+        },
     }
     return pd.DataFrame(data)
 
@@ -228,6 +318,6 @@ def example_top_n_annotators():
     return {
         1: {
             "metric1": {"annotator1": 1, "annotator2": 1, "annotator3": 1},
-            "metric2": {"annotator1": 1, "annotator2": 1, "annotator3": 1}
+            "metric2": {"annotator1": 1, "annotator2": 1, "annotator3": 1},
         }
     }

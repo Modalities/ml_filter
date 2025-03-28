@@ -73,12 +73,10 @@ def test_compute_doc_level_variation(example_scores, example_ids):
 
 def test_compute_accuracy_mae_mse_against_gt():
     scores_0 = [1, 2, 3]
-    scores_1 = [1, 2, 3]
+    scores_1 = [1, 3, 2]
     metrics = compute_accuracy_mae_mse_against_gt(scores_0, scores_1)
-    assert isinstance(metrics, dict)
-    assert "acc" in metrics
-    assert "mae" in metrics
-    assert "mse" in metrics
+    expected_metrics = {'acc': 0.3333333333333333, 'mae': 0.6666666666666666, 'mse': 0.6666666666666666}
+    assert metrics == expected_metrics
 
 
 def test_compute_metrics():
@@ -91,9 +89,18 @@ def test_compute_metrics():
     }
     df = pd.DataFrame(data)
     metrics = compute_metrics(num_total_docs=3, valid_docs_df=df)
-    assert isinstance(metrics, dict)
-    assert "metrics" in metrics
-    assert "Variation per Document" in metrics
+    expected_metrics = {
+        'metrics': {
+            'Fleiss': np.float64(1.0),
+            'Cohen': np.float64(1.0),
+            'Spearman': np.float64(1.0),
+            'Kendall': np.float64(1.0),
+            'Krippendorff': np.float64(1.0),
+            'Invalid': 0
+        },
+        'Variation per Document': {1: 0, 2: 0, 3: 0, 'counts': {0: 3}, 'mean': 0, 'stdev': 0.0}
+        }
+    assert metrics == expected_metrics
 
 
 def test_compare_model_to_gt(tmp_path):
@@ -114,9 +121,18 @@ def test_compare_model_to_gt(tmp_path):
         metrics=metrics,
         output_dir=output_dir
     )
-    assert isinstance(updated_metrics, dict)
-    assert "metrics" in updated_metrics
-    assert "CM" in updated_metrics
+    expected_updated_metrics = {
+        'metrics': {'Acc': 1.0, 'MAE': 0.0, 'MSE': 0.0},
+        'CM': {
+            0: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            1: {-1: 0, 0: 0, 1: 1, 2: 0, 3: 0, 4: 0, 5: 0},
+            2: {-1: 0, 0: 0, 1: 0, 2: 1, 3: 0, 4: 0, 5: 0},
+            3: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 1, 4: 0, 5: 0},
+            4: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            5: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        }
+    }
+    assert updated_metrics == expected_updated_metrics
 
 
 @pytest.mark.parametrize(
