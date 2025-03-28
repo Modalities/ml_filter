@@ -28,16 +28,20 @@ def aggregate_human_annotations(
         id_field="document_id",
     )        
     # remove field "scores" from output_file_path
-    with output_file_path.open("r", encoding="utf-8") as f_in:
+    remove_field_from_jsonl_file(output_file_path, "scores")
+    
+
+def remove_field_from_jsonl_file(jsonl_file_path: Path, field: str):
+    with jsonl_file_path.open("r", encoding="utf-8") as f_in:
         new_lines = []
         for line in f_in:
             if line == "\n":
                 continue
             json_obj = json.loads(line)
-            json_obj.pop("scores", None)
+            json_obj.pop(field, None)
             new_lines.append(json_obj)
 
-    with output_file_path.open("w", encoding="utf-8") as f_out:
+    with jsonl_file_path.open("w", encoding="utf-8") as f_out:
         f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in new_lines))
     
     
