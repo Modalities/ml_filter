@@ -1,2 +1,0 @@
-{"document_id": "4", "scores": [1, 2, 2], "explanation": ["<explanation 1>", "<explanation 2>", "<explanation 3>"], "meta_information": {"prompt": "toxic", "prompt_lang": "en", "model": "test", "timestamp": 20241202}}
-{"document_id": "6", "scores": [5, 2, 4], "explanation": ["<explanation 1>", "<explanation 2>", "<explanation 3>"], "meta_information": {"prompt": "toxic", "prompt_lang": "en", "model": "test", "timestamp": 20241202}}
