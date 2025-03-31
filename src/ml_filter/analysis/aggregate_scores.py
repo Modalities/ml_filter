@@ -76,7 +76,7 @@ def aggregate_scores_in_directory(
                 duplicate_doc_ids = document_scores_for_raw_data_df.loc[
                     duplicated, "doc_id"
                 ].tolist()
-                print(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
+                logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
             if raw_data_lookup_dir is not None:
                 raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
             else:
@@ -167,7 +167,10 @@ def aggregate_human_annotations(
         labels=labels,
         aggregation=aggregation
     )
+    # The field "raw_data_file_path" is added to the DataFrame to keep track of the original file path
     document_scores_df["raw_data_file_path"] = str(raw_data_file_path)
+    
+    # Convert the DataFrame to a dictionary for faster lookups and to avoid duplicate entries
     document_scores_dict = document_scores_df.set_index("doc_id")["score"].to_dict()
     add_scores_to_documents(
         output_file_path=output_file_path,
@@ -203,13 +206,16 @@ def remove_field_from_jsonl_file(
                 json_obj = json.loads(line)
                 json_obj.pop(field, None)
                 new_lines.append(json_obj)
-        
-        # Write the modified JSON objects back to the JSONL file
-        with jsonl_file_path.open("w", encoding="utf-8") as f_out:
-            f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in new_lines))
     except FileNotFoundError:
         logger.error(f"File not found: {jsonl_file_path}")
         raise
     except json.JSONDecodeError as e:
         logger.error(f"Error decoding JSON in {jsonl_file_path}: {e}")
         raise
+    
+    # Write the modified JSON objects back to the JSONL file
+    # Using a temporary file to avoid data loss in case of an error during writing
+    temp_file_path = jsonl_file_path.with_suffix(".tmp")
+    with temp_file_path.open("w", encoding="utf-8") as f_out:
+        f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in new_lines))
+    temp_file_path.rename(jsonl_file_path)
