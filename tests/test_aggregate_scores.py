@@ -1,5 +1,4 @@
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
 from ml_filter.analysis.aggregate_scores import (
