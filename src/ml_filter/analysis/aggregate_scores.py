@@ -122,8 +122,9 @@ def add_scores_to_documents(
                 json_obj = json.loads(line)
                 document_id = json_obj[id_field]
                 if document_id not in document_scores_for_raw_data_dict:
-                    logger.error(f"No scores found for document {document_id}. Skip this file.")
-                    raise ValueError()
+                    err_msg = f"No scores found for document {document_id}. Skip this file."
+                    logger.error(err_msg)
+                    raise ValueError(err_msg)
                 score = document_scores_for_raw_data_dict[document_id]
                 json_obj["score"] = score
                 json_obj["aggregation_type"] = aggregation
@@ -192,14 +193,23 @@ def remove_field_from_jsonl_file(
     Returns:
         None
     """
-    with jsonl_file_path.open("r", encoding="utf-8") as f_in:
-        new_lines = []
-        for line in f_in:
-            if line == "\n":
-                continue
-            json_obj = json.loads(line)
-            json_obj.pop(field, None)
-            new_lines.append(json_obj)
-
-    with jsonl_file_path.open("w", encoding="utf-8") as f_out:
-        f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in new_lines))
+    try:
+        # Read the JSONL file and remove the specified field from each JSON object
+        with jsonl_file_path.open("r", encoding="utf-8") as f_in:
+            new_lines = []
+            for line in f_in:
+                if line == "\n":
+                    continue
+                json_obj = json.loads(line)
+                json_obj.pop(field, None)
+                new_lines.append(json_obj)
+        
+        # Write the modified JSON objects back to the JSONL file
+        with jsonl_file_path.open("w", encoding="utf-8") as f_out:
+            f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in new_lines))
+    except FileNotFoundError:
+        logger.error(f"File not found: {jsonl_file_path}")
+        raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON in {jsonl_file_path}: {e}")
+        raise
