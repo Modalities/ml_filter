@@ -282,6 +282,67 @@ def evaluate_prompt_based_annotations_cli(
         output_directory=output_directory,
         aggregation=aggregation,
         labels=[float(l) for l in labels.split(",")],
+        raw_data_lookup_dir=raw_data_lookup_dir,
+    )
+    
+    
+@main.command(name="aggregate_human_annotations")
+@click.option(
+    "--annotations_file_path",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to the annotations file.",
+)
+@click.option(
+    "--output_file_path",
+    type=click.Path(exists=False, path_type=Path),
+    required=True,
+    help="Path to the output file.",
+)
+@click.option(
+    "--raw_data_file_path",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to the raw data file.",
+)
+@click.option(
+    "--labels",
+    type=str,
+    required=True,
+    help="Comma-separated list of possible labels.",
+)
+@click.option(
+    "--aggregation",
+    type=str,
+    default="majority",
+    show_default=True,
+    help="Aggregation method to use for the scores.",
+)
+@click.option(
+    "--batch_size",
+    type=int,
+    default=100000,
+    show_default=True,
+    help="Number of documents to process in each batch.",
+)
+def aggregate_human_annotations_cli(
+    annotations_file_path: Path,
+    output_file_path: Path,
+    raw_data_file_path: Path,
+    labels: str,
+    aggregation: str,
+    batch_size: int,
+) -> None:
+    """
+    CLI command to aggregate human annotations by comparing them to ground truth data.
+    """
+    aggregate_human_annotations(
+        annotations_file_path=annotations_file_path,
+        output_file_path=output_file_path,
+        raw_data_file_path=raw_data_file_path,
+        labels=[float(label) for label in labels.split(",")],
+        aggregation=aggregation,
+        batch_size=batch_size,
     )
 
 
