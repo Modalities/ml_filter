@@ -61,16 +61,30 @@ target_language_codes_option = click.option(
 aggregation_option = click.option(
     "--aggregation",
     type=str,
-    required=False,
+    required=True,
     help="""
         Specifies how scores for a document from the same file are aggregated. 
-        If not set, no aggregation will be done (used for individual annotator analysis).
         Supported values:
         - "mean": Compute the average score.
         - "max": Use the maximum score.
         - "min": Use the minimum score.
         - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
     """,
+)
+
+labels_option = click.option(
+    "--labels",
+    type=str,
+    required=True,
+    help="Comma-separated list of possible labels.",
+)
+
+batch_size_option = click.option(
+    "--batch_size",
+    type=int,
+    default=100000,
+    show_default=True,
+    help="Number of documents to process in each batch.",
 )
 
 path_to_files_argument = click.argument("path_to_files", nargs=-1, type=click.Path(path_type=Path))
@@ -263,17 +277,20 @@ def evaluate_prompt_based_annotations_cli(
         labels=[float(label) for label in labels.split(",")],
     )
 
+
 @main.command(name="aggregate_scores")
 @click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
-@click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
-@click.option("--labels", type=str, help="Comma-separated list of labels.")
+@labels_option
+@aggregation_option
+@batch_size_option
 @click.option("--raw_data_lookup_dir", type=click.Path(exists=False, path_type=Path), required=False)
 def evaluate_prompt_based_annotations_cli(
     input_directory: Path,
     output_directory: Path,
     aggregation: str,
     labels: str,
+    batch_size: int,
     raw_data_lookup_dir: Optional[Path] = None,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
@@ -282,6 +299,7 @@ def evaluate_prompt_based_annotations_cli(
         output_directory=output_directory,
         aggregation=aggregation,
         labels=[float(l) for l in labels.split(",")],
+        batch_size=batch_size,
         raw_data_lookup_dir=raw_data_lookup_dir,
     )
     
@@ -305,26 +323,9 @@ def evaluate_prompt_based_annotations_cli(
     required=True,
     help="Path to the raw data file.",
 )
-@click.option(
-    "--labels",
-    type=str,
-    required=True,
-    help="Comma-separated list of possible labels.",
-)
-@click.option(
-    "--aggregation",
-    type=str,
-    default="majority",
-    show_default=True,
-    help="Aggregation method to use for the scores.",
-)
-@click.option(
-    "--batch_size",
-    type=int,
-    default=100000,
-    show_default=True,
-    help="Number of documents to process in each batch.",
-)
+@labels_option
+@aggregation_option
+@batch_size_option
 def aggregate_human_annotations_cli(
     annotations_file_path: Path,
     output_file_path: Path,
