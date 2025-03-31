@@ -91,11 +91,16 @@ def aggregate_scores_in_directory(
                 aggregation=aggregation,
                 batch_size=batch_size,
                 id_field="id",
-            )                        
-            
+            )                             
                     
 
-def add_scores_to_documents(output_file_path: Path, raw_data_file_path: Path, document_scores_for_raw_data_dict: dict, aggregation: str, batch_size: int, id_field: str) -> None:
+def add_scores_to_documents(
+    output_file_path: Path,
+    raw_data_file_path: Path,
+    document_scores_for_raw_data_dict: dict,
+    aggregation: str, batch_size: int,
+    id_field: str
+) -> None:
     """
     Write scores and corresponding documents to a JSONL file.
     
@@ -140,12 +145,25 @@ def aggregate_human_annotations(
     annotations_file_path: Path,
     output_file_path: Path,
     raw_data_file_path: Path,
+    labels: list[float],
     aggregation: str,
-    batch_size: int
-):
+    batch_size: int,
+) -> None:
+    """
+    Aggregate human annotations by comparing them to ground truth data.
+    Args:
+        annotations_file_path (Path): The path to the annotations file.
+        output_file_path (Path): The path to the output file.
+        raw_data_file_path (Path): The path to the raw data file.
+        labels (list[float]): The list of possible labels.
+        aggregation (str): The aggregation method to use for the scores.
+        batch_size (int): The number of documents to process in each batch.
+    Returns:
+        None
+    """
     document_scores_df = get_document_scores(
         path_to_files=[annotations_file_path],
-        labels=[0, 1, 2, 3, 4, 5],
+        labels=labels,
         aggregation=aggregation
     )
     document_scores_df["raw_data_file_path"] = str(raw_data_file_path)
@@ -162,7 +180,18 @@ def aggregate_human_annotations(
     remove_field_from_jsonl_file(output_file_path, "scores")
     
 
-def remove_field_from_jsonl_file(jsonl_file_path: Path, field: str):
+def remove_field_from_jsonl_file(
+    jsonl_file_path: Path,
+    field: str
+) -> None:
+    """
+    Remove a field from each JSON object in a JSONL file.
+    Args:
+        jsonl_file_path (Path): The path to the JSONL file.
+        field (str): The field to remove from each JSON object.
+    Returns:
+        None
+    """
     with jsonl_file_path.open("r", encoding="utf-8") as f_in:
         new_lines = []
         for line in f_in:
