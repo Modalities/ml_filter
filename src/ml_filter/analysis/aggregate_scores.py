@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.utils import get_document_scores
 from ml_filter.utils.logging import get_logger
@@ -28,17 +29,18 @@ def aggregate_scores_in_directory(
     aggregation: str,
     labels: list[float],
     batch_size: int = 100000,
-    raw_data_lookup_dir: Path = None,
+    raw_data_lookup_dir: Optional[Path] = None,
 ) -> None:
     """
-    Evaluates prompt-based annotations by comparing annotations to ground truth data.
+    Aggregates scores for all annotation files in a directory.
 
     Args:
         input_directory (Path): The directory containing the annotation files.
-        output_directory (Path): The directory to save the evaluation results.
-        gt_data (Path): The path to the ground truth data file.
+        output_directory (Path): The directory to save the aggregated results.
         aggregation (str): The aggregation method to use for the scores.
         labels (list[float]): The list of possible labels.
+        batch_size (int): The number of documents to process in each batch. Defaults to 100000.
+        raw_data_lookup_dir (Optional[Path]): Directory to look up raw data files. Defaults to None.
 
     Returns:
         None
@@ -52,25 +54,27 @@ def aggregate_scores_in_directory(
 
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    # Iterate over all pairs of files (tuples)
+    # Iterate over all files
     for f in files:
         # Extract annotator names
         annotator = _extract_annotator_name(f)
         lang = f.parent.name
-        
-        # Log the tuple of annotator names
-        logger.info(f"Aggregate scores in {f}.")
+
+        # Log the file being processed
+        logger.info(f"Aggregating scores in {f}.")
         lang_dir = output_directory / lang
         lang_dir.mkdir(parents=True, exist_ok=True)
-        
+
         document_scores_df = get_document_scores(
             path_to_files=[f],
             aggregation=aggregation,
             labels=labels,
         )
-        
+
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
-            document_scores_for_raw_data_df = document_scores_df[document_scores_df["raw_data_file_path"] == raw_data_file_path]
+            document_scores_for_raw_data_df = document_scores_df[
+                document_scores_df["raw_data_file_path"] == raw_data_file_path
+            ]
             duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
             if duplicated.any():
                 duplicate_doc_ids = document_scores_for_raw_data_df.loc[
@@ -81,8 +85,14 @@ def aggregate_scores_in_directory(
                 raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
             else:
                 raw_data_file_path = Path(raw_data_file_path)
-            output_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
-            document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
+            output_file_path = (
+                output_directory
+                / lang_dir
+                / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
+            )
+            document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
+                "score"
+            ].to_dict()
 
             add_scores(
                 output_file_path=output_file_path,
@@ -91,38 +101,41 @@ def aggregate_scores_in_directory(
                 aggregation=aggregation,
                 batch_size=batch_size,
                 id_field="id",
-            )                             
-                    
+            )
+
 
 def add_scores(
     output_file_path: Path,
     raw_data_file_path: Path,
     document_scores_for_raw_data_dict: dict,
-    aggregation: str, batch_size: int,
-    id_field: str
+    aggregation: str,
+    batch_size: int,
+    id_field: str,
 ) -> None:
     """
     Write scores and corresponding documents to a JSONL file.
-    
+
     Args:
-        aggr_scores_file_path (Path): The path to the output file.
+        output_file_path (Path): The path to the output file.
         raw_data_file_path (Path): The path to the raw data file.
         document_scores_for_raw_data_dict (dict): A dictionary mapping document IDs to scores.
         aggregation (str): The aggregation method used to compute the scores.
-        batch_size (int): The number of documents to process in each batch.     
+        batch_size (int): The number of documents to process in each batch.
+        id_field (str): The field name for document IDs in the raw data.
 
     Returns:
-        None    
+        None
     """
     batch = []
     output_file_path.parent.mkdir(exist_ok=True, parents=True)
     try:
-        with output_file_path.open("w", encoding="utf-8") as f_out, raw_data_file_path.open("r", encoding="utf-8") as f_in:
+        with output_file_path.open("w", encoding="utf-8") as f_out, \
+        raw_data_file_path.open("r", encoding="utf-8") as f_in:
             for i, line in enumerate(f_in):
                 json_obj = json.loads(line)
                 document_id = json_obj[id_field]
                 if document_id not in document_scores_for_raw_data_dict:
-                    err_msg = f"No scores found for document {document_id}. Skip this file."
+                    err_msg = f"No scores found for document {document_id}. Skipping this file."
                     logger.error(err_msg)
                     raise ValueError(err_msg)
                 score = document_scores_for_raw_data_dict[document_id]
@@ -140,8 +153,8 @@ def add_scores(
         logger.error(f"Error processing {raw_data_file_path}.")
         if output_file_path.exists():
             output_file_path.unlink()
-    
-    
+            
+            
 def aggregate_human_annotations(
     annotations_file_path: Path,
     output_file_path: Path,
@@ -152,6 +165,7 @@ def aggregate_human_annotations(
 ) -> None:
     """
     Aggregate human annotations by comparing them to ground truth data.
+    
     Args:
         annotations_file_path (Path): The path to the annotations file.
         output_file_path (Path): The path to the output file.
@@ -190,6 +204,7 @@ def remove_field_from_jsonl_file(
 ) -> None:
     """
     Remove a field from each JSON object in a JSONL file.
+    
     Args:
         jsonl_file_path (Path): The path to the JSONL file.
         field (str): The field to remove from each JSON object.
