@@ -135,3 +135,42 @@ def add_scores_to_documents(output_file_path: Path, raw_data_file_path: Path, do
         if output_file_path.exists():
             output_file_path.unlink()
     
+    
+def aggregate_human_annotations(
+    annotations_file_path: Path,
+    output_file_path: Path,
+    raw_data_file_path: Path,
+    aggregation: str,
+    batch_size: int
+):
+    document_scores_df = get_document_scores(
+        path_to_files=[annotations_file_path],
+        labels=[0, 1, 2, 3, 4, 5],
+        aggregation=aggregation
+    )
+    document_scores_df["raw_data_file_path"] = str(raw_data_file_path)
+    document_scores_dict = document_scores_df.set_index("doc_id")["score"].to_dict()
+    add_scores_to_documents(
+        output_file_path=output_file_path,
+        raw_data_file_path=raw_data_file_path,
+        document_scores_for_raw_data_dict=document_scores_dict,
+        aggregation=aggregation,
+        batch_size=batch_size,
+        id_field="document_id",
+    )        
+    # remove field "scores" from output_file_path
+    remove_field_from_jsonl_file(output_file_path, "scores")
+    
+
+def remove_field_from_jsonl_file(jsonl_file_path: Path, field: str):
+    with jsonl_file_path.open("r", encoding="utf-8") as f_in:
+        new_lines = []
+        for line in f_in:
+            if line == "\n":
+                continue
+            json_obj = json.loads(line)
+            json_obj.pop(field, None)
+            new_lines.append(json_obj)
+
+    with jsonl_file_path.open("w", encoding="utf-8") as f_out:
+        f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in new_lines))
