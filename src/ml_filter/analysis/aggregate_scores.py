@@ -84,7 +84,7 @@ def aggregate_scores_in_directory(
             output_file_path = output_directory / lang_dir / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
 
-            add_scores_to_documents(
+            add_scores(
                 output_file_path=output_file_path,
                 raw_data_file_path=raw_data_file_path,
                 document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
@@ -94,7 +94,7 @@ def aggregate_scores_in_directory(
             )                             
                     
 
-def add_scores_to_documents(
+def add_scores(
     output_file_path: Path,
     raw_data_file_path: Path,
     document_scores_for_raw_data_dict: dict,
@@ -172,7 +172,7 @@ def aggregate_human_annotations(
     
     # Convert the DataFrame to a dictionary for faster lookups and to avoid duplicate entries
     document_scores_dict = document_scores_df.set_index("doc_id")["score"].to_dict()
-    add_scores_to_documents(
+    add_scores(
         output_file_path=output_file_path,
         raw_data_file_path=raw_data_file_path,
         document_scores_for_raw_data_dict=document_scores_dict,
