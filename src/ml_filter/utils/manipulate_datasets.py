@@ -3,6 +3,7 @@ import logging
 import os
 import random
 from pathlib import Path
+from typing import Callable
 
 from datasets import load_dataset
 from tqdm import tqdm
@@ -74,7 +75,7 @@ def convert_hf_dataset_to_jsonl(
 def apply_score_transforms(
     input_file_path: Path,
     output_path: Path,
-    transform_fns: list[tuple[str, callable[[float], int | float]]],
+    transform_fns: list[tuple[str, Callable[[float], int | float]]],
 ):
     """Transform single scores into multiple scores using different transformations.
 
