@@ -1,4 +1,5 @@
 import logging
+from glob import glob
 from pathlib import Path
 from typing import Any
 
@@ -66,10 +67,10 @@ class DataPreprocessor:
         split: str = "train",
         cache_dir: str | None = None,
     ) -> Dataset:
-        """Load and tokenizes a dataset from a JSONL file.
+        """Load and tokenizes a dataset from a JSONL file(s).
 
         Args:
-            file_path (Path): Path to a JSONL file.
+            file_path (Path): Path to a JSONL file or a directory structure containing JSONL files.
             split (str, optional): Dataset split to use (default: "train").
             cache_dir (Optional[str], optional): Directory for caching dataset (default: None).
 
@@ -87,23 +88,31 @@ class DataPreprocessor:
 
         # Handle JSONL file case
         if file_path.is_file() and file_path.suffix == ".jsonl":
-            logger.info(f"Loading dataset from file: {file_path}")
-            dataset = load_dataset(
-                "json",
-                data_files=str(file_path),
-                split=split,
-                cache_dir=str(cache_dir) if cache_dir else None,
-            )
-            logger.info("Dataset loaded successfully. Tokenize dataset...")
-
+            dataset = self._load_dataset(file_path, split, cache_dir)
             return self._preprocess_dataset(dataset)
-
+        # Handle dataset directory case
+        elif file_path.is_dir() and len(glob(str(path := file_path / "**" / "*.jsonl"), recursive=True)) > 0:
+            dataset = self._load_dataset(path, split, cache_dir)
         # Invalid case
         else:
             raise ValueError(f"Invalid file path: {file_path}. Expected a JSONL file or a dataset directory.")
 
+        return self._preprocess_dataset(dataset)
+
+    def _load_dataset(self, file_path: Path, split: str, cache_dir: str | None) -> Dataset:
+        logger.info(f"Loading dataset from: {file_path}")
+        dataset = load_dataset(
+            "json",
+            data_files=str(file_path),
+            split=split,
+            cache_dir=str(cache_dir) if cache_dir else None,
+        )
+        logger.info("Dataset loaded successfully.")
+        return dataset
+
     def _preprocess_dataset(self, dataset: Dataset) -> Dataset:
         """Tokenizes text in a Hugging Face dataset."""
+        logger.info("Tokenizing dataset...")
 
         def process_batch(batch: LazyBatch) -> dict[str, Any]:
             # Tokenize the text
