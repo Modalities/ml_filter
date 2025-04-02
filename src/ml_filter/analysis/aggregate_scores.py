@@ -87,14 +87,13 @@ def aggregate_scores_in_directory(
                 raw_data_file_path = Path(raw_data_file_path)
             output_file_path = (
                 output_directory
-                / lang_dir
                 / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             )
             document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
                 "score"
             ].to_dict()
 
-            add_scores(
+            write_scores_to_file(
                 output_file_path=output_file_path,
                 raw_data_file_path=raw_data_file_path,
                 document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
@@ -104,7 +103,7 @@ def aggregate_scores_in_directory(
             )
 
 
-def add_scores(
+def write_scores_to_file(
     output_file_path: Path,
     raw_data_file_path: Path,
     document_scores_for_raw_data_dict: dict,
@@ -113,7 +112,8 @@ def add_scores(
     id_field: str,
 ) -> None:
     """
-    Write scores and corresponding documents to a JSONL file.
+    Write scores and corresponding documents to a JSONL file. Only documents in the raw data file are included, since these might e.g. be deduplicated.
+    The output file will contain the document ID, the score, and the aggregation type.
 
     Args:
         output_file_path (Path): The path to the output file.
@@ -132,16 +132,18 @@ def add_scores(
         with output_file_path.open("w", encoding="utf-8") as f_out, \
         raw_data_file_path.open("r", encoding="utf-8") as f_in:
             for i, line in enumerate(f_in):
-                json_obj = json.loads(line)
-                document_id = json_obj[id_field]
+                document_id = json.loads(line)[id_field]
                 if document_id not in document_scores_for_raw_data_dict:
                     err_msg = f"No scores found for document {document_id}. Skipping this file."
                     logger.error(err_msg)
                     raise ValueError(err_msg)
-                score = document_scores_for_raw_data_dict[document_id]
-                json_obj["score"] = score
-                json_obj["aggregation_type"] = aggregation
-                batch.append(json_obj)
+                output_dict = {
+                    id_field: document_id,
+                    "score": document_scores_for_raw_data_dict[document_id],
+                    "aggregation_type": aggregation,
+                }
+
+                batch.append(output_dict)
                 if len(batch) == batch_size:
                     f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
                     batch = []  # Clear the batch after writing
@@ -186,7 +188,7 @@ def aggregate_human_annotations(
     
     # Convert the DataFrame to a dictionary for faster lookups and to avoid duplicate entries
     document_scores_dict = document_scores_df.set_index("doc_id")["score"].to_dict()
-    add_scores(
+    write_scores_to_file(
         output_file_path=output_file_path,
         raw_data_file_path=raw_data_file_path,
         document_scores_for_raw_data_dict=document_scores_dict,

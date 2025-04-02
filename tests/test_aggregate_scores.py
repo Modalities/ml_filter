@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch, mock_open
 from ml_filter.analysis.aggregate_scores import (
     _extract_annotator_name,
     aggregate_scores_in_directory,
-    add_scores,
+    write_scores_to_file,
     aggregate_human_annotations,
     remove_field_from_jsonl_file,
 )
@@ -59,7 +59,7 @@ def test_add_scores(mock_open_file, mock_json_dumps, mock_json_loads):
     mock_json_dumps.side_effect = lambda obj, ensure_ascii: json.dumps(obj)
 
     # Act
-    add_scores(
+    write_scores_to_file(
         output_file_path=output_file_path,
         raw_data_file_path=raw_data_file_path,
         document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
