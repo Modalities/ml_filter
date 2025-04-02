@@ -10,6 +10,7 @@ tokenizer:
   truncation: true
   padding: true
   max_length: 512
+  add_generation_prompt: false  # FIXME correct value?
 
 data: 
   train_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw
@@ -26,6 +27,7 @@ data:
   num_tasks: 2
   num_targets_per_task: [6, 6]
   task_names: ["edu", "toxicity"]
+  num_processes: 2  # FIXME correct value?
 
 training:
   batch_size: 32
