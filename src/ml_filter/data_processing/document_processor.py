@@ -63,6 +63,7 @@ class DocumentProcessor:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
 
         self.score_metric = score_metrics[score_metric_name]
+        self.termination_event = multiprocessing.Event()
 
     @staticmethod
     def find_last_pattern(text: str, pattern: str) -> str | None:
@@ -136,18 +137,28 @@ class DocumentProcessor:
 
             if len(processed_document.errors) > 0:
                 error_string = " | ".join(processed_document.errors)
+                # error_string = "Request failed with status code 500: "
+                if "Request failed with status code 500" in error_string:
+                    logger.error(
+                        f"Encountered status code 500 for document {document['document_id']}, aborting processing."
+                    )
+                    self.termination_event.set()  # Set the termination event here
+                    return []
                 logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
     def _process_documents(self):
-        while True:
+        while not self.termination_event.is_set():
             document = self.documents_queue.get()
 
             if document is None:
                 break
 
             processed_document_variations = self._process_document(document)
+            if not processed_document_variations:
+                self.termination_event.set()  # Ensure event is set on failure
+                break
             annotation = self._convert_to_annotation(processed_document_variations)
 
             self.result_queue.put(annotation)
@@ -179,7 +190,7 @@ class DocumentProcessor:
         for raw_data_file_path, index in zip(raw_data_file_paths, start_indexes):
             doc_count = 0
             with open(raw_data_file_path, "r") as fin:
-                while True:
+                while not self.termination_event.is_set():
                     document_string = fin.readline()
                     if len(document_string) == 0:
                         break
@@ -228,6 +239,11 @@ class DocumentProcessor:
         terminate_signal_received = False
         try:
             while True:
+                # Check for termination signal before processing any new results.
+                if self.termination_event.is_set():
+                    logger.error("Termination event detected. Aborting writing of results due to 500 error.")
+                    break
+
                 if terminate_signal_received and len(self.doc_order) == 0:
                     break
                 try:
@@ -280,26 +296,30 @@ class DocumentProcessor:
                 f.close()
 
         # Final stats logging
-        elapsed_time = time.time() - start_time
-        results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
-        logger.info(
-            f"Final results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
-            f"| Results per second: {results_per_second:.2f}"
-        )
-        with open(self.experiment_dir_path / "throughput.json", "w") as f:
-            json.dump(
-                ThroughputStatistics(
-                    num_documents_written=results_written,
-                    elapsed_time_s=elapsed_time,
-                    documents_per_second=results_per_second,
-                    mean_out_tokens_per_second=total_out_tokens_per_second / results_written,
-                    model_name=self.llm_rest_client.model_name,
-                    queue_size=self.queue_size,
-                    num_processes=self.num_processes,
-                    max_new_tokens=self.llm_rest_client.sampling_params["max_tokens"],
-                ).model_dump(),
-                f,
+        # Only write throughput stats if no termination occurred.
+        if not self.termination_event.is_set():
+            elapsed_time = time.time() - start_time
+            results_per_second = results_written / elapsed_time if elapsed_time > 0 else 0
+            logger.info(
+                f"Final results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
+                f"| Results per second: {results_per_second:.2f}"
             )
+            with open(self.experiment_dir_path / "throughput.json", "w") as f:
+                json.dump(
+                    ThroughputStatistics(
+                        num_documents_written=results_written,
+                        elapsed_time_s=elapsed_time,
+                        documents_per_second=results_per_second,
+                        mean_out_tokens_per_second=total_out_tokens_per_second / results_written,
+                        model_name=self.llm_rest_client.model_name,
+                        queue_size=self.queue_size,
+                        num_processes=self.num_processes,
+                        max_new_tokens=self.llm_rest_client.sampling_params["max_tokens"],
+                    ).model_dump(),
+                    f,
+                )
+        else:
+            logger.error("Due to a 500 error, throughput statistics were not written.")
 
     def _create_out_file_path(self, annotation: Annotation, common_parents_path: Path) -> Path:
         input_file_path = Path(annotation.meta_information.raw_data_file_path)
@@ -352,3 +372,5 @@ class DocumentProcessor:
         self.result_queue.put(None)
 
         writer.join()
+        if reader.is_alive():
+            reader.terminate()
