@@ -145,11 +145,11 @@ def write_scores_to_file(
 
                 batch.append(output_dict)
                 if len(batch) == batch_size:
-                    f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
+                    f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch) + "\n")
                     batch = []  # Clear the batch after writing
                     logger.info(f"Processed {i+1} documents.")
             if batch:
-                f_out.write("\n" + "\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
+                f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
         logger.info(f"Aggregated scores added to {output_file_path}.")
     except ValueError:
         logger.error(f"Error processing {raw_data_file_path}.")
