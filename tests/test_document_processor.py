@@ -64,7 +64,7 @@ def test_run(tmpdir: Path):
 
     llm_rest_client.generate = generate_mock
 
-    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=10)
+    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
     llm_rest_client.tokenizer = Mock(spec=PreTrainedHFTokenizer)
     llm_rest_client.tokenizer.truncation = False
@@ -114,7 +114,7 @@ def test_vllm_failure(tmpdir: Path):
         Mock(spec=ProcessedDocument, generated_text="Generated text", errors=["Request failed with status code 500"])
     ]
 
-    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=10)
+    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
     document_processor = initialize_document_processor(tmp_input_paths, tmpdir, llm_rest_client)
 
