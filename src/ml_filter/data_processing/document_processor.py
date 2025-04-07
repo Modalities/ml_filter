@@ -50,7 +50,7 @@ class DocumentProcessor:
         self.raw_data_file_paths = raw_data_file_paths
         # If start_indexes is shorter than raw_data_file_paths, extend it with 0s.
         if len(start_indexes) < len(raw_data_file_paths):
-            start_indexes.extend([0] * (len(raw_data_file_paths) - len(start_indexes)))
+            start_indexes.extend([-1] * (len(raw_data_file_paths) - len(start_indexes)))
 
         self.start_indexes = start_indexes
         self.experiment_dir_path = experiment_dir_path
@@ -196,18 +196,7 @@ class DocumentProcessor:
                         break
 
                     # If we haven't reached the start_index yet, skip this document.
-                    '''
-                    1000 documents in a jsonl
-                    150 got annotated. failed after 150 documents.
-                    written lines: 1 - 150
-                    doc index: 0 - 149
-                    
-                    next line should be 151
-                    next doc index would be 150
-                    
-                    documents 0 - 149 gets skipped below. 150 is the start index.
-                    '''
-                    if doc_count < index and index != 0:
+                    if doc_count <= index:
                         doc_count += 1
                         continue
 
@@ -291,7 +280,7 @@ class DocumentProcessor:
                     total_out_tokens_per_second += annotation.meta_information.out_tokens_per_second
 
                     # Periodic flush
-                    if results_written % 1 == 0:
+                    if results_written % 10 == 0:
                         for file in open_files.values():
                             file.flush()
                         elapsed_time = time.time() - start_time
