@@ -31,12 +31,12 @@ class DocumentProcessor:
         prompt_builder: PromptBuilder,
         queue_size: int,
         raw_data_file_paths: List[Path],
-        start_indexes: List[int],
         experiment_dir_path: Path,
         num_processes: int,
         score_metric_name: str,
         jq_language_pattern: str,
         strings_to_remove: Optional[List[str]] = [],
+        start_indexes: Optional[List[int]] = [],
     ):
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
@@ -196,7 +196,7 @@ class DocumentProcessor:
                         break
 
                     # If we haven't reached the start_index yet, skip this document.
-                    if doc_count < index:
+                    if doc_count <= index:
                         doc_count += 1
                         continue
 
@@ -289,6 +289,7 @@ class DocumentProcessor:
                             f"Results written: {results_written} | Elapsed time: {elapsed_time:.2f} seconds "
                             f"| Results per second: {results_per_second:.2f}"
                         )
+
         finally:
             # Close all open files
             for f in open_files.values():
