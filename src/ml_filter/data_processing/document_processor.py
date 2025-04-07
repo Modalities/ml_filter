@@ -50,7 +50,7 @@ class DocumentProcessor:
         self.raw_data_file_paths = raw_data_file_paths
         # If start_indexes is shorter than raw_data_file_paths, extend it with 0s.
         if len(start_indexes) < len(raw_data_file_paths):
-            start_indexes.extend([-1] * (len(raw_data_file_paths) - len(start_indexes)))
+            start_indexes.extend([0] * (len(raw_data_file_paths) - len(start_indexes)))
 
         self.start_indexes = start_indexes
         self.experiment_dir_path = experiment_dir_path
@@ -196,7 +196,7 @@ class DocumentProcessor:
                         break
 
                     # If we haven't reached the start_index yet, skip this document.
-                    if doc_count <= index:
+                    if doc_count < index != 0:
                         doc_count += 1
                         continue
 
