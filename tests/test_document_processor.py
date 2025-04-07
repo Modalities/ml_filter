@@ -29,19 +29,42 @@ def construct_prompt_mock(processed_document: ProcessedDocument) -> ProcessedDoc
     return processed_document
 
 
+def create_temp_input_files(tmpdir: Path, num_files: int, num_documents: int) -> List[Path]:
+    tmp_input_paths = []
+    for k in range(num_files):
+        raw_data_path = Path(tmpdir / f"raw_data_{k}.jsonl")
+        with open(raw_data_path, "w") as f:
+            for i in range(num_documents):
+                json.dump({"text": f"some text {i}", "document_id": f"{i}", "language": "en"}, f)
+                f.write("\n")
+        tmp_input_paths.append(raw_data_path)
+    return tmp_input_paths
+
+
+def initialize_document_processor(
+        tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient
+) -> DocumentProcessor:
+    prompt_builder = Mock(spec=PromptBuilder)
+    prompt_builder.construct_prompt = construct_prompt_mock
+
+    return DocumentProcessor(
+        llm_rest_client=llm_rest_client,
+        prompt_builder=prompt_builder,
+        queue_size=2,
+        raw_data_file_paths=tmp_input_paths,
+        experiment_dir_path=Path(tmpdir / "experiment"),
+        num_processes=2,
+        score_metric_name="educational_score",
+        jq_language_pattern=".language",
+    )
+
+
 def test_run(tmpdir: Path):
     llm_rest_client = Mock(spec=LLMRestClient)
 
     llm_rest_client.generate = generate_mock
 
-    tmp_input_paths = []
-    for k in range(2):
-        raw_data_path = Path(tmpdir / f"raw_data_{k}.jsonl")
-        with open(raw_data_path, "w") as f:
-            for i in range(1000):
-                json.dump({"text": f"some text {i}", "document_id": f"{i}", "language": "en"}, f)
-                f.write("\n")
-        tmp_input_paths.append(raw_data_path)
+    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=10)
 
     llm_rest_client.tokenizer = Mock(spec=PreTrainedHFTokenizer)
     llm_rest_client.tokenizer.truncation = False
@@ -50,20 +73,7 @@ def test_run(tmpdir: Path):
     llm_rest_client.model_name = "my_model"
     llm_rest_client.sampling_params = {"temperature": 0.5, "max_tokens": 100}
 
-    prompt_builder = Mock(spec=PromptBuilder)
-    prompt_builder.construct_prompt = construct_prompt_mock
-
-    experiment_dir_path = Path(tmpdir / "experiment")
-    document_processor = DocumentProcessor(
-        llm_rest_client=llm_rest_client,
-        prompt_builder=prompt_builder,
-        queue_size=2,
-        raw_data_file_paths=tmp_input_paths,
-        experiment_dir_path=experiment_dir_path,
-        num_processes=2,
-        score_metric_name="educational_score",
-        jq_language_pattern=".language",
-    )
+    document_processor = initialize_document_processor(tmp_input_paths, tmpdir, llm_rest_client)
 
     document_processor.run()
 
@@ -96,3 +106,23 @@ def test_find_last_pattern():
 
     text = "Hello world! This is a test. Educational ScoRe: 5/1"
     assert DocumentProcessor.find_last_pattern(text, score_metric.pattern) is None
+
+
+def test_vllm_failure(tmpdir: Path):
+    llm_rest_client = Mock(spec=LLMRestClient)
+    llm_rest_client.generate.side_effect = lambda processed_document: [
+        Mock(spec=ProcessedDocument, generated_text="Generated text", errors=["Request failed with status code 500"])
+    ]
+
+    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=10)
+
+    document_processor = initialize_document_processor(tmp_input_paths, tmpdir, llm_rest_client)
+
+    # Run the document processor
+    document_processor.run()
+
+    # Check if the termination event was set due to the error
+    assert document_processor.termination_event.is_set(), "Termination event should be set due to 500 error"
+
+    # Verify that no results were written due to the error
+    assert document_processor.result_queue.qsize() == 0, "No results should be written due to termination event"
