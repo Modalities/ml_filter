@@ -58,7 +58,7 @@ def get_document_scores(
     # Loop through each file
     for file_path in path_to_files:
         # Extract relevant metadata from the filename
-        prompt, prompt_lang, annotator = file_path.stem.split('_')[1:4]
+        prompt, prompt_lang, annotator = file_path.stem.split('__')[1:4]
 
         # Read the JSONL file and extract scores for each document
         with open(file_path, 'r') as f:
@@ -99,7 +99,7 @@ def get_document_scores(
                     'annotator': annotator,
                     'doc_id': json_obj.get('document_id'),
                     'score': aggr_score,
-                    'raw_data_file_path': json_obj['meta_information'].get('raw_data_file_path')
+                    'raw_data_file_path': json_obj.get('meta_information', {}).get('raw_data_file_path')
                 })
     
     document_scores_df = pd.DataFrame(document_scores)
