@@ -1,7 +1,7 @@
 import copy
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest.mock import Mock
 
 import pandas as pd
@@ -42,7 +42,7 @@ def create_temp_input_files(tmpdir: Path, num_files: int, num_documents: int) ->
 
 
 def initialize_document_processor(
-        tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient
+        tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient, start_index: Optional[List[int]] = []
 ) -> DocumentProcessor:
     prompt_builder = Mock(spec=PromptBuilder)
     prompt_builder.construct_prompt = construct_prompt_mock
@@ -56,6 +56,7 @@ def initialize_document_processor(
         num_processes=2,
         score_metric_name="educational_score",
         jq_language_pattern=".language",
+        start_indexes=start_index
     )
 
 
@@ -73,7 +74,8 @@ def test_run(tmpdir: Path):
     llm_rest_client.model_name = "my_model"
     llm_rest_client.sampling_params = {"temperature": 0.5, "max_tokens": 100}
 
-    document_processor = initialize_document_processor(tmp_input_paths, tmpdir, llm_rest_client)
+    document_processor = initialize_document_processor(tmp_input_paths=tmp_input_paths, tmpdir=tmpdir,
+                                                       llm_rest_client=llm_rest_client)
 
     document_processor.run()
 
@@ -116,7 +118,8 @@ def test_vllm_failure(tmpdir: Path):
 
     tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
-    document_processor = initialize_document_processor(tmp_input_paths, tmpdir, llm_rest_client)
+    document_processor = initialize_document_processor(tmp_input_paths=tmp_input_paths, tmpdir=tmpdir,
+                                                       llm_rest_client=llm_rest_client)
 
     # Run the document processor
     document_processor.run()
@@ -124,5 +127,61 @@ def test_vllm_failure(tmpdir: Path):
     # Check if the termination event was set due to the error
     assert document_processor.termination_event.is_set(), "Termination event should be set due to 500 error"
 
-    # Verify that no results were written due to the error
-    assert document_processor.result_queue.qsize() == 0, "No results should be written due to termination event"
+    # assert that no annotation file gets generated
+    assert list(document_processor.common_parents_path.glob("**/*annotations*.jsonl")) == []
+
+
+# def test_vllm_failure_in_the_middle(tmpdir: Path):
+#     llm_rest_client = Mock(spec=LLMRestClient)
+#
+#     def generate_side_effect(processed_document):
+#         if int(processed_document.document_id) < 1:
+#             return [Mock(spec=ProcessedDocument, generated_text="Generated text", errors=[])]
+#         else:
+#             return [Mock(spec=ProcessedDocument, generated_text="Generated text",
+#                          errors=["Request failed with status code 500"])]
+#
+#     llm_rest_client.generate.side_effect = generate_side_effect
+#
+#     tmp_input_paths = create_temp_input_files(tmpdir, num_files=1, num_documents=5)
+#
+#     document_processor = initialize_document_processor(tmp_input_paths=tmp_input_paths, tmpdir=tmpdir,
+#                                                        llm_rest_client=llm_rest_client)
+#
+#     # Run the document processor
+#     document_processor.run()
+#
+#     # Check if the termination event was set due to the error
+#     assert document_processor.termination_event.is_set(), "Termination event should be set due to 500 error"
+#
+#     for idx, results_path in enumerate(document_processor.common_parents_path.glob("**/*annotations*.jsonl")):
+#         df = pd.read_json(results_path, lines=True, orient="records")
+#
+#     # assert that no annotation file gets generated
+#     assert list(document_processor.common_parents_path.glob("**/*annotations*.jsonl")) == []
+
+
+def test_load_documents_with_start_index(tmpdir: Path):
+    llm_rest_client = Mock(spec=LLMRestClient)
+
+    llm_rest_client.generate = generate_mock
+
+    tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
+
+    llm_rest_client.tokenizer = Mock(spec=PreTrainedHFTokenizer)
+    llm_rest_client.tokenizer.truncation = False
+    llm_rest_client.tokenizer.padding = False
+    llm_rest_client.tokenizer.max_length = 100
+    llm_rest_client.model_name = "my_model"
+    llm_rest_client.sampling_params = {"temperature": 0.5, "max_tokens": 1000}
+
+    start_index = [150]
+    document_processor = initialize_document_processor(tmp_input_paths, tmpdir=tmpdir, llm_rest_client=llm_rest_client,
+                                                       start_index=start_index)
+
+    document_processor.run()
+
+    for idx, results_path in enumerate(document_processor.common_parents_path.glob("**/*annotations*.jsonl")):
+        df = pd.read_json(results_path, lines=True, orient="records")
+
+        assert df["document_id"].tolist()[0] == start_index[idx]
