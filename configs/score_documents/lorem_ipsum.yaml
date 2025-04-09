@@ -8,7 +8,7 @@ settings:
   
   paths:
     raw_data_file_paths: 
-    - /raid/s3/opengptx/akhan/ml_filter/data/test_fineweb2_dump.jsonl
+    - data/test_fineweb2_dump.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
     start_indexes:

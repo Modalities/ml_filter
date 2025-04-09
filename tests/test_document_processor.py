@@ -56,7 +56,7 @@ def create_temp_input_files(tmpdir: Path, num_files: int, num_documents: int) ->
 
 
 def initialize_document_processor(
-    tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient, start_indexes: Optional[List[int]] = []
+    tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient, start_indexes: List[int] = []
 ) -> DocumentProcessor:
     prompt_builder = Mock(spec=PromptBuilder)
     prompt_builder.construct_prompt = construct_prompt_mock

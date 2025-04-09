@@ -35,8 +35,8 @@ class DocumentProcessor:
         num_processes: int,
         score_metric_name: str,
         jq_language_pattern: str,
+        start_indexes: List[int] = [],
         strings_to_remove: Optional[List[str]] = [],
-        start_indexes: Optional[List[int]] = [],
     ):
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
