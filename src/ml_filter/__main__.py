@@ -248,11 +248,22 @@ def interrater_reliability_cli(path_to_files: tuple[Path], output_file_path: Pat
 @path_to_files_argument
 @click.option("--output_dir", type=str, required=True)
 @aggregation_option
-def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: Optional[str] = None) -> None:
+@labels_option
+def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: str, labels: list[str]) -> None:
     """Plot the differences in scores."""
     path_to_files = [Path(p) for p in path_to_files]
-    plot_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
-    plot_differences_in_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
+    plot_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation,
+        labels=[float(label) for label in labels.split(",")]
+    )
+    plot_differences_in_scores(
+        path_to_files=path_to_files,
+        output_dir=Path(output_dir),
+        aggregation=aggregation,
+        labels=[float(label) for label in labels.split(",")]
+    )
 
 
 @main.command(name="evaluate_prompt_based_annotations")
