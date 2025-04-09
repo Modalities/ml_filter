@@ -73,8 +73,8 @@ def test_add_scores(mock_open_file, mock_json_dumps, mock_json_loads):
 
 
 @patch("ml_filter.analysis.aggregate_scores.get_document_scores")
-@patch("ml_filter.analysis.aggregate_scores.add_scores")
-def test_aggregate_scores_in_directory(mock_add_scores, mock_get_document_scores, tmp_path):
+@patch("ml_filter.analysis.aggregate_scores.write_scores_to_file")
+def test_aggregate_scores_in_directory(mock_write_scores_to_file, mock_get_document_scores, tmp_path):
     # Arrange
     input_directory = tmp_path / "input"
     output_directory = tmp_path / "output"
@@ -95,7 +95,7 @@ def test_aggregate_scores_in_directory(mock_add_scores, mock_get_document_scores
     )
 
     # Assert
-    mock_add_scores.assert_called()
+    mock_write_scores_to_file.assert_called()
     
 
 @patch("ml_filter.analysis.aggregate_scores.json.loads")

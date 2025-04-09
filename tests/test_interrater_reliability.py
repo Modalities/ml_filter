@@ -147,9 +147,9 @@ def test_compare_model_to_gt(tmp_path):
 )
 def test_compute_interrater_reliability_metrics(tmp_path, aggregation):
     path_to_files = [
-        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl"),
-        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl"),
-        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_gt_1.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations__edu__en__test__1.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations__edu__en__test__2.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations__edu__en__gt__1.jsonl"),
     ]
     aggregation = "majority"
     output_dir = tmp_path / "interrater_reliability_metrics"

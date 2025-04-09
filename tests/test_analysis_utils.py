@@ -24,8 +24,8 @@ def test_most_frequent_average():
     
 def test_get_document_scores(tmp_path):
     # Create temporary JSONL files for testing
-    file1 = tmp_path / "scores_prompt1_lang1_annotator1.jsonl"
-    file2 = tmp_path / "scores_prompt2_lang2_annotator2.jsonl"
+    file1 = tmp_path / "scores__prompt1__lang1__annotator1.jsonl"
+    file2 = tmp_path / "scores__prompt2__lang2__annotator2.jsonl"
 
     # Write JSONL data to files
     data1 = [
@@ -50,7 +50,8 @@ def test_get_document_scores(tmp_path):
         'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
         'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
         'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
-        'score': {0: 3.3333333333333335, 1: 1.6666666666666667, 2: 2.5, 3: 5.0, 4: 4.0}
+        'score': {0: 3.3333333333333335, 1: 1.6666666666666667, 2: 2.5, 3: 5.0, 4: 4.0},
+        'raw_data_file_path': {0: None, 1: None, 2: None, 3: None, 4: None},
     })
     pd.testing.assert_frame_equal(result, expected)
 
@@ -61,7 +62,8 @@ def test_get_document_scores(tmp_path):
         'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
         'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
         'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
-        'score': {0: 4.0, 1: 2.0, 2: 3.0, 3: 5.0, 4: 4.0}
+        'score': {0: 4.0, 1: 2.0, 2: 3.0, 3: 5.0, 4: 4.0},
+        'raw_data_file_path': {0: None, 1: None, 2: None, 3: None, 4: None},
     })
     pd.testing.assert_frame_equal(result, expected)
 
@@ -72,7 +74,8 @@ def test_get_document_scores(tmp_path):
         'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
         'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
         'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
-        'score': {0: 3.0, 1: 1.0, 2: 2.0, 3: 5.0, 4: 4.0}
+        'score': {0: 3.0, 1: 1.0, 2: 2.0, 3: 5.0, 4: 4.0},
+        'raw_data_file_path': {0: None, 1: None, 2: None, 3: None, 4: None},
     })
     pd.testing.assert_frame_equal(result, expected)
     
@@ -83,7 +86,8 @@ def test_get_document_scores(tmp_path):
         'prompt_lang': {0: 'lang1', 1: 'lang1', 2: 'lang1', 3: 'lang2', 4: 'lang2'},
         'annotator': {0: 'annotator1', 1: 'annotator1', 2: 'annotator1', 3: 'annotator2', 4: 'annotator2'},
         'doc_id': {0: 'doc1', 1: 'doc2', 2: 'doc3', 3: 'doc1', 4: 'doc2'},
-        'score': {0: 3.0, 1: 2.0, 2: 2.5, 3: 5.0, 4: 4.0}
+        'score': {0: 3.0, 1: 2.0, 2: 2.5, 3: 5.0, 4: 4.0},
+        'raw_data_file_path': {0: None, 1: None, 2: None, 3: None, 4: None},
     })
     pd.testing.assert_frame_equal(result, expected)
 

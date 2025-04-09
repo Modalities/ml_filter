@@ -9,9 +9,9 @@ from ml_filter.analysis.plot_score_distributions import plot_scores, plot_differ
 @pytest.fixture
 def path_to_files():
     paths = [
-        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl"),
-        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl"),
-        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_gt_1.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations__edu__en__test__1.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations__edu__en__test__2.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations__edu__en__gt__1.jsonl"),
     ]
     return paths
 
