@@ -48,7 +48,8 @@ class DocumentProcessor:
         self.doc_order = manager.list()  # Use a shared list for document IDs
         self.num_processes = num_processes
         self.raw_data_file_paths = raw_data_file_paths
-        # If start_indexes is shorter than raw_data_file_paths, extend it with 0s.
+        # If start_indexes is shorter than raw_data_file_paths,
+        # extend it with 0s to start the annotation from the beginning.
         if len(start_indexes) < len(raw_data_file_paths):
             start_indexes.extend([0] * (len(raw_data_file_paths) - len(start_indexes)))
 
@@ -156,7 +157,7 @@ class DocumentProcessor:
                 break
 
             processed_document_variations = self._process_document(document)
-            if not processed_document_variations:
+            if processed_document_variations == []:
                 self.termination_event.set()  # Ensure event is set on failure
                 break
             annotation = self._convert_to_annotation(processed_document_variations)
@@ -239,15 +240,18 @@ class DocumentProcessor:
         terminate_signal_received = False
         try:
             while True:
-                # Check for termination signal before processing any new results.
-                if self.termination_event.is_set():
-                    logger.error("Termination event detected. Aborting writing of results due to 500 error.")
-                    break
-
                 if terminate_signal_received and len(self.doc_order) == 0:
                     break
                 try:
                     annotation: Annotation | None = self.result_queue.get(timeout=1)
+                    # Check for termination signal before processing any new results.
+                    if self.termination_event.is_set():
+                        logger.error(
+                            "Termination triggered. Number of files written %s for File: %s",
+                            results_written,
+                            annotation.meta_information.raw_data_file_path,
+                        )
+                        break
                     if annotation is None:
                         terminate_signal_received = True
                     else:
