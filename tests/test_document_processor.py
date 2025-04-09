@@ -56,7 +56,7 @@ def create_temp_input_files(tmpdir: Path, num_files: int, num_documents: int) ->
 
 
 def initialize_document_processor(
-    tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient, start_index: Optional[List[int]] = []
+    tmp_input_paths: List[Path], tmpdir: Path, llm_rest_client: LLMRestClient, start_indexes: Optional[List[int]] = []
 ) -> DocumentProcessor:
     prompt_builder = Mock(spec=PromptBuilder)
     prompt_builder.construct_prompt = construct_prompt_mock
@@ -70,7 +70,7 @@ def initialize_document_processor(
         num_processes=2,
         score_metric_name="educational_score",
         jq_language_pattern=".language",
-        start_indexes=start_index
+        start_indexes=start_indexes
     )
 
 
@@ -145,7 +145,7 @@ def test_vllm_failure_in_the_middle(tmpdir: Path):
     for idx, results_path in enumerate(document_processor.common_parents_path.glob("**/*annotations*.jsonl")):
         df = pd.read_json(results_path, lines=True, orient="records")
         assert len(
-            df) < 150, f"vLLM failure occured. The document should have been truncated."
+            df) < 150, f"vLLM failure occured. The number of result documents should be smaller than the number of input documents."
 
 
 def test_annotation_with_start_index(tmpdir: Path):
@@ -153,13 +153,13 @@ def test_annotation_with_start_index(tmpdir: Path):
 
     tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
-    start_index = [150]
+    start_indexes = [150]
     document_processor = initialize_document_processor(tmp_input_paths, tmpdir=tmpdir, llm_rest_client=llm_rest_client,
-                                                       start_index=start_index)
+                                                       start_indexes=start_indexes)
 
     document_processor.run()
 
     for idx, results_path in enumerate(document_processor.common_parents_path.glob("**/*annotations*.jsonl")):
         df = pd.read_json(results_path, lines=True, orient="records")
 
-        assert df["document_id"].tolist()[0] == start_index[idx], "The start index of the annotation should match the start of the document."
+        assert df["document_id"].tolist()[0] == start_indexes[idx], "The start index of the annotation should match the start of the document."
