@@ -2,10 +2,12 @@ import logging
 import os
 from functools import partial
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
+from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoConfig, EvalPrediction, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
@@ -46,6 +48,7 @@ def run_annotator_training_pipeline(config_file_path: Path):
             eval_datasets=eval_datasets,
             compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
+            collate=_get_collate_fn(tokenizer=tokenizer),
         )
 
         logger.info("Pipeline execution completed successfully.")
@@ -212,6 +215,13 @@ def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
     )
 
 
+def _get_collate_fn(
+    tokenizer: PreTrainedHFTokenizer,
+) -> Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]]:
+    """Returns a partial function for collating batches."""
+    return partial(collate, pad_token=tokenizer.tokenizer.pad_token_id)
+
+
 def _train_annotator_model(
     model: AnnotatorModel,
     training_args: TrainingArguments,
@@ -219,6 +229,7 @@ def _train_annotator_model(
     eval_datasets: dict[str, torch.utils.data.Dataset],
     compute_loss_fn: partial,
     compute_metrics_fn: partial,
+    collate: Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]],
 ) -> None:
     """Trains the annotator model.
 
@@ -227,7 +238,9 @@ def _train_annotator_model(
         training_args (TrainingArguments): Hugging Face training arguments
         train_dataset (Dataset): Training dataset
         eval_datasets (Dict[str, Dataset]): Validation and test datasets
-        data_collator (DataCollatorWithPadding): Data collator
+        compute_loss_fn (partial): Function to compute loss
+        compute_metrics_fn (partial): Function to compute metrics in evaluation
+        collate (Callable): Function to collate batches
     """
     logger.info("Initializing Trainer and starting training...")
 
@@ -242,6 +255,7 @@ def _train_annotator_model(
         eval_dataset=eval_datasets,
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
+        data_collator=collate,
     )
 
     trainer.train()
@@ -330,6 +344,7 @@ def multi_target_mse_loss(
     num_items_in_batch: int,
     num_tasks: int,
     reduction: str = "mean",
+    ignored_index: int = -100,
     **kwargs,
 ) -> torch.Tensor:
     """Computes multi-target mean squared error (MSE) loss for regression.
@@ -345,5 +360,42 @@ def multi_target_mse_loss(
         Tensor: Computed MSE loss.
     """
     logits = input.logits
+    target = target.view(-1, num_tasks)
+    mask = ~(target == ignored_index)
     target = target.to(dtype=logits.dtype)
-    return torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction=reduction)
+    out = torch.pow((logits - target)[mask], 2)
+    if reduction == "mean":
+        return out.mean()
+    elif reduction == "sum":
+        return out.sum()
+    elif reduction == "None":
+        return out
+
+
+def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, torch.Tensor]:
+    """Collates a batch of data for training.
+
+    Args:
+        batch (dict): A dictionary containing the batch data.
+        pad_token (int): The padding token ID.
+
+    Returns:
+        dict: A dictionary containing the collated batch data.
+    """
+    # Pad sequences to the maximum length in the batch
+    input_ids = pad_sequence(
+        [torch.tensor(item["input_ids"]) for item in batch], batch_first=True, padding_value=pad_token
+    )
+    attention_mask = pad_sequence(
+        [torch.tensor(item["attention_mask"]) for item in batch], batch_first=True, padding_value=0
+    )
+    token_type_ids = pad_sequence(
+        [torch.tensor(item["token_type_ids"]) for item in batch], batch_first=True, padding_value=0
+    )
+    labels = pad_sequence([torch.tensor(item["labels"]) for item in batch], batch_first=True, padding_value=-100)
+    return {
+        "input_ids": input_ids,
+        "attention_mask": attention_mask,
+        "token_type_ids": token_type_ids,
+        "labels": labels,
+    }
