@@ -11,7 +11,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 
 from constants import MODEL_CLASS_MAP
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
-from ml_filter.models.annotator_models import AnnotatorModel, MultiTargetRegressionHead
+from ml_filter.models.annotator_models import AnnotatorModel, MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
@@ -97,10 +97,11 @@ def _init_model(cfg) -> AnnotatorModel:
     except KeyError:
         raise ValueError(f"Model class not found for {cfg.model.name}. Available models: {MODEL_CLASS_MAP.keys()}")
     base_model = model_class.from_pretrained(cfg.model.name)
+    head_cls = MultiTargetRegressionHead if cfg.training.is_regression else MultiTargetClassificationHead
     model = AnnotatorModel(
         base_model=base_model,
         freeze_base_model_parameters=cfg.model.get("freeze_base_model_parameters"),
-        head=MultiTargetRegressionHead(
+        head=head_cls(
             input_dim=model_config.hidden_size,
             num_prediction_tasks=cfg.data.num_tasks,
             num_targets_per_prediction_task=torch.tensor(cfg.data.num_targets_per_task),
@@ -319,7 +320,6 @@ def multi_target_cross_entropy_loss(
         Tensor: Computed cross-entropy loss.
     """
     logits = input.logits
-    target = target.to(dtype=logits.dtype)
     return torch.nn.functional.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
 
 
