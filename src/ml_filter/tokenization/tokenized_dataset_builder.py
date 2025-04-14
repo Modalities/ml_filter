@@ -132,7 +132,6 @@ class DataPreprocessor:
             batched=True,
             remove_columns=dataset.column_names,
             num_proc=self.num_processes,
-            load_from_cache_file=False,
         )
 
     def _take_scores(self, batch: LazyBatch) -> torch.Tensor:
