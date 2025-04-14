@@ -115,7 +115,6 @@ class DataPreprocessor:
         logger.info("Tokenizing dataset...")
 
         def process_batch(batch: LazyBatch) -> dict[str, Any]:
-            # Tokenize the text
             tokenized = self.tokenizer(
                 batch[self.text_column],
                 truncation=self.truncation,
@@ -123,10 +122,8 @@ class DataPreprocessor:
                 max_length=self.max_length,
                 return_tensors="pt",
             )
-            if self.is_regression:
-                labels = torch.tensor(batch[self.label_column], dtype=torch.float)
-            else:
-                labels = torch.tensor(batch[self.label_column], dtype=torch.long)
+            labels = self._take_scores(batch)
+            assert len(labels.shape) == 2
 
             return {**tokenized, "labels": labels}
 
@@ -135,4 +132,37 @@ class DataPreprocessor:
             batched=True,
             remove_columns=dataset.column_names,
             num_proc=self.num_processes,
+            load_from_cache_file=False,
         )
+
+    def _take_scores(self, batch: LazyBatch) -> torch.Tensor:
+        """Extracts scores from a batch."""
+        dtype = torch.float if self.is_regression else torch.long
+        scores_entry = batch[self.label_column]
+        if isinstance(scores_entry, dict):
+            scores_entry = self._take_scores_from_sub_dict(scores_entry)
+        if isinstance(scores_entry, list):
+            if isinstance(scores_entry[0], dict):
+                scores_entry = [self._take_scores_from_sub_dict(entry) for entry in scores_entry]
+            return torch.tensor(scores_entry, dtype=dtype)
+        elif isinstance(scores_entry, (int, float)):
+            return torch.tensor([scores_entry], dtype=dtype)
+        else:
+            raise ValueError(f"Unknown score entry format: {scores_entry}")
+
+    def _take_scores_from_sub_dict(self, score_dict: dict[str, int | float | list[int | float]]) -> list[int | float]:
+        """Extracts scores from a sub-dictionary."""
+        if self.label_column in score_dict:
+            entry = score_dict[self.label_column]
+        elif "score" in score_dict:
+            entry = score_dict["score"]
+        elif "scores" in score_dict:
+            entry = score_dict["scores"]
+        else:
+            raise ValueError(f"Unknown score entry format: {score_dict}")
+        if isinstance(entry, list):
+            return entry
+        elif isinstance(entry, (int, float)):
+            return [entry]
+        else:
+            raise ValueError(f"Unknown score entry format: {score_dict}")
