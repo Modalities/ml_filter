@@ -52,6 +52,9 @@ MODEL_CLASS_MAP = {
     "facebook/xlm-roberta-xl": XLMRobertaXLForSequenceClassification,
     "facebookai/xlm-roberta-base": XLMRobertaForSequenceClassification,
     "facebookai/xlm-roberta-large": XLMRobertaForSequenceClassification,
-    "snowflake/snowflake-arctic-embed-m": BertForSequenceClassification,
     "jinaai/jina-embeddings-v3": XLMRobertaForSequenceClassification,
+    "snowflake/snowflake-arctic-embed-m": BertForSequenceClassification,
+    "snowflake/snowflake-arctic-embed-l": BertForSequenceClassification,
+    "snowflake/snowflake-arctic-embed-m-v2.0": BertForSequenceClassification,
+    "snowflake/snowflake-arctic-embed-l-v2.0": BertForSequenceClassification,
 }
