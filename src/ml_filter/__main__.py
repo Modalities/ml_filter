@@ -267,9 +267,9 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: st
 
 
 @main.command(name="evaluate_prompt_based_annotations")
-@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
-@click.argument("gt_data", type=click.Path(exists=True, path_type=Path))
+@click.option("--input_directory", type=click.Path(exists=True, path_type=Path))
+@click.option("--output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option("--gt_data", type=click.Path(exists=True, path_type=Path))
 @click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
 @click.option("--labels", type=str, help="Comma-separated list of labels.")
 def evaluate_prompt_based_annotations_cli(
@@ -359,8 +359,8 @@ def aggregate_human_annotations_cli(
 
 
 @main.command(name="collect_ir_metrics")
-@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@click.option("--input_directory", type=click.Path(exists=True, path_type=Path))
+@click.option("--output_directory", type=click.Path(exists=False, path_type=Path))
 @click.option(
     "--min_metrics",
     type=str,
