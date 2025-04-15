@@ -58,12 +58,9 @@ def aggregate_scores_in_directory(
     for f in files:
         # Extract annotator names
         annotator = _extract_annotator_name(f)
-        lang = f.parent.name
 
         # Log the file being processed
         logger.info(f"Aggregating scores in {f}.")
-        lang_dir = output_directory / lang
-        lang_dir.mkdir(parents=True, exist_ok=True)
 
         document_scores_df = get_document_scores(
             path_to_files=[f],
