@@ -87,6 +87,16 @@ batch_size_option = click.option(
     help="Number of documents to process in each batch.",
 )
 
+input_directory_option = click.option(
+    "--input_directory",
+    type=click.Path(exists=True, path_type=Path)
+)
+
+output_directory_option = click.option(
+    "--output_directory",
+    type=click.Path(exists=False, path_type=Path)
+)
+
 path_to_files_argument = click.argument("path_to_files", nargs=-1, type=click.Path(path_type=Path))
 
 
@@ -267,8 +277,8 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: st
 
 
 @main.command(name="evaluate_prompt_based_annotations")
-@click.option("--input_directory", type=click.Path(exists=True, path_type=Path))
-@click.option("--output_directory", type=click.Path(exists=False, path_type=Path))
+@input_directory_option
+@output_directory_option
 @click.option("--gt_data", type=click.Path(exists=True, path_type=Path))
 @click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
 @click.option("--labels", type=str, help="Comma-separated list of labels.")
@@ -290,8 +300,8 @@ def evaluate_prompt_based_annotations_cli(
 
 
 @main.command(name="aggregate_scores")
-@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@input_directory_option
+@output_directory_option
 @labels_option
 @aggregation_option
 @batch_size_option
@@ -359,8 +369,8 @@ def aggregate_human_annotations_cli(
 
 
 @main.command(name="collect_ir_metrics")
-@click.option("--input_directory", type=click.Path(exists=True, path_type=Path))
-@click.option("--output_directory", type=click.Path(exists=False, path_type=Path))
+@input_directory_option
+@output_directory_option
 @click.option(
     "--min_metrics",
     type=str,
