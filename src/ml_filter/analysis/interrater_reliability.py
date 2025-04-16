@@ -212,6 +212,17 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     return (above_threshold + below_threshold) / len(scores)
 
 
+def compute_accuracy_per_class(scores: list[tuple[int, int]]):
+    # compute accuracy per class
+    possible_classes = sorted(set(c for _, c in scores))
+    class_accuracies = {}
+    for cls in possible_classes:
+        total = sum(1 for _, score_1 in scores if score_1 == cls)
+        correct = sum(1 for score_0, score_1 in scores if score_0 == cls and score_1 == cls)
+        class_accuracies[cls] = correct / total
+    return class_accuracies
+
+
 def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds: list[float]) -> dict:
     """
     Computes various inter-rater reliability metrics.
@@ -248,9 +259,11 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     }
     metrics["Variation per Document"] = doc_vars
     for threshold in thresholds:
-        # Compute threshold agreement
         metrics["metrics"][f"TA_{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
     
+    class_accuracies = compute_accuracy_per_class(rounded_valid_scores)
+    for c in class_accuracies:
+        metrics[f"CA_{c}"] = class_accuracies[c]    
     return metrics
 
 
