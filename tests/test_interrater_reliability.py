@@ -87,16 +87,26 @@ def test_compute_metrics():
         "rounded_score_1": [1, 2, 3],
         "doc_id": [1, 2, 3]
     }
+    thresholds = [2, 3]
     df = pd.DataFrame(data)
-    metrics = compute_metrics(num_total_docs=3, valid_docs_df=df)
+    metrics = compute_metrics(
+        num_total_docs=3,
+        valid_docs_df=df,
+        thresholds=thresholds
+    )
     expected_metrics = {
         'metrics': {
-            'Fleiss': np.float64(1.0),
-            'Cohen': np.float64(1.0),
-            'Spearman': np.float64(1.0),
-            'Kendall': np.float64(1.0),
-            'Krippendorff': np.float64(1.0),
-            'Invalid': 0
+            'Fleiss': 1.0,
+            'Cohen': 1.0,
+            'Spearman': 1.0,
+            'Kendall': 1.0,
+            'Krippendorff': 1.0,
+            'Invalid': 0,
+            'TA_2': 1.0,
+            'TA_3': 1.0,
+            'CA_1': 1.0,
+            'CA_2': 1.0,
+            'CA_3': 1.0,
         },
         'Variation per Document': {1: 0, 2: 0, 3: 0, 'counts': {0: 3}, 'mean': 0, 'stdev': 0.0}
         }
@@ -154,6 +164,7 @@ def test_compute_interrater_reliability_metrics(tmp_path, aggregation):
     aggregation = "majority"
     output_dir = tmp_path / "interrater_reliability_metrics"
     labels = list(range(6))
+    thresholds = [2, 3]
 
     # Call function
     compute_interrater_reliability_metrics(
@@ -161,6 +172,7 @@ def test_compute_interrater_reliability_metrics(tmp_path, aggregation):
         output_dir=output_dir,
         aggregation=aggregation,
         labels=labels,
+        thresholds=thresholds,
     )
 
     # Verify output file exists
