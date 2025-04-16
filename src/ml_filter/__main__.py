@@ -282,12 +282,14 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: st
 @click.option("--gt_data", type=click.Path(exists=True, path_type=Path))
 @click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
 @click.option("--labels", type=str, help="Comma-separated list of labels.")
+@click.option("--thresholds", type=str, help="Comma-separated list of thresholds for binary metrics.")
 def evaluate_prompt_based_annotations_cli(
     input_directory: Path,
     output_directory: Path,
     gt_data: Path,
     aggregation: str,
     labels: str,
+    thresholds: str,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
     evaluate_prompt_based_annotations(
@@ -296,6 +298,7 @@ def evaluate_prompt_based_annotations_cli(
         gt_data=gt_data,
         aggregation=aggregation,
         labels=[float(label) for label in labels.split(",")],
+        thresholds=[float(t) for t in thresholds.split(",")],
     )
 
 
