@@ -13,7 +13,8 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 
 from constants import MODEL_CLASS_MAP
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
-from ml_filter.models.annotator_models import AnnotatorModel, MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_models import AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 

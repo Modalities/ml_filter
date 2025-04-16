@@ -9,7 +9,7 @@ import yaml
 from omegaconf import OmegaConf
 from transformers import AutoConfig, BertForSequenceClassification
 
-from ml_filter.models.annotator_models import MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 

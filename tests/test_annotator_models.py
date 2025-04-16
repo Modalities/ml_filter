@@ -1,12 +1,7 @@
 import torch
 
-from ml_filter.models.annotator_models import (
-    AnnotatorModel,
-    LogitMaskLayer,
-    MultiTargetClassificationHead,
-    MultiTargetRegressionHead,
-    RegressionScalingLayer,
-)
+from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_models import AnnotatorModel, LogitMaskLayer, RegressionScalingLayer
 
 
 def test_annotator_model_initialization(dummy_base_model, regression_head):
