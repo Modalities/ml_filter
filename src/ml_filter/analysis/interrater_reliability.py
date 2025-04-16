@@ -202,7 +202,14 @@ def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_pa
 
 
 def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float) -> float:
-    # Compute threshold-based agreement
+    """
+    Computes the threshold-based agreement between two sets of scores.
+    Args:
+        scores (list[tuple[int, int]]): A list of tuples containing scores from two annotators.
+        threshold (float): The threshold value for agreement.
+    Returns:
+        float: The threshold-based agreement score.
+    """
     above_threshold = sum(
         1 for score_0, score_1 in scores if score_0 > threshold and score_1 > threshold
     )
@@ -213,7 +220,13 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
 
 
 def compute_accuracy_per_class(scores: list[tuple[int, int]]):
-    # compute accuracy per class
+    """
+    Computes the accuracy per class for the given scores.
+    Args:
+        scores (list[tuple[int, int]]): A list of tuples containing scores from two annotators.
+    Returns:
+        dict: A dictionary containing the accuracy for each class.
+    """
     possible_classes = sorted(set(c for _, c in scores))
     class_accuracies = {}
     for cls in possible_classes:
@@ -230,6 +243,7 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     Args:
         num_total_docs (int): The total number of documents.
         valid_docs_df (pd.DataFrame): The DataFrame containing valid document scores.
+        thresholds (list[float]): A list of thresholds for computing agreement metrics.
 
     Returns:
         dict: A dictionary containing the computed metrics.
@@ -345,6 +359,7 @@ def compute_interrater_reliability_metrics(
             - "max": Use the maximum score.
             - "min": Use the minimum score.
             - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
+        thresholds (list[float]): A list of thresholds for computing agreement metrics.
 
     Raises:
         ValueError: If invalid parameter combinations are provided.
