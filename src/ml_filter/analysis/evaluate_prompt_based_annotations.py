@@ -25,7 +25,8 @@ def evaluate_prompt_based_annotations(
     output_directory: Path,
     gt_data: Path,
     aggregation: str,
-    labels: list[float]
+    labels: list[float],
+    thresholds: list[float],
 ) -> None:
     """
     Evaluates prompt-based annotations by comparing annotations to ground truth data.
@@ -65,5 +66,6 @@ def evaluate_prompt_based_annotations(
             output_dir=lang_dir,
             aggregation=aggregation,
             labels=labels,
+            thresholds=thresholds,
         )
         logger.info(f"Metrics successfully written to {lang_dir}")
