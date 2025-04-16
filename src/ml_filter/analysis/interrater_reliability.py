@@ -201,7 +201,18 @@ def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_pa
     return cm_dict
 
 
-def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> dict:
+def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float) -> float:
+    # Compute threshold-based agreement
+    above_threshold = sum(
+        1 for score_0, score_1 in scores if score_0 > threshold and score_1 > threshold
+    )
+    below_threshold = sum(
+        1 for score_0, score_1 in scores if score_0 <= threshold and score_1 <= threshold
+    )
+    return (above_threshold + below_threshold) / len(scores)
+
+
+def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds: list[float]) -> dict:
     """
     Computes various inter-rater reliability metrics.
 
@@ -236,6 +247,9 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame) -> dict:
         'Invalid': num_total_docs - len(valid_docs_df),
     }
     metrics["Variation per Document"] = doc_vars
+    for threshold in thresholds:
+        # Compute threshold agreement
+        metrics["metrics"][f"TA_{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
     
     return metrics
 
@@ -303,6 +317,7 @@ def compute_interrater_reliability_metrics(
     output_dir: Path,
     labels: list[float],
     aggregation: str,
+    thresholds: list[float],
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -339,7 +354,8 @@ def compute_interrater_reliability_metrics(
         # compute metrics
         metrics = compute_metrics(
             num_total_docs=len(common_docs_df),
-            valid_docs_df=valid_docs_df
+            valid_docs_df=valid_docs_df,
+            thresholds=thresholds
         )
         
         # compute additional metrics if one of the annotators is the ground truth
