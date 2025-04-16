@@ -277,7 +277,7 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     
     class_accuracies = compute_accuracy_per_class(rounded_valid_scores)
     for c in class_accuracies:
-        metrics[f"CA_{c}"] = class_accuracies[c]    
+        metrics["metrics"][f"CA_{c}"] = class_accuracies[c]    
     return metrics
 
 
