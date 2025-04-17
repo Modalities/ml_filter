@@ -120,7 +120,7 @@ def test_collect_ir_metrics(tmp_path):
 
     # Create example JSON files
     example_data = {
-        "metrics": {"metric1": 0.8, "metric2": 0.2, "Invalid": 2},
+        "metrics": {"metric1": 0.8, "metric2": 0.2, "Invalid": 2, "Spearman": 0.8},
         "CM": {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}}
     }
     file_path = input_directory / "ir_annotator1_gt.json"
