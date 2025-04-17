@@ -318,6 +318,46 @@ def plot_confusion_matrix(
         plt.savefig(output_directory / f"confusion_matrix_across_languages_{annotator}.png")
 
                 
+def plot_spearman_heatmap(df: pd.DataFrame, output_directory: Path) -> None:
+    """
+    Plots a heatmap for Spearman correlation values across annotators and languages.
+
+    Args:
+        spearman_df (pd.DataFrame): A DataFrame containing metrics for different annotators and languages.
+        output_directory (Path): The directory to save the heatmap plot.
+
+    Returns:
+        None
+    """
+    # spearman_df = df.pivot(index="Annotator", columns="lang", values="Spearman")
+    spearman_df = df.pivot(index="lang", columns="Annotator", values="Spearman")
+    
+    # Create the heatmap
+    plt.figure(figsize=(12, 10))  # Increase figure size for better visibility
+    sns.heatmap(
+        spearman_df,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        cbar_kws={"label": "Spearman Correlation"},
+        xticklabels=spearman_df.columns,
+        yticklabels=spearman_df.index,
+        annot_kws={"fontsize": 10},  # Adjust font size for annotations
+    )
+    plt.xticks(rotation=45, ha="right", fontsize=10)  # Rotate x-axis labels for better visibility
+    plt.yticks(fontsize=10)  # Adjust font size for y-axis labels
+    plt.title("Spearman Correlation Heatmap", fontsize=14)
+    plt.xlabel("Annotator", fontsize=12)
+    plt.ylabel("Language", fontsize=12)
+    
+    # Save the heatmap
+    heatmap_path = output_directory / "spearman_correlation_heatmap.png"
+    plt.tight_layout()  # Ensure everything fits within the figure
+    plt.savefig(heatmap_path)
+    plt.close()
+    logging.info(f"Spearman correlation heatmap saved to {heatmap_path}")
+    
+                
 def collect_ir_metrics(
     input_directory: Path,
     output_directory: Path,
@@ -354,5 +394,8 @@ def collect_ir_metrics(
         
     # plot the confusion matrix
     plot_confusion_matrix(aggregated_cm=aggregated_cm, output_directory=output_directory)
+    
+    # plot heatmap for spearman correlation
+    plot_spearman_heatmap(df, output_directory=output_directory)
     
     logging.info(f"Metrics successfully written")
