@@ -40,7 +40,8 @@ def aggregate_scores_in_directory(
         aggregation (str): The aggregation method to use for the scores.
         labels (list[float]): The list of possible labels.
         batch_size (int): The number of documents to process in each batch. Defaults to 100000.
-        raw_data_lookup_dir (Optional[Path]): Directory to look up raw data files. Defaults to None.
+        raw_data_lookup_dir (Optional[Path]): Directory to look for raw data files instead of taking the original ones. 
+            Only documents in the raw data file are included, since these might e.g. be deduplicated. Defaults to None, i.e. taking the original raw data.
 
     Returns:
         None

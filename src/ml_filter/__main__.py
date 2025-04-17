@@ -89,12 +89,16 @@ batch_size_option = click.option(
 
 input_directory_option = click.option(
     "--input_directory",
-    type=click.Path(exists=True, path_type=Path)
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to the input directory containing JSONL files.",
+    required=True,
 )
 
 output_directory_option = click.option(
     "--output_directory",
-    type=click.Path(exists=False, path_type=Path)
+    type=click.Path(exists=False, path_type=Path),
+    help="Path to the output directory where results will be saved.",
+    required=True,
 )
 
 path_to_files_argument = click.argument("path_to_files", nargs=-1, type=click.Path(path_type=Path))
@@ -610,30 +614,20 @@ def deduplicate_jsonl_cli(input_file: Path, output_file: Path):
     
     
 @main.command(name="deduplicate_dir")
-@click.option(
-    "--input_dir",
-    type=click_pathlib.Path(exists=True),
-    required=True,
-    help="Path to the directory with JSONL files.",
-)
-@click.option(
-    "--output_dir",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the output directory with deduplicated entries.",
-)
-def deduplicate_dir_cli(input_dir: Path, output_dir: Path):
+@input_directory_option
+@output_directory_option
+def deduplicate_dir_cli(input_directory: Path, output_directory: Path):
     """
     CLI command to deduplicate entries in all JSONL files in a directory based on 'doc_id' and 'text' fields.
     """
     # Ensure the output directory exists
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_directory.mkdir(parents=True, exist_ok=True)
 
     # Iterate over all JSONL files in the input directory
-    for input_file in input_dir.glob("*.jsonl"):
-        output_file = output_dir / input_file.name  # Keep the same filename in the output directory
-        deduplicate_jsonl(input_file_path=input_file, output_file_path=output_file)
-        print(f"Processed {input_file} -> {output_file}")
+    for input_file_path in input_directory.glob("*.jsonl"):
+        output_file_path = output_directory / input_file_path.name
+        deduplicate_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+        print(f"Processed {input_file_path} -> {output_file_path}")
         
 
 @main.command(name="convert_hf_dataset_to_jsonl")

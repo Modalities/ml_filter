@@ -323,7 +323,7 @@ def plot_spearman_heatmap(df: pd.DataFrame, output_directory: Path) -> None:
     Plots a heatmap for Spearman correlation values across annotators and languages.
 
     Args:
-        spearman_df (pd.DataFrame): A DataFrame containing metrics for different annotators and languages.
+        df (pd.DataFrame): A DataFrame containing metrics for different annotators and languages.
         output_directory (Path): The directory to save the heatmap plot.
 
     Returns:

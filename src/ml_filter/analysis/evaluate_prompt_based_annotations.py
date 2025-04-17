@@ -37,6 +37,7 @@ def evaluate_prompt_based_annotations(
         gt_data (Path): The path to the ground truth data file.
         aggregation (str): The aggregation method to use for the scores.
         labels (list[float]): The list of possible labels.
+        thresholds (list[float]): A list of thresholds for computing agreement metrics.
 
     Returns:
         None

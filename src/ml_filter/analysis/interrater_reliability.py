@@ -219,7 +219,7 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     return (above_threshold + below_threshold) / len(scores)
 
 
-def compute_accuracy_per_class(scores: list[tuple[int, int]]):
+def compute_accuracy_per_class(scores: list[tuple[int, int]]) -> dict[int, float]:
     """
     Computes the accuracy per class for the given scores.
     Args:
