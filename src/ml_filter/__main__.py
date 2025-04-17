@@ -15,7 +15,7 @@ from ml_filter.analysis.interrater_reliability import compute_interrater_reliabi
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
-# from ml_filter.inference_pipeline.run_pipeline import run_pipeline
+from ml_filter.inference_pipeline.run_pipeline import run_pipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
@@ -751,15 +751,15 @@ def _get_target_language_codes_list_helper(target_language_codes: str) -> list[s
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
 
-# @main.command(name="inference_pipeline")
-# @click.option(
-#     "--config_file_path",
-#     type=click_pathlib.Path(exists=True),
-#     required=True,
-#     help="Path to a file with the YAML config file.",
-# )
-# def entry_inference_pipeline(config_file_path: Path):
-#     run_pipeline(config_file_path)
+@main.command(name="inference_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_inference_pipeline(config_file_path: Path):
+    run_pipeline(config_file_path)
 
 
 if __name__ == "__main__":
