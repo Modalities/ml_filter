@@ -24,3 +24,13 @@ The content of
 ```
 
 can then be copied partly or fully to the overleaf document.
+
+In addition, you can find confusion matrices and histograms for each annotator and language in 
+```bash
+/path/to/annotations/comparison
+```
+
+as well as aggregated across languages in 
+```bash
+/path/to/annotations/comparison/ir_summary
+```
