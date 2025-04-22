@@ -53,7 +53,11 @@ def test_init_tokenizer():
 def test_init_model():
     cfg = DictConfig(
         {
-            "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": False},
+            "model": {
+                "name": "facebookai/xlm-roberta-base",
+                "freeze_base_model_parameters": False,
+                "is_regression": False,
+            },
             "data": {"num_tasks": 3, "num_targets_per_task": [2, 3, 4]},
         }
     )

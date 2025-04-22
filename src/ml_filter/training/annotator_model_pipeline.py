@@ -101,7 +101,7 @@ def _init_model(cfg) -> AnnotatorModel:
     except KeyError:
         raise ValueError(f"Model class not found for {cfg.model.name}. Available models: {MODEL_CLASS_MAP.keys()}")
     base_model = model_class.from_pretrained(cfg.model.name)
-    head_cls = MultiTargetRegressionHead if cfg.training.is_regression else MultiTargetClassificationHead
+    head_cls = MultiTargetRegressionHead if cfg.model.is_regression else MultiTargetClassificationHead
     model = AnnotatorModel(
         base_model=base_model,
         freeze_base_model_parameters=cfg.model.get("freeze_base_model_parameters"),
@@ -390,9 +390,12 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
     attention_mask = pad_sequence(
         [torch.tensor(item["attention_mask"]) for item in batch], batch_first=True, padding_value=0
     )
-    token_type_ids = pad_sequence(
-        [torch.tensor(item["token_type_ids"]) for item in batch], batch_first=True, padding_value=0
-    )
+    if "token_type_ids" in batch[0]:
+        token_type_ids = pad_sequence(
+            [torch.tensor(item["token_type_ids"]) for item in batch], batch_first=True, padding_value=0
+        )
+    else:
+        token_type_ids = None
     labels = pad_sequence([torch.tensor(item["labels"]) for item in batch], batch_first=True, padding_value=-100)
     return {
         "input_ids": input_ids,
