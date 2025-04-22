@@ -273,7 +273,7 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     }
     metrics["Variation per Document"] = doc_vars
     for threshold in thresholds:
-        metrics["metrics"][f"TA_{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
+        metrics["metrics"][f"TA-{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
     
     class_accuracies = compute_accuracy_per_class(rounded_valid_scores)
     for c in class_accuracies:
