@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import yaml
 
 from ml_filter.data_processing.document import DocumentProcessingTags, ProcessedDocument
-from ml_filter.tokenizer.tokenizer_wrapper import TokenizerWrapper
+from ml_filter.tokenization.tokenizer_wrapper import TokenizerWrapper
 from ml_filter.utils.string_comparison import get_char_differences
 
 

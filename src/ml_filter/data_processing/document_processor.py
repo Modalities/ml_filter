@@ -16,10 +16,9 @@ from ml_filter.data_processing.llm_score_metrics import score_metrics
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.data_processing.report_statistics import ThroughputStatistics
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+from ml_filter.utils.logging import get_logger
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
-logger = logging.getLogger(__name__)  # Create a logger instance
+logger = get_logger(name=__name__, level=logging.INFO)  # Create a logger instance
 
 
 class DocumentProcessor:

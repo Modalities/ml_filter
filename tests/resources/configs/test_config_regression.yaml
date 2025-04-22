@@ -14,18 +14,23 @@ tokenizer:
 
 data: 
   train_file_path: tests/resources/data/lorem_ipsum.jsonl
+  train_annotation_path: null
   train_file_split: train
   test_file_path: tests/resources/data/lorem_ipsum.jsonl # currently not used
   test_file_split: train # currently not used
   val_file_path: tests/resources/data/lorem_ipsum.jsonl
+  val_annotation_path: null
   val_file_split: train
   gt_file_path: tests/resources/data/lorem_ipsum.jsonl # ground truth data; can be null (optional)
+  gt_annotation_path: null
   gt_file_split: train
   label_column: scores
   text_column: text
-  num_regressor_outputs: 1
-  num_classes_per_output: [6]
+  num_tasks: 1
+  num_targets_per_task: [6]
   output_names: ["score"]
+  annotation_names: []
+  annotation_aggregation_fn: median
   
 training:
   batch_size: 32
@@ -35,9 +40,10 @@ training:
   eval_strategy: epoch
   save_strategy: epoch
   logging_steps: 1
+  learning_rate: 0.0003
   seed: 42
   regression_loss: true
   greater_is_better: false # save model with lowest loss
-  metric_for_best_model: eval_loss
+  metric_for_best_model: eval_val_loss
   logging_dir_path: tests/cache
   output_dir_path: tests/cache

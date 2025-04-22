@@ -1,7 +1,7 @@
 import copy
 import json
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from unittest.mock import Mock
 
 import pandas as pd
@@ -11,7 +11,7 @@ from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.llm_score_metrics import EducationalScoreMetric
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
-from ml_filter.tokenizer.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
 
 def create_mock_document(processed_document: ProcessedDocument, with_errors=False) -> ProcessedDocument:
@@ -70,7 +70,7 @@ def initialize_document_processor(
         num_processes=2,
         score_metric_name="educational_score",
         jq_language_pattern=".language",
-        start_indexes=start_indexes
+        start_indexes=start_indexes,
     )
 
 
@@ -93,8 +93,9 @@ def test_run(tmpdir: Path):
 
     tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
-    document_processor = initialize_document_processor(tmp_input_paths=tmp_input_paths, tmpdir=tmpdir,
-                                                       llm_rest_client=llm_rest_client)
+    document_processor = initialize_document_processor(
+        tmp_input_paths=tmp_input_paths, tmpdir=tmpdir, llm_rest_client=llm_rest_client
+    )
 
     document_processor.run()
 
@@ -134,8 +135,9 @@ def test_vllm_failure_in_the_middle(tmpdir: Path):
 
     tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
-    document_processor = initialize_document_processor(tmp_input_paths=tmp_input_paths, tmpdir=tmpdir,
-                                                       llm_rest_client=llm_rest_client)
+    document_processor = initialize_document_processor(
+        tmp_input_paths=tmp_input_paths, tmpdir=tmpdir, llm_rest_client=llm_rest_client
+    )
 
     document_processor.run()
 
@@ -144,8 +146,9 @@ def test_vllm_failure_in_the_middle(tmpdir: Path):
 
     for idx, results_path in enumerate(document_processor.common_parents_path.glob("**/*annotations*.jsonl")):
         df = pd.read_json(results_path, lines=True, orient="records")
-        assert len(
-            df) < 150, f"vLLM failure occured. The number of result documents should be smaller than the number of input documents."
+        assert (
+            len(df) < 150
+        ), "vLLM failure occured. The number of result documents should be smaller than the number of input documents."
 
 
 def test_annotation_with_start_index(tmpdir: Path):
@@ -154,12 +157,15 @@ def test_annotation_with_start_index(tmpdir: Path):
     tmp_input_paths = create_temp_input_files(tmpdir, num_files=2, num_documents=1000)
 
     start_indexes = [150]
-    document_processor = initialize_document_processor(tmp_input_paths, tmpdir=tmpdir, llm_rest_client=llm_rest_client,
-                                                       start_indexes=start_indexes)
+    document_processor = initialize_document_processor(
+        tmp_input_paths, tmpdir=tmpdir, llm_rest_client=llm_rest_client, start_indexes=start_indexes
+    )
 
     document_processor.run()
 
     for idx, results_path in enumerate(document_processor.common_parents_path.glob("**/*annotations*.jsonl")):
         df = pd.read_json(results_path, lines=True, orient="records")
 
-        assert df["document_id"].tolist()[0] == start_indexes[idx], "The start index of the annotation should match the start of the document."
+        assert (
+            df["document_id"].tolist()[0] == start_indexes[idx]
+        ), "The start index of the annotation should match the start of the document."

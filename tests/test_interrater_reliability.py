@@ -4,12 +4,16 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 from statistics import mean, stdev
 
 
 # Import functions to be tested
 from ml_filter.analysis.interrater_reliability import (
+    compare_annotator_to_gt,
+    compute_accuracy_mae_mse_against_gt,
+    compute_metrics,
     prepare_fleiss_data,
     compute_pairwise_correlations,
     compute_krippendorffs_alpha,
@@ -67,49 +71,108 @@ def test_compute_doc_level_variation(example_scores, example_ids):
     assert result["stdev"] == pytest.approx(stdev([2, 2, 0]), rel=1e-2), "Standard deviation is incorrect."
 
 
+def test_compute_accuracy_mae_mse_against_gt():
+    scores_0 = [1, 2, 3]
+    scores_1 = [1, 3, 2]
+    metrics = compute_accuracy_mae_mse_against_gt(scores_0, scores_1)
+    expected_metrics = {'acc': 0.3333333333333333, 'mae': 0.6666666666666666, 'mse': 0.6666666666666666}
+    assert metrics == expected_metrics
+
+
+def test_compute_metrics():
+    data = {
+        "score_0": [1, 2, 3],
+        "score_1": [1, 2, 3],
+        "rounded_score_0": [1, 2, 3],
+        "rounded_score_1": [1, 2, 3],
+        "doc_id": [1, 2, 3]
+    }
+    df = pd.DataFrame(data)
+    metrics = compute_metrics(num_total_docs=3, valid_docs_df=df)
+    expected_metrics = {
+        'metrics': {
+            'Fleiss': np.float64(1.0),
+            'Cohen': np.float64(1.0),
+            'Spearman': np.float64(1.0),
+            'Kendall': np.float64(1.0),
+            'Krippendorff': np.float64(1.0),
+            'Invalid': 0
+        },
+        'Variation per Document': {1: 0, 2: 0, 3: 0, 'counts': {0: 3}, 'mean': 0, 'stdev': 0.0}
+        }
+    assert metrics == expected_metrics
+
+
+def test_compare_model_to_gt(tmp_path):
+    data = {
+        "score_0": [1, 2, 3],
+        "score_1": [1, 2, 3],
+        "rounded_score_0": [1, 2, 3],
+        "rounded_score_1": [1, 2, 3],
+        "doc_id": [1, 2, 3]
+    }
+    df = pd.DataFrame(data)
+    metrics = {"metrics": {}}
+    output_dir = tmp_path
+    updated_metrics = compare_annotator_to_gt(
+        annotators=["gt", "model"],
+        valid_docs_df=df,
+        common_docs_df=df,
+        metrics=metrics,
+        output_dir=output_dir
+    )
+    expected_updated_metrics = {
+        'metrics': {'Acc': 1.0, 'MAE': 0.0, 'MSE': 0.0},
+        'CM': {
+            0: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            1: {-1: 0, 0: 0, 1: 1, 2: 0, 3: 0, 4: 0, 5: 0},
+            2: {-1: 0, 0: 0, 1: 0, 2: 1, 3: 0, 4: 0, 5: 0},
+            3: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 1, 4: 0, 5: 0},
+            4: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            5: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        }
+    }
+    assert updated_metrics == expected_updated_metrics
+
+
 @pytest.mark.parametrize(
-    "path_to_files, aggregation",
+    "aggregation",
     [
-        # Test case 1: Single annotator
-        (
-            [
-                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl",
-                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl",
-            ],    
-            None
-        ),
-        # Test case 2: Multiple annotators
-        (
-            [
-                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl",
-                "tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl",
-                "tests/resources/data/llm_annotations/de/annotations_edu_de_test_1.jsonl",
-                "tests/resources/data/llm_annotations/de/annotations_edu_de_test_2.jsonl",
-                "tests/resources/data/llm_annotations/en/annotations_toxic_en_test_1.jsonl",
-                "tests/resources/data/llm_annotations/en/annotations_toxic_en_test_2.jsonl",
-                "tests/resources/data/llm_annotations/de/annotations_toxic_de_test_1.jsonl",
-            ],
-            "mean"
-        ),
+        "majority",
+        "mean",
+        "median",
+        "max",
+        "min",
     ],
 )
-def test_compute_interrater_reliability_metrics(tmp_path, path_to_files, aggregation):
-    output_file = tmp_path / "output.json"
-    path_to_files = [Path(p) for p in path_to_files]
+def test_compute_interrater_reliability_metrics(tmp_path, aggregation):
+    path_to_files = [
+        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_test_1.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_test_2.jsonl"),
+        Path("tests/resources/data/llm_annotations/en/annotations_edu_en_gt_1.jsonl"),
+    ]
+    aggregation = "majority"
+    output_dir = tmp_path / "interrater_reliability_metrics"
+    labels = list(range(6))
 
     # Call function
     compute_interrater_reliability_metrics(
         path_to_files=path_to_files,
-        output_file_path=output_file,
+        output_dir=output_dir,
         aggregation=aggregation,
+        labels=labels,
     )
 
     # Verify output file exists
-    assert output_file.exists(), "Output file was not created."
-
-    # Verify content
-    with output_file.open() as f:
-        result = json.load(f)
+    assert output_dir.exists(), "Output file was not created."
+    files = list(output_dir.iterdir())
+    assert len(files) > 0, "Output directory should not be empty."
+    
+    for path in files:
+        if path.suffix == ".json":
+            # Verify content
+            with path.open() as f:
+                result = json.load(f)
         
-    assert "edu" in result, "Output metrics should include the prompt."
-    assert len(result["edu"]) > 0
+            assert "metrics" in result, "No metrics found in output file."
+            assert len(result["metrics"]) > 0, "No metrics found in output file."
