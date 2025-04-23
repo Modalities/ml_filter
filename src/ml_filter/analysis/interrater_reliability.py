@@ -110,19 +110,23 @@ def compute_gt_metrics(
     y_pred: list[int]
 ) -> dict[str, float]:
     """
-    Computes the average accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
+    Computes metrics comparing predictions to ground truth.
     
     Args:
-        scores_0 (list[int]): A list of scores from annotator 0.
-        scores_1 (list[int]): A list of scores from annotator 1.
+        y_true (list[int]): True values.
+        y_pred (list[int]): Predicted values.
     
     Returns:
         dict[str, float]: A dictionary containing the computed metrics.
     """      
     if len(y_true) != len(y_pred):
         raise ValueError("The number of predictions and labels must be equal.")
-    y_true_rounded = [round(p) for p in y_true]
+    
+    # Round predictions. The labels are already rounded, so we just convert them to int
     y_pred_rounded = [round(t) for t in y_pred]
+    y_true_rounded = [int(p) for p in y_true] 
+    
+    # compute accuracy, mae and mse
     gt_metrics = dict()
     gt_metrics["Acc"] = sum(1 for s1, s2 in zip(y_true_rounded, y_pred_rounded) if s1 == s2) / len(y_pred_rounded)
     gt_metrics["MAE"] = sum(abs(a - b) for a, b in zip(y_true, y_pred)) / len(y_pred)
@@ -245,13 +249,14 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
 
 def compute_accuracy_per_class(
     unique_classes: list[int],
-    y_pred: list[int],
-    y_true: list[int]
+    y_true: list[int],
+    y_pred: list[int]
 ) -> dict[int, float]:
     """
     Computes the accuracy per class for the given scores.
     Args:
-        scores (list[tuple[int, int]]): A list of tuples containing scores from two annotators.
+        y_true (list[int]): True values.
+        y_pred (list[int]): Predicted values.
     Returns:
         dict: A dictionary containing the accuracy for each class.
     """
