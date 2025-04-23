@@ -1,4 +1,3 @@
-from abc import ABC
 from copy import deepcopy
 
 import torch
@@ -118,7 +117,7 @@ class AnnotatorModel(PreTrainedModel):
 
     def _load_base_model(self, config: AnnotatorConfig):
         try:
-            model_class = MODEL_CLASS_MAP.get(config.base_model_name_or_path.lower())
+            model_class = MODEL_CLASS_MAP[config.base_model_name_or_path.lower()]
         except KeyError:
             raise ValueError(
                 f"Model class not found for {config.base_model_name_or_path.name}."
