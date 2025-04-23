@@ -179,7 +179,7 @@ class LogitMaskLayer(nn.Module):
 
         # Use a very small value instead of -inf for numerical stability
 
-        # TOOD: Check: Replace: self.register_buffer("logit_mask", (self.raw_logit_mask.float() + 1e-45).log())
+        # TODO: Check: Replace: self.register_buffer("logit_mask", (self.raw_logit_mask.float() + 1e-45).log())
         # TODO: Ensure that in mixed precision training, the logit_mask is not converted due to scalar values
         self.register_buffer("logit_mask", torch.where(self.raw_logit_mask, 0.0, float("-inf")))
 
