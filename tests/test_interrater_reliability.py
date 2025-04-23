@@ -12,7 +12,7 @@ from statistics import mean, stdev
 # Import functions to be tested
 from ml_filter.analysis.interrater_reliability import (
     compare_annotator_to_gt,
-    compute_accuracy_mae_mse_against_gt,
+    compute_gt_metrics,
     compute_metrics,
     prepare_fleiss_data,
     compute_pairwise_correlations,
@@ -71,11 +71,26 @@ def test_compute_doc_level_variation(example_scores, example_ids):
     assert result["stdev"] == pytest.approx(stdev([2, 2, 0]), rel=1e-2), "Standard deviation is incorrect."
 
 
-def test_compute_accuracy_mae_mse_against_gt():
-    scores_0 = [1, 2, 3]
-    scores_1 = [1, 3, 2]
-    metrics = compute_accuracy_mae_mse_against_gt(scores_0, scores_1)
-    expected_metrics = {'acc': 0.3333333333333333, 'mae': 0.6666666666666666, 'mse': 0.6666666666666666}
+def test_compute_gt_metrics():
+    y_true = [1, 2, 3]
+    y_pred = [1, 3, 2]
+    metrics = compute_gt_metrics(
+        y_true=y_true,
+        y_pred=y_pred
+    )
+    expected_metrics = {
+        'Acc': 0.3333333333333333,
+        'MAE': 0.6666666666666666,
+        'MSE': 0.6666666666666666,
+        'CA-1': 1.0,
+        'CA-2': 0.0,
+        'CA-3': 0.0,
+        'Macro-F1': 0.3333333333333333,
+        'Micro-F1': 0.3333333333333333,
+        'F1-1': 1.0,
+        'F1-2': 0.0,
+        'F1-3': 0.0,
+    }
     assert metrics == expected_metrics
 
 
@@ -104,16 +119,13 @@ def test_compute_metrics():
             'Invalid': 0,
             'TA-2': 1.0,
             'TA-3': 1.0,
-            'CA_1': 1.0,
-            'CA_2': 1.0,
-            'CA_3': 1.0,
         },
         'Variation per Document': {1: 0, 2: 0, 3: 0, 'counts': {0: 3}, 'mean': 0, 'stdev': 0.0}
         }
     assert metrics == expected_metrics
 
 
-def test_compare_model_to_gt(tmp_path):
+def test_compare_annotator_to_gt(tmp_path):
     data = {
         "score_0": [1, 2, 3],
         "score_1": [1, 2, 3],
@@ -132,7 +144,19 @@ def test_compare_model_to_gt(tmp_path):
         output_dir=output_dir
     )
     expected_updated_metrics = {
-        'metrics': {'Acc': 1.0, 'MAE': 0.0, 'MSE': 0.0},
+        'metrics': {
+            'Acc': 1.0,
+            'MAE': 0.0,
+            'MSE': 0.0,
+            'CA-1': 1.0,
+            'CA-2': 1.0,
+            'CA-3': 1.0,
+            'Macro-F1': 1.0,
+            'Micro-F1': 1.0,
+            'F1-1': 1.0,
+            'F1-2': 1.0,
+            'F1-3': 1.0
+        },
         'CM': {
             0: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
             1: {-1: 0, 0: 0, 1: 1, 2: 0, 3: 0, 4: 0, 5: 0},
