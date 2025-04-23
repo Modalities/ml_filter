@@ -61,8 +61,6 @@ class AnnotatorModel(PreTrainedModel):
 
         Args:
             config (AnnotatorConfig): The configuration for the model.
-            freeze_base_model_parameters (bool): Whether to freeze the base model parameters.
-                If True, only the classification head will be trainable.
         """
         config = deepcopy(config)
         super().__init__(config)
