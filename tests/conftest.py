@@ -195,38 +195,6 @@ def tmp_nested_jsonl_directory(tmp_path: Path):
 
 
 @pytest.fixture
-def dummy_base_model(dummy_base_model_path: str) -> BertForSequenceClassification:
-    """Creates a dummy BERT model with a classifier."""
-    config = AutoConfig.from_pretrained(dummy_base_model_path, num_labels=2)
-    return BertForSequenceClassification(config)
-
-
-@pytest.fixture
-def dummy_base_model_path() -> str:
-    return "bert-base-uncased"
-
-
-@pytest.fixture
-def regression_head():
-    """Creates a dummy MultiTargetRegressionHead."""
-    return MultiTargetRegressionHead(
-        input_dim=768,
-        num_prediction_tasks=2,
-        num_targets_per_prediction_task=torch.tensor([6, 6]),
-    )
-
-
-@pytest.fixture
-def classification_head():
-    """Creates a dummy MultiTargetClassificationHead."""
-    return MultiTargetClassificationHead(
-        input_dim=768,
-        num_prediction_tasks=2,
-        num_targets_per_prediction_task=torch.tensor([6, 6]),
-    )
-
-
-@pytest.fixture
 def temp_output_dir(tmp_path):
     """Creates a temporary output directory for testing."""
     return tmp_path / "output"

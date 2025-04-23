@@ -8,13 +8,11 @@ import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
 from torch.nn.utils.rnn import pad_sequence
-from transformers import AutoConfig, EvalPrediction, Trainer, TrainingArguments
+from transformers import EvalPrediction, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-from constants import MODEL_CLASS_MAP
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
-from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
-from ml_filter.models.annotator_models import AnnotatorModel
+from ml_filter.models.annotator_models import AnnotatorConfig, AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
@@ -31,7 +29,6 @@ def run_annotator_training_pipeline(config_file_path: Path):
 
         # Initialize components
         tokenizer = _init_tokenizer(cfg=cfg)
-        model = _init_model(cfg=cfg)
         tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
         training_args = _init_training_args(cfg=cfg)
 
@@ -40,6 +37,9 @@ def run_annotator_training_pipeline(config_file_path: Path):
             cfg=cfg,
             tokenized_dataset_builder=tokenized_dataset_builder,
         )
+
+        # Initialize model after loading datasets to not use too much memory prematurely
+        model = _init_model(cfg=cfg)
 
         # Train classifier
         _train_annotator_model(
@@ -95,22 +95,15 @@ def _init_loss_fn(cfg) -> partial:
 def _init_model(cfg) -> AnnotatorModel:
     """Initializes the model."""
     logger.info("Initializing model.")
-    model_config = AutoConfig.from_pretrained(cfg.model.name)
-    try:
-        model_class = MODEL_CLASS_MAP.get(cfg.model.name.lower())
-    except KeyError:
-        raise ValueError(f"Model class not found for {cfg.model.name}. Available models: {MODEL_CLASS_MAP.keys()}")
-    base_model = model_class.from_pretrained(cfg.model.name)
-    head_cls = MultiTargetRegressionHead if cfg.model.is_regression else MultiTargetClassificationHead
-    model = AnnotatorModel(
-        base_model=base_model,
-        freeze_base_model_parameters=cfg.model.get("freeze_base_model_parameters"),
-        head=head_cls(
-            input_dim=model_config.hidden_size,
-            num_prediction_tasks=cfg.data.num_tasks,
-            num_targets_per_prediction_task=torch.tensor(cfg.data.num_targets_per_task),
-        ),
+    config = AnnotatorConfig(
+        is_regression=cfg.model.is_regression,
+        num_tasks=cfg.data.num_tasks,
+        num_targets_per_task=cfg.data.num_targets_per_task,
+        base_model_name_or_path=cfg.model.name,
+        load_base_model_from_config=cfg.model.get("load_base_model_from_config", False),
     )
+    model = AnnotatorModel(config=config)
+    model.set_freeze_base_model(True)
     return model
 
 
