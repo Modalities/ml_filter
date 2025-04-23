@@ -384,12 +384,20 @@ def aggregate_human_annotations_cli(
     help="Comma-separated list of metrics for which lower is better."
     + "All other metrics are considered to be better when higher.",
 )
-def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str):
+@click.option(
+    "--report_metrics",
+    type=str,
+    help="Comma-separated list of metrics to be reported in final tex-file.",
+)
+def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str, report_metrics: str):
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    # split the comma-separated values into lists
+    
     collect_ir_metrics(
         input_directory=input_directory,
         output_directory=output_directory,
-        min_metrics=[metric for metric in min_metrics.split(",")],
+        min_metrics=[metric for metric in min_metrics.split(",")] if min_metrics else None,
+        report_metrics=[metric for metric in report_metrics.split(",")] if report_metrics else None,
     )
 
 
