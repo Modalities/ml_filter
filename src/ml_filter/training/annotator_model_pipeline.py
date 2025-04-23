@@ -365,11 +365,11 @@ def multi_target_mse_loss(
     mask = ~(target == ignored_index)
     target = target.to(dtype=logits.dtype)
     out = torch.pow((logits - target)[mask], 2)
-    if reduction == "mean":
+    if reduction.lower() == "mean":
         return out.mean()
-    elif reduction == "sum":
+    elif reduction.lower() == "sum":
         return out.sum()
-    elif reduction == "None":
+    elif reduction.lower() == "none":
         return out
 
 
