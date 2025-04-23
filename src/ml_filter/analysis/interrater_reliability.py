@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import spearmanr, kendalltau
-from sklearn.metrics import cohen_kappa_score
+from sklearn.metrics import cohen_kappa_score, f1_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.utils import get_common_docs, get_document_scores
@@ -105,7 +105,10 @@ def compute_doc_level_variation(scores: list[list[int]], document_ids: list[str]
     return results
 
 
-def compute_accuracy_mae_mse_against_gt(scores_0: list[int], scores_1: list[int]) -> dict[str, float]:
+def compute_gt_metrics(
+    y_true: list[int],
+    y_pred: list[int]
+) -> dict[str, float]:
     """
     Computes the average accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
     
@@ -116,15 +119,36 @@ def compute_accuracy_mae_mse_against_gt(scores_0: list[int], scores_1: list[int]
     Returns:
         dict[str, float]: A dictionary containing the computed metrics.
     """      
-    if len(scores_0) != len(scores_1):
+    if len(y_true) != len(y_pred):
         raise ValueError("The number of predictions and labels must be equal.")
-    scores_0_rounded = [round(p) for p in scores_0]
-    scores_1_rounded = [round(t) for t in scores_1]
-    acc = sum(1 for s1, s2 in zip(scores_0_rounded, scores_1_rounded) if s1 == s2) / len(scores_1_rounded)
-    mae = sum(abs(a - b) for a, b in zip(scores_0, scores_1)) / len(scores_1)
-    squared_diffs = [(a - b) ** 2 for a, b in zip(scores_0, scores_1)]
-    mse = sum(squared_diffs) / len(squared_diffs)
-    return {'acc': acc, 'mae': mae, 'mse': mse}
+    y_true_rounded = [round(p) for p in y_true]
+    y_pred_rounded = [round(t) for t in y_pred]
+    gt_metrics = dict()
+    gt_metrics["Acc"] = sum(1 for s1, s2 in zip(y_true_rounded, y_pred_rounded) if s1 == s2) / len(y_pred_rounded)
+    gt_metrics["MAE"] = sum(abs(a - b) for a, b in zip(y_true, y_pred)) / len(y_pred)
+    squared_diffs = [(a - b) ** 2 for a, b in zip(y_true, y_pred)]
+    gt_metrics["MSE"] = sum(squared_diffs) / len(squared_diffs)
+    
+    # compute accuracy per class
+    unique_classes = sorted(set(y_true_rounded))  
+    class_accuracies = compute_accuracy_per_class(
+        y_true=y_true_rounded,
+        y_pred=y_pred_rounded,
+        unique_classes=unique_classes
+    )
+    for c in unique_classes:
+        gt_metrics[f"CA-{c}"] = class_accuracies[c]    
+        
+    # Compute Macro and Micro F1-scores
+    gt_metrics["Macro-F1"] = f1_score(y_true_rounded, y_pred_rounded, average="macro")
+    gt_metrics["Micro-F1"] = f1_score(y_true_rounded, y_pred_rounded, average="micro")
+
+    # Compute F1 score for each class
+    class_f1_scores = f1_score(y_true_rounded, y_pred_rounded, average=None)
+    for c, f1 in zip(unique_classes, class_f1_scores):
+        gt_metrics[f"F1-{c}"] = f1
+        
+    return gt_metrics
     
     
 def plot_invalid_docs_histogram(
@@ -219,7 +243,11 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     return (above_threshold + below_threshold) / len(scores)
 
 
-def compute_accuracy_per_class(scores: list[tuple[int, int]]) -> dict[int, float]:
+def compute_accuracy_per_class(
+    unique_classes: list[int],
+    y_pred: list[int],
+    y_true: list[int]
+) -> dict[int, float]:
     """
     Computes the accuracy per class for the given scores.
     Args:
@@ -227,16 +255,19 @@ def compute_accuracy_per_class(scores: list[tuple[int, int]]) -> dict[int, float
     Returns:
         dict: A dictionary containing the accuracy for each class.
     """
-    possible_classes = sorted(set(c for _, c in scores))
     class_accuracies = {}
-    for cls in possible_classes:
-        total = sum(1 for _, score_1 in scores if score_1 == cls)
-        correct = sum(1 for score_0, score_1 in scores if score_0 == cls and score_1 == cls)
-        class_accuracies[cls] = correct / total
+    for c in unique_classes:
+        total = sum(1 for score in y_true if score == c)
+        correct = sum(1 for p, t in zip(y_pred, y_true) if p == c and t == c)
+        class_accuracies[c] = correct / total
     return class_accuracies
 
 
-def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds: list[float]) -> dict:
+def compute_metrics(
+    num_total_docs: int,
+    valid_docs_df: pd.DataFrame,
+    thresholds: list[float]
+) -> dict:
     """
     Computes various inter-rater reliability metrics.
 
@@ -260,7 +291,7 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     cohen_kappa = compute_pairwise_correlations(rounded_valid_scores, metric='cohen')
     kripp_alpha = compute_krippendorffs_alpha(valid_scores)
     doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
-    
+     
     # Store results
     metrics = dict()
     metrics["metrics"] = {
@@ -271,13 +302,12 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
         'Krippendorff': kripp_alpha,
         'Invalid': num_total_docs - len(valid_docs_df),
     }
+    
+    # add variation per document
     metrics["Variation per Document"] = doc_vars
     for threshold in thresholds:
         metrics["metrics"][f"TA-{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
-    
-    class_accuracies = compute_accuracy_per_class(rounded_valid_scores)
-    for c in class_accuracies:
-        metrics["metrics"][f"CA_{c}"] = class_accuracies[c]    
+        
     return metrics
 
 
@@ -305,19 +335,21 @@ def compare_annotator_to_gt(
     if annotators[0] == "gt":
         annotator_idx = 1
         gt_idx = 0
+        y_true = valid_docs_df["score_0"].to_list()
+        y_pred = valid_docs_df["score_1"].to_list()
     else:
         annotator_idx = 0
         gt_idx = 1
+        y_true = valid_docs_df["score_1"].to_list()
+        y_pred = valid_docs_df["score_0"].to_list()
     annotator_name = annotators[annotator_idx]
     
     # compute accuracy, mae and mse against ground truth
-    gt_metrics = compute_accuracy_mae_mse_against_gt(
-        scores_0=valid_docs_df["score_0"].to_list(), 
-        scores_1=valid_docs_df["score_1"].to_list()
+    gt_metrics = compute_gt_metrics(
+        y_true=y_true, 
+        y_pred=y_pred,
     )
-    metrics["metrics"]['Acc'] = gt_metrics["acc"]
-    metrics["metrics"]['MAE'] = gt_metrics["mae"]
-    metrics["metrics"]['MSE'] = gt_metrics["mse"]
+    metrics["metrics"].update(gt_metrics)  
     
     # plot the distribution of invalid scores
     invalid_docs_df = common_docs_df[common_docs_df[f"score_{annotator_idx}"] == "invalid"]
