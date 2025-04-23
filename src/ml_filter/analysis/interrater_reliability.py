@@ -185,7 +185,13 @@ def plot_invalid_docs_histogram(
     plt.savefig(output_file_path)
     
     
-def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_path: Path, annotator_name: str) -> dict[int, dict[int, int]]:
+def compute_confusion_matrix(
+    labels: list[int],
+    preds: list[int],
+    output_file_path: Path,
+    annotator_name: str,
+    lang: str,
+) -> dict[int, dict[int, int]]:
     """
     Computes and plots the confusion matrix for the given labels and predictions.
 
@@ -194,6 +200,7 @@ def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_pa
         preds (list[int]): The predicted labels.
         output_file_path (Path): The path to save the confusion matrix plot.
         annotator_name (str): The name of the annotator.
+        lang (str): The language of the documents.
 
     Returns:
         dict[int, dict[int, int]]: The confusion matrix as a dictionary.
@@ -222,7 +229,7 @@ def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_pa
     sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=label_classes)
     plt.xlabel('Predicted')
     plt.ylabel('True')
-    plt.title(f'Confusion Matrix for {annotator_name}')
+    plt.title(f'Confusion Matrix for {annotator_name} and language {lang}')
     plt.savefig(output_file_path)
     plt.show()
     
@@ -322,6 +329,7 @@ def compare_annotator_to_gt(
     common_docs_df: pd.DataFrame,
     metrics: dict,
     output_dir: Path,
+    lang: str,
 ) -> dict:
     """
     Compares annotator annotations to ground truth annotations and computes additional metrics.
@@ -332,6 +340,7 @@ def compare_annotator_to_gt(
         common_docs_df (pd.DataFrame): The DataFrame containing common document scores.
         metrics (dict): A dictionary to store the computed metrics.
         output_dir (Path): The directory to save the output files.
+        lang (str): The language of the documents.
 
     Returns:
         dict: The updated metrics dictionary.
@@ -370,6 +379,7 @@ def compare_annotator_to_gt(
         preds=common_docs_df[f"rounded_score_{annotator_idx}"].to_list(),
         output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
         annotator_name=annotator_name,
+        lang=lang,
     )
     metrics['CM'] = cm
     
@@ -382,6 +392,7 @@ def compute_interrater_reliability_metrics(
     labels: list[float],
     aggregation: str,
     thresholds: list[float],
+    lang: str,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
@@ -397,7 +408,7 @@ def compute_interrater_reliability_metrics(
             - "min": Use the minimum score.
             - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
         thresholds (list[float]): A list of thresholds for computing agreement metrics.
-
+        lang (str): The language of the documents.
     Raises:
         ValueError: If invalid parameter combinations are provided.
 
@@ -431,7 +442,8 @@ def compute_interrater_reliability_metrics(
                 valid_docs_df=valid_docs_df,
                 common_docs_df=common_docs_df,
                 metrics=metrics,
-                output_dir=output_dir
+                output_dir=output_dir,
+                lang=lang,
             )
 
         # save results

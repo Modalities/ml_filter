@@ -68,5 +68,6 @@ def evaluate_prompt_based_annotations(
             aggregation=aggregation,
             labels=labels,
             thresholds=thresholds,
+            lang=lang,
         )
         logger.info(f"Metrics successfully written to {lang_dir}")
