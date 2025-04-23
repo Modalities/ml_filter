@@ -3,9 +3,8 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from transformers import AutoModelForSequenceClassification
 
-from ml_filter.utils.train_classifier import AutoModelForMultiTargetClassification
+from ml_filter.models.annotator_models import AnnotatorModel
 
 
 class ModelWrapper(nn.Module):
@@ -27,32 +26,11 @@ class ModelFactory:
     @staticmethod
     def load_huggingface_model_checkpoint(
         model_checkpoint_path: Path,
-        model_type: str,
-        num_regressor_outputs: int,
-        num_classes_per_output: list[int],
-        use_regression: bool,
         device: torch.device,
         logger: logging.Logger,
     ) -> nn.Module:
-        model_args = {
-            "model_type": model_type,
-            "num_regressor_outputs": num_regressor_outputs,
-            "num_classes_per_output": torch.tensor(num_classes_per_output),
-            "regression": use_regression,
-            "torch_dtype": torch.bfloat16,
-        }
-
-        try:
-            model = AutoModelForMultiTargetClassification.from_pretrained(model_checkpoint_path, **model_args)
-        except NotImplementedError:
-            logger.warning(
-                f"Custom model architecture for {model_checkpoint_path=} not implemented, falling back to AutoModel..."
-            )
-            model = AutoModelForSequenceClassification.from_pretrained(
-                model_checkpoint_path,
-                num_labels=num_classes_per_output[0],
-            )
-        wrapped_model = ModelWrapper(model, use_regression)
+        model = AnnotatorModel.from_pretrained(model_checkpoint_path)
+        wrapped_model = ModelWrapper(model, model.config.is_regression)
         wrapped_model.to(device).eval()
         logger.info("Compiling model...")
         compiled_model = torch.compile(wrapped_model, mode="reduce-overhead")
