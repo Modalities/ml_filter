@@ -177,6 +177,8 @@ def write_scores_to_file(
                     f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch) + "\n")
                     batch = []  # Clear the batch after writing
                     logger.info(f"Processed {i+1} documents.")
+            
+            # Write any remaining documents in the last batch
             if batch:
                 f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
         logger.info(f"Aggregated scores added to {output_file_path}.")
