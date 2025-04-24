@@ -5,7 +5,7 @@ This documentation gives an overview of the typical steps that have to be done i
 This folder should contain all LLMs for which you want to report the evaluation metrics together in one table in our overleaf document:
 
 ```script
-python3.11 src/ml_filter/__main__.py evaluate_prompt_based_annotations --input_directory /path/to/annotations --output_directory /path/to/annotations/comparison --gt_data /raid/s3/opengptx/user/richard-rutmann/data/eurolingua/prompt_based_annotations/test_data/gt/annotations__educational_content__en__gt.jsonl --aggregation majority --labels 0,1,2,3,4,5
+python3.11 ml_filter evaluate_prompt_based_annotations --input_directory /path/to/annotations --output_directory /path/to/annotations/comparison --gt_data /raid/s3/opengptx/user/richard-rutmann/data/eurolingua/prompt_based_annotations/test_data/gt/annotations__educational_content__en__gt.jsonl --aggregation majority --labels 0,1,2,3,4,5 --thresholds 2,3
 ```
 
 Currently we use this path on DGX2 to collect and evaluate annotations:
@@ -15,7 +15,7 @@ Currently we use this path on DGX2 to collect and evaluate annotations:
 2. Next, we will extract the metrics of interest from the files produced in step 1 and write them into a latex-file: 
 
 ```script
-python3.11 src/ml_filter/__main__.py collect_ir_metrics --input_directory /path/to/annotations/comparison --output_directory /path/to/annotations/comparison/ir_summary --min_metrics Invalid,MSE,MAE
+python3.11 ml_filter collect_ir_metrics --input_directory /path/to/annotations/comparison --output_directory /path/to/annotations/comparison/ir_summary --min_metrics Invalid,MSE,MAE
 ```
 
 The content of 
