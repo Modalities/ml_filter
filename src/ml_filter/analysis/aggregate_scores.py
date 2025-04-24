@@ -76,7 +76,6 @@ def aggregate_scores_in_directory(
             document_scores_for_raw_data_dict = filter_on_docs_in_raw_data(
                 document_scores_df=document_scores_df,
                 raw_data_file_path=raw_data_file_path,
-                raw_data_lookup_dir=raw_data_lookup_dir,
             )
             
             # If raw_data_lookup_dir is provided, use it to find the raw data file
