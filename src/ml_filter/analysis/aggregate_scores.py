@@ -165,7 +165,6 @@ def write_scores_to_file(
                 document_id = json.loads(line)[id_field]
                 if document_id not in document_scores_for_raw_data_dict:
                     err_msg = f"No scores found for document {document_id}. Skipping this file."
-                    logger.error(err_msg)
                     raise ValueError(err_msg)
                 output_dict = {
                     id_field: document_id,
