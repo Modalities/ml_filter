@@ -123,8 +123,8 @@ def compute_gt_metrics(
         raise ValueError("The number of predictions and labels must be equal.")
     
     # Round predictions. The labels are already rounded, so we just convert them to int
-    y_pred_rounded = [round(t) for t in y_pred]
-    y_true_rounded = [int(p) for p in y_true] 
+    y_pred_rounded = [round(score) for score in y_pred]
+    y_true_rounded = [int(score) for score in y_true] 
     
     # compute accuracy, mae and mse
     gt_metrics = dict()
