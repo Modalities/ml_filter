@@ -107,7 +107,8 @@ def compute_doc_level_variation(scores: list[list[int]], document_ids: list[str]
 
 def compute_gt_metrics(
     y_true: list[int],
-    y_pred: list[int]
+    y_pred: list[int],
+    labels: list[int],
 ) -> dict[str, float]:
     """
     Computes metrics comparing predictions to ground truth.
@@ -115,6 +116,7 @@ def compute_gt_metrics(
     Args:
         y_true (list[int]): True values.
         y_pred (list[int]): Predicted values.
+        labels (list[int]): The list of possible labels.
     
     Returns:
         dict[str, float]: A dictionary containing the computed metrics.
@@ -134,13 +136,12 @@ def compute_gt_metrics(
     gt_metrics["MSE"] = sum(squared_diffs) / len(squared_diffs)
     
     # compute accuracy per class
-    unique_classes = sorted(set(y_true_rounded))  
     class_accuracies = compute_accuracy_per_class(
         y_true=y_true_rounded,
         y_pred=y_pred_rounded,
-        unique_classes=unique_classes
+        labels=labels
     )
-    for c in unique_classes:
+    for c in labels:
         gt_metrics[f"CA-{c}"] = class_accuracies[c]    
         
     # Compute Macro and Micro F1-scores
@@ -149,7 +150,7 @@ def compute_gt_metrics(
 
     # Compute F1 score for each class
     class_f1_scores = f1_score(y_true_rounded, y_pred_rounded, average=None)
-    for c, f1 in zip(unique_classes, class_f1_scores):
+    for c, f1 in zip(labels, class_f1_scores):
         gt_metrics[f"F1-{c}"] = f1
         
     return gt_metrics
@@ -186,8 +187,8 @@ def plot_invalid_docs_histogram(
     
     
 def compute_confusion_matrix(
-    labels: list[int],
-    preds: list[int],
+    y_true: list[int],
+    y_pred: list[int],
     output_file_path: Path,
     annotator_name: str,
     lang: str,
@@ -196,8 +197,8 @@ def compute_confusion_matrix(
     Computes and plots the confusion matrix for the given labels and predictions.
 
     Args:
-        labels (list[int]): The ground truth labels.
-        preds (list[int]): The predicted labels.
+        y_true (list[int]): The ground truth labels.
+        y_pred (list[int]): The predicted labels.
         output_file_path (Path): The path to save the confusion matrix plot.
         annotator_name (str): The name of the annotator.
         lang (str): The language of the documents.
@@ -205,13 +206,13 @@ def compute_confusion_matrix(
     Returns:
         dict[int, dict[int, int]]: The confusion matrix as a dictionary.
     """
-    preds = [p if p != "invalid" else -1 for p in preds]
+    y_pred = [p if p != "invalid" else -1 for p in y_pred]
     
     label_classes = list(range(6))
     pred_classes = [-1] + label_classes
     cm_dict = {label: {pred: 0 for pred in pred_classes} for label in label_classes}
     
-    for l, p in zip(labels, preds):
+    for l, p in zip(y_true, y_pred):
         cm_dict[l][p] += 1
     
     # Convert cm_dict to a 2D list
@@ -255,23 +256,24 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
 
 
 def compute_accuracy_per_class(
-    unique_classes: list[int],
+    labels: list[int],
     y_true: list[int],
     y_pred: list[int]
 ) -> dict[int, float]:
     """
     Computes the accuracy per class for the given scores.
     Args:
+        labels (list[int]): The list of possible labels.
         y_true (list[int]): True values.
         y_pred (list[int]): Predicted values.
     Returns:
         dict: A dictionary containing the accuracy for each class.
     """
     class_accuracies = {}
-    for c in unique_classes:
+    for c in labels:
         total = sum(1 for score in y_true if score == c)
         correct = sum(1 for p, t in zip(y_pred, y_true) if p == c and t == c)
-        class_accuracies[c] = correct / total
+        class_accuracies[c] = correct / total if total > 0 else 0.0
     return class_accuracies
 
 
@@ -330,6 +332,7 @@ def compare_annotator_to_gt(
     metrics: dict,
     output_dir: Path,
     lang: str,
+    labels: list[int],
 ) -> dict:
     """
     Compares annotator annotations to ground truth annotations and computes additional metrics.
@@ -341,6 +344,7 @@ def compare_annotator_to_gt(
         metrics (dict): A dictionary to store the computed metrics.
         output_dir (Path): The directory to save the output files.
         lang (str): The language of the documents.
+        labels (list[int]): The list of possible labels.
 
     Returns:
         dict: The updated metrics dictionary.
@@ -362,6 +366,7 @@ def compare_annotator_to_gt(
     gt_metrics = compute_gt_metrics(
         y_true=y_true, 
         y_pred=y_pred,
+        labels=labels,
     )
     metrics["metrics"].update(gt_metrics)  
     
@@ -375,8 +380,8 @@ def compare_annotator_to_gt(
     
     # compute confusion matrix                
     cm = compute_confusion_matrix(
-        labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
-        preds=common_docs_df[f"rounded_score_{annotator_idx}"].to_list(),
+        y_true=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
+        y_pred=common_docs_df[f"rounded_score_{annotator_idx}"].to_list(),
         output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
         annotator_name=annotator_name,
         lang=lang,
@@ -389,7 +394,7 @@ def compare_annotator_to_gt(
 def compute_interrater_reliability_metrics(
     path_to_files: tuple[Path, ...],
     output_dir: Path,
-    labels: list[float],
+    labels: list[int],
     aggregation: str,
     thresholds: list[float],
     lang: str,
@@ -400,7 +405,7 @@ def compute_interrater_reliability_metrics(
     Args:
         path_to_files (tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
-        labels (list[float]): The list of possible labels.
+        labels (list[int]): The list of possible labels.
         aggregation (str): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
@@ -409,6 +414,7 @@ def compute_interrater_reliability_metrics(
             - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
         thresholds (list[float]): A list of thresholds for computing agreement metrics.
         lang (str): The language of the documents.
+        
     Raises:
         ValueError: If invalid parameter combinations are provided.
 
@@ -444,6 +450,7 @@ def compute_interrater_reliability_metrics(
                 metrics=metrics,
                 output_dir=output_dir,
                 lang=lang,
+                labels=labels,
             )
 
         # save results

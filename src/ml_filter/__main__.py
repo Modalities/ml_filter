@@ -270,13 +270,13 @@ def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: st
         path_to_files=path_to_files,
         output_dir=Path(output_dir),
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")]
+        labels=[int(label) for label in labels.split(",")]
     )
     plot_differences_in_scores(
         path_to_files=path_to_files,
         output_dir=Path(output_dir),
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")]
+        labels=[int(label) for label in labels.split(",")]
     )
 
 
@@ -301,7 +301,7 @@ def evaluate_prompt_based_annotations_cli(
         output_directory=output_directory,
         gt_data=gt_data,
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")],
+        labels=[int(label) for label in labels.split(",")],
         thresholds=[float(t) for t in thresholds.split(",")],
     )
 
@@ -326,7 +326,7 @@ def evaluate_prompt_based_annotations_cli(
         input_directory=input_directory,
         output_directory=output_directory,
         aggregation=aggregation,
-        labels=[float(l) for l in labels.split(",")],
+        labels=[int(l) for l in labels.split(",")],
         batch_size=batch_size,
         raw_data_lookup_dir=raw_data_lookup_dir,
     )
@@ -369,7 +369,7 @@ def aggregate_human_annotations_cli(
         annotations_file_path=annotations_file_path,
         output_file_path=output_file_path,
         raw_data_file_path=raw_data_file_path,
-        labels=[float(label) for label in labels.split(",")],
+        labels=[int(label) for label in labels.split(",")],
         aggregation=aggregation,
         batch_size=batch_size,
     )
