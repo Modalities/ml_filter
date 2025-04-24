@@ -32,6 +32,11 @@ def example_ids():
     return ["doc1", "doc2", "doc3"]
 
 
+@pytest.fixture
+def labels():
+    return [0, 1, 2, 3, 4, 5]
+
+
 def test_prepare_fleiss_data(example_scores):
     result = prepare_fleiss_data(example_scores)
     expected = np.array([[0, 0, 0, 1, 1, 1],
@@ -76,7 +81,8 @@ def test_compute_gt_metrics():
     y_pred = [1, 3, 2]
     metrics = compute_gt_metrics(
         y_true=y_true,
-        y_pred=y_pred
+        y_pred=y_pred,
+        labels=[1, 2, 3],
     )
     expected_metrics = {
         'Acc': 0.3333333333333333,
@@ -141,7 +147,9 @@ def test_compare_annotator_to_gt(tmp_path):
         valid_docs_df=df,
         common_docs_df=df,
         metrics=metrics,
-        output_dir=output_dir
+        output_dir=output_dir,
+        lang="en",
+        labels=[1, 2, 3],
     )
     expected_updated_metrics = {
         'metrics': {
@@ -197,6 +205,7 @@ def test_compute_interrater_reliability_metrics(tmp_path, aggregation):
         aggregation=aggregation,
         labels=labels,
         thresholds=thresholds,
+        lang="en",
     )
 
     # Verify output file exists
