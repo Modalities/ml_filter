@@ -76,12 +76,16 @@ def aggregate_scores_in_directory(
             document_scores_for_raw_data_dict = filter_on_docs_in_raw_data(
                 document_scores_df=document_scores_df,
                 raw_data_file_path=raw_data_file_path,
-                output_directory=output_directory,
-                annotator=annotator,
-                aggregation=aggregation,
                 raw_data_lookup_dir=raw_data_lookup_dir,
             )
             
+            # If raw_data_lookup_dir is provided, use it to find the raw data file
+            # Otherwise, use the original raw data file path
+            if raw_data_lookup_dir is not None:
+                raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
+            else:
+                raw_data_file_path = Path(raw_data_file_path)
+                
             # Write the scores to a JSONL file
             output_file_path = (
                 output_directory
@@ -100,7 +104,6 @@ def aggregate_scores_in_directory(
 def filter_on_docs_in_raw_data(
     document_scores_df: pd.DataFrame,
     raw_data_file_path: str,
-    raw_data_lookup_dir: Optional[Path] = None,
 ) -> dict[str, float]:
     """
     Filter the document scores DataFrame to include only documents present in the raw data file.
@@ -108,8 +111,6 @@ def filter_on_docs_in_raw_data(
     Args:
         document_scores_df (pd.DataFrame): The DataFrame containing document scores.
         raw_data_file_path (str): The path to the raw data file.
-        raw_data_lookup_dir (Optional[Path]): Directory to look for raw data files instead of taking the original ones.
-            Defaults to None, i.e. taking the original raw data.
     Returns:
         dict: A dictionary mapping document IDs to scores for the documents present in the raw data file.
     """
@@ -122,10 +123,6 @@ def filter_on_docs_in_raw_data(
             duplicated, "doc_id"
         ].tolist()
         logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
-    if raw_data_lookup_dir is not None:
-        raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
-    else:
-        raw_data_file_path = Path(raw_data_file_path)
 
     document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
         "score"
@@ -197,7 +194,7 @@ def aggregate_human_annotations(
     batch_size: int,
 ) -> None:
     """
-    Aggregate human annotations by comparing them to ground truth data.
+    Aggregate human annotations.
     
     Args:
         annotations_file_path (Path): The path to the annotations file.
