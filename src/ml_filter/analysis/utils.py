@@ -30,7 +30,7 @@ def most_frequent_average(values: list[int]) -> float:
 
 
 def get_document_scores(
-    path_to_files: list[Path],
+    file_paths: list[Path],
     labels: list[float],
     aggregation: str,
     ) -> dict[str, dict[str, float]]:
@@ -38,7 +38,7 @@ def get_document_scores(
     Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
     Args:
-        path_to_files (List[Path]): A tuple of file paths containing annotation scores in JSONL format.
+        file_paths (List[Path]): A tuple of file paths containing annotation scores in JSONL format.
         labels (List[float]): A list of possible labels for the annotators.
         aggregation (str, optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
@@ -56,7 +56,7 @@ def get_document_scores(
     document_scores = []
         
     # Loop through each file
-    for file_path in path_to_files:
+    for file_path in file_paths:
         # Extract relevant metadata from the filename
         prompt, prompt_lang, annotator = file_path.stem.split('__')[1:4]
 

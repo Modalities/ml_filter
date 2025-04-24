@@ -63,7 +63,7 @@ def evaluate_prompt_based_annotations(
         lang_dir.mkdir(parents=True, exist_ok=True)
         
         compute_interrater_reliability_metrics(
-            path_to_files=([gt_data, file]),
+            file_paths=([gt_data, file]),
             output_dir=lang_dir,
             aggregation=aggregation,
             labels=labels,
