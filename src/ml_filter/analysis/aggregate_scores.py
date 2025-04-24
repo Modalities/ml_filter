@@ -64,7 +64,7 @@ def aggregate_scores_in_directory(
         logger.info(f"Aggregating scores in {f}.")
 
         document_scores_df = get_document_scores(
-            path_to_files=[f],
+            file_paths=[f],
             aggregation=aggregation,
             labels=labels,
         )
@@ -177,7 +177,7 @@ def aggregate_human_annotations(
         None
     """
     document_scores_df = get_document_scores(
-        path_to_files=[annotations_file_path],
+        file_paths=[annotations_file_path],
         labels=labels,
         aggregation=aggregation
     )

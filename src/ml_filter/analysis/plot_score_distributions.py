@@ -6,7 +6,7 @@ from ml_filter.analysis.utils import get_common_docs, get_document_scores
 
 
 def plot_scores(
-    path_to_files: tuple[Path],
+    file_paths: tuple[Path],
     output_dir: Path,
     labels: list[str],
     aggregation: str
@@ -15,7 +15,7 @@ def plot_scores(
     Plots score distributions for each prompt based on the input JSONL files.
 
     Args:
-        path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
+        file_paths (Tuple[Path]): A list of paths to JSONL files containing document scores.
         output_dir (Path): The directory to save the generated plots.
         labels (List[float]): A list of possible labels for the annotators.
         aggregation (str): Aggregation method for scores ("min", "max", "mean", "majority").
@@ -25,7 +25,7 @@ def plot_scores(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     document_scores = get_document_scores(
-        path_to_files=path_to_files,
+        file_paths=file_paths,
         aggregation=aggregation,
         labels=labels
     )
@@ -63,7 +63,7 @@ def plot_scores(
 
 
 def plot_differences_in_scores(
-    path_to_files: tuple[Path],
+    file_paths: tuple[Path],
     output_dir: Path,
     labels: list[str],
     aggregation: str
@@ -72,7 +72,7 @@ def plot_differences_in_scores(
     Plots histograms and boxplots of score differences between different annotators.
 
     Args:
-        path_to_files (Tuple[Path]): A list of paths to JSONL files containing document scores.
+        file_paths (Tuple[Path]): A list of paths to JSONL files containing document scores.
         output_dir (Path): The directory to save the generated plots.
         labels (List[float]): A list of possible labels for the annotators.
         aggregation (str): Aggregation method for scores ("min", "max", "mean", "majority").
@@ -82,7 +82,7 @@ def plot_differences_in_scores(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     document_scores = get_document_scores(
-        path_to_files=path_to_files,
+        file_paths=file_paths,
         aggregation=aggregation,
         labels=labels
     )
