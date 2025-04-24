@@ -101,7 +101,7 @@ output_directory_option = click.option(
     required=True,
 )
 
-path_to_files_argument = click.argument("path_to_files", nargs=-1, type=click.Path(path_type=Path))
+file_paths_argument = click.argument("file_paths", nargs=-1, type=click.Path(path_type=Path))
 
 
 @click.group()
@@ -242,7 +242,7 @@ def translate_flat_yaml_cli(
 
 
 @main.command(name="interrater_reliability")
-@path_to_files_argument
+@file_paths_argument
 @click.option(
     "--output_file_path",
     type=click_pathlib.Path(exists=False),
@@ -250,30 +250,30 @@ def translate_flat_yaml_cli(
     help="Write the computed metrics to this json-file.",
 )
 @aggregation_option
-def interrater_reliability_cli(path_to_files: tuple[Path], output_file_path: Path, aggregation: Optional[str] = None):
+def interrater_reliability_cli(file_paths: tuple[Path], output_file_path: Path, aggregation: Optional[str] = None):
     compute_interrater_reliability_metrics(
-        path_to_files=path_to_files,
+        file_paths=file_paths,
         output_file_path=output_file_path,
         aggregation=aggregation,
     )
 
 
 @main.command(name="plot_scores")
-@path_to_files_argument
+@file_paths_argument
 @click.option("--output_dir", type=str, required=True)
 @aggregation_option
 @labels_option
-def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: str, labels: list[str]) -> None:
+def plot_scores_cli(file_paths: tuple[Path], output_dir: str, aggregation: str, labels: list[str]) -> None:
     """Plot the differences in scores."""
-    path_to_files = [Path(p) for p in path_to_files]
+    file_paths = [Path(p) for p in file_paths]
     plot_scores(
-        path_to_files=path_to_files,
+        file_paths=file_paths,
         output_dir=Path(output_dir),
         aggregation=aggregation,
         labels=[int(label) for label in labels.split(",")]
     )
     plot_differences_in_scores(
-        path_to_files=path_to_files,
+        file_paths=file_paths,
         output_dir=Path(output_dir),
         aggregation=aggregation,
         labels=[int(label) for label in labels.split(",")]

@@ -324,12 +324,23 @@ def plot_spearman_heatmap(df: pd.DataFrame, output_directory: Path) -> None:
 
     Args:
         df (pd.DataFrame): A DataFrame containing metrics for different annotators and languages.
+            The DataFrame must have the following columns:
+            - "lang": The language (e.g., "en", "de").
+            - "Annotator": The annotator name (e.g., "annotator1", "annotator2").
+            - "Spearman": The Spearman correlation value.
+
+            Example:
+                lang      Annotator     Spearman
+                en        annotator1    0.85
+                en        annotator2    0.78
+                de        annotator1    0.92
+                de        annotator2    0.88
+                        
         output_directory (Path): The directory to save the heatmap plot.
 
     Returns:
         None
     """
-    # spearman_df = df.pivot(index="Annotator", columns="lang", values="Spearman")
     spearman_df = df.pivot(index="lang", columns="Annotator", values="Spearman")
     
     # Create the heatmap

@@ -392,7 +392,7 @@ def compare_annotator_to_gt(
 
     
 def compute_interrater_reliability_metrics(
-    path_to_files: tuple[Path, ...],
+    file_paths: tuple[Path, ...],
     output_dir: Path,
     labels: list[int],
     aggregation: str,
@@ -403,7 +403,7 @@ def compute_interrater_reliability_metrics(
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
     
     Args:
-        path_to_files (tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
+        file_paths (tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
         labels (list[int]): The list of possible labels.
         aggregation (str): Specifies how scores for a document from the same file are aggregated.
@@ -423,7 +423,7 @@ def compute_interrater_reliability_metrics(
     """    
     output_dir.mkdir(exist_ok=True, parents=True)
     document_scores_df = get_document_scores(
-        path_to_files=path_to_files,
+        file_paths=file_paths,
         aggregation=aggregation,
         labels=labels,
     )

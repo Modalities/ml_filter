@@ -2,6 +2,8 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
+
+import pandas as pd
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.utils import get_document_scores
 from ml_filter.utils.logging import get_logger
@@ -64,33 +66,30 @@ def aggregate_scores_in_directory(
         logger.info(f"Aggregating scores in {f}.")
 
         document_scores_df = get_document_scores(
-            path_to_files=[f],
+            file_paths=[f],
             aggregation=aggregation,
             labels=labels,
         )
 
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
-            document_scores_for_raw_data_df = document_scores_df[
-                document_scores_df["raw_data_file_path"] == raw_data_file_path
-            ]
-            duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
-            if duplicated.any():
-                duplicate_doc_ids = document_scores_for_raw_data_df.loc[
-                    duplicated, "doc_id"
-                ].tolist()
-                logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
+            # Filter the document scores DataFrame to include only documents present in the raw data file
+            document_scores_for_raw_data_dict = filter_on_docs_in_raw_data(
+                document_scores_df=document_scores_df,
+                raw_data_file_path=raw_data_file_path,
+            )
+            
+            # If raw_data_lookup_dir is provided, use it to find the raw data file
+            # Otherwise, use the original raw data file path
             if raw_data_lookup_dir is not None:
                 raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
             else:
                 raw_data_file_path = Path(raw_data_file_path)
+                
+            # Write the scores to a JSONL file
             output_file_path = (
                 output_directory
                 / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             )
-            document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
-                "score"
-            ].to_dict()
-
             write_scores_to_file(
                 output_file_path=output_file_path,
                 raw_data_file_path=raw_data_file_path,
@@ -100,6 +99,35 @@ def aggregate_scores_in_directory(
                 id_field="id",
             )
 
+
+def filter_on_docs_in_raw_data(
+    document_scores_df: pd.DataFrame,
+    raw_data_file_path: str,
+) -> dict[str, float]:
+    """
+    Filter the document scores DataFrame to include only documents present in the raw data file.
+    This function also checks for duplicates in the document IDs and logs a warning if any are found.
+    Args:
+        document_scores_df (pd.DataFrame): The DataFrame containing document scores.
+        raw_data_file_path (str): The path to the raw data file.
+    Returns:
+        dict: A dictionary mapping document IDs to scores for the documents present in the raw data file.
+    """
+    document_scores_for_raw_data_df = document_scores_df[
+        document_scores_df["raw_data_file_path"] == raw_data_file_path
+    ]
+    duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
+    if duplicated.any():
+        duplicate_doc_ids = document_scores_for_raw_data_df.loc[
+            duplicated, "doc_id"
+        ].tolist()
+        logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
+
+    document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
+        "score"
+    ].to_dict()
+    
+    return document_scores_for_raw_data_dict
 
 def write_scores_to_file(
     output_file_path: Path,
@@ -133,7 +161,6 @@ def write_scores_to_file(
                 document_id = json.loads(line)[id_field]
                 if document_id not in document_scores_for_raw_data_dict:
                     err_msg = f"No scores found for document {document_id}. Skipping this file."
-                    logger.error(err_msg)
                     raise ValueError(err_msg)
                 output_dict = {
                     id_field: document_id,
@@ -146,6 +173,8 @@ def write_scores_to_file(
                     f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch) + "\n")
                     batch = []  # Clear the batch after writing
                     logger.info(f"Processed {i+1} documents.")
+            
+            # Write any remaining documents in the last batch
             if batch:
                 f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
         logger.info(f"Aggregated scores added to {output_file_path}.")
@@ -164,7 +193,7 @@ def aggregate_human_annotations(
     batch_size: int,
 ) -> None:
     """
-    Aggregate human annotations by comparing them to ground truth data.
+    Aggregate human annotations.
     
     Args:
         annotations_file_path (Path): The path to the annotations file.
@@ -177,7 +206,7 @@ def aggregate_human_annotations(
         None
     """
     document_scores_df = get_document_scores(
-        path_to_files=[annotations_file_path],
+        file_paths=[annotations_file_path],
         labels=labels,
         aggregation=aggregation
     )

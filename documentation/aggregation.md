@@ -17,10 +17,9 @@ source /home/frau/frau435699/ehpc17/richard/repositories/marenostrum5-tools/mn5_
 ```bash
 start_dir="/gpfs/projects/ehpc17/results/prompt_based_annotations/educational_content/Llama-3.3-70B-Instruct"
 target_dir="${start_dir}_aggregated"
-cd /path/to/ml_filter
 find $start_dir -type f -name "*.jsonl" | while read -r file; do
     parent_dir=$(dirname "$file")
-    python3.11 src/ml_filter/__main__.py aggregate_scores $parent_dir $target_dir --aggregation majority --labels 0,1,2,3,4,5 --raw_data_lookup_dir /gpfs/scratch/ehpc17/dqa/data/fineweb_2_500k_both_deduplicated
+    python3.11 ml_filter aggregate_scores $parent_dir $target_dir --aggregation majority --labels 0,1,2,3,4,5 --raw_data_lookup_dir /gpfs/scratch/ehpc17/dqa/data/fineweb_2_500k_both_deduplicated
 done
 ```
 
