@@ -2,6 +2,8 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
+
+import pandas as pd
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.utils import get_document_scores
 from ml_filter.utils.logging import get_logger
@@ -70,27 +72,21 @@ def aggregate_scores_in_directory(
         )
 
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
-            document_scores_for_raw_data_df = document_scores_df[
-                document_scores_df["raw_data_file_path"] == raw_data_file_path
-            ]
-            duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
-            if duplicated.any():
-                duplicate_doc_ids = document_scores_for_raw_data_df.loc[
-                    duplicated, "doc_id"
-                ].tolist()
-                logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
-            if raw_data_lookup_dir is not None:
-                raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
-            else:
-                raw_data_file_path = Path(raw_data_file_path)
+            # Filter the document scores DataFrame to include only documents present in the raw data file
+            document_scores_for_raw_data_dict = filter_on_docs_in_raw_data(
+                document_scores_df=document_scores_df,
+                raw_data_file_path=raw_data_file_path,
+                output_directory=output_directory,
+                annotator=annotator,
+                aggregation=aggregation,
+                raw_data_lookup_dir=raw_data_lookup_dir,
+            )
+            
+            # Write the scores to a JSONL file
             output_file_path = (
                 output_directory
                 / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
             )
-            document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
-                "score"
-            ].to_dict()
-
             write_scores_to_file(
                 output_file_path=output_file_path,
                 raw_data_file_path=raw_data_file_path,
@@ -100,6 +96,42 @@ def aggregate_scores_in_directory(
                 id_field="id",
             )
 
+
+def filter_on_docs_in_raw_data(
+    document_scores_df: pd.DataFrame,
+    raw_data_file_path: str,
+    raw_data_lookup_dir: Optional[Path] = None,
+) -> dict[str, float]:
+    """
+    Filter the document scores DataFrame to include only documents present in the raw data file.
+    This function also checks for duplicates in the document IDs and logs a warning if any are found.
+    Args:
+        document_scores_df (pd.DataFrame): The DataFrame containing document scores.
+        raw_data_file_path (str): The path to the raw data file.
+        raw_data_lookup_dir (Optional[Path]): Directory to look for raw data files instead of taking the original ones.
+            Defaults to None, i.e. taking the original raw data.
+    Returns:
+        dict: A dictionary mapping document IDs to scores for the documents present in the raw data file.
+    """
+    document_scores_for_raw_data_df = document_scores_df[
+        document_scores_df["raw_data_file_path"] == raw_data_file_path
+    ]
+    duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
+    if duplicated.any():
+        duplicate_doc_ids = document_scores_for_raw_data_df.loc[
+            duplicated, "doc_id"
+        ].tolist()
+        logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
+    if raw_data_lookup_dir is not None:
+        raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
+    else:
+        raw_data_file_path = Path(raw_data_file_path)
+
+    document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
+        "score"
+    ].to_dict()
+    
+    return document_scores_for_raw_data_dict
 
 def write_scores_to_file(
     output_file_path: Path,
