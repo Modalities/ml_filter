@@ -230,7 +230,7 @@ def compute_accuracy_per_class(scores: list[tuple[int, int]]) -> dict[int, float
     possible_classes = sorted(set(c for _, c in scores))
     class_accuracies = {}
     for cls in possible_classes:
-        total = sum(1 for _, score_1 in scores if score_1 == cls)
+        total = sum(1 for score_1, _ in scores if score_1 == cls)
         correct = sum(1 for score_0, score_1 in scores if score_0 == cls and score_1 == cls)
         class_accuracies[cls] = correct / total
     return class_accuracies
