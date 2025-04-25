@@ -104,7 +104,7 @@ def _init_model(cfg) -> AnnotatorModel:
         load_base_model_from_config=cfg.model.get("load_base_model_from_config", False),
     )
     model = AnnotatorModel(config=config)
-    model.set_freeze_base_model(True)
+    model.set_freeze_base_model(cfg.model.freeze_base_model_parameters)
     return model
 
 
