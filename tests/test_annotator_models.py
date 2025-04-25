@@ -53,6 +53,14 @@ def test_annotator_model_freezing(annotator_model_config: AnnotatorConfig):
     ), "Some non-classifier and non-pooler parameters are still trainable!"
 
 
+def test_annotator_model_unfreezing(annotator_model_config: AnnotatorConfig):
+    """Tests if AnnotatorModel correctly unfreezes the base model when required."""
+    model = AnnotatorModel(config=annotator_model_config)
+    model.set_freeze_base_model(True)
+    model.set_freeze_base_model(False)
+    assert all(param.requires_grad for name, param in model._base_model.named_parameters()), "Some are still frozen!"
+
+
 def test_annotator_model_forward(annotator_model_config: AnnotatorConfig):
     """Tests if AnnotatorModel's forward pass correctly calls the base model."""
     model = AnnotatorModel(config=annotator_model_config)
