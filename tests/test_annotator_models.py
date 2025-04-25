@@ -3,7 +3,6 @@ from typing import Iterable
 import pytest
 import torch
 from transformers import BertForSequenceClassification
-from zmq import has
 
 from constants import MODEL_CLASS_MAP
 from ml_filter.models.annotator_model_head import (
