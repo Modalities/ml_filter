@@ -201,3 +201,28 @@ add_generation_prompt (bool):  If this is set, a prompt with the token(s) that i
                 Note that this argument will be passed to the chat template, and so it must be supported in the
                 template for this argument to have any effect.
 We expect it to work best, if set to true.
+
+## Training an annotation model
+
+Example call for running the training pipeline:
+```
+ml_filter annotator_training_pipeline --config_file_path path/to/your/config/file.yaml
+```
+Example configs can be found in [configs/train_classifier](configs/train_classifier/). The most important settings are:
+| Setting                              | Description                                                                                                                      |
+|--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `model.name`                         | The name of the base model to be used for training. Only models specified in [src/constants.py](src/constants.py) are supported. |
+| `model.freeze_base_model_parameters` | Whether the base model weights should be trained or frozen.                                                                      |
+| `...is_regression`                   | Whether a regression head or a classification head should be used.                                                               |
+| `...num_tasks`                       | How many tasks should be trained for (e.g. when scoring for educational and adult content together).                             |
+| `...num_targets_per_task`            | A list of length num_tasks specifying the number of targets/classes/score values for each task.                                  |
+| `data.train_file_path`               | Path to the training dataset file.                                                                                               |
+| `data.val_file_path`                 | Path to the validation dataset file.                                                                                             |
+| `training.learning_rate`             | The learning rate for the optimizer during training.                                                                             |
+| `training.batch_size`                | The number of samples per batch during training.                                                                                 |
+| `training.num_epochs`                | The total number of epochs for training the model.                                                                               |
+| `training.output_dir_path`             | Directory where the trained model and logs will be saved.                 |
+
+The data should consist of a .jsonl file or a directory structure containing such. Each JSON line should contain a text field matching the data.text_column key from the config. Its value should be a string. Additionally, a scores key specified by data.label_column should contain a list of length num_tasks with the i-th value being in `0, ..., num_targets_per_task[i] - 1`.
+
+The final model will be saved in the `final` subdirectory of `training.output_dir_path`. It will be a transformers style PreTrainedModel and can be loaded via `AnnotatorModel.from_pretrained(".../final")`. Additionally, a copy of the tokenizer of the base model will be saved in the same directory and can be loaded via `AutoTokenizer.from_pretrained(".../final")`.
