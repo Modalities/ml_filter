@@ -89,7 +89,6 @@ class DataPreprocessor:
         # Handle JSONL file case
         if file_or_dir_path.is_file() and file_or_dir_path.suffix == ".jsonl":
             dataset = self._load_dataset(file_or_dir_path, split, cache_dir)
-            return self._preprocess_dataset(dataset)
         # Handle dataset directory case
         elif (
             file_or_dir_path.is_dir()
