@@ -185,19 +185,19 @@ def _load_datasets(
     logger.info("Loading datasets...")
 
     train_dataset = tokenized_dataset_builder.load_and_tokenize(
-        file_path=Path(cfg.data.train_file_path),
+        file_or_dir_path=Path(cfg.data.train_file_path),
         split=cfg.data.train_file_split,
     )
 
     val_dataset = tokenized_dataset_builder.load_and_tokenize(
-        Path(cfg.data.val_file_path),
+        file_or_dir_path=Path(cfg.data.val_file_path),
         split=cfg.data.val_file_split,
     )
 
     eval_datasets = {"val": val_dataset}
     if cfg.data.test_file_path:
         test_dataset = tokenized_dataset_builder.load_and_tokenize(
-            file_path=Path(cfg.data.test_file_path),
+            file_or_dir_path=Path(cfg.data.test_file_path),
             split=cfg.data.test_file_split,
         )
         eval_datasets["test"] = test_dataset
