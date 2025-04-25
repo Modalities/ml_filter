@@ -18,8 +18,8 @@ class AnnotatorConfig(PretrainedConfig):
     def __init__(
         self,
         is_regression: bool = True,
-        num_tasks: int = 1,
-        num_targets_per_task: list[int] = [2],
+        num_tasks: int = 0,
+        num_targets_per_task: list[int] = None,
         base_model_name_or_path: str = "",
         load_base_model_from_config: bool = False,
         **kwargs,
@@ -27,19 +27,23 @@ class AnnotatorConfig(PretrainedConfig):
         """Initializes the AnnotatorConfig.
 
         Args:
-            is_regression (bool): Whether the model is for regression or classification.
-            num_tasks (int): Number of prediction tasks.
-            num_targets_per_task list[int]: Number of targets per prediction task.
+            is_regression (bool, optional): Whether the model is for regression or classification.
+                Defaults to True.
+            num_tasks (int, optional): Number of prediction tasks.
+                Defaults to 0 (which is not actually reasonable value).
+            num_targets_per_task (list[int], optional): Number of targets per prediction task.
+                Length should match num_tasks. Defaults to [].
             base_model_name_or_path (str, optional): Path or name of the pre-trained base model.
+                The model should have a `classifier` or `classifier.out_proj` layer.
+                Defaults to an empty string (which is not actually reasonable value).
             load_base_model_from_config (bool, optional): Whether to load the base model from a
-                                                          pretrained config or checkpoint.
-                                                          Defaults to False.
+                pretrained config or checkpoint. Defaults to False.
             **kwargs: Additional keyword arguments for the configuration.
         """
         super().__init__(**kwargs)
         self.is_regression = is_regression
         self.num_tasks = num_tasks
-        self.num_targets_per_task = list(num_targets_per_task)
+        self.num_targets_per_task = list(num_targets_per_task) if num_targets_per_task else []
         self.base_model_name_or_path = base_model_name_or_path
         self.load_base_model_from_config = load_base_model_from_config
 
