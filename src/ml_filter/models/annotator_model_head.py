@@ -50,7 +50,7 @@ class MultiTargetRegressionHead(AnnotatorHead):
         """
         super().__init__()
         self.linear = nn.Linear(input_dim, num_prediction_tasks, bias=use_bias)
-        self.scaling = RegressionScalingLayer(num_targets_per_prediction_task)
+        self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Applies the regression head to the input tensor.
@@ -130,7 +130,7 @@ class RegressionScalingLayer(nn.Module):
                 For a target with n_classes, valid values are 0, 1, ..., n_classes-1.
         """
         super().__init__()
-        self.register_buffer("scaling_constants", scaling_constants - 1.0)
+        self.register_buffer("scaling_constants", scaling_constants)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Scales the input tensor differently during training and evaluation.
