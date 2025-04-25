@@ -377,7 +377,7 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
     """Collates a batch of data for training.
 
     Args:
-        batch (dict): A dictionary containing the batch data.
+        batch (list[dict[str, torch.Tensor]]): A dictionary containing the batch data.
         pad_token (int): The padding token ID.
 
     Returns:
