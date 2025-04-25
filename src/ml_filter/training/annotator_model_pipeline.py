@@ -50,6 +50,7 @@ def run_annotator_training_pipeline(config_file_path: Path):
             compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
             collate=_get_collate_fn(tokenizer=tokenizer),
+            tokenizer=tokenizer,
         )
 
         logger.info("Pipeline execution completed successfully.")
@@ -224,6 +225,7 @@ def _train_annotator_model(
     compute_loss_fn: partial,
     compute_metrics_fn: partial,
     collate: Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]],
+    tokenizer: PreTrainedHFTokenizer | None = None,
 ) -> None:
     """Trains the annotator model.
 
@@ -253,7 +255,10 @@ def _train_annotator_model(
     )
 
     trainer.train()
-    trainer.save_model(os.path.join(training_args.output_dir, "final"))
+    final_dir = os.path.join(training_args.output_dir, "final")
+    trainer.save_model(final_dir)
+    if tokenizer is not None:
+        tokenizer.tokenizer.save_pretrained(final_dir)
 
     logger.info("Training complete. Model saved.")
 
