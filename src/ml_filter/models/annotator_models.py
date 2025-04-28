@@ -124,7 +124,7 @@ class AnnotatorModel(PreTrainedModel):
             model_class = MODEL_CLASS_MAP[config.base_model_name_or_path.lower()]
         except KeyError:
             raise ValueError(
-                f"Model class not found for {config.base_model_name_or_path.name}."
+                f"Model class not found for {config.base_model_name_or_path}."
                 f" Available models: {MODEL_CLASS_MAP.keys()}"
             )
         self._base_model_config = AutoConfig.from_pretrained(config.base_model_name_or_path)
