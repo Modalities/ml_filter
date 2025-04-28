@@ -10,7 +10,7 @@ import click_pathlib
 
 from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores_in_directory
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
-from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_predicted_annotations
+from src.ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
