@@ -116,7 +116,7 @@ def test_multi_target_classification_head():
 def test_logit_mask_layer():
     """Tests whether LogitMaskLayer correctly applies masking."""
     # Two tasks with different numbers of targets
-    num_targets_per_task = torch.tensor([3, 2])
+    num_targets_per_task = torch.tensor([3, 2], dtype=torch.int64)
     logit_mask_layer = LogitMaskLayer(num_targets_per_task)
 
     # Create dummy logits
@@ -128,7 +128,7 @@ def test_logit_mask_layer():
 
 def test_regression_scaling_layer():
     """Tests RegressionScalingLayer scaling behavior."""
-    scaling_constants = torch.tensor([2.0, 3.0])
+    scaling_constants = torch.tensor([2, 3], dtype=torch.int64)
     scaling_layer = RegressionScalingLayer(scaling_constants)
 
     # Dummy input

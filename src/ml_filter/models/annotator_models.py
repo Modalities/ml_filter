@@ -149,5 +149,5 @@ class AnnotatorModel(PreTrainedModel):
         return head_cls(
             input_dim=self._base_model_config.hidden_size,
             num_prediction_tasks=config.num_tasks,
-            num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task),
+            num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
         )
