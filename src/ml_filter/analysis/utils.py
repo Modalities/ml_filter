@@ -29,18 +29,18 @@ def most_frequent_average(values: list[int]) -> float:
     return sum(most_frequent_values) / len(most_frequent_values)
 
 
-def get_document_scores(
-    file_paths: list[Path],
-    labels: list[float],
-    aggregation: str,
+def get_document_scores_df(
+    input_file_paths: list[Path],
+    valid_labels: list[float],
+    aggregation_strategy: str,
     ) -> dict[str, dict[str, float]]:
     """
     Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
     
     Args:
-        file_paths (List[Path]): A tuple of file paths containing annotation scores in JSONL format.
-        labels (List[float]): A list of possible labels for the annotators.
-        aggregation (str, optional): Specifies how scores for a document from the same file are aggregated.
+        input_file_paths (List[Path]): A list of file paths containing annotation scores in JSONL format.
+        valid_labels (List[float]): A list of valid labels for the annotators.
+        aggregation_strategy (str, optional): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
             - "max": Use the maximum score.
@@ -56,8 +56,9 @@ def get_document_scores(
     document_scores = []
         
     # Loop through each file
-    for file_path in file_paths:
+    for file_path in input_file_paths:
         # Extract relevant metadata from the filename
+        # TODO: This is a bit fragile, consider using a more robust method to extract metadata
         prompt, prompt_lang, annotator = file_path.stem.split('__')[1:4]
 
         # Read the JSONL file and extract scores for each document
@@ -72,7 +73,7 @@ def get_document_scores(
                         scores.append(None)
                     else:
                         score = float(score)
-                        if score in labels:
+                        if score in valid_labels:
                             scores.append(score)
                         else:
                             scores.append(None)
@@ -80,25 +81,25 @@ def get_document_scores(
                 # aggregate scores for each document
                 scores = [score for score in scores if score is not None]
                 if len(scores) == 0:
-                    aggr_score = "invalid"
+                    aggregated_score = "invalid"
                 else:
-                    if aggregation == "min":
-                        aggr_score = min(scores)
-                    elif aggregation == "max":
-                        aggr_score = max(scores)
-                    elif aggregation == "mean":
-                        aggr_score = mean(scores)
-                    elif aggregation == "majority":
-                        aggr_score = most_frequent_average(scores)
+                    if aggregation_strategy == "min":
+                        aggregated_score = min(scores)
+                    elif aggregation_strategy == "max":
+                        aggregated_score = max(scores)
+                    elif aggregation_strategy == "mean":
+                        aggregated_score = mean(scores)
+                    elif aggregation_strategy == "majority":
+                        aggregated_score = most_frequent_average(scores)
                     else:
-                        raise NotImplementedError(f"Aggregation type {aggregation} is not supported.")
+                        raise NotImplementedError(f"Aggregation type {aggregation_strategy} is not supported.")
                 
                 document_scores.append({
                     'prompt': prompt,
                     'prompt_lang': prompt_lang,
                     'annotator': annotator,
                     'doc_id': json_obj.get('document_id'),
-                    'score': aggr_score,
+                    'score': aggregated_score,
                     'raw_data_file_path': json_obj.get('meta_information', {}).get('raw_data_file_path')
                 })
     

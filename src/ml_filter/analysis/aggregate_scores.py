@@ -5,7 +5,7 @@ from typing import Optional
 
 import pandas as pd
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
-from ml_filter.analysis.utils import get_document_scores
+from ml_filter.analysis.utils import get_document_scores_df
 from ml_filter.utils.logging import get_logger
 
 logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
@@ -34,7 +34,7 @@ def aggregate_scores_in_directory(
     raw_data_lookup_dir: Optional[Path] = None,
 ) -> None:
     """
-    Aggregates scores for all annotation files in a directory.
+    Aggregates scores based on 'aggregation' for all annotation files in a directory.
 
     Args:
         input_directory (Path): The directory containing the annotation files.
@@ -65,10 +65,10 @@ def aggregate_scores_in_directory(
         # Log the file being processed
         logger.info(f"Aggregating scores in {f}.")
 
-        document_scores_df = get_document_scores(
-            file_paths=[f],
-            aggregation=aggregation,
-            labels=labels,
+        document_scores_df = get_document_scores_df(
+            input_file_paths=[f],
+            aggregation_strategy=aggregation,
+            valid_labels=labels,
         )
 
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
@@ -205,10 +205,10 @@ def aggregate_human_annotations(
     Returns:
         None
     """
-    document_scores_df = get_document_scores(
-        file_paths=[annotations_file_path],
-        labels=labels,
-        aggregation=aggregation
+    document_scores_df = get_document_scores_df(
+        input_file_paths=[annotations_file_path],
+        valid_labels=labels,
+        aggregation_strategy=aggregation
     )
     # The field "raw_data_file_path" is added to the DataFrame to keep track of the original file path
     document_scores_df["raw_data_file_path"] = str(raw_data_file_path)

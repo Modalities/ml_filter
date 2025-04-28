@@ -14,7 +14,7 @@ from scipy.stats import spearmanr, kendalltau
 from sklearn.metrics import cohen_kappa_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
-from ml_filter.analysis.utils import get_common_docs, get_document_scores
+from ml_filter.analysis.utils import get_common_docs, get_document_scores_df
 from ml_filter.utils.logging import get_logger
 
 
@@ -321,6 +321,8 @@ def compare_annotator_to_gt(
     
     # plot the distribution of invalid scores
     invalid_docs_df = common_docs_df[common_docs_df[f"score_{annotator_idx}"] == "invalid"]
+    # TODO: There is no indication in the docs that we plot the distribution of invalid scores.
+    # Move to separate function?
     plot_invalid_docs_histogram(
         correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
         output_file_path=output_dir / f"histogram_{annotator_name}_invalid_scores.png",
@@ -340,20 +342,20 @@ def compare_annotator_to_gt(
 
     
 def compute_interrater_reliability_metrics(
-    file_paths: tuple[Path, ...],
+    file_paths: list[Path],
     output_dir: Path,
-    labels: list[float],
-    aggregation: str,
+    valid_labels: list[float],
+    aggregation_strategy: str,
     thresholds: list[float],
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file. 
     
     Args:
-        file_paths (tuple[Path, ...]): A tuple of file paths containing annotation scores in JSONL format.
+        file_paths (list[Path, ...]): A list of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
-        labels (list[float]): The list of possible labels.
-        aggregation (str): Specifies how scores for a document from the same file are aggregated.
+        valid_labels (list[float]): The list of valid labels.
+        aggregation_strategy (str): Specifies how scores for a document from the same file are aggregated.
             Supported values:
             - "mean": Compute the average score.
             - "max": Use the maximum score.
@@ -368,13 +370,14 @@ def compute_interrater_reliability_metrics(
         None
     """    
     output_dir.mkdir(exist_ok=True, parents=True)
-    document_scores_df = get_document_scores(
-        file_paths=file_paths,
-        aggregation=aggregation,
-        labels=labels,
+    document_scores_df = get_document_scores_df(
+        input_file_paths=file_paths,
+        aggregation_strategy=aggregation_strategy,
+        valid_labels=valid_labels,
     )
     metrics = dict()
     for annotator_0, annotator_1 in combinations(document_scores_df["annotator"].unique(), 2):
+        # TODO: Do do we deal with the case where for different annotators have different number of documents?
         # filter on documents that are annotated by both annotators and filter out invalid scores
         common_docs_df = get_common_docs(document_scores_df, annotator_0, annotator_1)
         valid_docs_df = common_docs_df[(common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")]
@@ -383,7 +386,7 @@ def compute_interrater_reliability_metrics(
         metrics = compute_metrics(
             num_total_docs=len(common_docs_df),
             valid_docs_df=valid_docs_df,
-            thresholds=thresholds
+            thresholds=thresholds,
         )
         
         # compute additional metrics if one of the annotators is the ground truth

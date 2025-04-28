@@ -2,7 +2,7 @@ from itertools import combinations
 import matplotlib.pyplot as plt
 from pathlib import Path
 import seaborn as sns
-from ml_filter.analysis.utils import get_common_docs, get_document_scores
+from ml_filter.analysis.utils import get_common_docs, get_document_scores_df
 
 
 def plot_scores(
@@ -24,10 +24,10 @@ def plot_scores(
         None
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    document_scores = get_document_scores(
-        file_paths=file_paths,
-        aggregation=aggregation,
-        labels=labels
+    document_scores = get_document_scores_df(
+        input_file_paths=file_paths,
+        aggregation_strategy=aggregation,
+        valid_labels=labels
     )
 
     # Iterate over different prompts
@@ -81,10 +81,10 @@ def plot_differences_in_scores(
         None
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    document_scores = get_document_scores(
-        file_paths=file_paths,
-        aggregation=aggregation,
-        labels=labels
+    document_scores = get_document_scores_df(
+        input_file_paths=file_paths,
+        aggregation_strategy=aggregation,
+        valid_labels=labels
     )
     
     # Iterate over different prompts

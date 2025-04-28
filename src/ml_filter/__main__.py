@@ -10,7 +10,7 @@ import click_pathlib
 
 from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores_in_directory
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
-from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
+from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
@@ -254,7 +254,7 @@ def interrater_reliability_cli(file_paths: tuple[Path], output_file_path: Path, 
     compute_interrater_reliability_metrics(
         file_paths=file_paths,
         output_file_path=output_file_path,
-        aggregation=aggregation,
+        aggregation_strategy=aggregation,
     )
 
 
@@ -283,25 +283,25 @@ def plot_scores_cli(file_paths: tuple[Path], output_dir: str, aggregation: str, 
 @main.command(name="evaluate_prompt_based_annotations")
 @input_directory_option
 @output_directory_option
-@click.option("--gt_data", type=click.Path(exists=True, path_type=Path))
-@click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
-@click.option("--labels", type=str, help="Comma-separated list of labels.")
+@click.option("--path_to_ground_truth_file", type=click.Path(exists=True, path_type=Path))
+@click.option("--aggregation_strategy", type=str, default="majority", help="Aggregation method for scores.")
+@click.option("--valid_labels", type=str, help="Comma-separated list of labels.")
 @click.option("--thresholds", type=str, help="Comma-separated list of thresholds for binary metrics.")
-def evaluate_prompt_based_annotations_cli(
+def evaluate_predicted_annotations_cli(
     input_directory: Path,
     output_directory: Path,
-    gt_data: Path,
-    aggregation: str,
-    labels: str,
+    path_to_ground_truth_file: Path,
+    aggregation_strategy: str,
+    valid_labels: str,
     thresholds: str,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
-    evaluate_prompt_based_annotations(
+    evaluate_predicted_annotations(
         input_directory=input_directory,
         output_directory=output_directory,
-        gt_data=gt_data,
-        aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")],
+        path_to_ground_truth_file=path_to_ground_truth_file,
+        aggregation=aggregation_strategy,
+        valid_labels=[float(label) for label in valid_labels.split(",")],
         thresholds=[float(t) for t in thresholds.split(",")],
     )
 
@@ -313,7 +313,7 @@ def evaluate_prompt_based_annotations_cli(
 @aggregation_option
 @batch_size_option
 @click.option("--raw_data_lookup_dir", type=click.Path(exists=False, path_type=Path), required=False)
-def evaluate_prompt_based_annotations_cli(
+def evaluate_predicted_annotations_cli(
     input_directory: Path,
     output_directory: Path,
     aggregation: str,

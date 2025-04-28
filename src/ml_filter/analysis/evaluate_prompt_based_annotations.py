@@ -20,12 +20,12 @@ def _extract_annotator_name(filename: Path) -> str:
     return basename.split("_")[-1]
 
 
-def evaluate_prompt_based_annotations(
+def evaluate_predicted_annotations(
     input_directory: Path,
     output_directory: Path,
-    gt_data: Path,
+    path_to_ground_truth_file: Path,
     aggregation: str,
-    labels: list[float],
+    valid_labels: list[float],
     thresholds: list[float],
 ) -> None:
     """
@@ -63,10 +63,10 @@ def evaluate_prompt_based_annotations(
         lang_dir.mkdir(parents=True, exist_ok=True)
         
         compute_interrater_reliability_metrics(
-            file_paths=([gt_data, file]),
+            file_paths=([path_to_ground_truth_file, file]),
             output_dir=lang_dir,
-            aggregation=aggregation,
-            labels=labels,
+            aggregation_strategy=aggregation,
+            valid_labels=valid_labels,
             thresholds=thresholds,
         )
         logger.info(f"Metrics successfully written to {lang_dir}")
