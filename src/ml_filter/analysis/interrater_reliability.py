@@ -210,7 +210,7 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     Returns:
         float: The threshold-based agreement score.
     """
-    above_threshold = sum(
+    above_or_equal_threshold = sum(
         1 for score_0, score_1 in scores if score_0 > threshold and score_1 > threshold
     )
     below_threshold = sum(
