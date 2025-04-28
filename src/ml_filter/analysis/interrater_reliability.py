@@ -216,7 +216,7 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     below_threshold = sum(
         1 for score_0, score_1 in scores if score_0 <= threshold and score_1 <= threshold
     )
-    return (above_threshold + below_threshold) / len(scores)
+    return (above_or_equal_threshold + below_threshold) / len(scores)
 
 
 def compute_accuracy_per_class(scores: list[tuple[int, int]]) -> dict[int, float]:
