@@ -1,6 +1,6 @@
 model:
   name: Snowflake/snowflake-arctic-embed-m
-  freeze_base_model_parameters: false  # Add option to freeze encoder
+  freeze_base_model_parameters: true  # Add option to freeze encoder
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
   is_regression: ${training.is_regression}
@@ -13,35 +13,35 @@ tokenizer:
   add_generation_prompt: true
 
 data: 
-  train_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw
+  train_file_path: /raid/s3/fm_tmp/data/annotated_fineweb_train.jsonl
   train_file_split: train
-  test_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw
+  test_file_path:
   test_file_split: train
-  val_file_path: /raid/s3/opengptx/eurolingua/cc_debug_datasets/cc_debug_subset_100_docs_raw
+  val_file_path: /raid/s3/fm_tmp/data/annotated_fineweb_val.jsonl
   val_file_split: train
-  label_column: scores
-  text_column: text
+  label_column: scores  # Ensure this matches dataset format
+  text_column: text  # Ensure this matches dataset format
   document_id_column: id  # Ensure this matches dataset format
-  num_tasks: 2
-  num_targets_per_task: [6, 6]
-  task_names: ["edu", "toxicity"]
-  num_processes: 32
+  num_tasks: 1
+  num_targets_per_task: [6]
+  task_names: ["edu"]
+  num_processes: 64
 
 training:
-  batch_size: 32
-  eval_batch_size: 32  # Added explicit eval batch size
-  epochs: 10
+  batch_size: 256
+  eval_batch_size: 256
+  epochs: 20
   use_bf16: true
   weight_decay: 0.01
   eval_strategy: epoch
   save_strategy: epoch
   logging_steps: 100
   seed: 42
-  is_regression: true  
+  is_regression: true
   greater_is_better: false  # Save model with lowest loss
   metric_for_best_model: eval_val_loss
-  learning_rate: 0.00001
-  logging_dir_path: data/output/lorem_ipsum_model
+  learning_rate: 0.0003
+  logging_dir_path: data/output/fineweb_edu_model_artic_v1_m
   output_dir_path: ${training.logging_dir_path}
-  dataloader_num_workers: 4  # Speed up data loading
-  load_best_model_at_end: true  # Ensure best model is saved
+  dataloader_num_workers: 16
+  load_best_model_at_end: true

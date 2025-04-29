@@ -2,16 +2,19 @@ import logging
 import os
 from functools import partial
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
+from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoConfig, EvalPrediction, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 from constants import MODEL_CLASS_MAP
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
-from ml_filter.models.annotator_models import AnnotatorModel, MultiTargetRegressionHead
+from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_models import AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
@@ -46,6 +49,7 @@ def run_annotator_training_pipeline(config_file_path: Path):
             eval_datasets=eval_datasets,
             compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
+            collate=_get_collate_fn(tokenizer=tokenizer),
         )
 
         logger.info("Pipeline execution completed successfully.")
@@ -97,10 +101,11 @@ def _init_model(cfg) -> AnnotatorModel:
     except KeyError:
         raise ValueError(f"Model class not found for {cfg.model.name}. Available models: {MODEL_CLASS_MAP.keys()}")
     base_model = model_class.from_pretrained(cfg.model.name)
+    head_cls = MultiTargetRegressionHead if cfg.model.is_regression else MultiTargetClassificationHead
     model = AnnotatorModel(
         base_model=base_model,
         freeze_base_model_parameters=cfg.model.get("freeze_base_model_parameters"),
-        head=MultiTargetRegressionHead(
+        head=head_cls(
             input_dim=model_config.hidden_size,
             num_prediction_tasks=cfg.data.num_tasks,
             num_targets_per_prediction_task=torch.tensor(cfg.data.num_targets_per_task),
@@ -180,19 +185,19 @@ def _load_datasets(
     logger.info("Loading datasets...")
 
     train_dataset = tokenized_dataset_builder.load_and_tokenize(
-        file_path=Path(cfg.data.train_file_path),
+        file_or_dir_path=Path(cfg.data.train_file_path),
         split=cfg.data.train_file_split,
     )
 
     val_dataset = tokenized_dataset_builder.load_and_tokenize(
-        Path(cfg.data.val_file_path),
+        file_or_dir_path=Path(cfg.data.val_file_path),
         split=cfg.data.val_file_split,
     )
 
     eval_datasets = {"val": val_dataset}
     if cfg.data.test_file_path:
         test_dataset = tokenized_dataset_builder.load_and_tokenize(
-            file_path=Path(cfg.data.test_file_path),
+            file_or_dir_path=Path(cfg.data.test_file_path),
             split=cfg.data.test_file_split,
         )
         eval_datasets["test"] = test_dataset
@@ -211,6 +216,13 @@ def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
     )
 
 
+def _get_collate_fn(
+    tokenizer: PreTrainedHFTokenizer,
+) -> Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]]:
+    """Returns a partial function for collating batches."""
+    return partial(collate, pad_token=tokenizer.tokenizer.pad_token_id)
+
+
 def _train_annotator_model(
     model: AnnotatorModel,
     training_args: TrainingArguments,
@@ -218,6 +230,7 @@ def _train_annotator_model(
     eval_datasets: dict[str, torch.utils.data.Dataset],
     compute_loss_fn: partial,
     compute_metrics_fn: partial,
+    collate: Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]],
 ) -> None:
     """Trains the annotator model.
 
@@ -226,7 +239,9 @@ def _train_annotator_model(
         training_args (TrainingArguments): Hugging Face training arguments
         train_dataset (Dataset): Training dataset
         eval_datasets (Dict[str, Dataset]): Validation and test datasets
-        data_collator (DataCollatorWithPadding): Data collator
+        compute_loss_fn (partial): Function to compute loss
+        compute_metrics_fn (partial): Function to compute metrics in evaluation
+        collate (Callable): Function to collate batches
     """
     logger.info("Initializing Trainer and starting training...")
 
@@ -241,6 +256,7 @@ def _train_annotator_model(
         eval_dataset=eval_datasets,
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
+        data_collator=collate,
     )
 
     trainer.train()
@@ -319,7 +335,6 @@ def multi_target_cross_entropy_loss(
         Tensor: Computed cross-entropy loss.
     """
     logits = input.logits
-    target = target.to(dtype=logits.dtype)
     return torch.nn.functional.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
 
 
@@ -330,6 +345,7 @@ def multi_target_mse_loss(
     num_items_in_batch: int,
     num_tasks: int,
     reduction: str = "mean",
+    ignored_index: int = -100,
     **kwargs,
 ) -> torch.Tensor:
     """Computes multi-target mean squared error (MSE) loss for regression.
@@ -345,5 +361,45 @@ def multi_target_mse_loss(
         Tensor: Computed MSE loss.
     """
     logits = input.logits
+    target = target.view(-1, num_tasks)
+    mask = ~(target == ignored_index)
     target = target.to(dtype=logits.dtype)
-    return torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction=reduction)
+    out = torch.pow((logits - target)[mask], 2)
+    if reduction.lower() == "mean":
+        return out.mean()
+    elif reduction.lower() == "sum":
+        return out.sum()
+    elif reduction.lower() == "none":
+        return out
+
+
+def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, torch.Tensor]:
+    """Collates a batch of data for training.
+
+    Args:
+        batch (list[dict[str, torch.Tensor]]): A dictionary containing the batch data.
+        pad_token (int): The padding token ID.
+
+    Returns:
+        dict: A dictionary containing the collated batch data.
+    """
+    # Pad sequences to the maximum length in the batch
+    input_ids = pad_sequence(
+        [torch.tensor(item["input_ids"]) for item in batch], batch_first=True, padding_value=pad_token
+    )
+    attention_mask = pad_sequence(
+        [torch.tensor(item["attention_mask"]) for item in batch], batch_first=True, padding_value=0
+    )
+    if "token_type_ids" in batch[0]:
+        token_type_ids = pad_sequence(
+            [torch.tensor(item["token_type_ids"]) for item in batch], batch_first=True, padding_value=0
+        )
+    else:
+        token_type_ids = None
+    labels = pad_sequence([torch.tensor(item["labels"]) for item in batch], batch_first=True, padding_value=-100)
+    return {
+        "input_ids": input_ids,
+        "attention_mask": attention_mask,
+        "token_type_ids": token_type_ids,
+        "labels": labels,
+    }

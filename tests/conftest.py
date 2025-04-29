@@ -9,7 +9,7 @@ import yaml
 from omegaconf import OmegaConf
 from transformers import AutoConfig, BertForSequenceClassification
 
-from ml_filter.models.annotator_models import MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
@@ -195,10 +195,15 @@ def tmp_nested_jsonl_directory(tmp_path: Path):
 
 
 @pytest.fixture
-def dummy_base_model():
+def dummy_base_model(dummy_base_model_path: str) -> BertForSequenceClassification:
     """Creates a dummy BERT model with a classifier."""
-    config = AutoConfig.from_pretrained("bert-base-uncased", num_labels=2)
+    config = AutoConfig.from_pretrained(dummy_base_model_path, num_labels=2)
     return BertForSequenceClassification(config)
+
+
+@pytest.fixture
+def dummy_base_model_path() -> str:
+    return "bert-base-uncased"
 
 
 @pytest.fixture
@@ -248,7 +253,11 @@ def config_file(temp_output_dir):
             "eval_strategy": "steps",
             "dataloader_num_workers": 1,
         },
-        "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": True},
+        "model": {
+            "name": "facebookai/xlm-roberta-base",
+            "freeze_base_model_parameters": True,
+            "is_regression": True,
+        },
         "data": {
             "text_column": "text",
             "label_column": "labels",

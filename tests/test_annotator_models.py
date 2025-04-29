@@ -1,12 +1,12 @@
 import torch
 
-from ml_filter.models.annotator_models import (
-    AnnotatorModel,
+from ml_filter.models.annotator_model_head import (
     LogitMaskLayer,
     MultiTargetClassificationHead,
     MultiTargetRegressionHead,
     RegressionScalingLayer,
 )
+from ml_filter.models.annotator_models import AnnotatorModel
 
 
 def test_annotator_model_initialization(dummy_base_model, regression_head):
@@ -127,7 +127,7 @@ def test_logit_mask_layer():
 def test_regression_scaling_layer():
     """Tests RegressionScalingLayer scaling behavior."""
     scaling_constants = torch.tensor([2.0, 3.0])
-    scaling_layer = RegressionScalingLayer(scaling_constants)
+    scaling_layer = RegressionScalingLayer(scaling_constants - 1.0)
 
     # Dummy input
     x = torch.tensor([[0.5, 1.0], [1.5, 2.0]])
