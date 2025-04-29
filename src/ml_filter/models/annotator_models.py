@@ -43,7 +43,7 @@ class AnnotatorConfig(PretrainedConfig):
         super().__init__(**kwargs)
         self.is_regression = is_regression
         self.num_tasks = num_tasks
-        self.num_targets_per_task = list(num_targets_per_task) if num_targets_per_task else []
+        self.num_targets_per_task = list(num_targets_per_task) if num_targets_per_task is not None else []
         self.base_model_name_or_path = base_model_name_or_path
         self.load_base_model_from_config = load_base_model_from_config
 
