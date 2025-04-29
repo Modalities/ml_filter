@@ -7,15 +7,8 @@ from transformers import AutoTokenizer, PreTrainedTokenizer
 class TokenizerWrapper(ABC):
     """Abstract interface for tokenizers."""
 
-    max_length: int
-    truncation: bool
-    padding: bool | str
-    pad_token: str
-    eos_token: str
-    tokenizer: PreTrainedTokenizer
-
     # TODO: check return type
-    def apply_tokenizer_chat_template(self, prompt: str, tokenize: bool) -> str:
+    def apply_tokenizer_chat_template(self, prompt: List[Dict[str, str]], tokenize: bool) -> str | List[int]:
         """Applies a chat template to the given prompt.
 
         Args:
