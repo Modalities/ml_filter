@@ -50,7 +50,7 @@ class MultiTargetRegressionHead(AnnotatorHead):
         """
         super().__init__()
         self.linear = nn.Linear(input_dim, num_prediction_tasks, bias=use_bias)
-        self.scaling = RegressionScalingLayer(num_targets_per_prediction_task)
+        self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Applies the regression head to the input tensor.
@@ -130,7 +130,7 @@ class RegressionScalingLayer(nn.Module):
                 For a target with n_classes, valid values are 0, 1, ..., n_classes-1.
         """
         super().__init__()
-        self.register_buffer("scaling_constants", scaling_constants - 1.0)
+        self.register_buffer("scaling_constants", scaling_constants)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Scales the input tensor differently during training and evaluation.
@@ -169,19 +169,12 @@ class LogitMaskLayer(nn.Module):
         super().__init__()
 
         # Compute max number of classes among all tasks
-        self.max_num_targets = num_targets_per_task.max().item()
-        self.num_tasks = num_targets_per_task.shape[0]
-
+        max_num_targets = num_targets_per_task.max().item()
         # Shape: (max_num_targets, 1)
-        target_indices = torch.arange(self.max_num_targets).unsqueeze(1)
+        target_indices = torch.arange(max_num_targets).unsqueeze(1)
         # Shape: (max_targets_per_task, num_tasks)
-        self.raw_logit_mask = target_indices < num_targets_per_task.unsqueeze(0)
-
-        # Use a very small value instead of -inf for numerical stability
-
-        # TOOD: Check: Replace: self.register_buffer("logit_mask", (self.raw_logit_mask.float() + 1e-45).log())
-        # TODO: Ensure that in mixed precision training, the logit_mask is not converted due to scalar values
-        self.register_buffer("logit_mask", torch.where(self.raw_logit_mask, 0.0, float("-inf")))
+        raw_logit_mask = target_indices < num_targets_per_task.unsqueeze(0)
+        self.register_buffer("raw_logit_mask", raw_logit_mask)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Reshape logits from linear layer and apply mask.
@@ -192,4 +185,7 @@ class LogitMaskLayer(nn.Module):
         Returns:
             Tensor: shape (batch_size, max_num_targets_per_task, num_tasks)
         """
-        return x.view(-1, *self.logit_mask.shape) + self.logit_mask
+        # Compute the mask here so it matches the dtype of x.
+        dtype = x.dtype
+        logit_mask = torch.where(self.raw_logit_mask, 0.0, torch.finfo(dtype).min).to(dtype=dtype, device=x.device)
+        return x.view(-1, *self.raw_logit_mask.shape) + logit_mask

@@ -63,14 +63,14 @@ class DataPreprocessor:
 
     def load_and_tokenize(
         self,
-        file_path: Path,
+        file_or_dir_path: Path,
         split: str = "train",
         cache_dir: str | None = None,
     ) -> Dataset:
         """Load and tokenizes a dataset from a JSONL file(s).
 
         Args:
-            file_path (Path): Path to a JSONL file or a directory structure containing JSONL files.
+            file_or_dir_path (Path): Path to a JSONL file or a directory structure containing JSONL files.
             split (str, optional): Dataset split to use (default: "train").
             cache_dir (Optional[str], optional): Directory for caching dataset (default: None).
 
@@ -78,24 +78,26 @@ class DataPreprocessor:
             Dataset: Tokenized Hugging Face dataset.
 
         Raises:
-            FileNotFoundError: If `file_path` does not exist.
-            ValueError: If `file_path` is neither a JSONL file nor a directory.
+            FileNotFoundError: If `file_or_dir_path` does not exist.
+            ValueError: If `file_or_dir_path` is neither a JSONL file nor a directory.
         """
 
         # Check if path exists
-        if not file_path.exists():
-            raise FileNotFoundError(f"File or directory not found: {file_path}")
+        if not file_or_dir_path.exists():
+            raise FileNotFoundError(f"File or directory not found: {file_or_dir_path }")
 
         # Handle JSONL file case
-        if file_path.is_file() and file_path.suffix == ".jsonl":
-            dataset = self._load_dataset(file_path, split, cache_dir)
-            return self._preprocess_dataset(dataset)
+        if file_or_dir_path.is_file() and file_or_dir_path.suffix == ".jsonl":
+            dataset = self._load_dataset(file_or_dir_path, split, cache_dir)
         # Handle dataset directory case
-        elif file_path.is_dir() and len(glob(str(path := file_path / "**" / "*.jsonl"), recursive=True)) > 0:
+        elif (
+            file_or_dir_path.is_dir()
+            and len(glob(str(path := file_or_dir_path / "**" / "*.jsonl"), recursive=True)) > 0
+        ):
             dataset = self._load_dataset(path, split, cache_dir)
         # Invalid case
         else:
-            raise ValueError(f"Invalid file path: {file_path}. Expected a JSONL file or a dataset directory.")
+            raise ValueError(f"Invalid file path: {file_or_dir_path }. Expected a JSONL file or a dataset directory.")
 
         return self._preprocess_dataset(dataset)
 

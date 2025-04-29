@@ -179,19 +179,19 @@ def _load_datasets(
     logger.info("Loading datasets...")
 
     train_dataset = tokenized_dataset_builder.load_and_tokenize(
-        file_path=Path(cfg.data.train_file_path),
+        file_or_dir_path=Path(cfg.data.train_file_path),
         split=cfg.data.train_file_split,
     )
 
     val_dataset = tokenized_dataset_builder.load_and_tokenize(
-        Path(cfg.data.val_file_path),
+        file_or_dir_path=Path(cfg.data.val_file_path),
         split=cfg.data.val_file_split,
     )
 
     eval_datasets = {"val": val_dataset}
     if cfg.data.test_file_path:
         test_dataset = tokenized_dataset_builder.load_and_tokenize(
-            file_path=Path(cfg.data.test_file_path),
+            file_or_dir_path=Path(cfg.data.test_file_path),
             split=cfg.data.test_file_split,
         )
         eval_datasets["test"] = test_dataset
@@ -363,11 +363,11 @@ def multi_target_mse_loss(
     mask = ~(target == ignored_index)
     target = target.to(dtype=logits.dtype)
     out = torch.pow((logits - target)[mask], 2)
-    if reduction == "mean":
+    if reduction.lower() == "mean":
         return out.mean()
-    elif reduction == "sum":
+    elif reduction.lower() == "sum":
         return out.sum()
-    elif reduction == "None":
+    elif reduction.lower() == "none":
         return out
 
 
@@ -375,7 +375,7 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
     """Collates a batch of data for training.
 
     Args:
-        batch (dict): A dictionary containing the batch data.
+        batch (list[dict[str, torch.Tensor]]): A dictionary containing the batch data.
         pad_token (int): The padding token ID.
 
     Returns:
