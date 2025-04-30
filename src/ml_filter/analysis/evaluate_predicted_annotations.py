@@ -1,9 +1,10 @@
 import logging
 from pathlib import Path
+
 from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
 from ml_filter.utils.logging import get_logger
 
-logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
+logger = get_logger(name=__name__, level=logging.INFO)  # Set up logging
 
 
 def _extract_annotator_name(filename: Path) -> str:
@@ -17,6 +18,7 @@ def _extract_annotator_name(filename: Path) -> str:
         str: The extracted annotator name.
     """
     basename = filename.stem
+    # TODO: Split based on '__'
     return basename.split("_")[-1]
 
 
@@ -55,13 +57,15 @@ def evaluate_predicted_annotations(
     for file in files:
         # Extract annotator names
         annotator = _extract_annotator_name(file)
+        # NOTE: Here we rely on a specific directory structure
+        # TODO: Make this more robust, e.g., by extracting the language from the filename
         lang = file.parent.name
-        
+
         # Log the tuple of annotator names
         logger.info(f"Compare annotator {annotator} to ground truth.")
         lang_dir = output_directory / lang
         lang_dir.mkdir(parents=True, exist_ok=True)
-        
+
         compute_interrater_reliability_metrics(
             file_paths=([path_to_ground_truth_file, file]),
             output_dir=lang_dir,

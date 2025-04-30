@@ -8,14 +8,12 @@ from typing import Optional
 import click
 import click_pathlib
 
-from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores_in_directory
+from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
-from src.ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
-from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
-from ml_filter.inference_pipeline.run_pipeline import run_pipeline
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
@@ -241,23 +239,6 @@ def translate_flat_yaml_cli(
     )
 
 
-@main.command(name="interrater_reliability")
-@file_paths_argument
-@click.option(
-    "--output_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Write the computed metrics to this json-file.",
-)
-@aggregation_option
-def interrater_reliability_cli(file_paths: tuple[Path], output_file_path: Path, aggregation: Optional[str] = None):
-    compute_interrater_reliability_metrics(
-        file_paths=file_paths,
-        output_file_path=output_file_path,
-        aggregation_strategy=aggregation,
-    )
-
-
 @main.command(name="plot_scores")
 @file_paths_argument
 @click.option("--output_dir", type=str, required=True)
@@ -270,17 +251,17 @@ def plot_scores_cli(file_paths: tuple[Path], output_dir: str, aggregation: str, 
         file_paths=file_paths,
         output_dir=Path(output_dir),
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")]
+        labels=[float(label) for label in labels.split(",")],
     )
     plot_differences_in_scores(
         file_paths=file_paths,
         output_dir=Path(output_dir),
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")]
+        labels=[float(label) for label in labels.split(",")],
     )
 
 
-@main.command(name="evaluate_prompt_based_annotations")
+@main.command(name="evaluate_predicted_annotations")
 @input_directory_option
 @output_directory_option
 @click.option("--path_to_ground_truth_file", type=click.Path(exists=True, path_type=Path))
@@ -313,7 +294,7 @@ def evaluate_predicted_annotations_cli(
 @aggregation_option
 @batch_size_option
 @click.option("--raw_data_lookup_dir", type=click.Path(exists=False, path_type=Path), required=False)
-def evaluate_predicted_annotations_cli(
+def aggregate_scores_cli(
     input_directory: Path,
     output_directory: Path,
     aggregation: str,
@@ -322,16 +303,16 @@ def evaluate_predicted_annotations_cli(
     raw_data_lookup_dir: Optional[Path] = None,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
-    aggregate_scores_in_directory(
+    aggregate_scores(
         input_directory=input_directory,
         output_directory=output_directory,
         aggregation=aggregation,
-        labels=[float(l) for l in labels.split(",")],
+        labels=[float(label) for label in labels.split(",")],
         batch_size=batch_size,
         raw_data_lookup_dir=raw_data_lookup_dir,
     )
-    
-    
+
+
 @main.command(name="aggregate_human_annotations")
 @click.option(
     "--annotations_file_path",
@@ -611,8 +592,8 @@ def deduplicate_jsonl_cli(input_file: Path, output_file: Path):
     """
     deduplicate_jsonl(input_file_path=input_file, output_file_path=output_file)
     print(f"Processed {input_file} -> {output_file}")
-    
-    
+
+
 @main.command(name="deduplicate_dir")
 @input_directory_option
 @output_directory_option
@@ -628,7 +609,7 @@ def deduplicate_dir_cli(input_directory: Path, output_directory: Path):
         output_file_path = output_directory / input_file_path.name
         deduplicate_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
         print(f"Processed {input_file_path} -> {output_file_path}")
-        
+
 
 @main.command(name="convert_hf_dataset_to_jsonl")
 @click.option(
@@ -745,15 +726,15 @@ def _get_target_language_codes_list_helper(target_language_codes: str) -> list[s
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
 
 
-@main.command(name="inference_pipeline")
-@click.option(
-    "--config_file_path",
-    type=click_pathlib.Path(exists=True),
-    required=True,
-    help="Path to a file with the YAML config file.",
-)
-def entry_inference_pipeline(config_file_path: Path):
-    run_pipeline(config_file_path)
+# @main.command(name="inference_pipeline")
+# @click.option(
+#     "--config_file_path",
+#     type=click_pathlib.Path(exists=True),
+#     required=True,
+#     help="Path to a file with the YAML config file.",
+# )
+# def entry_inference_pipeline(config_file_path: Path):
+#     run_pipeline(config_file_path)
 
 
 if __name__ == "__main__":

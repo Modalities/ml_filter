@@ -1,10 +1,27 @@
-
-from collections import Counter
 import json
+import logging
+from collections import Counter
 from pathlib import Path
 from statistics import mean
 
 import pandas as pd
+
+
+def custom_round(x: int | float) -> int:
+    """Rounds values > x.5 to x+1 and values < x.5 to x.
+
+    Args:
+        x (int | float): The value to round.
+
+    Returns:
+        int: The rounded value.
+
+    Raises:
+        ValueError: If x is negative.
+    """
+    if x < 0:
+        raise ValueError("Negative values are not allowed.")
+    return int(x + 0.5)
 
 
 def most_frequent_average(values: list[int]) -> float:
@@ -22,7 +39,7 @@ def most_frequent_average(values: list[int]) -> float:
         >>> most_frequent_average(values)
         2.5
     """
-    
+
     counts = Counter(values)
     max_frequency = max(counts.values())
     most_frequent_values = [key for key, val in counts.items() if val == max_frequency]
@@ -33,10 +50,11 @@ def get_document_scores_df(
     input_file_paths: list[Path],
     valid_labels: list[float],
     aggregation_strategy: str,
-    ) -> dict[str, dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """
-    Extracts the scores and corresponding document ids from a set of jsonl-files. Documents which do not have a score for each annotator are excluded.
-    
+    Extracts the scores and corresponding document ids from a set of jsonl-files.
+    Documents which do not have a score for each annotator are excluded.
+
     Args:
         input_file_paths (List[Path]): A list of file paths containing annotation scores in JSONL format.
         valid_labels (List[float]): A list of valid labels for the annotators.
@@ -54,21 +72,21 @@ def get_document_scores_df(
         None
     """
     document_scores = []
-        
+
     # Loop through each file
     for file_path in input_file_paths:
         # Extract relevant metadata from the filename
         # TODO: This is a bit fragile, consider using a more robust method to extract metadata
-        prompt, prompt_lang, annotator = file_path.stem.split('__')[1:4]
+        prompt, prompt_lang, annotator = file_path.stem.split("__")[1:4]
 
         # Read the JSONL file and extract scores for each document
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             for line in f:
                 json_obj = json.loads(line)
 
                 # replace invalid scores with None
                 scores = []
-                for score in json_obj.get('scores'):
+                for score in json_obj.get("scores"):
                     if score is None:
                         scores.append(None)
                     else:
@@ -93,16 +111,18 @@ def get_document_scores_df(
                         aggregated_score = most_frequent_average(scores)
                     else:
                         raise NotImplementedError(f"Aggregation type {aggregation_strategy} is not supported.")
-                
-                document_scores.append({
-                    'prompt': prompt,
-                    'prompt_lang': prompt_lang,
-                    'annotator': annotator,
-                    'doc_id': json_obj.get('document_id'),
-                    'score': aggregated_score,
-                    'raw_data_file_path': json_obj.get('meta_information', {}).get('raw_data_file_path')
-                })
-    
+
+                document_scores.append(
+                    {
+                        "prompt": prompt,
+                        "prompt_lang": prompt_lang,
+                        "annotator": annotator,
+                        "doc_id": json_obj.get("document_id"),
+                        "score": aggregated_score,
+                        "raw_data_file_path": json_obj.get("meta_information", {}).get("raw_data_file_path"),
+                    }
+                )
+
     document_scores_df = pd.DataFrame(document_scores)
     return document_scores_df
 
@@ -116,10 +136,17 @@ def round_scores(value: str | int | float) -> str | int:
 
     Returns:
         Union[str, int]: The rounded value or the original value if it is not a number.
+
+    Raises:
+        ValueError: If the value is not a number or "invalid".
     """
     if value == "invalid":
         return value
-    return round(value)
+
+    if isinstance(value, int) or isinstance(value, float):
+        return custom_round(value)
+    else:
+        raise ValueError(f"Invalid value type: {type(value)}. Expected int or float.")
 
 
 def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotator_1: str) -> pd.DataFrame:
@@ -136,11 +163,17 @@ def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotato
     """
     annotator_0_df = document_scores_df[document_scores_df["annotator"] == annotator_0]
     annotator_1_df = document_scores_df[document_scores_df["annotator"] == annotator_1]
-    
+
+    if len(annotator_0_df) != len(annotator_1_df):
+        logging.info(
+            f"Annotator {annotator_0} and {annotator_1} have different number of documents. "
+            f"Annotator {annotator_0} has {len(annotator_0_df)} documents, "
+            f"while annotator {annotator_1} has {len(annotator_1_df)} documents."
+        )
     # only consider documents that are annotated by both annotators and have valid scores
     common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
-    
+
     # add rounded scores for each annotator
     for idx in (0, 1):
-        common_docs_df[f'rounded_score_{idx}'] = common_docs_df[f'score_{idx}'].apply(round_scores)
+        common_docs_df[f"rounded_score_{idx}"] = common_docs_df[f"score_{idx}"].apply(round_scores)
     return common_docs_df

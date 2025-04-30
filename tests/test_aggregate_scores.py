@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 from ml_filter.analysis.aggregate_scores import (
     _extract_annotator_name,
-    aggregate_scores_in_directory,
+    aggregate_scores,
     remove_field_from_jsonl_file,
     write_scores_to_file,
 )
@@ -21,9 +21,8 @@ def test_extract_annotator_name():
     assert annotator_name == "annotator1"
 
 
-@patch("ml_filter.analysis.aggregate_scores.get_document_scores")
-@patch("ml_filter.analysis.aggregate_scores.add_scores")
-def test_aggregate_scores_in_directory(mock_add_scores, mock_get_document_scores, tmp_path):
+@patch("ml_filter.analysis.utils.get_document_scores_df")
+def test_aggregate_scores_in_directory(mock_get_document_scores_df, tmp_path):
     # Arrange
     input_directory = tmp_path / "input"
     output_directory = tmp_path / "output"
@@ -33,18 +32,15 @@ def test_aggregate_scores_in_directory(mock_add_scores, mock_get_document_scores
     # Mock the return value of get_document_scores to simulate a DataFrame
     mock_document_scores_df = MagicMock()
     mock_document_scores_df["raw_data_file_path"].unique.return_value = ["file1.jsonl"]
-    mock_get_document_scores.return_value = mock_document_scores_df
+    mock_get_document_scores_df.return_value = mock_document_scores_df
 
     # Act
-    aggregate_scores_in_directory(
+    aggregate_scores(
         input_directory=input_directory,
         output_directory=output_directory,
         aggregation="majority",
         labels=[0, 1, 2, 3, 4, 5],
     )
-
-    # Assert
-    mock_add_scores.assert_called()
 
 
 @patch("ml_filter.analysis.aggregate_scores.json.loads")

@@ -1,24 +1,23 @@
-from collections import Counter
-from itertools import combinations
 import json
 import logging
-from pathlib import Path
 import statistics
+from collections import Counter
+from itertools import combinations
+from pathlib import Path
 
 import krippendorff
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from scipy.stats import spearmanr, kendalltau
+from scipy.stats import kendalltau, spearmanr
 from sklearn.metrics import cohen_kappa_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
-from ml_filter.analysis.utils import get_common_docs, get_document_scores_df
+from ml_filter.analysis.plot_score_distributions import plot_confusion_matrix
+from ml_filter.analysis.utils import custom_round, get_common_docs, get_document_scores_df
 from ml_filter.utils.logging import get_logger
 
-
-logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
+logger = get_logger(name=__name__, level=logging.INFO)  # Set up logging
 
 
 def prepare_fleiss_data(scores: list[list[int]]) -> np.ndarray:
@@ -39,31 +38,62 @@ def prepare_fleiss_data(scores: list[list[int]]) -> np.ndarray:
     return fleiss_data
 
 
-def compute_pairwise_correlations(scores: list[list[float]], metric: str) -> float:
+def compute_annotator_correlation(all_score_pairs: list[list[float]], metric: str) -> float:
     """
-    Computes the average pairwise correlation between raters' scores.
+    Computes the correlation between two annotators' scores.
 
     Args:
-        scores (list[list[float]]): A list where each sublist contains scores from all raters for one item.
-        metric (str): The correlation metric to use ("spearman", "kendall", or "cohen").
+        all_score_pairs (list[list[float]]): List of [annotator1_score, annotator2_score] per item.
+        metric (str): Correlation metric: "spearman", "kendall", or "cohen".
 
     Returns:
-        float: The average pairwise correlation score.
+        float: Correlation score between the two annotators.
     """
-    n = len(scores[0])
-    results = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            rater1 = [scores[i] for scores in scores]
-            rater2 = [scores[j] for scores in scores]
-            if metric == 'spearman':
-                correlation, _ = spearmanr(rater1, rater2)
-            elif metric == 'kendall':
-                correlation, _ = kendalltau(rater1, rater2)
-            elif metric == "cohen":
-                correlation = cohen_kappa_score(rater1, rater2)
-            results.append(correlation)
-    return np.mean(results)
+    scores = np.array(all_score_pairs)
+    if scores.shape[1] != 2:
+        raise ValueError(f"Expected exactly 2 annotators, got {scores.shape[1]}")
+
+    rater1_scores, rater2_scores = scores[:, 0], scores[:, 1]
+
+    if metric == "spearman":
+        correlation, _ = spearmanr(rater1_scores, rater2_scores)
+    elif metric == "kendall":
+        correlation, _ = kendalltau(rater1_scores, rater2_scores)
+    elif metric == "cohen":
+        correlation = cohen_kappa_score(rater1_scores, rater2_scores)
+    else:
+        raise ValueError(f"Unsupported metric: {metric}")
+
+    return correlation
+
+
+# TODO: Remove
+# def compute_pairwise_correlations(all_score_pairs: list[list[float]], metric: str) -> float:
+#     """
+#     Computes the average pairwise correlation between raters' scores.
+
+#     Args:
+#         scores (list[list[float]]): A list where each sublist contains scores from all raters for one item.
+#         metric (str): The correlation metric to use ("spearman", "kendall", or "cohen").
+
+#     Returns:
+#         float: The average pairwise correlation score.
+#     """
+#     num_annotators = len(all_score_pairs[0])
+#     results = []
+
+#     for i in range(num_annotators):
+#         for j in range(i + 1, num_annotators):
+#             rater1 = [score_pair[i] for score_pair in all_score_pairs]
+#             rater2 = [score_pair[j] for score_pair in all_score_pairs]
+#             if metric == 'spearman':
+#                 correlation, _ = spearmanr(rater1, rater2)
+#             elif metric == 'kendall':
+#                 correlation, _ = kendalltau(rater1, rater2)
+#             elif metric == "cohen":
+#                 correlation = cohen_kappa_score(rater1, rater2)
+#             results.append(correlation)
+#     return np.mean(results)
 
 
 def compute_krippendorffs_alpha(scores: list[list[float]]) -> float:
@@ -77,10 +107,10 @@ def compute_krippendorffs_alpha(scores: list[list[float]]) -> float:
         float: The Krippendorff's Alpha score.
     """
     flattened_scores = np.array(scores).T  # Transpose for Krippendorff's input
-    return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement='ordinal')
+    return krippendorff.alpha(reliability_data=flattened_scores, level_of_measurement="ordinal")
 
 
-def compute_doc_level_variation(scores: list[list[int]], document_ids: list[str]) -> dict:
+def compute_doc_level_variation(all_score_pairs: list[list[int]], document_ids: list[str]) -> dict:
     """
     Computes variation in scores at the document level.
 
@@ -92,10 +122,10 @@ def compute_doc_level_variation(scores: list[list[int]], document_ids: list[str]
         dict: A dictionary containing variation statistics (mean, standard deviation, counts, etc.).
     """
     score_vars = []
-    for scores in scores:
-        score_var = max(scores) - min(scores)
+    for score_pair in all_score_pairs:
+        score_var = max(score_pair) - min(score_pair)
         score_vars.append(score_var)
-        
+
     results = {k: v for k, v in zip(document_ids, score_vars)}
     counter = Counter(results.values())
     results["counts"] = {key: counter[key] for key in sorted(counter)}
@@ -105,32 +135,37 @@ def compute_doc_level_variation(scores: list[list[int]], document_ids: list[str]
     return results
 
 
-def compute_accuracy_mae_mse_against_gt(scores_0: list[int], scores_1: list[int]) -> dict[str, float]:
-    """
-    Computes the average accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
-    
+# TODO: Fix naming: One of the annotators is the ground truth
+def compute_accuracy_mae_mse_against_gt(
+    ground_truth_scores: list[int], predicted_scores: list[int]
+) -> dict[str, float]:
+    """Computes accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
     Args:
-        scores_0 (list[int]): A list of scores from annotator 0.
-        scores_1 (list[int]): A list of scores from annotator 1.
-    
+        ground_truth_scores (list[int]): A list of ground truth scores.
+        predicted_scores (list[int]): A list of predicted scores.
     Returns:
-        dict[str, float]: A dictionary containing the computed metrics.
-    """      
-    if len(scores_0) != len(scores_1):
+        dict[str, float]: A dictionary containing accuracy, MAE, and MSE.
+
+    Raises:
+        ValueError: If the lengths of the input lists are not equal.
+    """
+
+    if len(ground_truth_scores) != len(predicted_scores):
         raise ValueError("The number of predictions and labels must be equal.")
-    scores_0_rounded = [round(p) for p in scores_0]
-    scores_1_rounded = [round(t) for t in scores_1]
-    acc = sum(1 for s1, s2 in zip(scores_0_rounded, scores_1_rounded) if s1 == s2) / len(scores_1_rounded)
-    mae = sum(abs(a - b) for a, b in zip(scores_0, scores_1)) / len(scores_1)
-    squared_diffs = [(a - b) ** 2 for a, b in zip(scores_0, scores_1)]
-    mse = sum(squared_diffs) / len(squared_diffs)
-    return {'acc': acc, 'mae': mae, 'mse': mse}
-    
-    
+
+    total_num_samples = len(ground_truth_scores)
+    gt_scores_rounded = [custom_round(score) for score in ground_truth_scores]
+    predicted_scores_rounded = [custom_round(score) for score in predicted_scores]
+    acc = sum(1 for s_0, s_1 in zip(gt_scores_rounded, predicted_scores_rounded) if s_0 == s_1) / total_num_samples
+    mae = sum(abs(a - b) for a, b in zip(ground_truth_scores, predicted_scores)) / total_num_samples
+    squared_diffs = [(a - b) ** 2 for a, b in zip(ground_truth_scores, predicted_scores)]
+    mse = sum(squared_diffs) / total_num_samples
+
+    return {"acc": acc, "mae": mae, "mse": mse}
+
+
 def plot_invalid_docs_histogram(
-    correct_scores_of_invalid_docs: list[int],
-    output_file_path: Path,
-    annotator_name: str
+    correct_scores_of_invalid_docs: list[int], output_file_path: Path, annotator_name: str
 ) -> None:
     """
     Plots a histogram of the correct scores for invalid documents.
@@ -144,60 +179,37 @@ def plot_invalid_docs_histogram(
         None
     """
     plt.figure(figsize=(10, 6))
-    plt.hist(
-        correct_scores_of_invalid_docs,
-        bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
-        alpha=0.5,
-        edgecolor='black'
-    )
-    plt.xlabel('Scores')
-    plt.ylabel('Frequency')
-    plt.title(f'Histogram of Invalid Scores for {annotator_name}')
+    plt.hist(correct_scores_of_invalid_docs, bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5], alpha=0.5, edgecolor="black")
+    plt.xlabel("Scores")
+    plt.ylabel("Frequency")
+    plt.title(f"Histogram of Invalid Scores for {annotator_name}")
     plt.grid(True)
     plt.savefig(output_file_path)
-    
-    
-def compute_confusion_matrix(labels: list[int], preds: list[int], output_file_path: Path, annotator_name: str) -> dict[int, dict[int, int]]:
+
+
+def compute_confusion_matrix(
+    gt_labels: list[int], valid_labels: list[int], predictions: list[int]
+) -> dict[int, dict[int, int]]:
     """
-    Computes and plots the confusion matrix for the given labels and predictions.
+    Computes the confusion matrix for the given ground truth labels and predictions.
 
     Args:
-        labels (list[int]): The ground truth labels.
-        preds (list[int]): The predicted labels.
-        output_file_path (Path): The path to save the confusion matrix plot.
-        annotator_name (str): The name of the annotator.
+        gt_labels (list[int]): A list of ground truth labels.
+        valid_labels (list[int]): A list of valid labels.
+        predictions (list[int]): A list of predicted labels.
 
     Returns:
-        dict[int, dict[int, int]]: The confusion matrix as a dictionary.
+        dict[int, dict[int, int]]: A confusion matrix represented as a dictionary.
     """
-    preds = [p if p != "invalid" else -1 for p in preds]
-    
-    label_classes = list(range(6))
-    pred_classes = [-1] + label_classes
-    cm_dict = {label: {pred: 0 for pred in pred_classes} for label in label_classes}
-    
-    for l, p in zip(labels, preds):
-        cm_dict[l][p] += 1
-    
-    # Convert cm_dict to a 2D list
-    cm_array = [[cm_dict[label][pred] for pred in pred_classes] for label in label_classes]
+    predictions = [p if p != "invalid" else -1 for p in predictions]
 
-    # Convert the 2D list to a NumPy array
-    cm_array = np.array(cm_array)
-    
-    # Plot the confusion matrix
-    plt.figure(figsize=(10, 6))
-        
-    # Normalize the confusion matrix
-    cm_normalized = cm_array.astype('float') / cm_array.sum(axis=1)[:, np.newaxis]
-    xlabels = [p if p != -1 else "invalid" for p in pred_classes]
-    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=xlabels, yticklabels=label_classes)
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title(f'Confusion Matrix for {annotator_name}')
-    plt.savefig(output_file_path)
-    plt.show()
-    
+    # -1 is used for invalid predictions
+    all_labels = [-1] + valid_labels
+    cm_dict = {valid_label: {label: 0 for label in all_labels} for valid_label in valid_labels}
+
+    for gt_label, prediction in zip(gt_labels, predictions):
+        cm_dict[gt_label][prediction] += 1
+
     return cm_dict
 
 
@@ -210,12 +222,8 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     Returns:
         float: The threshold-based agreement score.
     """
-    above_or_equal_threshold = sum(
-        1 for score_0, score_1 in scores if score_0 >= threshold and score_1 >= threshold
-    )
-    below_threshold = sum(
-        1 for score_0, score_1 in scores if score_0 < threshold and score_1 < threshold
-    )
+    above_or_equal_threshold = sum(1 for score_0, score_1 in scores if score_0 >= threshold and score_1 >= threshold)
+    below_threshold = sum(1 for score_0, score_1 in scores if score_0 < threshold and score_1 < threshold)
     return (above_or_equal_threshold + below_threshold) / len(scores)
 
 
@@ -254,30 +262,32 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
 
     # compute metrics
     fleiss_data = prepare_fleiss_data(rounded_valid_scores)
-    fk = fleiss_kappa(fleiss_data, method='fleiss')
-    spearman_corr = compute_pairwise_correlations(valid_scores, metric='spearman')
-    kendall_corr = compute_pairwise_correlations(valid_scores, metric='kendall')
-    cohen_kappa = compute_pairwise_correlations(rounded_valid_scores, metric='cohen')
+    fk = fleiss_kappa(fleiss_data, method="fleiss")
+    spearman_corr = compute_annotator_correlation(valid_scores, metric="spearman")
+    kendall_corr = compute_annotator_correlation(valid_scores, metric="kendall")
+    cohen_kappa = compute_annotator_correlation(rounded_valid_scores, metric="cohen")
     kripp_alpha = compute_krippendorffs_alpha(valid_scores)
-    doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
-    
+    # TODO: What is the interpretation of this metric?
+    # doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
+
     # Store results
     metrics = dict()
     metrics["metrics"] = {
-        'Fleiss': fk,
-        'Cohen': cohen_kappa,
-        'Spearman': spearman_corr,
-        'Kendall': kendall_corr,
-        'Krippendorff': kripp_alpha,
-        'Invalid': num_total_docs - len(valid_docs_df),
+        "Fleiss": fk,
+        "Cohen": cohen_kappa,
+        "Spearman": spearman_corr,
+        "Kendall": kendall_corr,
+        "Krippendorff": kripp_alpha,
+        "Invalid": num_total_docs - len(valid_docs_df),
     }
-    metrics["Variation per Document"] = doc_vars
+    # TODO: What is the interpretation of this metric?
+    # metrics["Variation per Document"] = doc_vars
     for threshold in thresholds:
         metrics["metrics"][f"TA-{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
-    
+
     class_accuracies = compute_accuracy_per_class(rounded_valid_scores)
     for c in class_accuracies:
-        metrics["metrics"][f"CA_{c}"] = class_accuracies[c]    
+        metrics["metrics"][f"CA_{c}"] = class_accuracies[c]
     return metrics
 
 
@@ -285,6 +295,7 @@ def compare_annotator_to_gt(
     annotators: list[str],
     valid_docs_df: pd.DataFrame,
     common_docs_df: pd.DataFrame,
+    valid_labels: list[float],
     metrics: dict,
     output_dir: Path,
 ) -> dict:
@@ -302,45 +313,61 @@ def compare_annotator_to_gt(
         dict: The updated metrics dictionary.
     """
     # in this case there is only one annotator, the other one is the ground truth
+
+    ground_truth_scores = None
+    predicted_scores = None
+
     if annotators[0] == "gt":
         annotator_idx = 1
         gt_idx = 0
+        ground_truth_scores = valid_docs_df["score_0"].to_list()
+        predicted_scores = valid_docs_df["score_1"].to_list()
     else:
         annotator_idx = 0
         gt_idx = 1
+        ground_truth_scores = valid_docs_df["score_1"].to_list()
+        predicted_scores = valid_docs_df["score_0"].to_list()
+
     annotator_name = annotators[annotator_idx]
-    
+
     # compute accuracy, mae and mse against ground truth
     gt_metrics = compute_accuracy_mae_mse_against_gt(
-        scores_0=valid_docs_df["score_0"].to_list(), 
-        scores_1=valid_docs_df["score_1"].to_list()
+        ground_truth_scores=ground_truth_scores,
+        predicted_scores=predicted_scores,
     )
-    metrics["metrics"]['Acc'] = gt_metrics["acc"]
-    metrics["metrics"]['MAE'] = gt_metrics["mae"]
-    metrics["metrics"]['MSE'] = gt_metrics["mse"]
-    
+    metrics["metrics"]["Acc"] = gt_metrics["acc"]
+    metrics["metrics"]["MAE"] = gt_metrics["mae"]
+    metrics["metrics"]["MSE"] = gt_metrics["mse"]
+
     # plot the distribution of invalid scores
     invalid_docs_df = common_docs_df[common_docs_df[f"score_{annotator_idx}"] == "invalid"]
-    # TODO: There is no indication in the docs that we plot the distribution of invalid scores.
-    # Move to separate function?
+
+    # compute confusion matrix
+    cm = compute_confusion_matrix(
+        gt_labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
+        valid_labels=[int(valid_label) for valid_label in valid_labels],
+        predictions=common_docs_df[f"rounded_score_{annotator_idx}"].to_list(),
+    )
+
+    metrics["CM"] = cm
+
+    # Plot results
+    plot_confusion_matrix(
+        cm_dict=cm,
+        annotator_name=annotator_name,
+        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
+        valid_labels=[int(valid_label) for valid_label in valid_labels],
+    )
+
     plot_invalid_docs_histogram(
         correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
         output_file_path=output_dir / f"histogram_{annotator_name}_invalid_scores.png",
-        annotator_name=annotator_name
-    )
-    
-    # compute confusion matrix                
-    cm = compute_confusion_matrix(
-        labels=common_docs_df[f"rounded_score_{gt_idx}"].to_list(),
-        preds=common_docs_df[f"rounded_score_{annotator_idx}"].to_list(),
-        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
         annotator_name=annotator_name,
     )
-    metrics['CM'] = cm
-    
+
     return metrics
 
-    
+
 def compute_interrater_reliability_metrics(
     file_paths: list[Path],
     output_dir: Path,
@@ -349,8 +376,8 @@ def compute_interrater_reliability_metrics(
     thresholds: list[float],
 ) -> None:
     """
-    Computes various inter-rater reliability metrics and writes results to a JSON file. 
-    
+    Computes various inter-rater reliability metrics and writes results to a JSON file.
+
     Args:
         file_paths (list[Path, ...]): A list of file paths containing annotation scores in JSONL format.
         output_dir (Path): The output path to save computed metrics as a JSON file.
@@ -368,7 +395,7 @@ def compute_interrater_reliability_metrics(
 
     Returns:
         None
-    """    
+    """
     output_dir.mkdir(exist_ok=True, parents=True)
     document_scores_df = get_document_scores_df(
         input_file_paths=file_paths,
@@ -376,19 +403,24 @@ def compute_interrater_reliability_metrics(
         valid_labels=valid_labels,
     )
     metrics = dict()
-    for annotator_0, annotator_1 in combinations(document_scores_df["annotator"].unique(), 2):
+    annotator_list = list(document_scores_df["annotator"].unique())
+    if len(annotator_list) != 2:
+        raise ValueError(f"Expected exactly 2 annotators, but found {len(annotator_list)}: {annotator_list}")
+    for annotator_0, annotator_1 in combinations(annotator_list, 2):
         # TODO: Do do we deal with the case where for different annotators have different number of documents?
         # filter on documents that are annotated by both annotators and filter out invalid scores
         common_docs_df = get_common_docs(document_scores_df, annotator_0, annotator_1)
-        valid_docs_df = common_docs_df[(common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")]
-        
+        valid_docs_df = common_docs_df[
+            (common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")
+        ]
+
         # compute metrics
         metrics = compute_metrics(
             num_total_docs=len(common_docs_df),
             valid_docs_df=valid_docs_df,
             thresholds=thresholds,
         )
-        
+
         # compute additional metrics if one of the annotators is the ground truth
         annotators = [annotator_0, annotator_1]
         if "gt" in annotators:
@@ -396,8 +428,9 @@ def compute_interrater_reliability_metrics(
                 annotators=annotators,
                 valid_docs_df=valid_docs_df,
                 common_docs_df=common_docs_df,
+                valid_labels=valid_labels,
                 metrics=metrics,
-                output_dir=output_dir
+                output_dir=output_dir,
             )
 
         # save results

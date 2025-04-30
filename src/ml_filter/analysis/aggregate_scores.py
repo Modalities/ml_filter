@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+
 from ml_filter.analysis.utils import get_document_scores_df
 from ml_filter.utils.logging import get_logger
 
-logger = get_logger(name=__name__, level=logging.INFO) # Set up logging
+logger = get_logger(name=__name__, level=logging.INFO)  # Set up logging
 
 
 def _extract_annotator_name(filename: Path) -> str:
@@ -25,7 +25,7 @@ def _extract_annotator_name(filename: Path) -> str:
     return basename.split("_")[-1]
 
 
-def aggregate_scores_in_directory(
+def aggregate_scores(
     input_directory: Path,
     output_directory: Path,
     aggregation: str,
@@ -42,8 +42,10 @@ def aggregate_scores_in_directory(
         aggregation (str): The aggregation method to use for the scores.
         labels (list[float]): The list of possible labels.
         batch_size (int): The number of documents to process in each batch. Defaults to 100000.
-        raw_data_lookup_dir (Optional[Path]): Directory to look for raw data files instead of taking the original ones. 
-            Only documents in the raw data file are included, since these might e.g. be deduplicated. Defaults to None, i.e. taking the original raw data.
+        raw_data_lookup_dir (Optional[Path]): Directory to look for raw data files instead of
+        taking the original ones.
+            Only documents in the raw data file are included, since these might e.g. be
+            deduplicated. Defaults to None, i.e. taking the original raw data.
 
     Returns:
         None
@@ -77,18 +79,17 @@ def aggregate_scores_in_directory(
                 document_scores_df=document_scores_df,
                 raw_data_file_path=raw_data_file_path,
             )
-            
+
             # If raw_data_lookup_dir is provided, use it to find the raw data file
             # Otherwise, use the original raw data file path
             if raw_data_lookup_dir is not None:
                 raw_data_file_path = raw_data_lookup_dir / Path(raw_data_file_path).name
             else:
                 raw_data_file_path = Path(raw_data_file_path)
-                
+
             # Write the scores to a JSONL file
-            output_file_path = (
-                output_directory
-                / (raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl")
+            output_file_path = output_directory / (
+                raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl"
             )
             write_scores_to_file(
                 output_file_path=output_file_path,
@@ -113,21 +114,16 @@ def filter_on_docs_in_raw_data(
     Returns:
         dict: A dictionary mapping document IDs to scores for the documents present in the raw data file.
     """
-    document_scores_for_raw_data_df = document_scores_df[
-        document_scores_df["raw_data_file_path"] == raw_data_file_path
-    ]
+    document_scores_for_raw_data_df = document_scores_df[document_scores_df["raw_data_file_path"] == raw_data_file_path]
     duplicated = document_scores_for_raw_data_df["doc_id"].duplicated()
     if duplicated.any():
-        duplicate_doc_ids = document_scores_for_raw_data_df.loc[
-            duplicated, "doc_id"
-        ].tolist()
+        duplicate_doc_ids = document_scores_for_raw_data_df.loc[duplicated, "doc_id"].tolist()
         logger.warning(f"Found duplicates in {raw_data_file_path}: {duplicate_doc_ids}")
 
-    document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")[
-        "score"
-    ].to_dict()
-    
+    document_scores_for_raw_data_dict = document_scores_for_raw_data_df.set_index("doc_id")["score"].to_dict()
+
     return document_scores_for_raw_data_dict
+
 
 def write_scores_to_file(
     output_file_path: Path,
@@ -138,7 +134,8 @@ def write_scores_to_file(
     id_field: str,
 ) -> None:
     """
-    Write scores and corresponding documents to a JSONL file. Only documents in the raw data file are included, since these might e.g. be deduplicated.
+    Write scores and corresponding documents to a JSONL file. Only documents in the raw data file are included,
+    since these might e.g. be deduplicated.
     The output file will contain the document ID, the score, and the aggregation type.
 
     Args:
@@ -155,8 +152,9 @@ def write_scores_to_file(
     batch = []
     output_file_path.parent.mkdir(exist_ok=True, parents=True)
     try:
-        with output_file_path.open("w", encoding="utf-8") as f_out, \
-        raw_data_file_path.open("r", encoding="utf-8") as f_in:
+        with output_file_path.open("w", encoding="utf-8") as f_out, raw_data_file_path.open(
+            "r", encoding="utf-8"
+        ) as f_in:
             for i, line in enumerate(f_in):
                 document_id = json.loads(line)[id_field]
                 if document_id not in document_scores_for_raw_data_dict:
@@ -173,7 +171,7 @@ def write_scores_to_file(
                     f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch) + "\n")
                     batch = []  # Clear the batch after writing
                     logger.info(f"Processed {i+1} documents.")
-            
+
             # Write any remaining documents in the last batch
             if batch:
                 f_out.write("\n".join(json.dumps(obj, ensure_ascii=False) for obj in batch))
@@ -182,8 +180,8 @@ def write_scores_to_file(
         logger.error(f"Error processing {raw_data_file_path}.")
         if output_file_path.exists():
             output_file_path.unlink()
-            
-            
+
+
 def aggregate_human_annotations(
     annotations_file_path: Path,
     output_file_path: Path,
@@ -194,7 +192,7 @@ def aggregate_human_annotations(
 ) -> None:
     """
     Aggregate human annotations.
-    
+
     Args:
         annotations_file_path (Path): The path to the annotations file.
         output_file_path (Path): The path to the output file.
@@ -206,13 +204,11 @@ def aggregate_human_annotations(
         None
     """
     document_scores_df = get_document_scores_df(
-        input_file_paths=[annotations_file_path],
-        valid_labels=labels,
-        aggregation_strategy=aggregation
+        input_file_paths=[annotations_file_path], valid_labels=labels, aggregation_strategy=aggregation
     )
     # The field "raw_data_file_path" is added to the DataFrame to keep track of the original file path
     document_scores_df["raw_data_file_path"] = str(raw_data_file_path)
-    
+
     # Convert the DataFrame to a dictionary for faster lookups and to avoid duplicate entries
     document_scores_dict = document_scores_df.set_index("doc_id")["score"].to_dict()
     write_scores_to_file(
@@ -222,18 +218,15 @@ def aggregate_human_annotations(
         aggregation=aggregation,
         batch_size=batch_size,
         id_field="document_id",
-    )        
+    )
     # remove field "scores" from output_file_path
     remove_field_from_jsonl_file(output_file_path, "scores")
-    
 
-def remove_field_from_jsonl_file(
-    jsonl_file_path: Path,
-    field: str
-) -> None:
+
+def remove_field_from_jsonl_file(jsonl_file_path: Path, field: str) -> None:
     """
     Remove a field from each JSON object in a JSONL file.
-    
+
     Args:
         jsonl_file_path (Path): The path to the JSONL file.
         field (str): The field to remove from each JSON object.
@@ -256,7 +249,7 @@ def remove_field_from_jsonl_file(
     except json.JSONDecodeError as e:
         logger.error(f"Error decoding JSON in {jsonl_file_path}: {e}")
         raise
-    
+
     # Write the modified JSON objects back to the JSONL file
     # Using a temporary file to avoid data loss in case of an error during writing
     temp_file_path = jsonl_file_path.with_suffix(".tmp")
