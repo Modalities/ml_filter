@@ -165,6 +165,7 @@ def plot_confusion_matrix(
     output_file_path: Path,
     valid_labels: list[int],
     annotator_name: str,
+    language: str,
 ):
     # -1 is used for invalid scores
     all_labels = [-1] + valid_labels
@@ -184,6 +185,6 @@ def plot_confusion_matrix(
     sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap="Blues", xticklabels=xlabels, yticklabels=valid_labels)
     plt.xlabel("Predicted")
     plt.ylabel("True")
-    plt.title(f"Confusion Matrix for {annotator_name}")
+    plt.title(f"Confusion Matrix for {annotator_name} and language {language}.")
     plt.savefig(output_file_path)
     plt.show()

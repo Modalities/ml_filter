@@ -251,13 +251,13 @@ def plot_scores_cli(file_paths: tuple[Path], output_dir: str, aggregation: str, 
         file_paths=file_paths,
         output_dir=Path(output_dir),
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")],
+        labels=[int(label) for label in labels.split(",")],
     )
     plot_differences_in_scores(
         file_paths=file_paths,
         output_dir=Path(output_dir),
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")],
+        labels=[int(label) for label in labels.split(",")],
     )
 
 
@@ -282,7 +282,7 @@ def evaluate_predicted_annotations_cli(
         output_directory=output_directory,
         path_to_ground_truth_file=path_to_ground_truth_file,
         aggregation=aggregation_strategy,
-        valid_labels=[float(label) for label in valid_labels.split(",")],
+        valid_labels=[int(label) for label in valid_labels.split(",")],
         thresholds=[float(t) for t in thresholds.split(",")],
     )
 
@@ -307,7 +307,7 @@ def aggregate_scores_cli(
         input_directory=input_directory,
         output_directory=output_directory,
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")],
+        labels=[int(label) for label in labels.split(",")],
         batch_size=batch_size,
         raw_data_lookup_dir=raw_data_lookup_dir,
     )
@@ -350,7 +350,7 @@ def aggregate_human_annotations_cli(
         annotations_file_path=annotations_file_path,
         output_file_path=output_file_path,
         raw_data_file_path=raw_data_file_path,
-        labels=[float(label) for label in labels.split(",")],
+        labels=[int(label) for label in labels.split(",")],
         aggregation=aggregation,
         batch_size=batch_size,
     )
@@ -365,12 +365,20 @@ def aggregate_human_annotations_cli(
     help="Comma-separated list of metrics for which lower is better."
     + "All other metrics are considered to be better when higher.",
 )
-def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str):
+@click.option(
+    "--report_metrics",
+    type=str,
+    help="Comma-separated list of metrics to be reported in final tex-file.",
+)
+def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str, report_metrics: str):
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    # split the comma-separated values into lists
+
     collect_ir_metrics(
         input_directory=input_directory,
         output_directory=output_directory,
-        min_metrics=[metric for metric in min_metrics.split(",")],
+        min_metrics=[metric for metric in min_metrics.split(",")] if min_metrics else None,
+        report_metrics=[metric for metric in report_metrics.split(",")] if report_metrics else None,
     )
 
 

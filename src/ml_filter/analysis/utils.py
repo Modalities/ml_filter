@@ -48,7 +48,7 @@ def most_frequent_average(values: list[int]) -> float:
 
 def get_document_scores_df(
     input_file_paths: list[Path],
-    valid_labels: list[float],
+    valid_labels: list[int],
     aggregation_strategy: str,
 ) -> dict[str, dict[str, float]]:
     """

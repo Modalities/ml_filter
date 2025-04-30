@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, spearmanr
-from sklearn.metrics import cohen_kappa_score
+from sklearn.metrics import cohen_kappa_score, f1_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.plot_score_distributions import plot_confusion_matrix
@@ -20,20 +20,20 @@ from ml_filter.utils.logging import get_logger
 logger = get_logger(name=__name__, level=logging.INFO)  # Set up logging
 
 
-def prepare_fleiss_data(scores: list[list[int]]) -> np.ndarray:
+def prepare_fleiss_data(all_score_pairs: list[list[int]]) -> np.ndarray:
     """
     Prepares data for computing Fleiss' Kappa by transforming scores into a matrix format.
 
     Args:
-        scores (list[list[int]]): A list where each sublist contains scores assigned by raters.
+        list_of_score_pairs: (list[list[int]]): A list where each sublist contains scores assigned by raters.
 
     Returns:
         np.ndarray: A 2D matrix where rows correspond to items and columns represent score frequencies.
     """
-    max_score = max(max(scores) for scores in scores)
-    fleiss_data = np.zeros((len(scores), max_score + 1))
-    for i, scores in enumerate(scores):
-        for score in scores:
+    max_score = max(max(score_pair) for score_pair in all_score_pairs)
+    fleiss_data = np.zeros((len(all_score_pairs), max_score + 1))
+    for i, score_pair in enumerate(all_score_pairs):
+        for score in score_pair:
             fleiss_data[i, score] += 1
     return fleiss_data
 
@@ -135,37 +135,68 @@ def compute_doc_level_variation(all_score_pairs: list[list[int]], document_ids: 
     return results
 
 
-# TODO: Fix naming: One of the annotators is the ground truth
-def compute_accuracy_mae_mse_against_gt(
-    ground_truth_scores: list[int], predicted_scores: list[int]
+def compute_gt_metrics(
+    ground_truth_scores: list[int],
+    predicted_scores: list[int],
+    valid_labels: list[int],
 ) -> dict[str, float]:
-    """Computes accuracy, mean absolute error (MAE), and mean squared error (MSE) against ground truth.
-    Args:
-        ground_truth_scores (list[int]): A list of ground truth scores.
-        predicted_scores (list[int]): A list of predicted scores.
-    Returns:
-        dict[str, float]: A dictionary containing accuracy, MAE, and MSE.
-
-    Raises:
-        ValueError: If the lengths of the input lists are not equal.
     """
+    Computes metrics comparing predictions to ground truth.
 
+    Args:
+        y_true (list[int]): True values.
+        y_pred (list[int]): Predicted values.
+        labels (list[int]): The list of possible labels.
+
+    Returns:
+        dict[str, float]: A dictionary containing the computed metrics.
+    """
     if len(ground_truth_scores) != len(predicted_scores):
         raise ValueError("The number of predictions and labels must be equal.")
 
     total_num_samples = len(ground_truth_scores)
-    gt_scores_rounded = [custom_round(score) for score in ground_truth_scores]
-    predicted_scores_rounded = [custom_round(score) for score in predicted_scores]
-    acc = sum(1 for s_0, s_1 in zip(gt_scores_rounded, predicted_scores_rounded) if s_0 == s_1) / total_num_samples
-    mae = sum(abs(a - b) for a, b in zip(ground_truth_scores, predicted_scores)) / total_num_samples
-    squared_diffs = [(a - b) ** 2 for a, b in zip(ground_truth_scores, predicted_scores)]
-    mse = sum(squared_diffs) / total_num_samples
 
-    return {"acc": acc, "mae": mae, "mse": mse}
+    # Round labels and predictions
+    predictions_rounded = [custom_round(score) for score in predicted_scores]
+    ground_truth_rounded = [custom_round(score) for score in ground_truth_scores]
+
+    assert (
+        len(predictions_rounded) == total_num_samples
+    ), f"Expected {total_num_samples} predictions, got {len(predictions_rounded)}"
+
+    # compute accuracy, mae and mse
+    gt_metrics = dict()
+    gt_metrics["Acc"] = (
+        sum(1 for s1, s2 in zip(ground_truth_rounded, predictions_rounded) if s1 == s2) / total_num_samples
+    )
+    gt_metrics["MAE"] = sum(abs(a - b) for a, b in zip(ground_truth_scores, predicted_scores)) / total_num_samples
+    squared_diffs = [(a - b) ** 2 for a, b in zip(ground_truth_scores, predicted_scores)]
+    gt_metrics["MSE"] = sum(squared_diffs) / total_num_samples
+
+    # compute accuracy per class
+    class_accuracies = compute_accuracy_per_class(
+        ground_truth_scores=ground_truth_rounded, predicted_scores=predictions_rounded, valid_labels=valid_labels
+    )
+    for valid_label in valid_labels:
+        gt_metrics[f"CA-{valid_label}"] = class_accuracies[valid_label]
+
+    # Compute Macro and Micro F1-scores
+    gt_metrics["Macro-F1"] = f1_score(ground_truth_rounded, predictions_rounded, average="macro")
+    gt_metrics["Micro-F1"] = f1_score(ground_truth_rounded, predictions_rounded, average="micro")
+
+    # Compute F1 score for each class
+    class_f1_scores = f1_score(ground_truth_rounded, predictions_rounded, average=None)
+    for valid_label, f1 in zip(valid_labels, class_f1_scores):
+        gt_metrics[f"F1-{valid_label}"] = f1
+
+    return gt_metrics
 
 
 def plot_invalid_docs_histogram(
-    correct_scores_of_invalid_docs: list[int], output_file_path: Path, annotator_name: str
+    correct_scores_of_invalid_docs: list[int],
+    output_file_path: Path,
+    annotator_name: str,
+    language: str,
 ) -> None:
     """
     Plots a histogram of the correct scores for invalid documents.
@@ -182,7 +213,7 @@ def plot_invalid_docs_histogram(
     plt.hist(correct_scores_of_invalid_docs, bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5], alpha=0.5, edgecolor="black")
     plt.xlabel("Scores")
     plt.ylabel("Frequency")
-    plt.title(f"Histogram of Invalid Scores for {annotator_name}")
+    plt.title(f"Histogram of Invalid Scores for {annotator_name} and langauge {language}.")
     plt.grid(True)
     plt.savefig(output_file_path)
 
@@ -227,20 +258,32 @@ def compute_threshold_agreement(scores: list[tuple[int, int]], threshold: float)
     return (above_or_equal_threshold + below_threshold) / len(scores)
 
 
-def compute_accuracy_per_class(scores: list[tuple[int, int]]) -> dict[int, float]:
+def compute_accuracy_per_class(
+    valid_labels: list[int], ground_truth_scores: list[int], predicted_scores: list[int]
+) -> dict[int, float]:
     """
-    Computes the accuracy per class for the given scores.
+    Computes the accuracy for each class based on the ground truth and predicted scores.
     Args:
-        scores (list[tuple[int, int]]): A list of tuples containing scores from two annotators.
+        valid_labels (list[int]): A list of user-provided valid labels.
+        ground_truth_scores (list[int]): A list of ground truth scores.
+        predicted_scores (list[int]): A list of predicted scores.
     Returns:
-        dict: A dictionary containing the accuracy for each class.
+        dict[int, float]: A dictionary where keys are class labels and values are the corresponding accuracies.
     """
-    possible_classes = sorted(set(c for _, c in scores))
+
     class_accuracies = {}
-    for cls in possible_classes:
-        total = sum(1 for score_1, _ in scores if score_1 == cls)
-        correct = sum(1 for score_0, score_1 in scores if score_0 == cls and score_1 == cls)
-        class_accuracies[cls] = correct / total if total > 0 else 0
+    for valid_label in valid_labels:
+        num_class_samples = sum(1 for score in ground_truth_scores if score == valid_label)
+        if num_class_samples == 0:
+            class_accuracies[valid_label] = -1.0
+            logging.warning(f"No samples for class {valid_label}. Skipping accuracy calculation.")
+            continue
+        num_correct_predictions = sum(
+            1
+            for predicted_s, ground_truth_s in zip(predicted_scores, ground_truth_scores)
+            if predicted_s == valid_label and ground_truth_s == valid_label
+        )
+        class_accuracies[valid_label] = num_correct_predictions / num_class_samples
     return class_accuracies
 
 
@@ -280,14 +323,12 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
         "Krippendorff": kripp_alpha,
         "Invalid": num_total_docs - len(valid_docs_df),
     }
-    # TODO: What is the interpretation of this metric?
+
+    # add variation per document
     # metrics["Variation per Document"] = doc_vars
     for threshold in thresholds:
         metrics["metrics"][f"TA-{threshold}"] = compute_threshold_agreement(valid_scores, threshold)
 
-    class_accuracies = compute_accuracy_per_class(rounded_valid_scores)
-    for c in class_accuracies:
-        metrics["metrics"][f"CA_{c}"] = class_accuracies[c]
     return metrics
 
 
@@ -295,9 +336,10 @@ def compare_annotator_to_gt(
     annotators: list[str],
     valid_docs_df: pd.DataFrame,
     common_docs_df: pd.DataFrame,
-    valid_labels: list[float],
     metrics: dict,
     output_dir: Path,
+    lang: str,
+    valid_labels: list[int],
 ) -> dict:
     """
     Compares annotator annotations to ground truth annotations and computes additional metrics.
@@ -308,6 +350,8 @@ def compare_annotator_to_gt(
         common_docs_df (pd.DataFrame): The DataFrame containing common document scores.
         metrics (dict): A dictionary to store the computed metrics.
         output_dir (Path): The directory to save the output files.
+        lang (str): The language of the documents.
+        labels (list[int]): The list of possible labels.
 
     Returns:
         dict: The updated metrics dictionary.
@@ -330,14 +374,12 @@ def compare_annotator_to_gt(
 
     annotator_name = annotators[annotator_idx]
 
-    # compute accuracy, mae and mse against ground truth
-    gt_metrics = compute_accuracy_mae_mse_against_gt(
+    gt_metrics = compute_gt_metrics(
         ground_truth_scores=ground_truth_scores,
         predicted_scores=predicted_scores,
+        valid_labels=valid_labels,
     )
-    metrics["metrics"]["Acc"] = gt_metrics["acc"]
-    metrics["metrics"]["MAE"] = gt_metrics["mae"]
-    metrics["metrics"]["MSE"] = gt_metrics["mse"]
+    metrics["metrics"].update(gt_metrics)
 
     # plot the distribution of invalid scores
     invalid_docs_df = common_docs_df[common_docs_df[f"score_{annotator_idx}"] == "invalid"]
@@ -357,12 +399,14 @@ def compare_annotator_to_gt(
         annotator_name=annotator_name,
         output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
         valid_labels=[int(valid_label) for valid_label in valid_labels],
+        language=lang,
     )
 
     plot_invalid_docs_histogram(
         correct_scores_of_invalid_docs=invalid_docs_df[f"score_{gt_idx}"].to_list(),
         output_file_path=output_dir / f"histogram_{annotator_name}_invalid_scores.png",
         annotator_name=annotator_name,
+        language=lang,
     )
 
     return metrics
@@ -371,9 +415,10 @@ def compare_annotator_to_gt(
 def compute_interrater_reliability_metrics(
     file_paths: list[Path],
     output_dir: Path,
-    valid_labels: list[float],
+    valid_labels: list[int],
     aggregation_strategy: str,
     thresholds: list[float],
+    lang: str,
 ) -> None:
     """
     Computes various inter-rater reliability metrics and writes results to a JSON file.
@@ -389,6 +434,7 @@ def compute_interrater_reliability_metrics(
             - "min": Use the minimum score.
             - "majority": Use the score that was voted the most. If there is a tie, take the average of the winners.
         thresholds (list[float]): A list of thresholds for computing agreement metrics.
+        lang (str): The language of the documents.
 
     Raises:
         ValueError: If invalid parameter combinations are provided.
@@ -431,6 +477,7 @@ def compute_interrater_reliability_metrics(
                 valid_labels=valid_labels,
                 metrics=metrics,
                 output_dir=output_dir,
+                lang=lang,
             )
 
         # save results

@@ -27,7 +27,7 @@ def evaluate_predicted_annotations(
     output_directory: Path,
     path_to_ground_truth_file: Path,
     aggregation: str,
-    valid_labels: list[float],
+    valid_labels: list[int],
     thresholds: list[float],
 ) -> None:
     """
@@ -72,5 +72,6 @@ def evaluate_predicted_annotations(
             aggregation_strategy=aggregation,
             valid_labels=valid_labels,
             thresholds=thresholds,
+            lang=lang,
         )
         logger.info(f"Metrics successfully written to {lang_dir}")

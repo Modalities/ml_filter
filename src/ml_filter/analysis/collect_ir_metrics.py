@@ -373,6 +373,7 @@ def collect_ir_metrics(
     input_directory: Path,
     output_directory: Path,
     top_n: int = 4,
+    report_metrics: list[str] | None = None,
     min_metrics: list[str] | None = None,
 ) -> None:
     """
@@ -396,6 +397,11 @@ def collect_ir_metrics(
         min_metrics = ["MAE", "MSE", "Invalid"]
     max_metrics = [metric for metric in metrics if metric not in min_metrics]
     
+    # only keep the metrics that are in the report_metrics
+    if report_metrics is not None:
+        max_metrics = [metric for metric in max_metrics if metric in report_metrics]
+        min_metrics = [metric for metric in min_metrics if metric in report_metrics]
+        
     # scores aggregated over all languages
     aggregated_metrics_df, aggregated_cm = aggregate_across_languages(df, metrics)
     top_n_annotators = get_top_n_annotators(df, top_n, max_metrics, min_metrics)
