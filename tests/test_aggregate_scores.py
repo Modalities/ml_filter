@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
+
+import pytest
 
 from ml_filter.analysis.aggregate_scores import (
     _extract_annotator_name,
@@ -21,26 +23,74 @@ def test_extract_annotator_name():
     assert annotator_name == "annotator1"
 
 
-@patch("ml_filter.analysis.utils.get_document_scores_df")
-def test_aggregate_scores_in_directory(mock_get_document_scores_df, tmp_path):
-    # Arrange
-    input_directory = tmp_path / "input"
-    output_directory = tmp_path / "output"
-    input_directory.mkdir()
-    (input_directory / "annotations_annotator1.jsonl").write_text("[]")
+@pytest.fixture
+def raw_data_file_path(tmp_path):
+    raw_data_file_path = tmp_path / "raw_data.jsonl"
+    raw_data = [
+        {"id": "doc1"},
+        {"id": "doc2"},
+    ]
 
-    # Mock the return value of get_document_scores to simulate a DataFrame
-    mock_document_scores_df = MagicMock()
-    mock_document_scores_df["raw_data_file_path"].unique.return_value = ["file1.jsonl"]
-    mock_get_document_scores_df.return_value = mock_document_scores_df
+    with raw_data_file_path.open("w") as f:
+        for entry in raw_data:
+            f.write(json.dumps(entry) + "\n")
+    return str(raw_data_file_path)
 
-    # Act
+
+@pytest.fixture
+def create_annotation_file(tmp_path, raw_data_file_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+
+    file = input_dir / "annotations__educational_prompt__en__test_annotator.jsonl"
+
+    # Two annotations for the same document
+    annotations = [
+        {
+            "document_id": "doc1",
+            "scores": [1.0, 2.0, 3.0],
+            "meta_information": {
+                "raw_data_file_path": raw_data_file_path,
+            },
+        },
+        {
+            "document_id": "doc2",
+            "scores": [2.0, 2.0, 1.0],
+            "meta_information": {
+                "raw_data_file_path": raw_data_file_path,
+            },
+        },
+    ]
+
+    with file.open("w") as f:
+        for a in annotations:
+            f.write(json.dumps(a) + "\n")
+    return input_dir, file
+
+
+def test_aggregate_scores(create_annotation_file, tmp_path):
+    input_dir, _ = create_annotation_file
+    output_dir = tmp_path / "output"
+
     aggregate_scores(
-        input_directory=input_directory,
-        output_directory=output_directory,
-        aggregation="majority",
-        labels=[0, 1, 2, 3, 4, 5],
+        input_directory=input_dir,
+        output_directory=output_dir,
+        aggregation_strategy="majority",
+        valid_labels=list(range(6)),
+        batch_size=2,
+        raw_data_lookup_dir=tmp_path,
     )
+
+    # Open the output file and check the contents
+    output_file = output_dir / "raw_data_annotator_aggregated_scores_majority.jsonl"
+
+    with output_file.open("r") as f:
+        lines = f.readlines()
+        assert len(lines) == 2
+        assert json.loads(lines[0])["id"] == "doc1"
+        assert json.loads(lines[0])["score"] == 6.0 / 3
+        assert json.loads(lines[1])["id"] == "doc2"
+        assert json.loads(lines[1])["score"] == 2.0
 
 
 @patch("ml_filter.analysis.aggregate_scores.json.loads")
@@ -66,33 +116,6 @@ def test_add_scores(mock_open_file, mock_json_dumps, mock_json_loads):
 
     # Assert
     mock_open_file.assert_called()
-
-
-# TODD: Duplciate test
-# @patch("ml_filter.analysis.aggregate_scores.get_document_scores")
-# @patch("ml_filter.analysis.aggregate_scores.write_scores_to_file")
-# def test_aggregate_scores_in_directory(mock_write_scores_to_file, mock_get_document_scores, tmp_path):
-#     # Arrange
-#     input_directory = tmp_path / "input"
-#     output_directory = tmp_path / "output"
-#     input_directory.mkdir()
-#     (input_directory / "annotations_annotator1.jsonl").write_text("[]")
-
-#     # Mock the return value of get_document_scores to simulate a DataFrame
-#     mock_document_scores_df = MagicMock()
-#     mock_document_scores_df["raw_data_file_path"].unique.return_value = ["file1.jsonl"]
-#     mock_get_document_scores.return_value = mock_document_scores_df
-
-#     # Act
-#     aggregate_scores_in_directory(
-#         input_directory=input_directory,
-#         output_directory=output_directory,
-#         aggregation="majority",
-#         labels=[0, 1, 2, 3, 4, 5],
-#     )
-
-#     # Assert
-#     mock_write_scores_to_file.assert_called()
 
 
 @patch("ml_filter.analysis.aggregate_scores.json.loads")

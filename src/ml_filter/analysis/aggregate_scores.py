@@ -28,8 +28,8 @@ def _extract_annotator_name(filename: Path) -> str:
 def aggregate_scores(
     input_directory: Path,
     output_directory: Path,
-    aggregation: str,
-    labels: list[float],
+    aggregation_strategy: str,
+    valid_labels: list[int],
     batch_size: int = 100000,
     raw_data_lookup_dir: Optional[Path] = None,
 ) -> None:
@@ -39,8 +39,8 @@ def aggregate_scores(
     Args:
         input_directory (Path): The directory containing the annotation files.
         output_directory (Path): The directory to save the aggregated results.
-        aggregation (str): The aggregation method to use for the scores.
-        labels (list[float]): The list of possible labels.
+        aggregation_strategy (str): The aggregation method to use for the scores.
+        valid_labels (list[int]): The list of user-defined valid labels.
         batch_size (int): The number of documents to process in each batch. Defaults to 100000.
         raw_data_lookup_dir (Optional[Path]): Directory to look for raw data files instead of
         taking the original ones.
@@ -69,8 +69,8 @@ def aggregate_scores(
 
         document_scores_df = get_document_scores_df(
             input_file_paths=[f],
-            aggregation_strategy=aggregation,
-            valid_labels=labels,
+            aggregation_strategy=aggregation_strategy,
+            valid_labels=valid_labels,
         )
 
         for raw_data_file_path in document_scores_df["raw_data_file_path"].unique():
@@ -89,13 +89,13 @@ def aggregate_scores(
 
             # Write the scores to a JSONL file
             output_file_path = output_directory / (
-                raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation}.jsonl"
+                raw_data_file_path.stem + f"_{annotator}_aggregated_scores_{aggregation_strategy}.jsonl"
             )
             write_scores_to_file(
                 output_file_path=output_file_path,
                 raw_data_file_path=raw_data_file_path,
                 document_scores_for_raw_data_dict=document_scores_for_raw_data_dict,
-                aggregation=aggregation,
+                aggregation=aggregation_strategy,
                 batch_size=batch_size,
                 id_field="id",
             )

@@ -185,7 +185,9 @@ def compute_gt_metrics(
     gt_metrics["Micro-F1"] = f1_score(ground_truth_rounded, predictions_rounded, average="micro")
 
     # Compute F1 score for each class
-    class_f1_scores = f1_score(ground_truth_rounded, predictions_rounded, average=None)
+    # Add valid_labels to the predictions and ground truth.
+    # Othwerwise, zipping will will proive the wrong results
+    class_f1_scores = f1_score(ground_truth_rounded, predictions_rounded, average=None, labels=valid_labels)
     for valid_label, f1 in zip(valid_labels, class_f1_scores):
         gt_metrics[f"F1-{valid_label}"] = f1
 
@@ -275,8 +277,8 @@ def compute_accuracy_per_class(
     for valid_label in valid_labels:
         num_class_samples = sum(1 for score in ground_truth_scores if score == valid_label)
         if num_class_samples == 0:
-            class_accuracies[valid_label] = -1.0
-            logging.warning(f"No samples for class {valid_label}. Skipping accuracy calculation.")
+            class_accuracies[valid_label] = 0.0
+            logging.warning(f"No samples for class {valid_label}.")
             continue
         num_correct_predictions = sum(
             1

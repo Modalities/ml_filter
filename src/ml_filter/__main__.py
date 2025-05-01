@@ -306,8 +306,8 @@ def aggregate_scores_cli(
     aggregate_scores(
         input_directory=input_directory,
         output_directory=output_directory,
-        aggregation=aggregation,
-        labels=[int(label) for label in labels.split(",")],
+        aggregation_strategy=aggregation,
+        valid_labels=[int(label) for label in labels.split(",")],
         batch_size=batch_size,
         raw_data_lookup_dir=raw_data_lookup_dir,
     )

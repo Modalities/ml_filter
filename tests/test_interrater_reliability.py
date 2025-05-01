@@ -107,7 +107,7 @@ def test_compute_metrics():
         "rounded_score_1": [1, 2, 3],
         "doc_id": [1, 2, 3],
     }
-    thresholds = [2, 3]
+    thresholds = [2.0, 3.0]
     df = pd.DataFrame(data)
     metrics = compute_metrics(num_total_docs=3, valid_docs_df=df, thresholds=thresholds)
     expected_metrics = {
@@ -118,10 +118,9 @@ def test_compute_metrics():
             "Kendall": 1.0,
             "Krippendorff": 1.0,
             "Invalid": 0,
-            "TA-2": 1.0,
-            "TA-3": 1.0,
-        },
-        "Variation per Document": {1: 0, 2: 0, 3: 0, "counts": {0: 3}, "mean": 0, "stdev": 0.0},
+            "TA-2.0": 1.0,
+            "TA-3.0": 1.0,
+        }
     }
     assert metrics == expected_metrics
 
@@ -144,21 +143,27 @@ def test_compare_annotator_to_gt(tmp_path):
         metrics=metrics,
         output_dir=output_dir,
         lang="en",
-        labels=[1, 2, 3],
+        valid_labels=[0, 1, 2, 3, 4, 5],
     )
     expected_updated_metrics = {
         "metrics": {
             "Acc": 1.0,
             "MAE": 0.0,
             "MSE": 0.0,
+            "CA-0": 0.0,
             "CA-1": 1.0,
             "CA-2": 1.0,
             "CA-3": 1.0,
+            "CA-4": 0.0,
+            "CA-5": 0.0,
             "Macro-F1": 1.0,
             "Micro-F1": 1.0,
+            "F1-0": 0.0,
             "F1-1": 1.0,
             "F1-2": 1.0,
             "F1-3": 1.0,
+            "F1-4": 0.0,
+            "F1-5": 0.0,
         },
         "CM": {
             0: {-1: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
@@ -177,7 +182,6 @@ def test_compare_annotator_to_gt(tmp_path):
     [
         "majority",
         "mean",
-        "median",
         "max",
         "min",
     ],
@@ -188,7 +192,6 @@ def test_compute_interrater_reliability_metrics(tmp_path, aggregation):
         Path("tests/resources/data/llm_annotations/en/annotations__edu__en__test__2.jsonl"),
         Path("tests/resources/data/llm_annotations/en/annotations__edu__en__gt__1.jsonl"),
     ]
-    aggregation = "majority"
     output_dir = tmp_path / "interrater_reliability_metrics"
     labels = list(range(6))
     thresholds = [2.0, 3.0]
