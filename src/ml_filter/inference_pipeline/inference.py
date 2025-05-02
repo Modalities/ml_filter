@@ -1,14 +1,11 @@
 import json
 import logging
-import time
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 import tqdm
 from torch.utils.data import DataLoader
-
-from ml_filter.inference_pipeline.data_factory import DataFactory
 
 
 class InferencePipeline:
@@ -79,37 +76,37 @@ class InferencePipeline:
         progress_bar.close()
         return predictions
 
-    def run(self) -> None:
-        # create output and progress report directory
-        self._output_dir.mkdir(parents=True, exist_ok=True)
-        self._processed_files_list_path.parent.mkdir(parents=True, exist_ok=True)
+    # def run(self) -> None:
+    #     # create output and progress report directory
+    #     self._output_dir.mkdir(parents=True, exist_ok=True)
+    #     self._processed_files_list_path.parent.mkdir(parents=True, exist_ok=True)
 
-        for input_file_path in tqdm.tqdm(self._input_file_list, desc="Processing files"):
-            self._logger.info(f"Processing file: {input_file_path}")
-            output_file_path: str = self._output_dir / f"{input_file_path.stem}_annotations.jsonl"
+    #     for input_file_path in tqdm.tqdm(self._input_file_list, desc="Processing files"):
+    #         self._logger.info(f"Processing file: {input_file_path}")
+    #         output_file_path: str = self._output_dir / f"{input_file_path.stem}_annotations.jsonl"
 
-            # create dataloader
-            collate_fn = DataFactory.get_standard_collate_fn(sequence_length=self._sequence_length)
-            dataloader = DataFactory.get_dataloader(
-                input_file_path=input_file_path, batch_size=self._batch_size, collate_fn=collate_fn
-            )
+    #         # create dataloader
+    #         collate_fn = DataFactory.get_standard_collate_fn(sequence_length=self._sequence_length)
+    #         dataloader = DataFactory.get_dataloader(
+    #             input_file_path=input_file_path, batch_size=self._batch_size, collate_fn=collate_fn
+    #         )
 
-            # get predictions
-            start_time = time.time()
-            predictions = InferencePipeline._get_predictions(dataloader, self._model, self._device)
-            end_time = time.time()
-            self._logger.info(
-                f"Throuput:  {(end_time - start_time)/(dataloader.batch_size*len(dataloader))*1000:.2f} "
-                "seconds / 1000 samples for {input_file_path}."
-            )
+    #         # get predictions
+    #         start_time = time.time()
+    #         predictions = InferencePipeline._get_predictions(dataloader, self._model, self._device)
+    #         end_time = time.time()
+    #         self._logger.info(
+    #             f"Throuput:  {(end_time - start_time)/(dataloader.batch_size*len(dataloader))*1000:.2f} "
+    #             "seconds / 1000 samples for {input_file_path}."
+    #         )
 
-            # write out results
-            InferencePipeline._write_out_prediction_results(
-                predictions, output_file_path, prediction_key=self._prediction_key
-            )
+    #         # write out results
+    #         InferencePipeline._write_out_prediction_results(
+    #             predictions, output_file_path, prediction_key=self._prediction_key
+    #         )
 
-            # update processed files list
-            with open(self._processed_files_list_path, "a") as f:
-                f.write(f"{input_file_path}\n")
+    #         # update processed files list
+    #         with open(self._processed_files_list_path, "a") as f:
+    #             f.write(f"{input_file_path}\n")
 
-        self._logger.info("Completed successfully.")
+    #     self._logger.info("Completed successfully.")

@@ -3,16 +3,19 @@ import logging
 import os
 import random
 from pathlib import Path
+from typing import Callable
 
 from datasets import load_dataset
 from tqdm import tqdm
+
+from ml_filter.analysis.utils import custom_round
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
 def convert_hf_dataset_to_jsonl(
-    output_file_path: Path,
+    output_dir_path: Path,
     hf_dataset_name: str,
     hf_dataset_split: str = "train",
 ):
@@ -50,11 +53,11 @@ def convert_hf_dataset_to_jsonl(
     dataset = load_dataset(hf_dataset_name, split=hf_dataset_split)
 
     # Create output directory if it doesn't exist
-    os.makedirs(output_file_path, exist_ok=True)
+    os.makedirs(output_dir_path, exist_ok=True)
 
     # Open output file
     logger.info("Converting to JSONL format...")
-    with open(output_file_path, "w", encoding="utf-8") as f:
+    with open(output_dir_path, "w", encoding="utf-8") as f:
         # Process each example
         for idx, example in tqdm(enumerate(dataset), total=len(dataset), desc="Processing dataset"):
             # Create entry in desired format
@@ -63,7 +66,7 @@ def convert_hf_dataset_to_jsonl(
             # Write to file
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    logger.info(f"Conversion complete! File saved to {output_file_path}")
+    logger.info(f"Conversion complete! File saved to {output_dir_path}")
 
     # Delete downloaded dataset cache
     logger.info("Cleaning up downloaded data...")
@@ -74,7 +77,7 @@ def convert_hf_dataset_to_jsonl(
 def apply_score_transforms(
     input_file_path: Path,
     output_path: Path,
-    transform_fns: list[tuple[str, callable[[float], int | float]]],
+    transform_fns: list[tuple[str, Callable[[float], int | float]]],
 ):
     """Transform single scores into multiple scores using different transformations.
 
@@ -88,7 +91,7 @@ def apply_score_transforms(
     """
 
     # Always include original score first
-    transforms = [("score", lambda x: int(round(x)))] + transform_fns
+    transforms = [("score", lambda x: int(custom_round(x)))] + transform_fns
 
     logger.info("Applying score transformations...")
 
