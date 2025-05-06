@@ -6,6 +6,8 @@ from statistics import mean
 
 import pandas as pd
 
+from ml_filter.utils.logging import get_logger
+
 
 def custom_round(x: int | float) -> int:
     """Rounds values > x.5 to x+1 and values < x.5 to x.
@@ -83,6 +85,10 @@ def get_document_scores_df(
         with open(file_path, "r") as f:
             for line in f:
                 json_obj = json.loads(line)
+                if "document_id" not in json_obj or json_obj["document_id"] is None:
+                    raise ValueError(
+                        f"Document ID is missing in the JSON object: {json_obj}. Please check the input file."
+                    )
 
                 # replace invalid scores with None
                 scores = []
@@ -124,6 +130,19 @@ def get_document_scores_df(
                 )
 
     document_scores_df = pd.DataFrame(document_scores)
+
+    # make sure that we have the same number of documents with the same doc_id for each annotator
+    doc_ids_per_annotator = document_scores_df.groupby(by=["annotator", "prompt", "prompt_lang"])["doc_id"].apply(set)
+    first_doc_ids = next(iter(doc_ids_per_annotator))
+    for index, doc_ids in zip(doc_ids_per_annotator.index, doc_ids_per_annotator):
+        if not doc_ids == first_doc_ids:
+            if len(doc_ids - first_doc_ids) > 0:
+                get_logger(name="main").warning(
+                    f"{'__'.join(doc_ids_per_annotator.index[0])} misses: {doc_ids - first_doc_ids}"
+                )
+            if len(first_doc_ids - doc_ids) > 0:
+                get_logger(name="main").warning(f"{'__'.join(index)} misses: {first_doc_ids - doc_ids}")
+
     return document_scores_df
 
 
@@ -172,6 +191,9 @@ def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotato
         )
     # only consider documents that are annotated by both annotators and have valid scores
     common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
+
+    if len(common_docs_df) * 2 != len(document_scores_df):
+        get_logger(name="main").warning("Not all documents can be matched on columns doc_id and prompt.")
 
     # add rounded scores for each annotator
     for idx in (0, 1):
