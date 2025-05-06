@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, spearmanr
-from sklearn.metrics import cohen_kappa_score, f1_score
+from sklearn.metrics import cohen_kappa_score, f1_score, ndcg_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.plot_score_distributions import plot_confusion_matrix
@@ -191,6 +191,9 @@ def compute_gt_metrics(
     for valid_label, f1 in zip(valid_labels, class_f1_scores):
         gt_metrics[f"F1-{valid_label}"] = f1
 
+    # NDCG@all
+    gt_metrics["NDCG@all"] = ndcg_score(y_true=[ground_truth_scores], y_score=[predicted_scores], k=None)
+
     return gt_metrics
 
 
@@ -215,7 +218,7 @@ def plot_invalid_docs_histogram(
     plt.hist(correct_scores_of_invalid_docs, bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5], alpha=0.5, edgecolor="black")
     plt.xlabel("Scores")
     plt.ylabel("Frequency")
-    plt.title(f"Histogram of Invalid Scores for {annotator_name} and langauge {language}.")
+    plt.title(f"Histogram of invalid scores for {annotator_name} and language {language}.")
     plt.grid(True)
     plt.savefig(output_file_path)
 
@@ -368,11 +371,14 @@ def compare_annotator_to_gt(
         gt_idx = 0
         ground_truth_scores = valid_docs_df["score_0"].to_list()
         predicted_scores = valid_docs_df["score_1"].to_list()
-    else:
+    elif annotators[1] == "gt":
         annotator_idx = 0
         gt_idx = 1
         ground_truth_scores = valid_docs_df["score_1"].to_list()
         predicted_scores = valid_docs_df["score_0"].to_list()
+
+    else:
+        raise ValueError(f"Expected one of the annotators to be 'gt', but found {annotators[0]} and {annotators[1]}")
 
     annotator_name = annotators[annotator_idx]
 
