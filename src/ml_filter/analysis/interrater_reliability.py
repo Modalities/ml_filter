@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, spearmanr
-from sklearn.metrics import cohen_kappa_score, f1_score, ndcg_score
+from sklearn.metrics import cohen_kappa_score, f1_score, ndcg_score, precision_score, recall_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.plot_score_distributions import plot_confusion_matrix
@@ -189,7 +189,30 @@ def compute_gt_metrics(
     # Othwerwise, zipping will will proive the wrong results
     class_f1_scores = f1_score(ground_truth_rounded, predictions_rounded, average=None, labels=valid_labels)
     for valid_label, f1 in zip(valid_labels, class_f1_scores):
-        gt_metrics[f"F1-{valid_label}"] = f1
+        gt_metrics[f"F1-{valid_label}_vs_rest"] = f1
+
+    # f1 score at threshold
+    for t in np.array(list(range(5))) + 0.5:
+        ground_truth_rounded_bin = (np.array(ground_truth_rounded) >= t).astype(int)
+        predictions_rounded_bin = (np.array(predictions_rounded) >= t).astype(int)
+        gt_metrics[f"F1-{t}"] = f1_score(
+            ground_truth_rounded_bin,
+            predictions_rounded_bin,
+            labels=[int(valid_label) for valid_label in valid_labels],
+            zero_division=0,
+        )
+        gt_metrics[f"Recall-{t}"] = recall_score(
+            ground_truth_rounded_bin,
+            predictions_rounded_bin,
+            labels=[int(valid_label) for valid_label in valid_labels],
+            zero_division=0,
+        )
+        gt_metrics[f"Precision-{t}"] = precision_score(
+            ground_truth_rounded_bin,
+            predictions_rounded_bin,
+            labels=[int(valid_label) for valid_label in valid_labels],
+            zero_division=0,
+        )
 
     # NDCG@all
     gt_metrics["NDCG@all"] = ndcg_score(y_true=[ground_truth_scores], y_score=[predicted_scores], k=None)
