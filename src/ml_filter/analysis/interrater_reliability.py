@@ -56,15 +56,16 @@ def compute_annotator_correlation(all_score_pairs: list[list[float]], metric: st
     rater1_scores, rater2_scores = scores[:, 0], scores[:, 1]
 
     if metric == "spearman":
-        correlation, _ = spearmanr(rater1_scores, rater2_scores)
+        correlation, p_val = spearmanr(rater1_scores, rater2_scores, alternative="two-sided")
     elif metric == "kendall":
-        correlation, _ = kendalltau(rater1_scores, rater2_scores)
+        correlation, p_val = kendalltau(rater1_scores, rater2_scores, alternative="two-sided")
     elif metric == "cohen":
         correlation = cohen_kappa_score(rater1_scores, rater2_scores)
+        p_val = None
     else:
         raise ValueError(f"Unsupported metric: {metric}")
 
-    return correlation
+    return correlation, p_val
 
 
 # TODO: Remove
@@ -308,9 +309,9 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     # compute metrics
     fleiss_data = prepare_fleiss_data(rounded_valid_scores)
     fk = fleiss_kappa(fleiss_data, method="fleiss")
-    spearman_corr = compute_annotator_correlation(valid_scores, metric="spearman")
-    kendall_corr = compute_annotator_correlation(valid_scores, metric="kendall")
-    cohen_kappa = compute_annotator_correlation(rounded_valid_scores, metric="cohen")
+    spearman_corr, spearman_pval = compute_annotator_correlation(valid_scores, metric="spearman")
+    kendall_corr, kendall_pval = compute_annotator_correlation(valid_scores, metric="kendall")
+    cohen_kappa, _ = compute_annotator_correlation(rounded_valid_scores, metric="cohen")
     kripp_alpha = compute_krippendorffs_alpha(valid_scores)
     # TODO: What is the interpretation of this metric?
     # doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
@@ -321,7 +322,9 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
         "Fleiss": fk,
         "Cohen": cohen_kappa,
         "Spearman": spearman_corr,
+        "Spearman P-Val": spearman_pval,
         "Kendall": kendall_corr,
+        "Kendall P-Val": kendall_pval,
         "Krippendorff": kripp_alpha,
         "Invalid": num_total_docs - len(valid_docs_df),
     }
