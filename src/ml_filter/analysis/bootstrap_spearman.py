@@ -62,10 +62,8 @@ def bootstrap_spearman_multi(preds_dict, ground_truth, n_bootstrap=10000, seed=4
         mean_diff = np.mean(diffs)
         ci_lower = np.percentile(diffs, 2.5)
         ci_upper = np.percentile(diffs, 97.5)
-        p_val = 2 * min(np.mean(diffs <= 0), np.mean(diffs >= 0)) # Two-sided p-value
         mean_diffs[(model_i, model_j)] = mean_diff
         ci[(model_i, model_j)] = (ci_lower, ci_upper)
-        p_values[(model_i, model_j)] = p_val
 
     return {
         'mean_diffs': mean_diffs,
@@ -75,13 +73,6 @@ def bootstrap_spearman_multi(preds_dict, ground_truth, n_bootstrap=10000, seed=4
 
 
 if __name__ == "__main__":
-    # preds_dict = {
-    #     'model_a': np.array([...]),
-    #     'model_b': np.array([...]),
-    #     'model_c': np.array([...])
-    # }
-
-    # ground_truth = np.array([...])
     n_bootstrap=10000
     input_dir = Path("/raid/s3/opengptx/user/richard-rutmann/data/eurolingua/experiments/multilinguality/experiments")
     english_annotation_files = [
@@ -115,5 +106,4 @@ if __name__ == "__main__":
     # Print pairwise results
     for pair, diff in results['mean_diffs'].items():
         ci = results['ci'][pair]
-        p = results['p_values'][pair]
-        print(f"{pair[0]} vs {pair[1]}: Δρ = {diff:.4f}, 95% CI = ({ci[0]:.4f}, {ci[1]:.4f}), p = {p:.4f}")
+        print(f"{pair[0]} vs {pair[1]}: Δρ = {diff:.4f}, 95% CI = ({ci[0]:.4f}, {ci[1]:.4f})")
