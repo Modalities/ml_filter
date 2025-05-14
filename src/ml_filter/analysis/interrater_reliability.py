@@ -82,7 +82,7 @@ def compute_annotator_correlation(all_score_pairs: list[list[float]], metric: st
             
             exact_pvalue = stats.permutation_test((rater1_scores,), statistic, permutation_type='pairings').pvalue
             
-            res["exact_pvalue"] = exact_pvalue,
+            res["exact_pvalue"] = exact_pvalue
 
     return res
 
