@@ -368,6 +368,41 @@ def plot_spearman_heatmap(df: pd.DataFrame, output_directory: Path) -> None:
     plt.close()
     logging.info(f"Spearman correlation heatmap saved to {heatmap_path}")
     
+    
+def write_spearman_pval_to_csv(
+    df: pd.DataFrame,
+    aggregated_metrics_df: pd.DataFrame,
+    output_file: Path
+) -> None:
+    """
+    Writes the Annotator, Spearman P-Val asymp from aggregated_metrics_df, 
+    and the minimum and maximum Spearman P-Val asymp for each annotator in df to a CSV file.
+
+    Args:
+        df (pd.DataFrame): The original DataFrame containing all metrics.
+        aggregated_metrics_df (pd.DataFrame): The aggregated metrics DataFrame.
+        output_file (Path): The path to save the CSV file.
+
+    Returns:
+        None
+    """
+    # Reset the index of aggregated_metrics_df and rename the new index column to "Annotator"
+    aggregated_metrics_df = aggregated_metrics_df.reset_index().rename(columns={"index": "Annotator"})
+
+    # Calculate min and max Spearman P-Val asymp for each annotator in df
+    min_max_pval = df.groupby("Annotator")["Spearman P-Val asymp"].agg(["min", "max"]).reset_index()
+    min_max_pval.rename(columns={"min": "Spearman P-Val asymp Min", "max": "Spearman P-Val asymp Max"}, inplace=True)
+
+    # Select relevant columns from aggregated_metrics_df
+    aggregated_data = aggregated_metrics_df[["Annotator", "Spearman P-Val asymp"]]
+
+    # Merge aggregated data with min and max values
+    result = pd.merge(aggregated_data, min_max_pval, on="Annotator", how="left")
+
+    # Write to CSV
+    result.to_csv(output_file, index=False)
+    logging.info(f"Spearman P-Val data written to {output_file}")
+    
                 
 def collect_ir_metrics(
     input_directory: Path,
@@ -423,4 +458,5 @@ def collect_ir_metrics(
     # plot heatmap for spearman correlation
     plot_spearman_heatmap(df, output_directory=output_directory)
     
+    write_spearman_pval_to_csv(df, aggregated_metrics_df, output_file=output_directory / "spearman_pval.csv")
     logging.info(f"Metrics successfully written")
