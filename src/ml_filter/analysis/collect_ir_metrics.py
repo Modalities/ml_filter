@@ -375,6 +375,7 @@ def collect_ir_metrics(
     top_n: int = 4,
     report_metrics: list[str] | None = None,
     min_metrics: list[str] | None = None,
+    exclude_languages: list[str] | None = None,
 ) -> None:
     """
     Collects inter-rater reliability metrics and writes the results to plots and a LaTeX table.
@@ -383,7 +384,10 @@ def collect_ir_metrics(
         input_directory (Path): The directory containing the input JSON files.
         output_directory (Path): The directory to save the LaTeX file and confusion matrix plots.
         top_n (int): The number of top annotators to select.
+        report_metrics (list[str] or None, optional): Metrics to include in the report.
         min_metrics (list[str] or None, optional): Metrics where lower values are better.
+        exclude_languages (list[str] or None, optional): Languages to exclude from the analysis.
+            If None, all languages are included.
 
     Returns:
         None
@@ -393,6 +397,10 @@ def collect_ir_metrics(
     # Read the data from the input directory
     df, metrics = read_metric_data(input_directory=input_directory)
 
+    # Filter out the languages that are in the exclude_languages list
+    if exclude_languages is not None:
+        df = df[~df["lang"].isin(exclude_languages)]
+    
     if min_metrics is None:
         min_metrics = ["MAE", "MSE", "Invalid"]
     max_metrics = [metric for metric in metrics if metric not in min_metrics]

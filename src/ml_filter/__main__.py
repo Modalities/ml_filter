@@ -370,7 +370,18 @@ def aggregate_human_annotations_cli(
     type=str,
     help="Comma-separated list of metrics to be reported in final tex-file.",
 )
-def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str, report_metrics: str):
+@click.option(
+    "--exclude_languages",
+    type=str,
+    help="Comma-separated list of languages to exclude from the analysis.",
+)
+def collect_ir_metrics_cli(
+    input_directory: Path,
+    output_directory: Path,
+    min_metrics: str,
+    report_metrics: str,
+    exclude_languages: str,
+) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
     # split the comma-separated values into lists
 
@@ -379,6 +390,7 @@ def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_me
         output_directory=output_directory,
         min_metrics=[metric for metric in min_metrics.split(",")] if min_metrics else None,
         report_metrics=[metric for metric in report_metrics.split(",")] if report_metrics else None,
+        exclude_languages=[lang for lang in exclude_languages.split(",")] if exclude_languages else None,
     )
 
 
