@@ -9,7 +9,7 @@ import krippendorff
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import kendalltau, spearmanr
+from scipy import stats
 from sklearn.metrics import cohen_kappa_score, f1_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
@@ -54,18 +54,35 @@ def compute_annotator_correlation(all_score_pairs: list[list[float]], metric: st
         raise ValueError(f"Expected exactly 2 annotators, got {scores.shape[1]}")
 
     rater1_scores, rater2_scores = scores[:, 0], scores[:, 1]
-
-    if metric == "spearman":
-        correlation, p_val = spearmanr(rater1_scores, rater2_scores, alternative="two-sided")
-    elif metric == "kendall":
-        correlation, p_val = kendalltau(rater1_scores, rater2_scores, alternative="two-sided")
-    elif metric == "cohen":
+    
+    if metric == "cohen":
         correlation = cohen_kappa_score(rater1_scores, rater2_scores)
-        p_val = None
+        res = {"correlation": correlation}
     else:
-        raise ValueError(f"Unsupported metric: {metric}")
+        if metric not in ["spearman", "kendall"]:
+            raise ValueError(f"Unsupported metric: {metric}")
 
-    return correlation, p_val
+        # Compute the correlation and the asymptotic p-value using scipy      
+        metric_to_func = {
+            "spearman": stats.spearmanr,
+            "kendall": stats.kendalltau,
+        }  
+        correlation, asymptotic_pvalue = metric_to_func[metric](rater1_scores, rater2_scores, alternative="two-sided")
+
+        # Compute the exact p-value using permutation test
+        def statistic(rater1_scores): # permute only `rater1_scores`
+            res = metric_to_func[metric](rater1_scores, rater2_scores, alternative="two-sided")
+            return res.statistic
+        
+        exact_pvalue = stats.permutation_test((rater1_scores,), statistic, permutation_type='pairings')
+        
+        res = {
+            "correlation": correlation,
+            "asymptotic_pvalue": asymptotic_pvalue,
+            "exact_pvalue": exact_pvalue,
+        }
+
+    return res
 
 
 # TODO: Remove
@@ -309,9 +326,9 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     # compute metrics
     fleiss_data = prepare_fleiss_data(rounded_valid_scores)
     fk = fleiss_kappa(fleiss_data, method="fleiss")
-    spearman_corr, spearman_pval = compute_annotator_correlation(valid_scores, metric="spearman")
-    kendall_corr, kendall_pval = compute_annotator_correlation(valid_scores, metric="kendall")
-    cohen_kappa, _ = compute_annotator_correlation(rounded_valid_scores, metric="cohen")
+    spearman_corr = compute_annotator_correlation(valid_scores, metric="spearman")
+    kendall_corr = compute_annotator_correlation(valid_scores, metric="kendall")
+    cohen_corr = compute_annotator_correlation(rounded_valid_scores, metric="cohen")
     kripp_alpha = compute_krippendorffs_alpha(valid_scores)
     # TODO: What is the interpretation of this metric?
     # doc_vars = compute_doc_level_variation(rounded_valid_scores, valid_docs_df["doc_id"].tolist())
@@ -320,11 +337,13 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
     metrics = dict()
     metrics["metrics"] = {
         "Fleiss": fk,
-        "Cohen": cohen_kappa,
-        "Spearman": spearman_corr,
-        "Spearman P-Val": spearman_pval,
-        "Kendall": kendall_corr,
-        "Kendall P-Val": kendall_pval,
+        "Cohen": cohen_corr["correlation"],
+        "Spearman": spearman_corr["correlation"],
+        "Spearman P-Val asymp": spearman_corr["asymptotic_pvalue"],
+        "Spearman P-Val exact": spearman_corr["exact_pvalue"],
+        "Kendall": kendall_corr["correlation"],
+        "Kendall P-Val asymp": kendall_corr["asymptotic_pvalue"],
+        "Kendall P-Val exact": kendall_corr["exact_pvalue"],
         "Krippendorff": kripp_alpha,
         "Invalid": num_total_docs - len(valid_docs_df),
     }
