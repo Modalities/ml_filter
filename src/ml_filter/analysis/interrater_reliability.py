@@ -74,7 +74,7 @@ def compute_annotator_correlation(all_score_pairs: list[list[float]], metric: st
             res = metric_to_func[metric](rater1_scores, rater2_scores, alternative="two-sided")
             return res.statistic
         
-        exact_pvalue = stats.permutation_test((rater1_scores,), statistic, permutation_type='pairings')
+        exact_pvalue = stats.permutation_test((rater1_scores,), statistic, permutation_type='pairings').pvalue
         
         res = {
             "correlation": correlation,
