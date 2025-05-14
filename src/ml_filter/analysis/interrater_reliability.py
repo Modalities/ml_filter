@@ -69,18 +69,20 @@ def compute_annotator_correlation(all_score_pairs: list[list[float]], metric: st
         }  
         correlation, asymptotic_pvalue = metric_to_func[metric](rater1_scores, rater2_scores, alternative="two-sided")
 
-        # Compute the exact p-value using permutation test
-        def statistic(rater1_scores): # permute only `rater1_scores`
-            res = metric_to_func[metric](rater1_scores, rater2_scores, alternative="two-sided")
-            return res.statistic
-        
-        exact_pvalue = stats.permutation_test((rater1_scores,), statistic, permutation_type='pairings').pvalue
-        
         res = {
             "correlation": correlation,
             "asymptotic_pvalue": asymptotic_pvalue,
-            "exact_pvalue": exact_pvalue,
         }
+        
+        if metric == "spearman":
+            # Compute the exact p-value using permutation test
+            def statistic(rater1_scores): # permute only `rater1_scores`
+                res = metric_to_func[metric](rater1_scores, rater2_scores, alternative="two-sided")
+                return res.statistic
+            
+            exact_pvalue = stats.permutation_test((rater1_scores,), statistic, permutation_type='pairings').pvalue
+            
+            res["exact_pvalue"] = exact_pvalue,
 
     return res
 
@@ -343,7 +345,6 @@ def compute_metrics(num_total_docs: int, valid_docs_df: pd.DataFrame, thresholds
         "Spearman P-Val exact": spearman_corr["exact_pvalue"],
         "Kendall": kendall_corr["correlation"],
         "Kendall P-Val asymp": kendall_corr["asymptotic_pvalue"],
-        "Kendall P-Val exact": kendall_corr["exact_pvalue"],
         "Krippendorff": kripp_alpha,
         "Invalid": num_total_docs - len(valid_docs_df),
     }
