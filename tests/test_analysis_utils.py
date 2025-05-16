@@ -5,7 +5,7 @@ import pandas as pd
 # Import the functions to be tested
 from ml_filter.analysis.utils import (  # Replace 'your_module' with the actual module name
     get_common_docs,
-    get_document_scores,
+    get_document_scores_df,
     most_frequent_average,
     round_scores,
 )
@@ -24,7 +24,7 @@ def test_most_frequent_average():
     assert most_frequent_average([5, 5, 5]) == 5.0
 
 
-def test_get_document_scores(tmp_path):
+def test_get_document_scores_df(tmp_path):
     # Create temporary JSONL files for testing
     file1 = tmp_path / "scores__prompt1__lang1__annotator1.jsonl"
     file2 = tmp_path / "scores__prompt2__lang2__annotator2.jsonl"
@@ -46,7 +46,7 @@ def test_get_document_scores(tmp_path):
     labels = [1, 2, 3, 4, 5]
 
     # Test aggregation: mean
-    result = get_document_scores([file1, file2], aggregation="mean", labels=labels)
+    result = get_document_scores_df(input_file_paths=[file1, file2], aggregation_strategy="mean", valid_labels=labels)
     expected = pd.DataFrame.from_dict(
         {
             "prompt": {0: "prompt1", 1: "prompt1", 2: "prompt1", 3: "prompt2", 4: "prompt2"},
@@ -60,7 +60,7 @@ def test_get_document_scores(tmp_path):
     pd.testing.assert_frame_equal(result, expected)
 
     # Test aggregation: max
-    result = get_document_scores([file1, file2], aggregation="max", labels=labels)
+    result = get_document_scores_df(input_file_paths=[file1, file2], aggregation_strategy="max", valid_labels=labels)
     expected = pd.DataFrame.from_dict(
         {
             "prompt": {0: "prompt1", 1: "prompt1", 2: "prompt1", 3: "prompt2", 4: "prompt2"},
@@ -74,7 +74,7 @@ def test_get_document_scores(tmp_path):
     pd.testing.assert_frame_equal(result, expected)
 
     # Test aggregation: min
-    result = get_document_scores([file1, file2], aggregation="min", labels=labels)
+    result = get_document_scores_df(input_file_paths=[file1, file2], aggregation_strategy="min", valid_labels=labels)
     expected = pd.DataFrame.from_dict(
         {
             "prompt": {0: "prompt1", 1: "prompt1", 2: "prompt1", 3: "prompt2", 4: "prompt2"},
@@ -88,7 +88,7 @@ def test_get_document_scores(tmp_path):
     pd.testing.assert_frame_equal(result, expected)
 
     # Test aggregation: majority
-    result = get_document_scores([file1, file2], aggregation="majority", labels=labels)
+    result = get_document_scores_df(input_file_paths=[file1, file2], aggregation_strategy="majority", valid_labels=labels)
     expected = pd.DataFrame.from_dict(
         {
             "prompt": {0: "prompt1", 1: "prompt1", 2: "prompt1", 3: "prompt2", 4: "prompt2"},
