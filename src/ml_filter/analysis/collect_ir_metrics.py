@@ -318,10 +318,62 @@ def plot_confusion_matrix(
         plt.savefig(output_directory / f"confusion_matrix_across_languages_{annotator}.png")
 
                 
+def plot_spearman_heatmap(df: pd.DataFrame, output_directory: Path) -> None:
+    """
+    Plots a heatmap for Spearman correlation values across annotators and languages.
+
+    Args:
+        df (pd.DataFrame): A DataFrame containing metrics for different annotators and languages.
+            The DataFrame must have the following columns:
+            - "lang": The language (e.g., "en", "de").
+            - "Annotator": The annotator name (e.g., "annotator1", "annotator2").
+            - "Spearman": The Spearman correlation value.
+
+            Example:
+                lang      Annotator     Spearman
+                en        annotator1    0.85
+                en        annotator2    0.78
+                de        annotator1    0.92
+                de        annotator2    0.88
+                        
+        output_directory (Path): The directory to save the heatmap plot.
+
+    Returns:
+        None
+    """
+    spearman_df = df.pivot(index="lang", columns="Annotator", values="Spearman")
+    
+    # Create the heatmap
+    plt.figure(figsize=(12, 10))  # Increase figure size for better visibility
+    sns.heatmap(
+        spearman_df,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        cbar_kws={"label": "Spearman Correlation"},
+        xticklabels=spearman_df.columns,
+        yticklabels=spearman_df.index,
+        annot_kws={"fontsize": 10},  # Adjust font size for annotations
+    )
+    plt.xticks(rotation=45, ha="right", fontsize=10)  # Rotate x-axis labels for better visibility
+    plt.yticks(fontsize=10)  # Adjust font size for y-axis labels
+    plt.title("Spearman Correlation Heatmap", fontsize=14)
+    plt.xlabel("Annotator", fontsize=12)
+    plt.ylabel("Language", fontsize=12)
+    
+    # Save the heatmap
+    heatmap_path = output_directory / "spearman_correlation_heatmap.png"
+    plt.tight_layout()  # Ensure everything fits within the figure
+    plt.savefig(heatmap_path)
+    plt.close()
+    logging.info(f"Spearman correlation heatmap saved to {heatmap_path}")
+    
+                
 def collect_ir_metrics(
     input_directory: Path,
     output_directory: Path,
     top_n: int = 4,
+    report_metrics: list[str] | None = None,
     min_metrics: list[str] | None = None,
 ) -> None:
     """
@@ -345,6 +397,11 @@ def collect_ir_metrics(
         min_metrics = ["MAE", "MSE", "Invalid"]
     max_metrics = [metric for metric in metrics if metric not in min_metrics]
     
+    # only keep the metrics that are in the report_metrics
+    if report_metrics is not None:
+        max_metrics = [metric for metric in max_metrics if metric in report_metrics]
+        min_metrics = [metric for metric in min_metrics if metric in report_metrics]
+        
     # scores aggregated over all languages
     aggregated_metrics_df, aggregated_cm = aggregate_across_languages(df, metrics)
     top_n_annotators = get_top_n_annotators(df, top_n, max_metrics, min_metrics)
@@ -354,5 +411,8 @@ def collect_ir_metrics(
         
     # plot the confusion matrix
     plot_confusion_matrix(aggregated_cm=aggregated_cm, output_directory=output_directory)
+    
+    # plot heatmap for spearman correlation
+    plot_spearman_heatmap(df, output_directory=output_directory)
     
     logging.info(f"Metrics successfully written")

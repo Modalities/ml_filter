@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from omegaconf import DictConfig
 from transformers import TrainingArguments
+from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.models.annotator_models import AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
@@ -17,6 +18,7 @@ from ml_filter.training.annotator_model_pipeline import (
     _init_training_args,
     _load_datasets,
     _set_seeds,
+    multi_target_mse_loss,
     run_annotator_training_pipeline,
 )
 
@@ -51,7 +53,11 @@ def test_init_tokenizer():
 def test_init_model():
     cfg = DictConfig(
         {
-            "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": False},
+            "model": {
+                "name": "facebookai/xlm-roberta-base",
+                "freeze_base_model_parameters": False,
+                "is_regression": False,
+            },
             "data": {"num_tasks": 3, "num_targets_per_task": [2, 3, 4]},
         }
     )
@@ -127,6 +133,19 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
 
     # Clean up temp files
     shutil.rmtree(temp_output_dir, ignore_errors=True)
+
+
+def test_custom_mse_loss_same_as_torch_implementation():
+    num_tasks = 3
+    num_items_in_batch = 16
+    logits = torch.rand((num_items_in_batch, num_tasks)) * 3.0 - 1.0
+    target = torch.randint(0, 2, (num_items_in_batch, num_tasks)).float()
+    predicted = SequenceClassifierOutput(logits=logits)
+    mse_loss = multi_target_mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
+    logits = predicted.logits
+    target = target.to(dtype=logits.dtype)
+    mse_loss_torch = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="mean")
+    assert torch.allclose(mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
 
 
 def _dummy_dataset_files(temp_output_dir):

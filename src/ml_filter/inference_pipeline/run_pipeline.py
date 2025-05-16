@@ -29,10 +29,6 @@ def run_pipeline(config_file_path: Path):
     logger = get_logger(logger_id="inference_pipeline", logging_dir_path=config.paths.logging_dir)
     model = ModelFactory.load_huggingface_model_checkpoint(
         config.model_settings.model_checkpoint_path,
-        config.model_settings.model_type,
-        config.model_settings.num_regressor_outputs,
-        config.model_settings.num_classes_per_output,
-        config.model_settings.use_regression,
         device,
         logger,
     )

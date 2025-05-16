@@ -9,7 +9,7 @@ import yaml
 from omegaconf import OmegaConf
 from transformers import AutoConfig, BertForSequenceClassification
 
-from ml_filter.models.annotator_models import MultiTargetClassificationHead, MultiTargetRegressionHead
+from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
@@ -195,33 +195,6 @@ def tmp_nested_jsonl_directory(tmp_path: Path):
 
 
 @pytest.fixture
-def dummy_base_model():
-    """Creates a dummy BERT model with a classifier."""
-    config = AutoConfig.from_pretrained("bert-base-uncased", num_labels=2)
-    return BertForSequenceClassification(config)
-
-
-@pytest.fixture
-def regression_head():
-    """Creates a dummy MultiTargetRegressionHead."""
-    return MultiTargetRegressionHead(
-        input_dim=768,
-        num_prediction_tasks=2,
-        num_targets_per_prediction_task=torch.tensor([6, 6]),
-    )
-
-
-@pytest.fixture
-def classification_head():
-    """Creates a dummy MultiTargetClassificationHead."""
-    return MultiTargetClassificationHead(
-        input_dim=768,
-        num_prediction_tasks=2,
-        num_targets_per_prediction_task=torch.tensor([6, 6]),
-    )
-
-
-@pytest.fixture
 def temp_output_dir(tmp_path):
     """Creates a temporary output directory for testing."""
     return tmp_path / "output"
@@ -248,7 +221,11 @@ def config_file(temp_output_dir):
             "eval_strategy": "steps",
             "dataloader_num_workers": 1,
         },
-        "model": {"name": "facebookai/xlm-roberta-base", "freeze_base_model_parameters": True},
+        "model": {
+            "name": "facebookai/xlm-roberta-base",
+            "freeze_base_model_parameters": True,
+            "is_regression": True,
+        },
         "data": {
             "text_column": "text",
             "label_column": "labels",

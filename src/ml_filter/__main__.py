@@ -8,12 +8,12 @@ from typing import Optional
 import click
 import click_pathlib
 
+from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
-from ml_filter.analysis.evaluate_prompt_based_annotations import evaluate_prompt_based_annotations
-from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
-from ml_filter.inference_pipeline.run_pipeline import run_pipeline
+from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
@@ -59,10 +59,9 @@ target_language_codes_option = click.option(
 aggregation_option = click.option(
     "--aggregation",
     type=str,
-    required=False,
+    required=True,
     help="""
         Specifies how scores for a document from the same file are aggregated. 
-        If not set, no aggregation will be done (used for individual annotator analysis).
         Supported values:
         - "mean": Compute the average score.
         - "max": Use the maximum score.
@@ -71,7 +70,36 @@ aggregation_option = click.option(
     """,
 )
 
-path_to_files_argument = click.argument("path_to_files", nargs=-1, type=click.Path(path_type=Path))
+labels_option = click.option(
+    "--labels",
+    type=str,
+    required=True,
+    help="Comma-separated list of possible labels.",
+)
+
+batch_size_option = click.option(
+    "--batch_size",
+    type=int,
+    default=100000,
+    show_default=True,
+    help="Number of documents to process in each batch.",
+)
+
+input_directory_option = click.option(
+    "--input_directory",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to the input directory containing JSONL files.",
+    required=True,
+)
+
+output_directory_option = click.option(
+    "--output_directory",
+    type=click.Path(exists=False, path_type=Path),
+    help="Path to the output directory where results will be saved.",
+    required=True,
+)
+
+file_paths_argument = click.argument("file_paths", nargs=-1, type=click.Path(path_type=Path))
 
 
 @click.group()
@@ -211,72 +239,146 @@ def translate_flat_yaml_cli(
     )
 
 
-@main.command(name="interrater_reliability")
-@path_to_files_argument
-@click.option(
-    "--output_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Write the computed metrics to this json-file.",
-)
+@main.command(name="plot_scores")
+@file_paths_argument
+@click.option("--output_dir", type=str, required=True)
 @aggregation_option
-def interrater_reliability_cli(path_to_files: tuple[Path], output_file_path: Path, aggregation: Optional[str] = None):
-    compute_interrater_reliability_metrics(
-        path_to_files=path_to_files,
-        output_file_path=output_file_path,
+@labels_option
+def plot_scores_cli(file_paths: tuple[Path], output_dir: str, aggregation: str, labels: list[str]) -> None:
+    """Plot the differences in scores."""
+    file_paths = [Path(p) for p in file_paths]
+    plot_scores(
+        file_paths=file_paths,
+        output_dir=Path(output_dir),
         aggregation=aggregation,
+        labels=[int(label) for label in labels.split(",")],
+    )
+    plot_differences_in_scores(
+        file_paths=file_paths,
+        output_dir=Path(output_dir),
+        aggregation=aggregation,
+        labels=[int(label) for label in labels.split(",")],
     )
 
 
-@main.command(name="plot_scores")
-@path_to_files_argument
-@click.option("--output_dir", type=str, required=True)
-@aggregation_option
-def plot_scores_cli(path_to_files: tuple[Path], output_dir: str, aggregation: Optional[str] = None) -> None:
-    """Plot the differences in scores."""
-    path_to_files = [Path(p) for p in path_to_files]
-    plot_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
-    plot_differences_in_scores(path_to_files=path_to_files, output_dir=Path(output_dir), aggregation=aggregation)
-
-
-@main.command(name="evaluate_prompt_based_annotations")
-@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
-@click.argument("gt_data", type=click.Path(exists=True, path_type=Path))
-@click.option("--aggregation", type=str, default="majority", help="Aggregation method for scores.")
-@click.option("--labels", type=str, help="Comma-separated list of labels.")
-def evaluate_prompt_based_annotations_cli(
+@main.command(name="evaluate_predicted_annotations")
+@input_directory_option
+@output_directory_option
+@click.option("--path_to_ground_truth_file", type=click.Path(exists=True, path_type=Path))
+@click.option("--aggregation_strategy", type=str, default="majority", help="Aggregation method for scores.")
+@click.option("--valid_labels", type=str, help="Comma-separated list of labels.")
+@click.option("--thresholds", type=str, help="Comma-separated list of thresholds for binary metrics.")
+def evaluate_predicted_annotations_cli(
     input_directory: Path,
     output_directory: Path,
-    gt_data: Path,
-    aggregation: str,
-    labels: str,
+    path_to_ground_truth_file: Path,
+    aggregation_strategy: str,
+    valid_labels: str,
+    thresholds: str,
 ) -> None:
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
-    evaluate_prompt_based_annotations(
+    evaluate_predicted_annotations(
         input_directory=input_directory,
         output_directory=output_directory,
-        gt_data=gt_data,
+        path_to_ground_truth_file=path_to_ground_truth_file,
+        aggregation=aggregation_strategy,
+        valid_labels=[int(label) for label in valid_labels.split(",")],
+        thresholds=[float(t) for t in thresholds.split(",")],
+    )
+
+
+@main.command(name="aggregate_scores")
+@input_directory_option
+@output_directory_option
+@labels_option
+@aggregation_option
+@batch_size_option
+@click.option("--raw_data_lookup_dir", type=click.Path(exists=False, path_type=Path), required=False)
+def aggregate_scores_cli(
+    input_directory: Path,
+    output_directory: Path,
+    aggregation: str,
+    labels: str,
+    batch_size: int,
+    raw_data_lookup_dir: Optional[Path] = None,
+) -> None:
+    """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    aggregate_scores(
+        input_directory=input_directory,
+        output_directory=output_directory,
+        aggregation_strategy=aggregation,
+        valid_labels=[int(label) for label in labels.split(",")],
+        batch_size=batch_size,
+        raw_data_lookup_dir=raw_data_lookup_dir,
+    )
+
+
+@main.command(name="aggregate_human_annotations")
+@click.option(
+    "--annotations_file_path",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to the annotations file.",
+)
+@click.option(
+    "--output_file_path",
+    type=click.Path(exists=False, path_type=Path),
+    required=True,
+    help="Path to the output file.",
+)
+@click.option(
+    "--raw_data_file_path",
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to the raw data file.",
+)
+@labels_option
+@aggregation_option
+@batch_size_option
+def aggregate_human_annotations_cli(
+    annotations_file_path: Path,
+    output_file_path: Path,
+    raw_data_file_path: Path,
+    labels: str,
+    aggregation: str,
+    batch_size: int,
+) -> None:
+    """
+    CLI command to aggregate human annotations by comparing them to ground truth data.
+    """
+    aggregate_human_annotations(
+        annotations_file_path=annotations_file_path,
+        output_file_path=output_file_path,
+        raw_data_file_path=raw_data_file_path,
+        labels=[int(label) for label in labels.split(",")],
         aggregation=aggregation,
-        labels=[float(label) for label in labels.split(",")],
+        batch_size=batch_size,
     )
 
 
 @main.command(name="collect_ir_metrics")
-@click.argument("input_directory", type=click.Path(exists=True, path_type=Path))
-@click.argument("output_directory", type=click.Path(exists=False, path_type=Path))
+@input_directory_option
+@output_directory_option
 @click.option(
     "--min_metrics",
     type=str,
     help="Comma-separated list of metrics for which lower is better."
     + "All other metrics are considered to be better when higher.",
 )
-def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str):
+@click.option(
+    "--report_metrics",
+    type=str,
+    help="Comma-separated list of metrics to be reported in final tex-file.",
+)
+def collect_ir_metrics_cli(input_directory: Path, output_directory: Path, min_metrics: str, report_metrics: str):
     """CLI command to evaluate prompt-based annotations and compute inter-rater reliability metrics."""
+    # split the comma-separated values into lists
+
     collect_ir_metrics(
         input_directory=input_directory,
         output_directory=output_directory,
-        min_metrics=[metric for metric in min_metrics.split(",")],
+        min_metrics=[metric for metric in min_metrics.split(",")] if min_metrics else None,
+        report_metrics=[metric for metric in report_metrics.split(",")] if report_metrics else None,
     )
 
 
@@ -479,6 +581,44 @@ def count_words_in_jsonl_files_cli(directory: Path, output_file: Path) -> None:
     run_word_count_jsonl_files(directory, output_file)
 
 
+@main.command(name="deduplicate_jsonl")
+@click.option(
+    "--input_file",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the input JSONL file.",
+)
+@click.option(
+    "--output_file",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to the output file with deduplicated entries.",
+)
+def deduplicate_jsonl_cli(input_file: Path, output_file: Path):
+    """
+    CLI command to deduplicate entries in a JSONL file based on 'doc_id' and 'text' fields.
+    """
+    deduplicate_jsonl(input_file_path=input_file, output_file_path=output_file)
+    print(f"Processed {input_file} -> {output_file}")
+
+
+@main.command(name="deduplicate_dir")
+@input_directory_option
+@output_directory_option
+def deduplicate_dir_cli(input_directory: Path, output_directory: Path):
+    """
+    CLI command to deduplicate entries in all JSONL files in a directory based on 'doc_id' and 'text' fields.
+    """
+    # Ensure the output directory exists
+    output_directory.mkdir(parents=True, exist_ok=True)
+
+    # Iterate over all JSONL files in the input directory
+    for input_file_path in input_directory.glob("*.jsonl"):
+        output_file_path = output_directory / input_file_path.name
+        deduplicate_jsonl(input_file_path=input_file_path, output_file_path=output_file_path)
+        print(f"Processed {input_file_path} -> {output_file_path}")
+
+
 @main.command(name="convert_hf_dataset_to_jsonl")
 @click.option(
     "--output_file_path",
@@ -592,17 +732,6 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
-
-
-@main.command(name="inference_pipeline")
-@click.option(
-    "--config_file_path",
-    type=click_pathlib.Path(exists=True),
-    required=True,
-    help="Path to a file with the YAML config file.",
-)
-def entry_inference_pipeline(config_file_path: Path):
-    run_pipeline(config_file_path)
 
 
 if __name__ == "__main__":

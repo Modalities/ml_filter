@@ -120,18 +120,20 @@ def test_collect_ir_metrics(tmp_path):
 
     # Create example JSON files
     example_data = {
-        "metrics": {"metric1": 0.8, "metric2": 0.2, "Invalid": 2},
+        "metrics": {"metric1": 0.8, "metric2": 0.2, "Invalid": 2, "Spearman": 0.8, "ignore_metric": 0.5},
         "CM": {"0": {"0": 1, "1": 0}, "1": {"0": 0, "1": 1}}
     }
     file_path = input_directory / "ir_annotator1_gt.json"
     with file_path.open("w") as f:
         json.dump(example_data, f)
 
+    report_metrics = [metric for metric in example_data["metrics"].keys() if metric != "ignore_metric"]
     collect_ir_metrics(
         input_directory=input_directory,
         output_directory=output_directory,
         top_n=1,
-        min_metrics=["metric2"]
+        min_metrics=["metric2"],
+        report_metrics=report_metrics,
     )
     output_file = output_directory / "ir_summary_gt.tex"
     assert output_file.exists()
