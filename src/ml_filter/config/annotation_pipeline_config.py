@@ -7,6 +7,7 @@ class PathsConfig(BaseModel):
     raw_data_file_paths: List[FilePath] = Field(default_factory=list)
     output_directory_path: DirectoryPath
     prompt_template_file_path: FilePath
+    start_indexes: List[int] = Field(default_factory=list)
 
 
 class SettingsConfig(BaseModel):
@@ -27,7 +28,7 @@ class LLMRestClientConfig(BaseModel):
     verbose: bool
     num_gpus: int
     sampling_params: dict
-    
+
 
 class TokenizerConfig(BaseModel):
     pretrained_model_name_or_path: str

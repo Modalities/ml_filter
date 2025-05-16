@@ -38,6 +38,7 @@ class LLMClient:
         )
         # Dataset related variables
         self.raw_data_file_paths = [Path(path) for path in cfg.settings.paths.raw_data_file_paths]
+        self.start_indexes = [int(index) for index in cfg.settings.paths.start_indexes]
 
         # LLMRestClient related variables
         self.max_retries = cfg.llm_rest_client.max_retries
@@ -104,6 +105,7 @@ class LLMClient:
             ),
             queue_size=self.queue_size,
             raw_data_file_paths=self.raw_data_file_paths,
+            start_indexes=self.start_indexes,
             experiment_dir_path=self.experiment_dir_path,
             num_processes=self.num_processes,
             score_metric_name=self.score_metric_name,

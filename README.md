@@ -186,6 +186,46 @@ Solustion as by https://github.com/vllm-project/vllm/issues/10024
 ```
 export VLLM_RPC_TIMEOUT= 20000
 ```
+## Converting docker containers to singularity containers
+
+### Build from docker hub
+1. Find the required version of vllm on [docker hub](https://hub.docker.com/)
+2. Run 
+   ```bash
+    singularity build singulairty_container_name.sif docker://path/to/vllm/on/docker-hub
+   ```
+### Build from source   
+1. clone the [vllm repo](https://github.com/vllm-project/vllm)
+2. change requirements files as necessary i.e transformer version
+3. cd vllm and run
+   ```bash
+   # optionally specifies: --build-arg max_jobs=8 --build-arg nvcc_threads=2
+   DOCKER_BUILDKIT=1 docker build . --target vllm-openai --tag vllm/your-build-name
+   ```
+4. Export the Docker Container to a Tarball
+
+Once the Docker container is built, save it to a tar file. This tarball will later be used by Singularity to build the Singularity Image File (SIF).   
+   ```bash
+   docker save -o vllm-openai-gemma.tar vllm/your-build-name
+   ```
+This command produces a tar file (`vllm-openai-gemma.tar`) that contains your Docker image.
+
+5. Transfer the Tarball to Your Singularity Environment
+
+Copy or transfer the generated tar file (`vllm-openai-gemma.tar`) to the (virtual) machine or environment where Singularity is installed (Singulairity and docker in the same setup lead to conflicts). This can be done via SCP, rsync, or any other file transfer method appropriate to your setup.
+
+6. Convert the Docker Tarball to a Singularity Image
+On the target machine with Singularity installed, use the following command to build the Singularity Image File (SIF). Note the corrected and complete command below:
+   ```bash
+   sudo singularity singulairty_container_name.sif docker-archive://path/to/docker/tar/file
+   ```
+**Key points in this step:**
+
+- **`singularity build`**: This is the primary command to create a new SIF file.
+- **`singularity_container_name.sif`**: Replace this with your desired container name.
+- **`docker-archive://path/to/vllm-openai-gemma.tar`**: This instructs Singularity to use the Docker tarball as the source. Ensure you provide the full path to your tar file.
+- **`sudo`**: Some Singularity installations require root privileges for building containers. If your installation permits non-root builds, you may not need `sudo`.
+   
 
 ## Batching and TGI containers
 ![image](https://github.com/user-attachments/assets/9f4673a2-5556-489d-b65b-458d2ec8f22e)

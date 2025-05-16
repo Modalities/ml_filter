@@ -5,6 +5,8 @@ settings:
   paths:
     raw_data_file_paths:
     - data/deu_Latn_sampled_500k_first200.jsonl
+    start_indexes:
+    - 150   
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/adult/adult_content_scoring_prompt.yaml
 llm_rest_client:

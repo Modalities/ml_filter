@@ -5,13 +5,14 @@ settings:
   # we need to set this here manually as this is specified only when hosting the model
   num_gpus: 1
   tokenizer_name_or_path: ${settings.model_name}
+  
   paths:
     raw_data_file_paths: 
-    - data/25_test_documents_en.jsonl
-    - data/25_test_documents_de.jsonl
-    - data/25_test_documents_random.jsonl
+    - data/test_fineweb2_dump.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
+    start_indexes:
+    - 10   
 
 llm_rest_client:
   model_name: ${settings.model_name}
