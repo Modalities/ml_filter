@@ -177,14 +177,25 @@ def plot_confusion_matrix(
     cm_array = np.array(cm_array)
 
     # Plot the confusion matrix
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(6.66, 4))
 
     # Normalize the confusion matrix
     cm_normalized = cm_array.astype("float") / cm_array.sum(axis=1)[:, np.newaxis]
     xlabels = [label if label != -1 else "invalid" for label in all_labels]
-    sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap="Blues", xticklabels=xlabels, yticklabels=valid_labels)
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title(f"Confusion Matrix for {annotator_name} and language {language}.")
-    plt.savefig(output_file_path)
+    sns.heatmap(
+        cm_normalized,
+        annot=True,
+        fmt=".2f",
+        cmap="Blues",
+        xticklabels=xlabels,
+        yticklabels=valid_labels,
+        annot_kws={"size": 14},
+    )
+    plt.xlabel("Predicted", fontsize=16)
+    plt.ylabel("True", fontsize=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    # plt.title(f"Confusion Matrix for {annotator_name} and language {language}.")
+    plt.tight_layout()
+    plt.savefig(output_file_path, format="pdf", bbox_inches="tight")
     plt.show()

@@ -10,7 +10,10 @@ import click_pathlib
 
 from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
-from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
+from ml_filter.analysis.evaluate_predicted_annotations import (
+    evaluate_predicted_annotations,
+    evaluate_prediction_correlation,
+)
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
@@ -285,6 +288,15 @@ def evaluate_predicted_annotations_cli(
         valid_labels=[int(label) for label in valid_labels.split(",")],
         thresholds=[float(t) for t in thresholds.split(",")],
     )
+
+
+@main.command(name="evaluate_prediction_correlation")
+@input_directory_option
+def evaluate_prediction_correlation_cli(
+    input_directory: Path,
+) -> None:
+    model_filters = ["gemma-3-27b-it", "Llama-3.3-70B-Instruct", "Mistral-Small-3.1-24B-Instruct-2503"]
+    evaluate_prediction_correlation(input_directory=input_directory, model_filters=model_filters)
 
 
 @main.command(name="aggregate_scores")

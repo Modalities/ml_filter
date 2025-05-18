@@ -1,7 +1,9 @@
+import itertools
 import logging
 from pathlib import Path
 
-from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics
+from ml_filter.analysis.interrater_reliability import compute_interrater_reliability_metrics, compute_metrics
+from ml_filter.analysis.utils import get_common_docs, get_document_scores_df
 from ml_filter.utils.logging import get_logger
 
 logger = get_logger(name=__name__, level=logging.INFO)  # Set up logging
@@ -75,3 +77,42 @@ def evaluate_predicted_annotations(
             lang=lang,
         )
         logger.info(f"Metrics successfully written to {lang_dir}")
+
+
+def evaluate_prediction_correlation(
+    input_directory: Path,
+    model_filters: list[str],
+) -> None:
+    # Find all files matching the pattern in the directory and subdirectories
+    files = list(input_directory.rglob("annotations_*.jsonl"))
+
+    # Check if there is at least one file
+    if len(files) < 2:
+        raise ValueError(f"No annotation files found in {input_directory} or its subdirectories.")
+
+    filtered_file_paths = [
+        file_path for file_path in files if any(model_filter in str(file_path) for model_filter in model_filters)
+    ]
+
+    scores_df = get_document_scores_df(
+        input_file_paths=filtered_file_paths,
+        aggregation_strategy="majority",
+        valid_labels=[0, 1, 2, 3, 4, 5],
+    )
+
+    # create all pairs
+    model_pairs = list(itertools.combinations(model_filters, 2))
+    for model_pair in model_pairs:
+        model_1, model_2 = model_pair
+        common_docs_df = get_common_docs(scores_df, model_1, model_2)
+        valid_docs_df = common_docs_df[
+            (common_docs_df["score_0"] != "invalid") & (common_docs_df["score_1"] != "invalid")
+        ]
+        valid_docs_df = valid_docs_df[valid_docs_df["prompt_lang"] != "en"]
+
+        metrics = compute_metrics(
+            num_total_docs=len(common_docs_df),
+            valid_docs_df=valid_docs_df,
+            thresholds=[1],
+        )
+        print(float(metrics["metrics"]["Spearman"]))

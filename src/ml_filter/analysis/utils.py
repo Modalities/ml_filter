@@ -190,7 +190,9 @@ def get_common_docs(document_scores_df: pd.DataFrame, annotator_0: str, annotato
             f"while annotator {annotator_1} has {len(annotator_1_df)} documents."
         )
     # only consider documents that are annotated by both annotators and have valid scores
-    common_docs_df = pd.merge(annotator_0_df, annotator_1_df, on=["doc_id", "prompt"], suffixes=("_0", "_1"))
+    common_docs_df = pd.merge(
+        annotator_0_df, annotator_1_df, on=["doc_id", "prompt_lang", "prompt"], suffixes=("_0", "_1")
+    )
 
     if len(common_docs_df) * 2 != len(document_scores_df):
         get_logger(name="main").warning("Not all documents can be matched on columns doc_id and prompt.")

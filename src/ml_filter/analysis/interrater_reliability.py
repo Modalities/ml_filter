@@ -428,7 +428,7 @@ def compare_annotator_to_gt(
     plot_confusion_matrix(
         cm_dict=cm,
         annotator_name=annotator_name,
-        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
+        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt_{lang}.pdf",
         valid_labels=[int(valid_label) for valid_label in valid_labels],
         language=lang,
     )
