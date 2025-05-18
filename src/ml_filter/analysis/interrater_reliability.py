@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, spearmanr
-from sklearn.metrics import cohen_kappa_score, f1_score
+from sklearn.metrics import cohen_kappa_score, f1_score, ndcg_score, precision_score, recall_score
 from statsmodels.stats.inter_rater import fleiss_kappa
 
 from ml_filter.analysis.plot_score_distributions import plot_confusion_matrix
@@ -189,7 +189,33 @@ def compute_gt_metrics(
     # Othwerwise, zipping will will proive the wrong results
     class_f1_scores = f1_score(ground_truth_rounded, predictions_rounded, average=None, labels=valid_labels)
     for valid_label, f1 in zip(valid_labels, class_f1_scores):
-        gt_metrics[f"F1-{valid_label}"] = f1
+        gt_metrics[f"F1-{valid_label}_vs_rest"] = f1
+
+    # f1 score at threshold
+    for t in np.array(list(range(5))) + 0.5:
+        ground_truth_rounded_bin = (np.array(ground_truth_rounded) >= t).astype(int)
+        predictions_rounded_bin = (np.array(predictions_rounded) >= t).astype(int)
+        gt_metrics[f"F1-{t}"] = f1_score(
+            ground_truth_rounded_bin,
+            predictions_rounded_bin,
+            labels=[int(valid_label) for valid_label in valid_labels],
+            zero_division=0,
+        )
+        gt_metrics[f"Recall-{t}"] = recall_score(
+            ground_truth_rounded_bin,
+            predictions_rounded_bin,
+            labels=[int(valid_label) for valid_label in valid_labels],
+            zero_division=0,
+        )
+        gt_metrics[f"Precision-{t}"] = precision_score(
+            ground_truth_rounded_bin,
+            predictions_rounded_bin,
+            labels=[int(valid_label) for valid_label in valid_labels],
+            zero_division=0,
+        )
+
+    # NDCG@all
+    gt_metrics["NDCG@all"] = ndcg_score(y_true=[ground_truth_scores], y_score=[predicted_scores], k=None)
 
     return gt_metrics
 
@@ -215,7 +241,7 @@ def plot_invalid_docs_histogram(
     plt.hist(correct_scores_of_invalid_docs, bins=[0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5], alpha=0.5, edgecolor="black")
     plt.xlabel("Scores")
     plt.ylabel("Frequency")
-    plt.title(f"Histogram of Invalid Scores for {annotator_name} and langauge {language}.")
+    plt.title(f"Histogram of invalid scores for {annotator_name} and language {language}.")
     plt.grid(True)
     plt.savefig(output_file_path)
 
@@ -368,11 +394,14 @@ def compare_annotator_to_gt(
         gt_idx = 0
         ground_truth_scores = valid_docs_df["score_0"].to_list()
         predicted_scores = valid_docs_df["score_1"].to_list()
-    else:
+    elif annotators[1] == "gt":
         annotator_idx = 0
         gt_idx = 1
         ground_truth_scores = valid_docs_df["score_1"].to_list()
         predicted_scores = valid_docs_df["score_0"].to_list()
+
+    else:
+        raise ValueError(f"Expected one of the annotators to be 'gt', but found {annotators[0]} and {annotators[1]}")
 
     annotator_name = annotators[annotator_idx]
 
@@ -399,7 +428,7 @@ def compare_annotator_to_gt(
     plot_confusion_matrix(
         cm_dict=cm,
         annotator_name=annotator_name,
-        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt.png",
+        output_file_path=output_dir / f"confusion_matrix_{annotator_name}_gt_{lang}.pdf",
         valid_labels=[int(valid_label) for valid_label in valid_labels],
         language=lang,
     )
