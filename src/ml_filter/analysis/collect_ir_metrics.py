@@ -403,6 +403,26 @@ def write_spearman_pval_to_csv(
     result.to_csv(output_file, index=False)
     logging.info(f"Spearman P-Val data written to {output_file}")
     
+    
+def write_invalid_to_csv(df: pd.DataFrame, output_file: Path) -> None:
+    """
+    Writes the Invalid column in df to a CSV file, with one column for each language
+    and one row for each annotator.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the metrics, including the Invalid column.
+        output_file (Path): The path to save the CSV file.
+
+    Returns:
+        None
+    """
+    # Pivot the DataFrame to have one column per language and one row per annotator
+    invalid_pivot = df.pivot(index="Annotator", columns="lang", values="Invalid")
+
+    # Write the pivoted DataFrame to a CSV file
+    invalid_pivot.to_csv(output_file)
+    logging.info(f"Invalid metrics written to {output_file}")
+    
                 
 def collect_ir_metrics(
     input_directory: Path,
@@ -459,4 +479,6 @@ def collect_ir_metrics(
     plot_spearman_heatmap(df, output_directory=output_directory)
     
     write_spearman_pval_to_csv(df, aggregated_metrics_df, output_file=output_directory / "spearman_pval.csv")
+    write_invalid_to_csv(df, output_file=output_directory / "invalid.csv")
+    
     logging.info(f"Metrics successfully written")
