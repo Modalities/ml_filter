@@ -245,7 +245,7 @@ def _train_annotator_model(
         if param.is_shared():
             print(f"{name}: shared = {param.is_shared()}")
 
-    early_stopping = SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=0, min_delta=0.1)
+    early_stopping = SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=5, min_delta=1e-3)
 
     trainer = Trainer(
         model=model,
