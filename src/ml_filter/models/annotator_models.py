@@ -89,7 +89,7 @@ class AnnotatorModel(PreTrainedModel):
         # TODO: check for more general solution
         if hasattr(self._base_model, "bert") and hasattr(self._base_model.bert, "pooler"):
             for param in self._base_model.bert.pooler.parameters():
-                param.requires_grad = True
+                param.requires_grad = False
 
     def forward(
         self,

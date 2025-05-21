@@ -125,6 +125,7 @@ class DataPreprocessor:
                 return_tensors="pt",
             )
             labels = self._take_scores(batch)
+
             assert len(labels.shape) == 2
 
             return {**tokenized, "labels": labels}

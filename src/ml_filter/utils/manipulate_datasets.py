@@ -3,11 +3,10 @@ import logging
 import os
 import random
 from pathlib import Path
+from typing import Callable
 
 from datasets import load_dataset
 from tqdm import tqdm
-from typing import Callable
-
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
