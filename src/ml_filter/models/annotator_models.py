@@ -127,7 +127,7 @@ class AnnotatorModel(PreTrainedModel):
                 f"Model class not found for {config.base_model_name_or_path}."
                 f" Available models: {MODEL_CLASS_MAP.keys()}"
             )
-        self._base_model_config = AutoConfig.from_pretrained(config.base_model_name_or_path)
+        self._base_model_config = AutoConfig.from_pretrained(config.base_model_name_or_path, trust_remote_code=True)
         if config.load_base_model_from_config:
             self._base_model = model_class(self._base_model_config)
         else:

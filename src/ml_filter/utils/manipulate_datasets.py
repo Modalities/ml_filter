@@ -6,6 +6,8 @@ from pathlib import Path
 
 from datasets import load_dataset
 from tqdm import tqdm
+from typing import Callable
+
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -74,7 +76,7 @@ def convert_hf_dataset_to_jsonl(
 def apply_score_transforms(
     input_file_path: Path,
     output_path: Path,
-    transform_fns: list[tuple[str, callable[[float], int | float]]],
+    transform_fns: list[tuple[str, Callable[[float], int | float]]],
 ):
     """Transform single scores into multiple scores using different transformations.
 

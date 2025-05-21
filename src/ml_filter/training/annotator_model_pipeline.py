@@ -1,4 +1,3 @@
-import logging
 import os
 from functools import partial
 from pathlib import Path
@@ -12,11 +11,13 @@ from transformers import EvalPrediction, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
+from ml_filter.logger import setup_logging
 from ml_filter.models.annotator_models import AnnotatorConfig, AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
 
-logger = logging.getLogger(__name__)
+logger = setup_logging()
 
 
 def run_annotator_training_pipeline(config_file_path: Path):
@@ -244,6 +245,8 @@ def _train_annotator_model(
         if param.is_shared():
             print(f"{name}: shared = {param.is_shared()}")
 
+    early_stopping = SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=0, min_delta=0.1)
+
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -252,6 +255,7 @@ def _train_annotator_model(
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
         data_collator=collate,
+        callbacks=[early_stopping],
     )
 
     trainer.train()

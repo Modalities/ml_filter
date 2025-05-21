@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
-
+from scipy.stats import spearmanr
 
 def compute_metrics_for_single_output(
     labels: np.ndarray, predictions: np.ndarray, predictions_raw: np.ndarray, thresholds: List[int]
@@ -53,6 +53,7 @@ def compute_metrics_for_single_output(
     # Compute regression-like metrics
     metrics["regression/mse"] = mean_squared_error(labels, predictions_raw)
     metrics["regression/mae"] = mean_absolute_error(labels, predictions_raw)
+    metrics["spearman_corr"], _ = spearmanr(predictions_raw, labels)
 
     # Add f1 scores for each class
     classes = np.unique(labels)
