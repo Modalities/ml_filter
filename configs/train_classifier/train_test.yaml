@@ -1,5 +1,5 @@
 model:
-  name: Snowflake/snowflake-arctic-embed-m # check model
+  name: Snowflake/snowflake-arctic-embed-m-v2.0 # check model
   freeze_base_model_parameters: true  # Add option to freeze encoder
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
