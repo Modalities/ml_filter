@@ -50,15 +50,13 @@ class MultiTargetRegressionHead(AnnotatorHead):
         """
         super().__init__()
         hidden_dim = 1000
-        # output_dim = 6
-        # self.linear = nn.Linear(input_dim, num_prediction_tasks, bias=use_bias)
-        self.linear = nn.Sequential(
+        self.mlp = nn.Sequential(
             nn.Linear(input_dim, hidden_dim, bias=use_bias),
             nn.ReLU(),
-            nn.Linear(hidden_dim, num_prediction_tasks, bias=use_bias),
-        )  # 6 targets
+            nn.Linear(hidden_dim, 1, bias=use_bias),
+        )
 
-        self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
+        # self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Applies the regression head to the input tensor.
@@ -69,8 +67,8 @@ class MultiTargetRegressionHead(AnnotatorHead):
         Returns:
             Tensor: Scaled regression output tensor of shape `(batch_size, num_targets)`.
         """
-        return self.scaling(self.linear(x))
-        # return self.mlp(x)
+        # return self.scaling(self.linear(x))
+        return self.mlp(x)
 
 
 class MultiTargetClassificationHead(AnnotatorHead):

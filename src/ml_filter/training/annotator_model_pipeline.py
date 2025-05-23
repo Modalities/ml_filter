@@ -5,9 +5,10 @@ from typing import Callable
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
 from torch.nn.utils.rnn import pad_sequence
-from transformers import EvalPrediction, Trainer, TrainingArguments
+from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
@@ -41,6 +42,17 @@ def run_annotator_training_pipeline(config_file_path: Path):
 
         # Initialize model after loading datasets to not use too much memory prematurely
         model = _init_model(cfg=cfg)
+        # Add this after model creation
+
+        # 🔥 Fix weight initialization for regression
+        # if cfg.training.is_regression:
+        #     with torch.no_grad():
+        #         # Access the final linear layer in the MLP
+        #         final_layer = model._base_model.classifier.mlp[2]  # The Linear(1000 -> 1) layer
+        #         final_layer.weight.data *= 10.0  # Scale up weights
+        #         final_layer.bias.data.fill_(2.5)  # Bias toward middle of [0,5] range
+        #         print("✅ Fixed regression head initialization")
+        #         print(f"Final layer weights scaled, bias set to {final_layer.bias.data.item()}")
 
         # Train classifier
         _train_annotator_model(
@@ -89,7 +101,7 @@ def _init_loss_fn(cfg) -> partial:
     num_tasks = cfg.data.num_tasks
 
     if cfg.training.is_regression:
-        return partial(multi_target_mse_loss, num_tasks=num_tasks)
+        return partial(single_target_mse_loss)
     else:
         return partial(multi_target_cross_entropy_loss, num_tasks=num_tasks)
 
@@ -145,6 +157,7 @@ def _init_training_args(cfg) -> TrainingArguments:
         num_train_epochs=cfg.training.epochs,
         weight_decay=cfg.training.weight_decay,
         learning_rate=cfg.training.learning_rate,
+        lr_scheduler_type=SchedulerType.COSINE,
         save_strategy=cfg.training.save_strategy,
         logging_steps=cfg.training.logging_steps,
         logging_dir=cfg.training.logging_dir_path,
@@ -297,7 +310,7 @@ def compute_metrics(
         raise ValueError(f"Shape mismatch: predictions {predictions.shape}, labels {labels.shape}")
 
     # Convert logits to predictions
-    preds = np.round(predictions) if is_regression else predictions.argmax(axis=1)
+    preds = predictions if is_regression else predictions.argmax(axis=1)
     preds_raw = predictions if is_regression else preds
 
     # Compute metrics for each target
@@ -338,6 +351,52 @@ def multi_target_cross_entropy_loss(
     """
     logits = input.logits
     return torch.nn.functional.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
+
+
+def single_target_mse_loss(
+    input: SequenceClassifierOutput,
+    target: torch.Tensor,
+    # Signature required by Trainer
+    num_items_in_batch: int,
+    reduction: str = "mean",
+    ignored_index: int = -100,
+    **kwargs,
+) -> torch.Tensor:
+    """Computes multi-target mean squared error (MSE) loss for regression.
+
+    Args:
+        input (SequenceClassifierOutput): Model output containing logits.
+        target (Tensor): Target labels of shape (batch_size, num_tasks).
+        num_items_in_batch (int): Required by Trainer but unused.
+        num_tasks (int): Number of regression targets per sample.
+        reduction (str, optional): Reduction mode (`"mean"`, `"sum"`, `"none"`). Defaults to `"mean"`.
+
+    Returns:
+        Tensor: Computed MSE loss.
+    """
+    logits = input.logits
+    target = target.to(dtype=logits.dtype)
+
+    # Create mask for non-ignored indices
+    mask = target != ignored_index
+
+    # If no valid targets, return zero loss
+    if mask.sum() == 0:
+        return torch.tensor(0.0, device=logits.device, requires_grad=True)
+
+    # Apply mask and compute MSE loss
+    valid_logits = logits[mask]
+    valid_targets = target[mask]
+
+    # Use PyTorch's built-in MSE loss
+    if reduction.lower() == "mean":
+        return F.mse_loss(valid_logits, valid_targets, reduction="mean")
+    elif reduction.lower() == "sum":
+        return F.mse_loss(valid_logits, valid_targets, reduction="sum")
+    elif reduction.lower() == "none":
+        return F.mse_loss(valid_logits, valid_targets, reduction="none")
+    else:
+        raise ValueError(f"Invalid reduction mode: {reduction}")
 
 
 def multi_target_mse_loss(
@@ -399,6 +458,7 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
     else:
         token_type_ids = None
     labels = pad_sequence([torch.tensor(item["labels"]) for item in batch], batch_first=True, padding_value=-100)
+
     return {
         "input_ids": input_ids,
         "attention_mask": attention_mask,

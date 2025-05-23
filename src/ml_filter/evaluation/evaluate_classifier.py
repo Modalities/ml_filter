@@ -1,8 +1,9 @@
 from typing import Dict, List
 
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
 from scipy.stats import spearmanr
+from sklearn.metrics import mean_squared_error
+
 
 def compute_metrics_for_single_output(
     labels: np.ndarray, predictions: np.ndarray, predictions_raw: np.ndarray, thresholds: List[int]
@@ -34,32 +35,32 @@ def compute_metrics_for_single_output(
     metrics = {}
 
     # Compute classification metrics
-    metrics["classification/accuracy"] = accuracy_score(labels, predictions)
-    metrics["classification/f1_weighted"] = f1_score(labels, predictions, average="weighted")
-    metrics["classification/f1_micro"] = f1_score(labels, predictions, average="micro")
-    metrics["classification/f1_macro"] = f1_score(labels, predictions, average="macro")
+    # metrics["classification/accuracy"] = accuracy_score(labels, predictions)
+    # metrics["classification/f1_weighted"] = f1_score(labels, predictions, average="weighted")
+    # metrics["classification/f1_micro"] = f1_score(labels, predictions, average="micro")
+    # metrics["classification/f1_macro"] = f1_score(labels, predictions, average="macro")
 
     # Calculate binary metrics for different thresholds
-    for threshold in thresholds:
-        # Convert to binary predictions using threshold
-        binary_preds = np.where(predictions >= threshold, 1, 0)
-        binary_labels = np.where(labels >= threshold, 1, 0)
+    # for threshold in thresholds:
+    #     # Convert to binary predictions using threshold
+    #     binary_preds = np.where(predictions >= threshold, 1, 0)
+    #     binary_labels = np.where(labels >= threshold, 1, 0)
 
-        metrics[f"binary/t{threshold}/accuracy"] = accuracy_score(binary_labels, binary_preds)
-        metrics[f"binary/t{threshold}/f1_weighted"] = f1_score(binary_labels, binary_preds, average="weighted")
-        metrics[f"binary/t{threshold}/f1_micro"] = f1_score(binary_labels, binary_preds, average="micro")
-        metrics[f"binary/t{threshold}/f1_macro"] = f1_score(binary_labels, binary_preds, average="macro")
+    #     metrics[f"binary/t{threshold}/accuracy"] = accuracy_score(binary_labels, binary_preds)
+    #     metrics[f"binary/t{threshold}/f1_weighted"] = f1_score(binary_labels, binary_preds, average="weighted")
+    #     metrics[f"binary/t{threshold}/f1_micro"] = f1_score(binary_labels, binary_preds, average="micro")
+    #     metrics[f"binary/t{threshold}/f1_macro"] = f1_score(binary_labels, binary_preds, average="macro")
 
-    # Compute regression-like metrics
+    # # Compute regression-like metrics
     metrics["regression/mse"] = mean_squared_error(labels, predictions_raw)
-    metrics["regression/mae"] = mean_absolute_error(labels, predictions_raw)
+    # metrics["regression/mae"] = mean_absolute_error(labels, predictions_raw)
     metrics["spearman_corr"], _ = spearmanr(predictions_raw, labels)
 
     # Add f1 scores for each class
-    classes = np.unique(labels)
-    classes.sort()
-    f1_per_class = f1_score(labels, predictions, average=None)
-    for i, c in enumerate(classes):
-        metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
+    # classes = np.unique(labels)
+    # classes.sort()
+    # f1_per_class = f1_score(labels, predictions, average=None)
+    # for i, c in enumerate(classes):
+    #     metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
 
     return metrics
