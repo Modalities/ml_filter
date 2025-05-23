@@ -16,6 +16,11 @@ from ml_filter.models.annotator_models import AnnotatorConfig, AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
+import wandb
+
+# Optional: login to your WandB account
+wandb.login()
+
 
 logger = setup_logging()
 
@@ -157,6 +162,8 @@ def _init_training_args(cfg) -> TrainingArguments:
         eval_strategy=cfg.training.eval_strategy,
         # Speed up data loading
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
+        report_to=["wandb"],  # 👈 enables wandb
+        run_name=cfg.training.wandb_run_name,  # optional: name your wandb run
     )
 
     return training_args
