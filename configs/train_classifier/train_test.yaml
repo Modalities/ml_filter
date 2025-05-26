@@ -1,5 +1,5 @@
 model:
-  name: Snowflake/snowflake-arctic-embed-m-v2.0 # check model
+  name: snowflake/snowflake-arctic-embed-m-v2.0 # check model
   freeze_base_model_parameters: true  # Add option to freeze encoder
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
@@ -17,7 +17,7 @@ data:
   train_file_split: train
   test_file_path:
   test_file_split: train
-  val_file_path: /home/abbas-khan/processed_data/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+  val_file_path: /home/abbas-khan/ground_truth/ground_truth_511 # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
   label_column: score  # Ensure this matches dataset format
   text_column: text  # Ensure this matches dataset format
@@ -45,4 +45,4 @@ training:
   output_dir_path: ${training.logging_dir_path}
   dataloader_num_workers: 16
   load_best_model_at_end: true
- 
+  wandb_run_name:  regression_trainer

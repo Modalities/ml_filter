@@ -68,6 +68,9 @@ class MultiTargetRegressionHead(AnnotatorHead):
             Tensor: Scaled regression output tensor of shape `(batch_size, num_targets)`.
         """
         # return self.scaling(self.linear(x))
+        # L2 normalize input embeddings (like the paper)
+        # x = F.normalize(x, p=2, dim=1)
+        # Todo investigate further, with normalization i am not getting the same scores
         return self.mlp(x)
 
 

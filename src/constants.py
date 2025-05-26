@@ -1,4 +1,5 @@
 from transformers import (
+    AutoModel,
     BertForSequenceClassification,
     PreTrainedModel,
     XLMRobertaForSequenceClassification,
@@ -56,6 +57,6 @@ MODEL_CLASS_MAP: dict[str, type[PreTrainedModel]] = {
     "jinaai/jina-embeddings-v3": XLMRobertaForSequenceClassification,
     "snowflake/snowflake-arctic-embed-m": BertForSequenceClassification,
     "snowflake/snowflake-arctic-embed-l": BertForSequenceClassification,
-    "snowflake/snowflake-arctic-embed-m-v2.0": BertForSequenceClassification,
-    "snowflake/snowflake-arctic-embed-l-v2.0": BertForSequenceClassification,
+    "snowflake/snowflake-arctic-embed-m-v2.0": AutoModel,
+    "snowflake/snowflake-arctic-embed-l-v2.0": AutoModel,
 }

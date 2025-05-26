@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import torch
 from transformers import AutoConfig, PretrainedConfig
+from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.modeling_utils import ModelOutput, PreTrainedModel
 
 from constants import MODEL_CLASS_MAP
@@ -99,24 +100,70 @@ class AnnotatorModel(PreTrainedModel):
         labels: torch.Tensor | None = None,
         return_dict: bool | None = None,
     ) -> ModelOutput:
-        """Forward pass through the base model.
+        """Forward pass through the base model."""
 
-        Args:
-            input_ids (Tensor | None): Tokenized input IDs of shape (batch_size, sequence_length).
-            attention_mask (Tensor | None): Attention mask tensor of shape (batch_size, sequence_length).
-            token_type_ids (Tensor | None): Segment embeddings tensor (if applicable to model type).
-            labels (Tensor | None): Labels for training (if applicable, e.g., for classification).
-            return_dict (bool | None): Whether to return a ModelOutput object.
+        # Get base outputs without going through classifier
+        # if hasattr(self._base_model, 'bert'):
+        #     # BERT models - call bert directly
+        #     outputs = self._base_model.bert(
+        #         input_ids=input_ids,
+        #         attention_mask=attention_mask,
+        #         token_type_ids=token_type_ids,
+        #         return_dict=True,
+        #     )
+        # else:
+        #     # GTE models - temporarily remove classifier and call full model
+        #     classifier = self._base_model.classifier
+        #     delattr(self._base_model, 'classifier')
 
-        Returns:
-            ModelOutput: Output of the pre-trained transformer model.
-        """
-        return self._base_model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            labels=labels,
-            return_dict=return_dict,
+        #     try:
+        #         outputs = self._base_model(
+        #             input_ids=input_ids,
+        #             attention_mask=attention_mask,
+        #             token_type_ids=token_type_ids,
+        #             return_dict=True,
+        #             unpad_inputs=False,
+        #         )
+        #     finally:
+        #         # Always restore classifier
+        #         self._base_model.classifier = classifier
+
+        # # Apply classifier to CLS token
+        # cls_embeddings = outputs.last_hidden_state[:, 0]  # Shape: (batch_size, hidden_size)
+        # logits = self._base_model.classifier(cls_embeddings)
+
+        # return SequenceClassifierOutput(
+        #     logits=logits,
+        #     hidden_states=getattr(outputs, 'hidden_states', None),
+        #     attentions=getattr(outputs, 'attentions', None),
+        # )
+
+        # Get base transformer outputs (no classifier involved)
+        if hasattr(self._base_model, "bert"):
+            # BERT models
+            outputs = self._base_model.bert(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                return_dict=True,
+            )
+        else:
+            # GTE models - the base model doesn't use classifier anyway
+            outputs = self._base_model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                return_dict=True,
+            )
+
+        # Extract CLS token and apply our custom classifier
+        cls_embeddings = outputs.last_hidden_state[:, 0]
+        logits = self._base_model.classifier(cls_embeddings)
+
+        return SequenceClassifierOutput(
+            logits=logits,
+            hidden_states=getattr(outputs, "hidden_states", None),
+            attentions=getattr(outputs, "attentions", None),
         )
 
     def _load_base_model(self, config: AnnotatorConfig):
@@ -127,22 +174,34 @@ class AnnotatorModel(PreTrainedModel):
                 f"Model class not found for {config.base_model_name_or_path}."
                 f" Available models: {MODEL_CLASS_MAP.keys()}"
             )
-        self._base_model_config = AutoConfig.from_pretrained(config.base_model_name_or_path, trust_remote_code=True)
+        self._base_model_config = AutoConfig.from_pretrained(
+            config.base_model_name_or_path,
+            unpad_inputs=True,
+            add_pooling_layer=False,
+            use_memory_efficient_attention=True,
+            trust_remote_code=True,
+        )
         if config.load_base_model_from_config:
             self._base_model = model_class(self._base_model_config)
         else:
-            self._base_model = model_class.from_pretrained(config.base_model_name_or_path)
+            self._base_model = model_class.from_pretrained(
+                config.base_model_name_or_path,
+                unpad_inputs=True,
+                add_pooling_layer=False,
+                use_memory_efficient_attention=True,
+                trust_remote_code=True,
+            )
 
     def _overwrite_head(self, config: AnnotatorConfig):
         """Replaces the classifier in the base model with the custom head."""
         head = self._build_new_head(config)
-        if hasattr(self._base_model, "classifier"):
-            if hasattr(self._base_model.classifier, "out_proj"):
-                self._base_model.classifier.out_proj = head
-            else:
-                self._base_model.classifier = head
+
+        if hasattr(self._base_model, "classifier") and hasattr(self._base_model.classifier, "out_proj"):
+            # Handle models with nested classifier structure (e.g., some BERT variants)
+            self._base_model.classifier.out_proj = head
         else:
-            raise AttributeError("The base model does not have a 'classifier' attribute.")
+            # For all other cases (including GTE models that don't have classifier initially)
+            self._base_model.classifier = head
 
     def _build_new_head(self, config: AnnotatorConfig) -> AnnotatorHead:
         head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead

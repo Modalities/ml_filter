@@ -157,6 +157,7 @@ def _init_training_args(cfg) -> TrainingArguments:
         num_train_epochs=cfg.training.epochs,
         weight_decay=cfg.training.weight_decay,
         learning_rate=cfg.training.learning_rate,
+        # warmup_ratio=0.1,
         lr_scheduler_type=SchedulerType.COSINE,
         save_strategy=cfg.training.save_strategy,
         logging_steps=cfg.training.logging_steps,
@@ -258,7 +259,7 @@ def _train_annotator_model(
         if param.is_shared():
             print(f"{name}: shared = {param.is_shared()}")
 
-    early_stopping = SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=5, min_delta=1e-3)
+    SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=5, min_delta=1e-3)
 
     trainer = Trainer(
         model=model,
@@ -268,7 +269,7 @@ def _train_annotator_model(
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
         data_collator=collate,
-        callbacks=[early_stopping],
+        # callbacks=[early_stopping],
     )
 
     trainer.train()
