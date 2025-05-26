@@ -13,13 +13,13 @@ tokenizer:
   add_generation_prompt: true
 
 data: 
-  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
+  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
   train_file_split: train
   test_file_path:
   test_file_split: train
-  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
-  label_column: scores  # Ensure this matches dataset format
+  label_column: score  # Ensure this matches dataset format
   text_column: text  # Ensure this matches dataset format
   document_id_column: id  # Ensure this matches dataset format
   num_tasks: 1
@@ -28,6 +28,7 @@ data:
   num_processes: 64
 
 training:
+  only_regression_head: true
   batch_size: 1024
   eval_batch_size: 1024 # 1024
   epochs: 20
@@ -39,9 +40,9 @@ training:
   seed: 42
   is_regression: true
   greater_is_better: false  # Save model with lowest loss
-  metric_for_best_model: eval_val_edu/spearman_corr
+  metric_for_best_model: eval_edu/spearman_corr
   learning_rate: 5e-04 # 5e-04
-  logging_dir_path: data/output/fineweb_edu_model_artic_v1_m_test_100_epoch
+  logging_dir_path: data/output/fineweb_edu_model_artic_v2-m-finalll
   output_dir_path: ${training.logging_dir_path}
   dataloader_num_workers: 16
   load_best_model_at_end: true

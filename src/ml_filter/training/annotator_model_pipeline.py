@@ -34,8 +34,23 @@ def run_annotator_training_pipeline(config_file_path: Path):
         tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
         training_args = _init_training_args(cfg=cfg)
 
-        # Load datasets
-        train_dataset, eval_datasets = _load_datasets(
+        # if not cfg.training.only_regression_head:
+        #     # if dataset is "text" and needs to be tokenized first
+        #     train_dataset, eval_datasets = _load_datasets(
+        #         cfg=cfg,
+        #         tokenized_dataset_builder=tokenized_dataset_builder,
+        #     )
+        #
+        # else:
+        #     # if we already have the embeddings
+        #     train_dataset = torch.load(cfg.data.train_file_path, weights_only=False)
+        #     eval_datasets = torch.load(cfg.data.val_file_path, weights_only=False)
+
+
+        train_dataset = torch.load("/raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16_uniform.pth", weights_only=False)
+        eval_datasets = torch.load("/raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/eval_dataset_bf16_uniform.pth", weights_only=False)
+
+        _, eval_datasets_new = _load_datasets(
             cfg=cfg,
             tokenized_dataset_builder=tokenized_dataset_builder,
         )
@@ -62,7 +77,7 @@ def run_annotator_training_pipeline(config_file_path: Path):
             eval_datasets=eval_datasets,
             compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
-            collate=_get_collate_fn(tokenizer=tokenizer),
+            collate=_get_collate_fn(tokenizer=tokenizer, use_embeddings=cfg.training.only_regression_head),
             tokenizer=tokenizer,
         )
 
@@ -193,13 +208,8 @@ def _load_datasets(
     """
     logger.info("Loading datasets...")
 
-    train_dataset = tokenized_dataset_builder.load_and_tokenize(
-        file_or_dir_path=Path(cfg.data.train_file_path),
-        split=cfg.data.train_file_split,
-    )
-
     val_dataset = tokenized_dataset_builder.load_and_tokenize(
-        file_or_dir_path=Path(cfg.data.val_file_path),
+        file_or_dir_path=Path("/raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511"),
         split=cfg.data.val_file_split,
     )
 
@@ -211,7 +221,7 @@ def _load_datasets(
         )
         eval_datasets["test"] = test_dataset
 
-    return train_dataset, eval_datasets
+    return None, eval_datasets
 
 
 def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
@@ -226,21 +236,23 @@ def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
 
 
 def _get_collate_fn(
-    tokenizer: PreTrainedHFTokenizer,
+        tokenizer: PreTrainedHFTokenizer, use_embeddings=False
 ) -> Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]]:
     """Returns a partial function for collating batches."""
-    return partial(collate, pad_token=tokenizer.tokenizer.pad_token_id)
+    if not use_embeddings:
+        return partial(collate, pad_token=tokenizer.tokenizer.pad_token_id)
+    return partial(collate_embeddings, pad_token=tokenizer.tokenizer.pad_token_id)
 
 
 def _train_annotator_model(
-    model: AnnotatorModel,
-    training_args: TrainingArguments,
-    train_dataset: torch.utils.data.Dataset,
-    eval_datasets: dict[str, torch.utils.data.Dataset],
-    compute_loss_fn: partial,
-    compute_metrics_fn: partial,
-    collate: Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]],
-    tokenizer: PreTrainedHFTokenizer | None = None,
+        model: AnnotatorModel,
+        training_args: TrainingArguments,
+        train_dataset: torch.utils.data.Dataset,
+        eval_datasets: dict[str, torch.utils.data.Dataset],
+        compute_loss_fn: partial,
+        compute_metrics_fn: partial,
+        collate: Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]],
+        tokenizer: PreTrainedHFTokenizer | None = None,
 ) -> None:
     """Trains the annotator model.
 
@@ -282,10 +294,10 @@ def _train_annotator_model(
 
 
 def compute_metrics(
-    eval_pred: EvalPrediction,
-    is_regression: bool,
-    task_names: list[str],
-    num_targets_per_task: list[int],
+        eval_pred: EvalPrediction,
+        is_regression: bool,
+        task_names: list[str],
+        num_targets_per_task: list[int],
 ) -> dict[str, float]:
     """Computes metrics for multi-target classification or regression.
 
@@ -330,13 +342,13 @@ def compute_metrics(
 
 
 def multi_target_cross_entropy_loss(
-    input: SequenceClassifierOutput,
-    target: torch.Tensor,
-    # Signature required by Trainer
-    num_items_in_batch: int,
-    num_tasks: int,
-    reduction: str = "mean",
-    **kwargs,
+        input: SequenceClassifierOutput,
+        target: torch.Tensor,
+        # Signature required by Trainer
+        num_items_in_batch: int,
+        num_tasks: int,
+        reduction: str = "mean",
+        **kwargs,
 ) -> torch.Tensor:
     """Computes multi-target cross-entropy loss for classification.
 
@@ -355,13 +367,13 @@ def multi_target_cross_entropy_loss(
 
 
 def single_target_mse_loss(
-    input: SequenceClassifierOutput,
-    target: torch.Tensor,
-    # Signature required by Trainer
-    num_items_in_batch: int,
-    reduction: str = "mean",
-    ignored_index: int = -100,
-    **kwargs,
+        input: SequenceClassifierOutput,
+        target: torch.Tensor,
+        # Signature required by Trainer
+        num_items_in_batch: int,
+        reduction: str = "mean",
+        ignored_index: int = -100,
+        **kwargs,
 ) -> torch.Tensor:
     """Computes multi-target mean squared error (MSE) loss for regression.
 
@@ -401,14 +413,14 @@ def single_target_mse_loss(
 
 
 def multi_target_mse_loss(
-    input: SequenceClassifierOutput,
-    target: torch.Tensor,
-    # Signature required by Trainer
-    num_items_in_batch: int,
-    num_tasks: int,
-    reduction: str = "mean",
-    ignored_index: int = -100,
-    **kwargs,
+        input: SequenceClassifierOutput,
+        target: torch.Tensor,
+        # Signature required by Trainer
+        num_items_in_batch: int,
+        num_tasks: int,
+        reduction: str = "mean",
+        ignored_index: int = -100,
+        **kwargs,
 ) -> torch.Tensor:
     """Computes multi-target mean squared error (MSE) loss for regression.
 
@@ -433,6 +445,7 @@ def multi_target_mse_loss(
         return out.sum()
     elif reduction.lower() == "none":
         return out
+
 
 
 def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, torch.Tensor]:
@@ -465,4 +478,12 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
         "attention_mask": attention_mask,
         "token_type_ids": token_type_ids,
         "labels": labels,
+    }
+
+
+def collate_embeddings(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, torch.Tensor]:
+    embeddings, scores = zip(*batch)
+    return {
+        "input_ids": torch.stack(embeddings),
+        "labels": torch.stack(scores).view(-1, 1)
     }

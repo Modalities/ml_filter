@@ -4,6 +4,8 @@ import numpy as np
 from scipy.stats import spearmanr
 from sklearn.metrics import mean_squared_error
 
+from hessanAI.JQL_Annotation.utils.spearman import calculate_spearman_corr
+
 
 def compute_metrics_for_single_output(
     labels: np.ndarray, predictions: np.ndarray, predictions_raw: np.ndarray, thresholds: List[int]
@@ -55,6 +57,7 @@ def compute_metrics_for_single_output(
     metrics["regression/mse"] = mean_squared_error(labels, predictions_raw)
     # metrics["regression/mae"] = mean_absolute_error(labels, predictions_raw)
     metrics["spearman_corr"], _ = spearmanr(predictions_raw, labels)
+    metrics["spearman_corr_hessan_ai"] = calculate_spearman_corr(predictions_raw, labels)
 
     # Add f1 scores for each class
     # classes = np.unique(labels)

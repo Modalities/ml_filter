@@ -138,32 +138,32 @@ class AnnotatorModel(PreTrainedModel):
         #     attentions=getattr(outputs, 'attentions', None),
         # )
 
-        # Get base transformer outputs (no classifier involved)
-        if hasattr(self._base_model, "bert"):
-            # BERT models
-            outputs = self._base_model.bert(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
-                return_dict=True,
-            )
-        else:
-            # GTE models - the base model doesn't use classifier anyway
-            outputs = self._base_model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
-                return_dict=True,
-            )
+        # # Get base transformer outputs (no classifier involved)
+        # if hasattr(self._base_model, "bert"):
+        #     # BERT models
+        #     outputs = self._base_model.bert(
+        #         input_ids=input_ids,
+        #         attention_mask=attention_mask,
+        #         token_type_ids=token_type_ids,
+        #         return_dict=True,
+        #     )
+        # else:
+        #     # GTE models - the base model doesn't use classifier anyway
+        #     outputs = self._base_model(
+        #         input_ids=input_ids,
+        #         attention_mask=attention_mask,
+        #         token_type_ids=token_type_ids,
+        #         return_dict=True,
+        #     )
 
         # Extract CLS token and apply our custom classifier
-        cls_embeddings = outputs.last_hidden_state[:, 0]
-        logits = self._base_model.classifier(cls_embeddings)
+        # cls_embeddings = input_ids.last_hidden_state[:, 0]
+        logits = self._base_model.classifier(input_ids)
 
         return SequenceClassifierOutput(
             logits=logits,
-            hidden_states=getattr(outputs, "hidden_states", None),
-            attentions=getattr(outputs, "attentions", None),
+            hidden_states=getattr(input_ids, "hidden_states", None),
+            attentions=getattr(input_ids, "attentions", None),
         )
 
     def _load_base_model(self, config: AnnotatorConfig):
