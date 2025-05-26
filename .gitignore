@@ -17,6 +17,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+ml_filter/*
 
 # Installer logs
 pip-log.txt
@@ -79,3 +80,4 @@ data/output
 
 # ignore wandb files
 wandb/
+data/test.jsonl
