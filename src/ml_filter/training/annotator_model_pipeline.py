@@ -17,7 +17,9 @@ from ml_filter.models.annotator_models import AnnotatorConfig, AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
+import wandb
 
+wandb.login()
 logger = setup_logging()
 
 
@@ -34,26 +36,17 @@ def run_annotator_training_pipeline(config_file_path: Path):
         tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
         training_args = _init_training_args(cfg=cfg)
 
-        # if not cfg.training.only_regression_head:
-        #     # if dataset is "text" and needs to be tokenized first
-        #     train_dataset, eval_datasets = _load_datasets(
-        #         cfg=cfg,
-        #         tokenized_dataset_builder=tokenized_dataset_builder,
-        #     )
-        #
-        # else:
-        #     # if we already have the embeddings
-        #     train_dataset = torch.load(cfg.data.train_file_path, weights_only=False)
-        #     eval_datasets = torch.load(cfg.data.val_file_path, weights_only=False)
+        if not cfg.training.only_regression_head:
+            # if dataset is "text" and needs to be tokenized first
+            train_dataset, eval_datasets = _load_datasets(
+                cfg=cfg,
+                tokenized_dataset_builder=tokenized_dataset_builder,
+            )
 
-
-        train_dataset = torch.load("/raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16_uniform.pth", weights_only=False)
-        eval_datasets = torch.load("/raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/eval_dataset_bf16_uniform.pth", weights_only=False)
-
-        _, eval_datasets_new = _load_datasets(
-            cfg=cfg,
-            tokenized_dataset_builder=tokenized_dataset_builder,
-        )
+        else:
+            # if we already have the embeddings
+            train_dataset = torch.load(cfg.data.train_file_path, weights_only=False)
+            eval_datasets = torch.load(cfg.data.val_file_path, weights_only=False)
 
         # Initialize model after loading datasets to not use too much memory prematurely
         model = _init_model(cfg=cfg)
@@ -186,14 +179,16 @@ def _init_training_args(cfg) -> TrainingArguments:
         eval_strategy=cfg.training.eval_strategy,
         # Speed up data loading
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
+        report_to=["wandb"],  #
+        run_name=cfg.wandb.experiment_name,
     )
 
     return training_args
 
 
 def _load_datasets(
-    cfg: DictConfig,
-    tokenized_dataset_builder: DataPreprocessor,
+        cfg: DictConfig,
+        tokenized_dataset_builder: DataPreprocessor,
 ) -> tuple[torch.utils.data.Dataset, dict[str, torch.utils.data.Dataset]]:
     """Loads and tokenizes datasets for training and evaluation.
 
@@ -271,7 +266,7 @@ def _train_annotator_model(
         if param.is_shared():
             print(f"{name}: shared = {param.is_shared()}")
 
-    SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=5, min_delta=1e-3)
+    early_stopping = SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=5, min_delta=1e-3)
 
     trainer = Trainer(
         model=model,
@@ -281,7 +276,7 @@ def _train_annotator_model(
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
         data_collator=collate,
-        # callbacks=[early_stopping],
+        callbacks=[early_stopping],
     )
 
     trainer.train()
@@ -445,7 +440,6 @@ def multi_target_mse_loss(
         return out.sum()
     elif reduction.lower() == "none":
         return out
-
 
 
 def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, torch.Tensor]:

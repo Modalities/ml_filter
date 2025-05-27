@@ -17,7 +17,7 @@ data:
   train_file_split: train
   test_file_path:
   test_file_split: train
-  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
   label_column: score  # Ensure this matches dataset format
   text_column: text  # Ensure this matches dataset format
@@ -46,3 +46,6 @@ training:
   output_dir_path: ${training.logging_dir_path}
   dataloader_num_workers: 16
   load_best_model_at_end: true
+
+wandb:
+  experiment_name: experiment_replication_2 # name of the wandb project
