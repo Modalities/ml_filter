@@ -1,3 +1,4 @@
+import json
 import os
 from functools import partial
 from pathlib import Path
@@ -6,8 +7,12 @@ from typing import Callable
 import numpy as np
 import torch
 import torch.nn.functional as F
+import wandb
 from omegaconf import DictConfig, OmegaConf
 from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data.dataset import TensorDataset
+from tqdm import tqdm
+from transformers import AutoTokenizer, AutoModel
 from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
@@ -17,7 +22,7 @@ from ml_filter.models.annotator_models import AnnotatorConfig, AnnotatorModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
-import wandb
+from ml_filter.utils.input_data_type_check import check_datatype_consistency
 
 wandb.login()
 logger = setup_logging()
@@ -33,34 +38,28 @@ def run_annotator_training_pipeline(config_file_path: Path):
 
         # Initialize components
         tokenizer = _init_tokenizer(cfg=cfg)
-        tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
+        # tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
         training_args = _init_training_args(cfg=cfg)
 
-        if not cfg.training.only_regression_head:
-            # if dataset is "text" and needs to be tokenized first
-            train_dataset, eval_datasets = _load_datasets(
-                cfg=cfg,
-                tokenized_dataset_builder=tokenized_dataset_builder,
-            )
+        # Make sure the training and validation datasets are of the same data type (.jsonl or .pth)
+        check_datatype_consistency(cfg=cfg, dataset_type=cfg.data.dataset_type)
+
+        if cfg.data.dataset_type == "jsonl":
+            logger.info("Creating embeddings from JSONL files...")
+            train_dataset = _create_embeddings_from_jsonl(cfg=cfg, path=cfg.data.train_file_path, split="train",
+                                                          embedding_file_path=cfg.data.embedding_file_path)
+            eval_datasets = _create_embeddings_from_jsonl(cfg=cfg, path=cfg.data.val_file_path, split="validation",
+                                                          embedding_file_path=cfg.data.embedding_file_path)
 
         else:
             # if we already have the embeddings
+            logger.info("Using the existing embeddings...")
             train_dataset = torch.load(cfg.data.train_file_path, weights_only=False)
             eval_datasets = torch.load(cfg.data.val_file_path, weights_only=False)
 
         # Initialize model after loading datasets to not use too much memory prematurely
         model = _init_model(cfg=cfg)
         # Add this after model creation
-
-        # 🔥 Fix weight initialization for regression
-        # if cfg.training.is_regression:
-        #     with torch.no_grad():
-        #         # Access the final linear layer in the MLP
-        #         final_layer = model._base_model.classifier.mlp[2]  # The Linear(1000 -> 1) layer
-        #         final_layer.weight.data *= 10.0  # Scale up weights
-        #         final_layer.bias.data.fill_(2.5)  # Bias toward middle of [0,5] range
-        #         print("✅ Fixed regression head initialization")
-        #         print(f"Final layer weights scaled, bias set to {final_layer.bias.data.item()}")
 
         # Train classifier
         _train_annotator_model(
@@ -70,7 +69,8 @@ def run_annotator_training_pipeline(config_file_path: Path):
             eval_datasets=eval_datasets,
             compute_loss_fn=_init_loss_fn(cfg=cfg),
             compute_metrics_fn=_get_compute_metrcis_fn(cfg),
-            collate=_get_collate_fn(tokenizer=tokenizer, use_embeddings=cfg.training.only_regression_head),
+            collate=_get_collate_fn(tokenizer=tokenizer),
+            early_stopping_metric=cfg.training.metric_for_best_model,
             tokenizer=tokenizer,
         )
 
@@ -186,6 +186,73 @@ def _init_training_args(cfg) -> TrainingArguments:
     return training_args
 
 
+def _load_jsonl_datasets(path: Path, cfg: DictConfig = None) -> tuple[list[str], list[float]]:
+    texts, scores = [], []
+
+    if os.path.isfile(path) and path.endswith(".jsonl"):
+        paths = [path]
+    elif os.path.isdir(path):
+        paths = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".jsonl")]
+    else:
+        raise ValueError("Path must be a .jsonl file or a directory containing .jsonl files")
+
+    for file_path in paths:
+        with open(file_path, "r") as f:
+            for line in f:
+                item = json.loads(line)
+                if cfg.data.text_column in item and cfg.data.label_column in item:
+                    texts.append(item[cfg.data.text_column])
+                    scores.append(item[cfg.data.label_column])
+
+    scores = [item for sublist in scores for item in sublist]  # Flatten scores
+    return texts, scores
+
+
+def _create_embeddings_from_jsonl(cfg: DictConfig, path: Path, embedding_file_path: str, split: str):
+
+    # tokenizer = _init_tokenizer(cfg=cfg)
+    # tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
+    # input_data = tokenized_dataset_builder.load_and_tokenize(file_or_dir_path=path, split=split)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Load model and tokenizer
+    model_name = cfg.model.name
+    model_tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(device)
+    model.eval()
+
+    texts, scores = _load_jsonl_datasets(path=path, cfg=cfg)
+    print(f"📄 Loaded {len(texts)} documents from {path}")
+
+    # Embed in batches
+    batch_size = cfg.training.batch_size
+    all_embeddings = []
+
+    with torch.no_grad():
+        for i in tqdm(range(0, len(texts), batch_size), desc="Embedding"):
+            batch = texts[i:i + batch_size]
+            inputs = model_tokenizer(batch, max_length=cfg.tokenizer.max_length, padding=cfg.tokenizer.padding,
+                                     truncation=cfg.tokenizer.truncation, return_tensors='pt').to(device)
+            outputs = model(**inputs)
+            embeddings = outputs.last_hidden_state[:, 0]  # CLS token
+            if cfg.model.normalize_embeddings:
+                embeddings = F.normalize(embeddings, p=2, dim=1)
+            all_embeddings.append(embeddings.cpu())
+
+    embedding_tensor = torch.cat(all_embeddings, dim=0).to(torch.float32)
+    score_tensor = torch.tensor(scores, dtype=torch.float32)
+
+    dataset = TensorDataset(embedding_tensor, score_tensor)
+    if cfg.data.save_embeddings:
+        save_dir = Path(embedding_file_path) / f"{split}.pth"
+        torch.save(dataset, save_dir)
+        print(f"✅ Saved: {save_dir}")
+    return dataset
+
+
+
+
 def _load_datasets(
         cfg: DictConfig,
         tokenized_dataset_builder: DataPreprocessor,
@@ -203,8 +270,13 @@ def _load_datasets(
     """
     logger.info("Loading datasets...")
 
+    train_dataset = tokenized_dataset_builder.load_and_tokenize(
+        file_or_dir_path=Path(cfg.data.train_file_path),
+        split=cfg.data.train_file_split,
+    )
+
     val_dataset = tokenized_dataset_builder.load_and_tokenize(
-        file_or_dir_path=Path("/raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511"),
+        file_or_dir_path=Path(cfg.data.val_file_path),
         split=cfg.data.val_file_split,
     )
 
@@ -216,7 +288,7 @@ def _load_datasets(
         )
         eval_datasets["test"] = test_dataset
 
-    return None, eval_datasets
+    return train_dataset, eval_datasets
 
 
 def _get_compute_metrcis_fn(cfg: DictConfig) -> partial:
@@ -234,8 +306,6 @@ def _get_collate_fn(
         tokenizer: PreTrainedHFTokenizer, use_embeddings=False
 ) -> Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]]:
     """Returns a partial function for collating batches."""
-    if not use_embeddings:
-        return partial(collate, pad_token=tokenizer.tokenizer.pad_token_id)
     return partial(collate_embeddings, pad_token=tokenizer.tokenizer.pad_token_id)
 
 
@@ -247,6 +317,7 @@ def _train_annotator_model(
         compute_loss_fn: partial,
         compute_metrics_fn: partial,
         collate: Callable[[list[dict[str, torch.Tensor]]], dict[str, torch.Tensor]],
+        early_stopping_metric: str,
         tokenizer: PreTrainedHFTokenizer | None = None,
 ) -> None:
     """Trains the annotator model.
@@ -266,7 +337,7 @@ def _train_annotator_model(
         if param.is_shared():
             print(f"{name}: shared = {param.is_shared()}")
 
-    early_stopping = SpearmanEarlyStoppingCallback(metric_key="spearman_corr", patience=5, min_delta=1e-3)
+    early_stopping = SpearmanEarlyStoppingCallback(metric_key=early_stopping_metric, patience=5, min_delta=1e-3)
 
     trainer = Trainer(
         model=model,

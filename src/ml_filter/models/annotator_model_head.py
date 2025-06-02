@@ -56,7 +56,6 @@ class MultiTargetRegressionHead(AnnotatorHead):
             nn.Linear(hidden_dim, 1, bias=use_bias),
         )
 
-        # self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Applies the regression head to the input tensor.
@@ -67,10 +66,6 @@ class MultiTargetRegressionHead(AnnotatorHead):
         Returns:
             Tensor: Scaled regression output tensor of shape `(batch_size, num_targets)`.
         """
-        # return self.scaling(self.linear(x))
-        # L2 normalize input embeddings (like the paper)
-        # x = F.normalize(x, p=2, dim=1)
-        # Todo investigate further, with normalization i am not getting the same scores
         return self.mlp(x)
 
 

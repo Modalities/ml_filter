@@ -4,31 +4,37 @@ model:
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
   is_regression: ${training.is_regression}
+  normalize_embeddings: true  # Normalize embeddings to unit length
 
 tokenizer:
   pretrained_model_name_or_path: ${model.name}
   truncation: true
-  padding: true
-  max_length: 512 # Check this
+  padding: longest
+  max_length: 8192 # Snowflake embed v2.0 uses 8192 tokens as max length
   add_generation_prompt: true
 
-data: 
-  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
+data:
+  dataset_type: jsonl  # jsonl or pth
+#  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
+  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train/train1.jsonl # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
   train_file_split: train
   test_file_path:
   test_file_split: train
-  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+#  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train/train1.jsonl # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
-  label_column: score  # Ensure this matches dataset format
+  label_column: scores  # Ensure this matches dataset format
   text_column: text  # Ensure this matches dataset format
   document_id_column: id  # Ensure this matches dataset format
   num_tasks: 1
   num_targets_per_task: [6]
   task_names: ["edu"]
   num_processes: 64
+  save_embeddings: true  # Set to true if you want to save embeddings
+  embedding_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data
+
 
 training:
-  only_regression_head: true
   batch_size: 1024
   eval_batch_size: 1024 # 1024
   epochs: 20
