@@ -210,9 +210,10 @@ def _load_jsonl_datasets(path: Path, cfg: DictConfig = None) -> tuple[list[str],
 
 def _create_embeddings_from_jsonl(cfg: DictConfig, path: Path, embedding_file_path: str, split: str):
 
-    # tokenizer = _init_tokenizer(cfg=cfg)
-    # tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
-    # input_data = tokenized_dataset_builder.load_and_tokenize(file_or_dir_path=path, split=split)
+    tokenizer = _init_tokenizer(cfg=cfg)
+    tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
+    input_data = tokenized_dataset_builder.load_and_tokenize(file_or_dir_path=Path(path), split=split)
+
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -231,7 +232,9 @@ def _create_embeddings_from_jsonl(cfg: DictConfig, path: Path, embedding_file_pa
 
     with torch.no_grad():
         for i in tqdm(range(0, len(texts), batch_size), desc="Embedding"):
-            batch = texts[i:i + batch_size]
+            batch = input_data[i:i + batch_size]
+            input_data = collate(batch=batch, pad_token=tokenizer.tokenizer.pad_token_id)
+
             inputs = model_tokenizer(batch, max_length=cfg.tokenizer.max_length, padding=cfg.tokenizer.padding,
                                      truncation=cfg.tokenizer.truncation, return_tensors='pt').to(device)
             outputs = model(**inputs)
