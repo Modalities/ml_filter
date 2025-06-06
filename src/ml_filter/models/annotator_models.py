@@ -244,9 +244,9 @@ class AnnotatorModel(PreTrainedModel):
                     token_type_ids=token_type_ids,
                     return_dict=True,
                 )
-
-            # Extract CLS token and normalize (same as forward())
-            cls_embeddings = outputs.last_hidden_state[:, 0]
-            embeddings = F.normalize(cls_embeddings, p=2, dim=1)
+                # Extract CLS token and normalize (same as forward())
+                outputs = outputs.last_hidden_state[:, 0]
+            # TODO make is configurable
+            embeddings = F.normalize(outputs, p=2, dim=1)
 
             return embeddings

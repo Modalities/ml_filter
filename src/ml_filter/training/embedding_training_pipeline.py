@@ -108,8 +108,6 @@ def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> Embedd
     logger.info("Initializing embedding-based model.")
 
     # Get embedding dimension from the HDF5 file
-    import h5py
-
     with h5py.File(embeddings_hdf5_path, "r") as f:
         available_datasets = list(f.keys())
         sample_dataset = available_datasets[0]  # Any dataset works for getting dimensions
@@ -117,10 +115,10 @@ def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> Embedd
         logger.info(f"Reading dimensions from '{sample_dataset}' dataset: {embedding_dim}D embeddings")
 
     config = EmbeddingRegressionConfig(
-        embedding_dim=embedding_dim,
-        num_tasks=cfg.data.num_tasks,
-        num_targets_per_task=cfg.data.num_targets_per_task,
-        is_regression=cfg.model.is_regression,
+        embedding_dim=int(embedding_dim),  # Convert numpy.int64 to Python int
+        num_tasks=int(cfg.data.num_tasks),  # Convert to Python int
+        num_targets_per_task=[int(x) for x in cfg.data.num_targets_per_task],  # Convert each element to Python int
+        is_regression=bool(cfg.model.is_regression),  # Convert to Python bool
     )
 
     return EmbeddingRegressionModel(config=config)
