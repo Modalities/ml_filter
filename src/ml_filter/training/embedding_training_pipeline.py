@@ -7,6 +7,7 @@ import os
 from functools import partial
 from pathlib import Path
 
+import h5py
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -70,23 +71,34 @@ def run_embedding_training_pipeline(config_file_path: Path, embeddings_hdf5_path
 
 
 def _load_embedding_datasets(embeddings_hdf5_path: Path):
-    """Load datasets from HDF5 file."""
+    """Load datasets from HDF5 file - expects train + one eval dataset."""
     embeddings_path = Path(embeddings_hdf5_path)
 
-    # Load training dataset
+    # Check what datasets are available
+    with h5py.File(embeddings_path, "r") as f:
+        available_datasets = list(f.keys())
+        logger.info(f"Available datasets in HDF5 file: {available_datasets}")
+
+    # Load training dataset (must exist)
+    if "train" not in available_datasets:
+        raise ValueError(f"Training dataset not found in {embeddings_path}")
+
     train_dataset = EmbeddingDataset(embeddings_path, "train")
+    logger.info(f"✅ Loaded training dataset: {len(train_dataset)} samples")
 
-    # Load evaluation datasets
+    # Load the single eval dataset (matches extraction logic)
     eval_datasets = {}
-    try:
-        eval_datasets["val"] = EmbeddingDataset(embeddings_path, "val")
-    except KeyError:
-        logger.warning("Validation dataset not found in embeddings file")
+    non_train_datasets = [name for name in available_datasets if name != "train"]
 
-    try:
-        eval_datasets["test"] = EmbeddingDataset(embeddings_path, "test")
-    except KeyError:
-        logger.info("Test dataset not found in embeddings file")
+    if non_train_datasets:
+        eval_name = non_train_datasets[0]  # Take the first (and presumably only) eval dataset
+        eval_datasets[eval_name] = EmbeddingDataset(embeddings_path, eval_name)
+        logger.info(f"✅ Loaded {eval_name} dataset: {len(eval_datasets[eval_name])} samples")
+
+        if len(non_train_datasets) > 1:
+            logger.warning(f"Multiple eval datasets found {non_train_datasets}, using only '{eval_name}'")
+    else:
+        logger.warning("No evaluation dataset found!")
 
     return train_dataset, eval_datasets
 

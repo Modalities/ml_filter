@@ -493,14 +493,17 @@ def extract_and_save_embeddings(config_file_path: Path, output_dir: Path):
     _save_embeddings_to_hdf5(train_embeddings, train_labels, hdf5_path, "train")
     logger.info(f"✅ Training embeddings saved: {train_embeddings.shape[0]} samples")
 
-    # Extract embeddings for each evaluation dataset
-    for eval_name, eval_dataset in eval_datasets.items():
+    # Extract embeddings for validation dataset
+    if eval_datasets:
+        eval_name, eval_dataset = next(iter(eval_datasets.items()))  # Get the first (and only) eval dataset
         logger.info(f"Extracting embeddings for {eval_name} dataset...")
         eval_embeddings, eval_labels = _extract_embeddings_from_dataset(
             model=model, dataset=eval_dataset, tokenizer=tokenizer, device=device
         )
         _save_embeddings_to_hdf5(eval_embeddings, eval_labels, hdf5_path, eval_name)
         logger.info(f"✅ {eval_name} embeddings saved: {eval_embeddings.shape[0]} samples")
+    else:
+        logger.warning("No evaluation dataset found!")
 
     logger.info(f"✅ All embeddings saved to {hdf5_path}")
 
