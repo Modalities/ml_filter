@@ -1,0 +1,283 @@
+"""
+NEW FILE: Create this as embedding_training_pipeline.py in your project
+This is a modified version of your existing pipeline that works with embeddings
+"""
+
+import os
+from functools import partial
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from omegaconf import DictConfig, OmegaConf
+from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
+from transformers.modeling_outputs import SequenceClassifierOutput
+
+# Import your existing components
+from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
+from ml_filter.logger import setup_logging
+
+# Import the new embedding components
+from ml_filter.training.embedding_dataset import (
+    EmbeddingDataset,
+    EmbeddingRegressionConfig,
+    EmbeddingRegressionModel,
+    collate_embeddings,
+)
+
+logger = setup_logging()
+
+
+def run_embedding_training_pipeline(config_file_path: Path, embeddings_hdf5_path: Path):
+    """Modified version of your existing training pipeline for embeddings."""
+    logger.info(f"Loading configuration from {config_file_path}")
+    logger.info(f"Using embeddings from {embeddings_hdf5_path}")
+
+    try:
+        cfg = OmegaConf.load(config_file_path)
+        seed = cfg.training.get("seed", None)
+        _set_seeds(seed)
+
+        # Load embedding datasets
+        train_dataset, eval_datasets = _load_embedding_datasets(embeddings_hdf5_path)
+
+        # Create embedding-based model
+        model = _init_embedding_model(cfg, embeddings_hdf5_path)
+
+        # Initialize training arguments (same as your existing pipeline)
+        training_args = _init_training_args(cfg)
+
+        # Optional: Initialize regression head weights (same as your existing code)
+        if cfg.training.is_regression:
+            _init_regression_weights(model)
+
+        # Train model (modified to work with embeddings)
+        _train_embedding_model(
+            model=model,
+            training_args=training_args,
+            train_dataset=train_dataset,
+            eval_datasets=eval_datasets,
+            compute_loss_fn=_init_embedding_loss_fn(cfg),
+            compute_metrics_fn=_get_compute_metrics_fn(cfg),  # Same as your existing function
+        )
+
+        logger.info("Embedding-based training pipeline completed successfully.")
+
+    except Exception as e:
+        logger.error(f"Pipeline execution failed: {e}", exc_info=True)
+        raise
+
+
+def _load_embedding_datasets(embeddings_hdf5_path: Path):
+    """Load datasets from HDF5 file."""
+    embeddings_path = Path(embeddings_hdf5_path)
+
+    # Load training dataset
+    train_dataset = EmbeddingDataset(embeddings_path, "train")
+
+    # Load evaluation datasets
+    eval_datasets = {}
+    try:
+        eval_datasets["val"] = EmbeddingDataset(embeddings_path, "val")
+    except KeyError:
+        logger.warning("Validation dataset not found in embeddings file")
+
+    try:
+        eval_datasets["test"] = EmbeddingDataset(embeddings_path, "test")
+    except KeyError:
+        logger.info("Test dataset not found in embeddings file")
+
+    return train_dataset, eval_datasets
+
+
+def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> EmbeddingRegressionModel:
+    """Initialize the embedding-based model."""
+    logger.info("Initializing embedding-based model.")
+
+    # Get embedding dimension from the HDF5 file
+    import h5py
+
+    with h5py.File(embeddings_hdf5_path, "r") as f:
+        available_datasets = list(f.keys())
+        sample_dataset = available_datasets[0]  # Any dataset works for getting dimensions
+        embedding_dim = f[sample_dataset].attrs["embedding_dim"]
+        logger.info(f"Reading dimensions from '{sample_dataset}' dataset: {embedding_dim}D embeddings")
+
+    config = EmbeddingRegressionConfig(
+        embedding_dim=embedding_dim,
+        num_tasks=cfg.data.num_tasks,
+        num_targets_per_task=cfg.data.num_targets_per_task,
+        is_regression=cfg.model.is_regression,
+    )
+
+    return EmbeddingRegressionModel(config=config)
+
+
+# Use your existing functions with minimal modifications:
+
+
+def _set_seeds(seed: int):
+    """Same as your existing function."""
+    if seed is not None:
+        logger.info(f"Setting random seed: {seed}")
+        import random
+
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+
+
+def _init_training_args(cfg) -> TrainingArguments:
+    """Same as your existing function."""
+    logger.info("Initializing training arguments.")
+
+    return TrainingArguments(
+        output_dir=cfg.training.output_dir_path,
+        per_device_train_batch_size=cfg.training.batch_size,
+        per_device_eval_batch_size=cfg.training.get("eval_batch_size", cfg.training.batch_size),
+        num_train_epochs=cfg.training.epochs,
+        weight_decay=cfg.training.weight_decay,
+        learning_rate=cfg.training.learning_rate,
+        lr_scheduler_type=SchedulerType.COSINE,
+        save_strategy=cfg.training.save_strategy,
+        logging_steps=cfg.training.logging_steps,
+        logging_dir=cfg.training.logging_dir_path,
+        seed=cfg.training.get("seed", 42),
+        load_best_model_at_end=cfg.training.get("load_best_model_at_end"),
+        metric_for_best_model=cfg.training.metric_for_best_model,
+        bf16=cfg.training.use_bf16,
+        greater_is_better=cfg.training.greater_is_better,
+        eval_strategy=cfg.training.eval_strategy,
+        dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
+    )
+
+
+def _init_regression_weights(model: EmbeddingRegressionModel):
+    """Same initialization logic as your existing code."""
+    with torch.no_grad():
+        if hasattr(model.head, "mlp") and len(model.head.mlp) >= 3:
+            final_layer = model.head.mlp[2]  # The Linear(1000 -> 1) layer
+            final_layer.weight.data *= 10.0  # Scale up weights
+            final_layer.bias.data.fill_(2.5)  # Bias toward middle of [0,5] range
+            logger.info("✅ Fixed regression head initialization")
+            logger.info(f"Final layer bias set to {final_layer.bias.data.item()}")
+
+
+def _init_embedding_loss_fn(cfg) -> partial:
+    """Modified loss function for embeddings."""
+    if cfg.training.is_regression:
+        return partial(embedding_mse_loss)
+    else:
+        num_tasks = cfg.data.num_tasks
+        return partial(embedding_cross_entropy_loss, num_tasks=num_tasks)
+
+
+def _get_compute_metrics_fn(cfg: DictConfig) -> partial:
+    """Same as your existing function."""
+    return partial(
+        compute_embedding_metrics,
+        is_regression=cfg.training.is_regression,
+        task_names=cfg.data.task_names,
+        num_targets_per_task=cfg.data.num_targets_per_task,
+    )
+
+
+def _train_embedding_model(
+    model: EmbeddingRegressionModel,
+    training_args: TrainingArguments,
+    train_dataset,
+    eval_datasets: dict,
+    compute_loss_fn: partial,
+    compute_metrics_fn: partial,
+) -> None:
+    """Modified training function for embeddings."""
+    logger.info("Initializing Trainer and starting training...")
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_datasets,
+        compute_loss_func=compute_loss_fn,
+        compute_metrics=compute_metrics_fn,
+        data_collator=collate_embeddings,  # New collate function
+    )
+
+    trainer.train()
+
+    final_dir = os.path.join(training_args.output_dir, "final")
+    trainer.save_model(final_dir)
+    logger.info("Training complete. Model saved.")
+
+
+# Modified loss functions that work with embeddings:
+
+
+def embedding_mse_loss(
+    input: SequenceClassifierOutput,
+    target: torch.Tensor,
+    num_items_in_batch: int,
+    reduction: str = "mean",
+    ignored_index: int = -100,
+    **kwargs,
+) -> torch.Tensor:
+    """Same logic as your single_target_mse_loss but for embeddings."""
+    logits = input.logits
+    target = target.to(dtype=logits.dtype)
+
+    mask = target != ignored_index
+    if mask.sum() == 0:
+        return torch.tensor(0.0, device=logits.device, requires_grad=True)
+
+    valid_logits = logits[mask]
+    valid_targets = target[mask]
+
+    return F.mse_loss(valid_logits, valid_targets, reduction=reduction)
+
+
+def embedding_cross_entropy_loss(
+    input: SequenceClassifierOutput,
+    target: torch.Tensor,
+    num_items_in_batch: int,
+    num_tasks: int,
+    reduction: str = "mean",
+    **kwargs,
+) -> torch.Tensor:
+    """Same logic as your multi_target_cross_entropy_loss."""
+    logits = input.logits
+    return F.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
+
+
+def compute_embedding_metrics(
+    eval_pred: EvalPrediction,
+    is_regression: bool,
+    task_names: list[str],
+    num_targets_per_task: list[int],
+) -> dict[str, float]:
+    """Same logic as your existing compute_metrics function."""
+    predictions, labels = eval_pred
+
+    if not isinstance(predictions, np.ndarray) or not isinstance(labels, np.ndarray):
+        raise ValueError("Expected `predictions` and `labels` to be NumPy arrays.")
+    if predictions.shape[0] != labels.shape[0]:
+        raise ValueError(f"Shape mismatch: predictions {predictions.shape}, labels {labels.shape}")
+
+    preds = predictions if is_regression else predictions.argmax(axis=1)
+    preds_raw = predictions if is_regression else preds
+
+    metric_dict = {
+        f"{task_name}/{metric}": value
+        for task_name, num_targets in zip(task_names, num_targets_per_task)
+        for metric, value in compute_metrics_for_single_output(
+            labels=labels[:, task_names.index(task_name)],
+            predictions=preds[:, task_names.index(task_name)],
+            predictions_raw=preds_raw[:, task_names.index(task_name)],
+            thresholds=list(range(1, num_targets)),
+        ).items()
+    }
+
+    return metric_dict

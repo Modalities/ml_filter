@@ -3,11 +3,13 @@ from functools import partial
 from pathlib import Path
 from typing import Callable
 
+import h5py
 import numpy as np
 import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
 from torch.nn.utils.rnn import pad_sequence
+from tqdm import tqdm
 from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
@@ -42,17 +44,6 @@ def run_annotator_training_pipeline(config_file_path: Path):
 
         # Initialize model after loading datasets to not use too much memory prematurely
         model = _init_model(cfg=cfg)
-        # Add this after model creation
-
-        # 🔥 Fix weight initialization for regression
-        # if cfg.training.is_regression:
-        #     with torch.no_grad():
-        #         # Access the final linear layer in the MLP
-        #         final_layer = model._base_model.classifier.mlp[2]  # The Linear(1000 -> 1) layer
-        #         final_layer.weight.data *= 10.0  # Scale up weights
-        #         final_layer.bias.data.fill_(2.5)  # Bias toward middle of [0,5] range
-        #         print("✅ Fixed regression head initialization")
-        #         print(f"Final layer weights scaled, bias set to {final_layer.bias.data.item()}")
 
         # Train classifier
         _train_annotator_model(
@@ -157,6 +148,8 @@ def _init_training_args(cfg) -> TrainingArguments:
         num_train_epochs=cfg.training.epochs,
         weight_decay=cfg.training.weight_decay,
         learning_rate=cfg.training.learning_rate,
+        # optim = "adamw_hf",
+        # max_grad_norm = 2.0,
         # warmup_ratio=0.1,
         lr_scheduler_type=SchedulerType.COSINE,
         save_strategy=cfg.training.save_strategy,
@@ -183,6 +176,7 @@ def _load_datasets(
     """Loads and tokenizes datasets for training and evaluation.
 
     Args:
+
         cfg: Configuration object
         dataset_tokenizer: DatasetTokenizer instance
 
@@ -466,3 +460,135 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
         "token_type_ids": token_type_ids,
         "labels": labels,
     }
+
+
+def extract_and_save_embeddings(config_file_path: Path, output_dir: Path):
+    """Extract embeddings and save to HDF5. Run this once before training."""
+    logger.info(f"Extracting embeddings using config: {config_file_path}")
+
+    cfg = OmegaConf.load(config_file_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Initialize components (same as your existing pipeline)
+    tokenizer = _init_tokenizer(cfg=cfg)
+    tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
+    model = _init_model(cfg=cfg)
+    model.eval()
+
+    # Set device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    # Load datasets (same as your existing pipeline)
+    train_dataset, eval_datasets = _load_datasets(cfg=cfg, tokenized_dataset_builder=tokenized_dataset_builder)
+
+    hdf5_path = output_dir / "embeddings.h5"
+
+    # Extract embeddings for training dataset
+    logger.info("Extracting embeddings for training dataset...")
+    train_embeddings, train_labels = _extract_embeddings_from_dataset(
+        model=model, dataset=train_dataset, tokenizer=tokenizer, device=device
+    )
+    _save_embeddings_to_hdf5(train_embeddings, train_labels, hdf5_path, "train")
+    logger.info(f"✅ Training embeddings saved: {train_embeddings.shape[0]} samples")
+
+    # Extract embeddings for each evaluation dataset
+    for eval_name, eval_dataset in eval_datasets.items():
+        logger.info(f"Extracting embeddings for {eval_name} dataset...")
+        eval_embeddings, eval_labels = _extract_embeddings_from_dataset(
+            model=model, dataset=eval_dataset, tokenizer=tokenizer, device=device
+        )
+        _save_embeddings_to_hdf5(eval_embeddings, eval_labels, hdf5_path, eval_name)
+        logger.info(f"✅ {eval_name} embeddings saved: {eval_embeddings.shape[0]} samples")
+
+    logger.info(f"✅ All embeddings saved to {hdf5_path}")
+
+    # Print summary of what was saved
+    _print_embedding_summary(hdf5_path)
+
+
+def _extract_embeddings_from_dataset(model, dataset, tokenizer, device, batch_size=32):
+    """Extract embeddings from a dataset using your existing model."""
+    from torch.utils.data import DataLoader
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=partial(collate, pad_token=tokenizer.tokenizer.pad_token_id),
+    )
+
+    all_embeddings = []
+    all_labels = []
+
+    with torch.no_grad():
+        for batch in tqdm(dataloader, desc="Extracting embeddings"):
+            # Move batch to device
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            token_type_ids = batch.get("token_type_ids")
+            if token_type_ids is not None:
+                token_type_ids = token_type_ids.to(device)
+
+            # Extract embeddings using your model's new method
+            embeddings = model.extract_embeddings(
+                input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
+            )
+
+            all_embeddings.append(embeddings.cpu().numpy())
+            all_labels.append(batch["labels"].cpu().numpy())
+
+    return np.vstack(all_embeddings), np.vstack(all_labels)
+
+
+def _print_embedding_summary(hdf5_path: Path):
+    """Print a summary of the saved embeddings."""
+    import h5py
+
+    with h5py.File(hdf5_path, "r") as f:
+        logger.info("\n📊 Embedding Summary:")
+        total_samples = 0
+        for dataset_name in f.keys():
+            grp = f[dataset_name]
+            n_samples = grp.attrs["n_samples"]
+            embedding_dim = grp.attrs["embedding_dim"]
+            n_tasks = grp.attrs["n_tasks"]
+            total_samples += n_samples
+            logger.info(f"  {dataset_name}: {n_samples:,} samples, {embedding_dim}D embeddings, {n_tasks} tasks")
+        logger.info(f"  Total: {total_samples:,} samples across all datasets")
+
+
+def _save_embeddings_to_hdf5(embeddings: np.ndarray, labels: np.ndarray, output_path: Path, dataset_name: str):
+    """Save embeddings to HDF5 file."""
+    with h5py.File(output_path, "a") as f:
+        if dataset_name in f:
+            del f[dataset_name]
+
+        grp = f.create_group(dataset_name)
+        grp.create_dataset("embeddings", data=embeddings, compression="gzip")
+        grp.create_dataset("labels", data=labels, compression="gzip")
+
+        # Save metadata
+        grp.attrs["n_samples"] = embeddings.shape[0]
+        grp.attrs["embedding_dim"] = embeddings.shape[1]
+        grp.attrs["n_tasks"] = labels.shape[1] if len(labels.shape) > 1 else 1
+
+    logger.info(f"Saved {embeddings.shape[0]} embeddings to {output_path}:{dataset_name}")
+
+
+def _print_embedding_summary(hdf5_path: Path):
+    """Print a summary of the saved embeddings."""
+    import h5py
+
+    with h5py.File(hdf5_path, "r") as f:
+        logger.info("\n📊 Embedding Summary:")
+        total_samples = 0
+        for dataset_name in f.keys():
+            grp = f[dataset_name]
+            n_samples = grp.attrs["n_samples"]
+            embedding_dim = grp.attrs["embedding_dim"]
+            n_tasks = grp.attrs["n_tasks"]
+            total_samples += n_samples
+            logger.info(f"  {dataset_name}: {n_samples:,} samples, {embedding_dim}D embeddings, {n_tasks} tasks")
+        logger.info(f"  Total: {total_samples:,} samples across all datasets")

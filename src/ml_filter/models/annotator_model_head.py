@@ -55,6 +55,7 @@ class MultiTargetRegressionHead(AnnotatorHead):
             nn.ReLU(),
             nn.Linear(hidden_dim, 1, bias=use_bias),
         )
+        # Should not be 1, this should be num_prediction_tasks
 
         # self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
@@ -72,6 +73,7 @@ class MultiTargetRegressionHead(AnnotatorHead):
         # x = F.normalize(x, p=2, dim=1)
         # Todo investigate further, with normalization i am not getting the same scores
         return self.mlp(x)
+        # return self.scaling(self.mlp(x))
 
 
 class MultiTargetClassificationHead(AnnotatorHead):

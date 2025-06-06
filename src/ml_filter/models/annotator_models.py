@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import torch
+import torch.nn.functional as F
 from transformers import AutoConfig, PretrainedConfig
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.modeling_utils import ModelOutput, PreTrainedModel
@@ -156,9 +157,10 @@ class AnnotatorModel(PreTrainedModel):
                 return_dict=True,
             )
 
-        # Extract CLS token and apply our custom classifier
+        # # Extract CLS token and apply our custom classifier
         cls_embeddings = outputs.last_hidden_state[:, 0]
-        logits = self._base_model.classifier(cls_embeddings)
+        embeddings = F.normalize(cls_embeddings, p=2, dim=1)
+        logits = self._base_model.classifier(embeddings)
 
         return SequenceClassifierOutput(
             logits=logits,
@@ -195,6 +197,8 @@ class AnnotatorModel(PreTrainedModel):
     def _overwrite_head(self, config: AnnotatorConfig):
         """Replaces the classifier in the base model with the custom head."""
         head = self._build_new_head(config)
+        # head = torch.load("Regressor_model")
+        # new_mode = torch.stack(....)
 
         if hasattr(self._base_model, "classifier") and hasattr(self._base_model.classifier, "out_proj"):
             # Handle models with nested classifier structure (e.g., some BERT variants)
@@ -210,3 +214,39 @@ class AnnotatorModel(PreTrainedModel):
             num_prediction_tasks=config.num_tasks,
             num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
         )
+
+    def extract_embeddings(
+        self,
+        input_ids: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Extract embeddings without going through the classifier.
+
+        This method extracts the same embeddings that would be fed to the classifier
+        in the forward method, but stops before applying the regression head.
+        """
+        with torch.no_grad():
+            # Get base transformer outputs (same logic as forward())
+            if hasattr(self._base_model, "bert"):
+                # BERT models
+                outputs = self._base_model.bert(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    token_type_ids=token_type_ids,
+                    return_dict=True,
+                )
+            else:
+                # GTE models
+                outputs = self._base_model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    token_type_ids=token_type_ids,
+                    return_dict=True,
+                )
+
+            # Extract CLS token and normalize (same as forward())
+            cls_embeddings = outputs.last_hidden_state[:, 0]
+            embeddings = F.normalize(cls_embeddings, p=2, dim=1)
+
+            return embeddings
