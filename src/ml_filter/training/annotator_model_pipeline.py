@@ -15,6 +15,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
 from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
+from transformers import BatchEncoding
 
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
 from ml_filter.logger import setup_logging
@@ -213,7 +214,16 @@ def _create_embeddings_from_jsonl(cfg: DictConfig, path: Path, embedding_file_pa
     tokenizer = _init_tokenizer(cfg=cfg)
     tokenized_dataset_builder = _init_tokenized_dataset_builder(cfg=cfg, tokenizer=tokenizer)
     input_data = tokenized_dataset_builder.load_and_tokenize(file_or_dir_path=Path(path), split=split)
+    inputs = input_data.remove_columns(["labels"])  # if labels exist
 
+    # Convert to dict of lists
+    input_dict = {k: inputs[k] for k in inputs.column_names}
+
+    # Convert values to PyTorch tensors
+    tensor_dict = {k: torch.tensor(v) for k, v in input_dict.items()}
+
+    # Wrap in BatchEncoding
+    batch_encoding = BatchEncoding(tensor_dict).to(device)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -231,9 +241,22 @@ def _create_embeddings_from_jsonl(cfg: DictConfig, path: Path, embedding_file_pa
     all_embeddings = []
 
     with torch.no_grad():
+        for i in tqdm(range(0, len(batch_encoding["input_ids"]), batch_size), desc="Embedding"):
+            # Create sub-batch (tensor slicing now!)
+            sub_batch = {
+                k: v[i:i + batch_size] for k, v in batch_encoding.items()
+            }
+
+            # Wrap in BatchEncoding
+            inputs = BatchEncoding(sub_batch).to(device)
+
+            outputs = model(**inputs)
+
+
+    breakpoint()
+    with torch.no_grad():
         for i in tqdm(range(0, len(texts), batch_size), desc="Embedding"):
-            batch = input_data[i:i + batch_size]
-            input_data = collate(batch=batch, pad_token=tokenizer.tokenizer.pad_token_id)
+            batch = texts[i:i + batch_size]
 
             inputs = model_tokenizer(batch, max_length=cfg.tokenizer.max_length, padding=cfg.tokenizer.padding,
                                      truncation=cfg.tokenizer.truncation, return_tensors='pt').to(device)
