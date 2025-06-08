@@ -15,7 +15,7 @@ tokenizer:
 data: 
   train_file_path: /home/abbas-khan/processed_data_natural/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
   train_file_split: train
-  test_file_path:
+  test_file_path: /home/abbas-khan/processed_data_natural/validation_set
   test_file_split: train
   val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511 # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
@@ -24,12 +24,12 @@ data:
   document_id_column: id  # Ensure this matches dataset format
   num_tasks: 1
   num_targets_per_task: [6]
-  task_names: ["edu", "adult"]
+  task_names: ["edu"]
   num_processes: 64
 
 training:
-  batch_size: 4
-  eval_batch_size: 4 # 1024
+  batch_size: 16
+  eval_batch_size: 16 # 1024
   epochs: 20
   use_bf16: true
   weight_decay: 0.01 # 0.01

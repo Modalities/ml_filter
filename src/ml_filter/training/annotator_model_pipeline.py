@@ -493,15 +493,17 @@ def extract_and_save_embeddings(config_file_path: Path, output_dir: Path):
     _save_embeddings_to_hdf5(train_embeddings, train_labels, hdf5_path, "train")
     logger.info(f"✅ Training embeddings saved: {train_embeddings.shape[0]} samples")
 
-    # Extract embeddings for validation dataset
+    # Extract embeddings for ALL evaluation datasets (FIXED!)
     if eval_datasets:
-        eval_name, eval_dataset = next(iter(eval_datasets.items()))  # Get the first (and only) eval dataset
-        logger.info(f"Extracting embeddings for {eval_name} dataset...")
-        eval_embeddings, eval_labels = _extract_embeddings_from_dataset(
-            model=model, dataset=eval_dataset, tokenizer=tokenizer, device=device
-        )
-        _save_embeddings_to_hdf5(eval_embeddings, eval_labels, hdf5_path, eval_name)
-        logger.info(f"✅ {eval_name} embeddings saved: {eval_embeddings.shape[0]} samples")
+        logger.info(f"Found {len(eval_datasets)} evaluation datasets: {list(eval_datasets.keys())}")
+
+        for eval_name, eval_dataset in eval_datasets.items():  # Loop through ALL eval datasets
+            logger.info(f"Extracting embeddings for {eval_name} dataset...")
+            eval_embeddings, eval_labels = _extract_embeddings_from_dataset(
+                model=model, dataset=eval_dataset, tokenizer=tokenizer, device=device
+            )
+            _save_embeddings_to_hdf5(eval_embeddings, eval_labels, hdf5_path, eval_name)
+            logger.info(f"✅ {eval_name} embeddings saved: {eval_embeddings.shape[0]} samples")
     else:
         logger.warning("No evaluation dataset found!")
 
@@ -543,23 +545,6 @@ def _extract_embeddings_from_dataset(model, dataset, tokenizer, device, batch_si
             all_labels.append(batch["labels"].cpu().numpy())
 
     return np.vstack(all_embeddings), np.vstack(all_labels)
-
-
-def _print_embedding_summary(hdf5_path: Path):
-    """Print a summary of the saved embeddings."""
-    import h5py
-
-    with h5py.File(hdf5_path, "r") as f:
-        logger.info("\n📊 Embedding Summary:")
-        total_samples = 0
-        for dataset_name in f.keys():
-            grp = f[dataset_name]
-            n_samples = grp.attrs["n_samples"]
-            embedding_dim = grp.attrs["embedding_dim"]
-            n_tasks = grp.attrs["n_tasks"]
-            total_samples += n_samples
-            logger.info(f"  {dataset_name}: {n_samples:,} samples, {embedding_dim}D embeddings, {n_tasks} tasks")
-        logger.info(f"  Total: {total_samples:,} samples across all datasets")
 
 
 def _save_embeddings_to_hdf5(embeddings: np.ndarray, labels: np.ndarray, output_path: Path, dataset_name: str):

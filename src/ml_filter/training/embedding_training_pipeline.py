@@ -71,7 +71,7 @@ def run_embedding_training_pipeline(config_file_path: Path, embeddings_hdf5_path
 
 
 def _load_embedding_datasets(embeddings_hdf5_path: Path):
-    """Load datasets from HDF5 file - expects train + one eval dataset."""
+    """Load datasets from HDF5 file - loads train + ALL eval datasets."""
     embeddings_path = Path(embeddings_hdf5_path)
 
     # Check what datasets are available
@@ -86,17 +86,16 @@ def _load_embedding_datasets(embeddings_hdf5_path: Path):
     train_dataset = EmbeddingDataset(embeddings_path, "train")
     logger.info(f"✅ Loaded training dataset: {len(train_dataset)} samples")
 
-    # Load the single eval dataset (matches extraction logic)
+    # Load ALL evaluation datasets (not just the first one!)
     eval_datasets = {}
     non_train_datasets = [name for name in available_datasets if name != "train"]
 
     if non_train_datasets:
-        eval_name = non_train_datasets[0]  # Take the first (and presumably only) eval dataset
-        eval_datasets[eval_name] = EmbeddingDataset(embeddings_path, eval_name)
-        logger.info(f"✅ Loaded {eval_name} dataset: {len(eval_datasets[eval_name])} samples")
+        for eval_name in non_train_datasets:
+            eval_datasets[eval_name] = EmbeddingDataset(embeddings_path, eval_name)
+            logger.info(f"✅ Loaded {eval_name} dataset: {len(eval_datasets[eval_name])} samples")
 
-        if len(non_train_datasets) > 1:
-            logger.warning(f"Multiple eval datasets found {non_train_datasets}, using only '{eval_name}'")
+        logger.info(f"📊 Total evaluation datasets loaded: {len(eval_datasets)} ({list(eval_datasets.keys())})")
     else:
         logger.warning("No evaluation dataset found!")
 
@@ -162,6 +161,7 @@ def _init_training_args(cfg) -> TrainingArguments:
         bf16=cfg.training.use_bf16,
         greater_is_better=cfg.training.greater_is_better,
         eval_strategy=cfg.training.eval_strategy,
+        eval_on_start=True,
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
     )
 
