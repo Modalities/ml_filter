@@ -1,0 +1,9 @@
+embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/data/embeddings
+output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/outputs/data
+
+regression_head_checkpoints: null      # or path to checkpoints if needed
+batch_size: 1000
+
+tasks: 8
+local_tasks: 8
+local_rank_offset: 0

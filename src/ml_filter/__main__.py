@@ -12,6 +12,7 @@ from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, agg
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
+from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
@@ -723,31 +724,17 @@ def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) ->
     )
 
 
-@click.command(name="run_annotation_pipeline")
+@main.command(name="run_annotation_pipeline")
 @click.option(
-    "--embeddings_file",
-    type=click_pathlib.Path(exists=True),
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
     required=True,
-    help="Path to the .h5 file containing precomputed embeddings.",
+    help="Path to a file with the YAML config file.",
 )
-@click.option(
-    "--log_dir",
-    type=click_pathlib.Path(file_okay=False, writable=True),
-    required=True,
-    help="Directory for logs.",
-)
-@click.option(
-    "--output_dir",
-    type=click_pathlib.Path(file_okay=False, writable=True),
-    required=True,
-    help="Directory for output stats or annotations.",
-)
-def run_annotations(embeddings_file: Path, log_dir: Path, output_dir: Path):
+def entry_run_annotations(config_file_path: Path):
     """Run annotation pipeline using precomputed embeddings from HDF5."""
-    run_pipeline_with_embeddings(
-        embeddings_path=embeddings_file,
-        log_dir=log_dir,
-        output_dir=output_dir
+    run_annotation_pipeline(
+        config_file_path=config_file_path
     )
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
