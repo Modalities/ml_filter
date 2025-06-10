@@ -178,6 +178,7 @@ def _init_training_args(cfg) -> TrainingArguments:
         bf16=cfg.training.use_bf16,
         greater_is_better=cfg.training.greater_is_better,
         eval_strategy=cfg.training.eval_strategy,
+        eval_steps=cfg.training.logging_steps,
         # Speed up data loading
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
         report_to=["wandb"],  #

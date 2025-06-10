@@ -14,14 +14,16 @@ tokenizer:
   add_generation_prompt: true
 
 data:
-  dataset_type: jsonl  # jsonl or pth
-#  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
-  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train/train1.jsonl # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
+  dataset_type: pth  # jsonl or pth
+  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
+#  train_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train/train1.jsonl # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
   train_file_split: train
   test_file_path:
+#  test_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth
   test_file_split: train
-#  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
-  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train/train1.jsonl # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+#  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/train_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/Mistral-Small-3.1-24B-Instruct-2503_aggregated/embedding_score_gt_revamp.pth # /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/hessan_ai_data/val_dataset_bf16_uniform.pth # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
+#  val_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train/train1.jsonl # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
   label_column: scores  # Ensure this matches dataset format
   text_column: text  # Ensure this matches dataset format
@@ -35,14 +37,14 @@ data:
 
 
 training:
-  batch_size: 1024
-  eval_batch_size: 1024 # 1024
+  batch_size: 4
+  eval_batch_size: 4 # 1024
   epochs: 20
   use_bf16: true
   weight_decay: 0.01 # 0.01
-  eval_strategy: epoch
-  save_strategy: epoch
-  logging_steps: 100
+  eval_strategy: steps
+  save_strategy: "no"
+  logging_steps: 10
   seed: 42
   is_regression: true
   greater_is_better: false  # Save model with lowest loss
@@ -51,7 +53,7 @@ training:
   logging_dir_path: data/output/fineweb_edu_model_artic_v2-m-finalll
   output_dir_path: ${training.logging_dir_path}
   dataloader_num_workers: 16
-  load_best_model_at_end: true
+  load_best_model_at_end: false
 
 wandb:
-  experiment_name: experiment_replication_2 # name of the wandb project
+  experiment_name: HessanAI_Replication # name of the wandb project
