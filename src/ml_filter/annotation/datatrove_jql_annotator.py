@@ -21,7 +21,6 @@ from typing import Callable
 from datatrove.io import DataFileLike, DataFolderLike
 from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.utils.logging import logger
-import os
 import h5py
 
 
@@ -196,38 +195,30 @@ class JQLEmbeddingReader(BaseDiskReader):
         try:
 
             with self.data_folder.open(filepath, "rb") as fs_file:
-                # Need to read file into memory or temp path for h5py
-                import tempfile
+                with h5py.File(fs_file) as f:
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as tmp_file:
-                    tmp_file.write(fs_file.read())
-                    tmp_path = tmp_file.name
+                    dataset_name = "train"
 
-            dataset_name = "train"
-            with h5py.File(tmp_path, "r") as f:
-                if dataset_name not in f:
-                    raise KeyError(f"Dataset '{dataset_name}' not found in {filepath}")
+                    if dataset_name not in f:
+                        raise KeyError(f"Dataset '{dataset_name}' not found in {filepath}")
 
-                grp = f[dataset_name]
-                embeddings = torch.from_numpy(grp["embeddings"][:]).float()
-                labels = torch.from_numpy(grp["labels"][:]).float()
+                    grp = f[dataset_name]
+                    embeddings = torch.from_numpy(grp["embeddings"][:]).float()
+                    labels = torch.from_numpy(grp["labels"][:]).float()
 
-                n_samples = grp.attrs["n_samples"]
-                logger.info(f"Dataset '{dataset_name}' has {n_samples} samples in {filepath}")
+                    n_samples = grp.attrs["n_samples"]
+                    logger.info(f"Dataset '{dataset_name}' has {n_samples} samples in {filepath}")
 
-                logger.info(f"Loaded {n_samples} embeddings from {filepath}:{self.dataset_name}")
+                    logger.info(f"Loaded {n_samples} embeddings from {filepath}:{self.dataset_name}")
 
-                for i in range(n_samples):
-                    with self.track_time():
-                        doc_dict = {
-                            "id": str(i),
-                            "embedding": embeddings[i].tolist(),
-                            "labels": labels[i].tolist(),
-                        }
-                        yield self.get_document_from_dict(doc_dict, filepath, i)
+                    for i in range(n_samples):
+                        with self.track_time():
+                            doc_dict = {
+                                "id": str(i),
+                                "embedding": embeddings[i].tolist(),
+                                "labels": labels[i].tolist(),
+                            }
+                            yield self.get_document_from_dict(doc_dict, filepath, i)
 
         except Exception as e:
             logger.warning(f"Failed to read `{filepath}`: {e}")
-        finally:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
