@@ -1,11 +1,5 @@
 
-import tempfile
-import shutil
-import os
-from pathlib import Path
 import csv
-
-import pytest
 
 from ml_filter.data_processing.hash_data_files import (
     compute_file_hash,
