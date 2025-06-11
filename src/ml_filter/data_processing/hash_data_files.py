@@ -20,7 +20,7 @@ def read_existing_hashes(output_csv: Path) -> dict[str, str]:
         with output_csv.open("r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                hashes[row["file_path"]] = row["sha256"]
+                hashes[row["file_path"]] = row["md5"]
     return hashes
 
 
@@ -49,11 +49,11 @@ def hash_files_to_csv(jsonl_files: List[Path], output_csv: Path, chunk_size: int
         return
     
     # Write new entries to the CSV file
+    write_header = not output_csv.exists()
     with output_csv.open("a", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        # Write header if file does not exist, else append only new entries
-        if not output_csv.exists():
-            writer.writerow(["file_path", "sha256"])
+        if write_header:
+            writer.writerow(["file_path", "md5"])
         for entry in new_entries:
             writer.writerow(entry)
             
