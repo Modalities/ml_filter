@@ -741,7 +741,7 @@ def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) ->
 )
 def hash_files_to_csv_cli(input_files: tuple[Path], output_csv: Path, chunk_size: int):
     """
-    Compute SHA256 hashes for multiple files and write the hashes with file paths to a CSV file.
+    Compute MD5 hashes for multiple files and write the hashes with file paths to a CSV file.
     """
     hash_files_to_csv(list(input_files), output_csv, chunk_size)
 
