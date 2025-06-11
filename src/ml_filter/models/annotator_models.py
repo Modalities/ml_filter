@@ -103,42 +103,6 @@ class AnnotatorModel(PreTrainedModel):
     ) -> ModelOutput:
         """Forward pass through the base model."""
 
-        # Get base outputs without going through classifier
-        # if hasattr(self._base_model, 'bert'):
-        #     # BERT models - call bert directly
-        #     outputs = self._base_model.bert(
-        #         input_ids=input_ids,
-        #         attention_mask=attention_mask,
-        #         token_type_ids=token_type_ids,
-        #         return_dict=True,
-        #     )
-        # else:
-        #     # GTE models - temporarily remove classifier and call full model
-        #     classifier = self._base_model.classifier
-        #     delattr(self._base_model, 'classifier')
-
-        #     try:
-        #         outputs = self._base_model(
-        #             input_ids=input_ids,
-        #             attention_mask=attention_mask,
-        #             token_type_ids=token_type_ids,
-        #             return_dict=True,
-        #             unpad_inputs=False,
-        #         )
-        #     finally:
-        #         # Always restore classifier
-        #         self._base_model.classifier = classifier
-
-        # # Apply classifier to CLS token
-        # cls_embeddings = outputs.last_hidden_state[:, 0]  # Shape: (batch_size, hidden_size)
-        # logits = self._base_model.classifier(cls_embeddings)
-
-        # return SequenceClassifierOutput(
-        #     logits=logits,
-        #     hidden_states=getattr(outputs, 'hidden_states', None),
-        #     attentions=getattr(outputs, 'attentions', None),
-        # )
-
         # Get base transformer outputs (no classifier involved)
         if hasattr(self._base_model, "bert"):
             # BERT models

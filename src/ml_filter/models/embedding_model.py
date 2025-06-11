@@ -75,7 +75,7 @@ class EmbeddingRegressionModel(PreTrainedModel):
         super().__init__(config)
         self.config = config
 
-        # Use your existing head implementations
+        # Initialize the classification head
         self.head = self._build_head(config)
 
     def _build_head(self, config: EmbeddingRegressionConfig) -> AnnotatorHead:
@@ -101,11 +101,3 @@ class EmbeddingRegressionModel(PreTrainedModel):
             hidden_states=None,
             attentions=None,
         )
-
-
-def collate_embeddings(batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
-    """Collate function for embedding datasets."""
-    embeddings = torch.stack([item["embeddings"] for item in batch])
-    labels = torch.stack([item["labels"] for item in batch])
-
-    return {"embeddings": embeddings, "labels": labels}

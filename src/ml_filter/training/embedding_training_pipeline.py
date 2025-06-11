@@ -20,12 +20,7 @@ from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_
 from ml_filter.logger import setup_logging
 
 # Import the new embedding components
-from ml_filter.training.embedding_dataset import (
-    EmbeddingDataset,
-    EmbeddingRegressionConfig,
-    EmbeddingRegressionModel,
-    collate_embeddings,
-)
+from ml_filter.models.embedding_model import EmbeddingDataset, EmbeddingRegressionConfig, EmbeddingRegressionModel
 
 logger = setup_logging()
 
@@ -50,8 +45,8 @@ def run_embedding_training_pipeline(config_file_path: Path, embeddings_hdf5_path
         training_args = _init_training_args(cfg)
 
         # Optional: Initialize regression head weights (same as your existing code)
-        if cfg.training.is_regression:
-            _init_regression_weights(model)
+        # if cfg.training.is_regression:
+        #     _init_regression_weights(model)
 
         # Train model (modified to work with embeddings)
         _train_embedding_model(
@@ -123,11 +118,8 @@ def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> Embedd
     return EmbeddingRegressionModel(config=config)
 
 
-# Use your existing functions with minimal modifications:
-
-
 def _set_seeds(seed: int):
-    """Same as your existing function."""
+    """Set seeds for reproducibility."""
     if seed is not None:
         logger.info(f"Setting random seed: {seed}")
         import random
@@ -161,7 +153,8 @@ def _init_training_args(cfg) -> TrainingArguments:
         bf16=cfg.training.use_bf16,
         greater_is_better=cfg.training.greater_is_better,
         eval_strategy=cfg.training.eval_strategy,
-        eval_on_start=True,
+        eval_steps=10,
+        # eval_on_start=True,
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
     )
 
@@ -179,8 +172,9 @@ def _init_regression_weights(model: EmbeddingRegressionModel):
 
 def _init_embedding_loss_fn(cfg) -> partial:
     """Modified loss function for embeddings."""
+    num_tasks = cfg.data.num_tasks
     if cfg.training.is_regression:
-        return partial(embedding_mse_loss)
+        return partial(embedding_mse_loss, num_tasks=num_tasks)
     else:
         num_tasks = cfg.data.num_tasks
         return partial(embedding_cross_entropy_loss, num_tasks=num_tasks)
@@ -231,22 +225,24 @@ def embedding_mse_loss(
     input: SequenceClassifierOutput,
     target: torch.Tensor,
     num_items_in_batch: int,
+    num_tasks: int,
     reduction: str = "mean",
     ignored_index: int = -100,
     **kwargs,
 ) -> torch.Tensor:
     """Same logic as your single_target_mse_loss but for embeddings."""
     logits = input.logits
+    target = target.view(-1, num_tasks)
+    mask = ~(target == ignored_index)
     target = target.to(dtype=logits.dtype)
-
-    mask = target != ignored_index
-    if mask.sum() == 0:
-        return torch.tensor(0.0, device=logits.device, requires_grad=True)
-
-    valid_logits = logits[mask]
-    valid_targets = target[mask]
-
-    return F.mse_loss(valid_logits, valid_targets, reduction=reduction)
+    out = torch.pow((logits - target)[mask], 2)
+    reduction = "mean"
+    if reduction.lower() == "mean":
+        return out.mean()
+    elif reduction.lower() == "sum":
+        return out.sum()
+    elif reduction.lower() == "none":
+        return out
 
 
 def embedding_cross_entropy_loss(
@@ -268,17 +264,34 @@ def compute_embedding_metrics(
     task_names: list[str],
     num_targets_per_task: list[int],
 ) -> dict[str, float]:
-    """Same logic as your existing compute_metrics function."""
+    """Computes metrics for multi-target classification or regression.
+
+    Args:
+        eval_pred (EvalPrediction): A tuple containing:
+            - `predictions` (np.ndarray): Logits of shape
+                (batch_size, num_classes, num_regressor_outputs) for classification, or
+                (batch_size, num_regressor_outputs) for regression.
+            - `labels` (np.ndarray): Ground truth labels of shape (batch_size, num_regressor_outputs).
+        is_regression (bool): Whether the task is a regression or classification task.
+        output_names (list[str]): List of output names for each target.
+        num_targets_per_task (list[int]): Number of target classes per task.
+
+    Returns:
+        dict[str, float]: A dictionary containing computed metrics for each output.
+    """
     predictions, labels = eval_pred
 
+    # Validate inputs
     if not isinstance(predictions, np.ndarray) or not isinstance(labels, np.ndarray):
         raise ValueError("Expected `predictions` and `labels` to be NumPy arrays.")
     if predictions.shape[0] != labels.shape[0]:
         raise ValueError(f"Shape mismatch: predictions {predictions.shape}, labels {labels.shape}")
 
-    preds = predictions if is_regression else predictions.argmax(axis=1)
+    # Convert logits to predictions
+    preds = np.round(predictions) if is_regression else predictions.argmax(axis=1)
     preds_raw = predictions if is_regression else preds
 
+    # Compute metrics for each target
     metric_dict = {
         f"{task_name}/{metric}": value
         for task_name, num_targets in zip(task_names, num_targets_per_task)
@@ -291,3 +304,11 @@ def compute_embedding_metrics(
     }
 
     return metric_dict
+
+
+def collate_embeddings(batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
+    """Collate function for embedding datasets."""
+    embeddings = torch.stack([item["embeddings"] for item in batch])
+    labels = torch.stack([item["labels"] for item in batch])
+
+    return {"embeddings": embeddings, "labels": labels}

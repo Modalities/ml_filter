@@ -15,7 +15,7 @@ from ml_filter.analysis.plot_score_distributions import plot_differences_in_scor
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
-from ml_filter.training.annotator_model_pipeline import extract_and_save_embeddings, run_annotator_training_pipeline
+from ml_filter.training.annotator_model_pipeline import extract_and_save_embeddings
 from ml_filter.training.embedding_training_pipeline import run_embedding_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
@@ -126,15 +126,15 @@ def entry_point_compare_experiments(config_file_path: Path):
     compare_experiments(config_file_path)
 
 
-@main.command(name="annotator_training_pipeline")
-@click.option(
-    "--config_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the config file.",
-)
-def entry_annotator_training_pipeline(config_file_path: Path):
-    run_annotator_training_pipeline(config_file_path=config_file_path)
+# @main.command(name="annotator_training_pipeline")
+# @click.option(
+#     "--config_file_path",
+#     type=click_pathlib.Path(exists=False),
+#     required=True,
+#     help="Path to the config file.",
+# )
+# def entry_annotator_training_pipeline(config_file_path: Path):
+#     run_annotator_training_pipeline(config_file_path=config_file_path)
 
 
 @main.command(name="chunk_jsonl")
