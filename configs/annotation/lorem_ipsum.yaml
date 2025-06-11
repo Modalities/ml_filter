@@ -2,6 +2,9 @@ embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/data/embe
 output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/outputs/data
 
 regression_head_checkpoints: null      # or path to checkpoints if needed
+#regression_head_checkpoints:
+#  regression_head_1_name: regression_head_1_checkpoint.ckpt
+#  regression_head_2_name: regression_head_2_checkpoint.ckpt
 batch_size: 1000
 
 tasks: 8

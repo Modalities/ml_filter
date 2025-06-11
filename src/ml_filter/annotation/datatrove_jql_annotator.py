@@ -23,15 +23,6 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.utils.logging import logger
 import os
 import h5py
-import numpy as np
-
-
-def embedding_adapter(self, embedding: np.ndarray, path: str, idx: int) -> dict:
-    return {
-        "text": "",  # or some dummy placeholder
-        "id": f"{path}#{idx}",
-        "metadata": {"embedding": embedding.tolist()}
-    }
 
 
 def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
@@ -171,8 +162,8 @@ class JQLEmbeddingReader(BaseDiskReader):
             paths_file: DataFileLike | None = None,
             limit: int = -1,
             skip: int = 0,
-            file_progress: bool = False,
-            doc_progress: bool = False,
+            file_progress: bool = True,
+            doc_progress: bool = True,
             text_key: str = "embedding",
             adapter: Callable = None,
             id_key: str = "id",
@@ -203,6 +194,7 @@ class JQLEmbeddingReader(BaseDiskReader):
         Open .h5 file in SWMR-safe read-only mode. Yield docs with embedding.
         """
         try:
+
             with self.data_folder.open(filepath, "rb") as fs_file:
                 # Need to read file into memory or temp path for h5py
                 import tempfile
@@ -221,6 +213,7 @@ class JQLEmbeddingReader(BaseDiskReader):
                 labels = torch.from_numpy(grp["labels"][:]).float()
 
                 n_samples = grp.attrs["n_samples"]
+                logger.info(f"Dataset '{dataset_name}' has {n_samples} samples in {filepath}")
 
                 logger.info(f"Loaded {n_samples} embeddings from {filepath}:{self.dataset_name}")
 
