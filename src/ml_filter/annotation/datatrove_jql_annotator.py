@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -139,6 +140,9 @@ class JQLHead(PipelineStep):
                             scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
+                        base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
+                        filepath = os.path.splitext(base_name)[0]
+                        doc.metadata["source_filename"] = filepath
                         for name, score in scores.items():
                             doc.metadata[name] = score[batch_idx].item()
                         if writer:

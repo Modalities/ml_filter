@@ -23,14 +23,12 @@ def run_annotation_pipeline(config_file_path: Path):
             regression_head_checkpoints=None,  # Uses default heads
             batch_size=cfg.batch_size,
             stats_writer=JsonlWriter(
-                output_folder=cfg.output_dir + 'stats',
+                output_folder=cfg.output_dir + '/annotated_data',
+                output_filename="${source_filename}.jsonl",
                 adapter=stats_adapter,
                 expand_metadata=True,
 
             ),
-        ),
-        JsonlWriter(
-            output_folder=cfg.output_dir + '/data',
         )
     ]
     stage = LocalPipelineExecutor(
