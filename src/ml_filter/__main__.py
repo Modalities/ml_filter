@@ -13,6 +13,7 @@ from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
+from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
@@ -736,6 +737,21 @@ def entry_run_annotations(config_file_path: Path):
     run_annotation_pipeline(
         config_file_path=config_file_path
     )
+
+
+@main.command(name="run_embedding_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_run_embedding_pipeline(config_file_path: Path):
+    """Run annotation pipeline using precomputed embeddings from HDF5."""
+    run_embedding_pipeline(
+        config_file_path=config_file_path
+    )
+
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
     translation_service_type = TranslationServiceType[translation_service]
