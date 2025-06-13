@@ -35,6 +35,12 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
     return data
 
 
+def _get_file_path(doc: Document) -> str:
+    base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
+    filepath = os.path.splitext(base_name)[0]
+    return filepath
+
+
 class JQLEmbedder(PipelineStep):
     """
     A pipeline step for embedding text documents using a specified embedding model.
@@ -140,8 +146,7 @@ class JQLHead(PipelineStep):
                             scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
-                        base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
-                        filepath = os.path.splitext(base_name)[0]
+                        filepath = _get_file_path(doc)
                         doc.metadata["source_filename"] = filepath
                         for name, score in scores.items():
                             doc.metadata[name] = score[batch_idx].item()
