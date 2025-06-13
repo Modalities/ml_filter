@@ -210,10 +210,15 @@ class JQLEmbeddingReader(BaseDiskReader):
                     embeddings = torch.from_numpy(grp["embeddings"][:]).float()
                     labels = torch.from_numpy(grp["labels"][:]).float()
 
-                    n_samples = grp.attrs["n_samples"]
-                    logger.info(f"Dataset '{dataset_name}' has {n_samples} samples in {filepath}")
+                    if len(embeddings) != len(labels):
+                        raise ValueError(
+                            f"Mismatched number of embeddings and labels in {filepath}: "
+                            f"{len(embeddings)} embeddings vs {len(labels)} labels"
+                        )
 
-                    logger.info(f"Loaded {n_samples} embeddings from {filepath}:{self.dataset_name}")
+                    n_samples = len(embeddings)
+
+                    logger.info(f"Dataset '{dataset_name}' has {n_samples} samples in {filepath}")
 
                     for i in range(n_samples):
                         with self.track_time():
