@@ -35,6 +35,14 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
     return data
 
 
+def _get_unique_id(doc: Document, filepath: str) -> str:
+    return f"{filepath}_{doc.id}"
+
+def _get_file_path(doc: Document) -> str:
+    base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
+    filepath = os.path.splitext(base_name)[0]
+    return filepath
+
 class JQLEmbedder(PipelineStep):
     """
     A pipeline step for embedding text documents using a specified embedding model.
@@ -65,16 +73,16 @@ class JQLEmbedder(PipelineStep):
             else:
                 device = f'cuda:{self.device_overwrite}'
 
-        breakpoint()
 
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
         for doc_batch in batched(doc_pipeline, self.batch_size):
             with self.track_time(unit='batch'):
                 embeddings = embedder.embed([doc.text for doc in doc_batch])
-                for doc, embedding in zip(doc_batch, embeddings):
+                for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                     # Convert tensor to list for JSON serialization
                     doc.metadata['embedding'] = embedding.cpu().tolist()
+                    doc.metadata['document_id'] = _get_unique_id(doc, _get_file_path(doc))
                     yield doc
 
 
