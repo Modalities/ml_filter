@@ -1,3 +1,4 @@
+import json
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -252,7 +253,7 @@ class HDF5EmbeddingWriter(PipelineStep):
 
     def __init__(self,
                  output_folder: str | Path,
-                 dataset_name: str = "embeddings",
+                 dataset_name: str = "train",
                  batch_size: int = 10000,
                  embedding_key: str = "embedding",
                  compression: str = "gzip",
@@ -300,10 +301,8 @@ class HDF5EmbeddingWriter(PipelineStep):
 
     def _get_output_path(self, source_key: str, rank: int = 0) -> Path:
         """Get the HDF5 output path for a given source file."""
-        if rank > 0:
-            filename = f"{source_key}_rank_{rank}.h5"
-        else:
-            filename = f"{source_key}.h5"
+
+        filename = f"{source_key}.h5"
         return self.output_folder / filename
 
     def _initialize_source_file(self, source_key: str, rank: int):
@@ -494,6 +493,7 @@ class HDF5EmbeddingWriter(PipelineStep):
             else:
                 # Create branch
                 grp = f.create_group(self.dataset_name)
+                logger.info(f"Creating new dataset '{self.dataset_name}' for source '{source_key}' in {file_path}")
                 chunk_rows = self.chunk_size
 
                 # embeddings
