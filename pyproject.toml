@@ -9,7 +9,7 @@ dependencies = [
     "tqdm",
     "datasets",
     "pydantic",
-    "transformers==4.46.1",
+    "transformers @ git+https://github.com/huggingface/transformers.git@v4.49.0-Gemma-3",
     "click",
     "click_pathlib",
     "Jinja2",
