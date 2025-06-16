@@ -5,7 +5,7 @@ from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from omegaconf import OmegaConf
 
-from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5EmbeddingWriter
+from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, stats_adapter
 
 
 def run_embedding_pipeline(config_file_path: Path):
@@ -25,15 +25,13 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
             batch_size=1000,
-        ),
-        HDF5EmbeddingWriter(
-            output_folder=Path(cfg.output_dir) / 'embeddings_hdf5',  # Folder, not specific file
-            dataset_name="embeddings",
-            batch_size=5000,  # Adjust based on memory constraints
-            embedding_key="embedding",  # May need to adjust based on JQLEmbedder output
-            compression="gzip",
-            chunk_size=1000,
-            overwrite_existing=False,  # Set to True to overwrite existing files
+            stats_writer=JsonlWriter(
+                output_folder=cfg.output_dir + '/embeddings',
+                output_filename="${source_filename}.jsonl",
+                adapter=stats_adapter,
+                expand_metadata=True,
+
+            ),
         ),
 
     ]
