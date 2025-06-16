@@ -13,6 +13,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
 from ml_filter.logger import setup_logging
 from ml_filter.models.embedding_model import EmbeddingDataset, EmbeddingRegressionConfig, EmbeddingRegressionModel
+from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
 
 logger = setup_logging()
 
@@ -49,7 +50,8 @@ def run_embedding_training_pipeline(config_file_path: Path):
             train_dataset=train_dataset,
             eval_datasets=eval_datasets,
             compute_loss_fn=_init_embedding_loss_fn(cfg),
-            compute_metrics_fn=_get_compute_metrics_fn(cfg),  # Same as your existing function
+            compute_metrics_fn=_get_compute_metrics_fn(cfg),
+            early_stopping_metric=cfg.training.metric_for_best_model,
         )
 
         logger.info("Embedding-based training pipeline completed successfully.")
@@ -151,6 +153,8 @@ def _init_training_args(cfg) -> TrainingArguments:
         eval_steps=10,
         # eval_on_start=True,
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
+        report_to=["wandb"],
+        run_name=cfg.training.wandb_run_name,
     )
 
 
@@ -192,9 +196,12 @@ def _train_embedding_model(
     eval_datasets: dict,
     compute_loss_fn: partial,
     compute_metrics_fn: partial,
+    early_stopping_metric: str,
 ) -> None:
     """Modified training function for embeddings."""
     logger.info("Initializing Trainer and starting training...")
+
+    early_stopping = SpearmanEarlyStoppingCallback(metric_key=early_stopping_metric, patience=5, min_delta=1e-3)
 
     trainer = Trainer(
         model=model,
@@ -203,7 +210,8 @@ def _train_embedding_model(
         eval_dataset=eval_datasets,
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
-        data_collator=collate_embeddings,  # New collate function
+        data_collator=collate_embeddings,
+        callbacks=[early_stopping],
     )
 
     trainer.train()
