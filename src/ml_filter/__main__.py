@@ -15,17 +15,14 @@ from ml_filter.analysis.plot_score_distributions import plot_differences_in_scor
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
-from ml_filter.training.annotator_model_pipeline import extract_and_save_embeddings
 from ml_filter.training.embedding_training_pipeline import run_embedding_training_pipeline
+from ml_filter.training.extract_embeddings import extract_and_save_embeddings
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
-
-# Add these imports to the existing imports at the top
-
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -604,15 +601,9 @@ def _get_target_language_codes_list_helper(target_language_codes: str) -> list[s
     required=True,
     help="Path to the config file.",
 )
-@click.option(
-    "--output_dir",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Directory to save the extracted embeddings.",
-)
-def entry_extract_embeddings(config_file_path: Path, output_dir: Path):
+def entry_extract_embeddings(config_file_path: Path):
     """Extract embeddings from frozen base model and save to HDF5."""
-    extract_and_save_embeddings(config_file_path=config_file_path, output_dir=output_dir)
+    extract_and_save_embeddings(config_file_path=config_file_path)
 
 
 @main.command(name="train_with_embeddings")
@@ -622,15 +613,9 @@ def entry_extract_embeddings(config_file_path: Path, output_dir: Path):
     required=True,
     help="Path to the config file.",
 )
-@click.option(
-    "--embeddings_file",
-    type=click_pathlib.Path(exists=True),
-    required=True,
-    help="Path to the HDF5 file containing pre-computed embeddings.",
-)
-def entry_train_with_embeddings(config_file_path: Path, embeddings_file: Path):
+def entry_train_with_embeddings(config_file_path: Path):
     """Train regression head using pre-computed embeddings."""
-    run_embedding_training_pipeline(config_file_path=config_file_path, embeddings_hdf5_path=embeddings_file)
+    run_embedding_training_pipeline(config_file_path=config_file_path)
 
 
 # @main.command(name="inference_pipeline")

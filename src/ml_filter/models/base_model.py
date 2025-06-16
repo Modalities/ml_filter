@@ -2,19 +2,14 @@ from copy import deepcopy
 
 import torch
 import torch.nn.functional as F
+from omegaconf import DictConfig
 from transformers import AutoConfig, PretrainedConfig
-from transformers.modeling_outputs import SequenceClassifierOutput
-from transformers.modeling_utils import ModelOutput, PreTrainedModel
+from transformers.modeling_utils import PreTrainedModel
 
 from constants import MODEL_CLASS_MAP
-from ml_filter.models.annotator_model_head import (
-    AnnotatorHead,
-    MultiTargetClassificationHead,
-    MultiTargetRegressionHead,
-)
 
 
-class AnnotatorConfig(PretrainedConfig):
+class BaseModelConfig(PretrainedConfig):
     """Configuration class for the AnnotatorModel."""
 
     def __init__(
@@ -50,16 +45,16 @@ class AnnotatorConfig(PretrainedConfig):
         self.load_base_model_from_config = load_base_model_from_config
 
 
-class AnnotatorModel(PreTrainedModel):
+class BaseModel(PreTrainedModel):
     """Annotator Model that wraps a pre-trained Transformer with a custom head.
     This model is designed to be used for multi-task learning, where each task
     can have a different number of classes.
     The model can be used for both regression and classification tasks.
     """
 
-    config_class = AnnotatorConfig
+    config_class = BaseModelConfig
 
-    def __init__(self, config: AnnotatorConfig):
+    def __init__(self, config: BaseModelConfig):
         """Initializes the AnnotatorModel by loading the base model either from
         an existing checkpoint or from a configuration. Then replace the
         classifier head with a custom one.
@@ -70,7 +65,7 @@ class AnnotatorModel(PreTrainedModel):
         config = deepcopy(config)
         super().__init__(config)
         self._load_base_model(config)
-        self._overwrite_head(config)
+        # self._overwrite_head(config)
 
     def set_freeze_base_model(self, freeze: bool):
         """If enabled, freezes all base model parameters, so that only the classification head is trainable.
@@ -93,46 +88,7 @@ class AnnotatorModel(PreTrainedModel):
             for param in self._base_model.bert.pooler.parameters():
                 param.requires_grad = False
 
-    def forward(
-        self,
-        input_ids: torch.Tensor | None = None,
-        attention_mask: torch.Tensor | None = None,
-        token_type_ids: torch.Tensor | None = None,
-        labels: torch.Tensor | None = None,
-        return_dict: bool | None = None,
-    ) -> ModelOutput:
-        """Forward pass through the base model."""
-
-        # Get base transformer outputs (no classifier involved)
-        if hasattr(self._base_model, "bert"):
-            # BERT models
-            outputs = self._base_model.bert(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
-                return_dict=True,
-            )
-        else:
-            # GTE models - the base model doesn't use classifier anyway
-            outputs = self._base_model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
-                return_dict=True,
-            )
-
-        # # Extract CLS token and apply our custom classifier
-        cls_embeddings = outputs.last_hidden_state[:, 0]
-        embeddings = F.normalize(cls_embeddings, p=2, dim=1)
-        logits = self._base_model.classifier(embeddings)
-
-        return SequenceClassifierOutput(
-            logits=logits,
-            hidden_states=getattr(outputs, "hidden_states", None),
-            attentions=getattr(outputs, "attentions", None),
-        )
-
-    def _load_base_model(self, config: AnnotatorConfig):
+    def _load_base_model(self, config: BaseModelConfig):
         try:
             model_class = MODEL_CLASS_MAP[config.base_model_name_or_path.lower()]
         except KeyError:
@@ -158,29 +114,29 @@ class AnnotatorModel(PreTrainedModel):
                 trust_remote_code=True,
             )
 
-    def _overwrite_head(self, config: AnnotatorConfig):
-        """Replaces the classifier in the base model with the custom head."""
-        head = self._build_new_head(config)
-        # head = torch.load("Regressor_model")
-        # new_mode = torch.stack(....)
+    # def _overwrite_head(self, config: BaseModelConfig):
+    #     """Replaces the classifier in the base model with the custom head."""
+    #     head = self._build_new_head(config)
 
-        if hasattr(self._base_model, "classifier") and hasattr(self._base_model.classifier, "out_proj"):
-            # Handle models with nested classifier structure (e.g., some BERT variants)
-            self._base_model.classifier.out_proj = head
-        else:
-            # For all other cases (including GTE models that don't have classifier initially)
-            self._base_model.classifier = head
+    #     if hasattr(self._base_model, "classifier") and hasattr(self._base_model.classifier, "out_proj"):
+    #         # Handle models with nested classifier structure (e.g., some BERT variants)
+    #         self._base_model.classifier.out_proj = head
+    #     else:
+    #         # For all other cases (including GTE models that don't have classifier initially)
+    #         self._base_model.classifier = head
 
-    def _build_new_head(self, config: AnnotatorConfig) -> AnnotatorHead:
-        head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
-        return head_cls(
-            input_dim=self._base_model_config.hidden_size,
-            num_prediction_tasks=config.num_tasks,
-            num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
-        )
+    # def _build_new_head(self, config: BaseModelConfig) -> AnnotatorHead:
+    #     head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
+    #     return head_cls(
+    #         input_dim=self._base_model_config.hidden_size,
+    #         hidden_dim=config.regressor_hidden_size,
+    #         num_prediction_tasks=config.num_tasks,
+    #         num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
+    #     )
 
     def extract_embeddings(
         self,
+        config: DictConfig,
         input_ids: torch.Tensor | None = None,
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
@@ -210,7 +166,8 @@ class AnnotatorModel(PreTrainedModel):
                 )
                 # Extract CLS token and normalize (same as forward())
                 outputs = outputs.last_hidden_state[:, 0]
-            # TODO make is configurable
-            embeddings = F.normalize(outputs, p=2, dim=1)
+
+            if config.embedding.normalize_embeddings:
+                embeddings = F.normalize(outputs, p=2, dim=1)
 
             return embeddings

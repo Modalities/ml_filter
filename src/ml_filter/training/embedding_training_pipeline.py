@@ -1,8 +1,3 @@
-"""
-NEW FILE: Create this as embedding_training_pipeline.py in your project
-This is a modified version of your existing pipeline that works with embeddings
-"""
-
 import os
 from functools import partial
 from pathlib import Path
@@ -15,23 +10,22 @@ from omegaconf import DictConfig, OmegaConf
 from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-# Import your existing components
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
 from ml_filter.logger import setup_logging
-
-# Import the new embedding components
 from ml_filter.models.embedding_model import EmbeddingDataset, EmbeddingRegressionConfig, EmbeddingRegressionModel
 
 logger = setup_logging()
 
 
-def run_embedding_training_pipeline(config_file_path: Path, embeddings_hdf5_path: Path):
+def run_embedding_training_pipeline(config_file_path: Path):
     """Modified version of your existing training pipeline for embeddings."""
     logger.info(f"Loading configuration from {config_file_path}")
-    logger.info(f"Using embeddings from {embeddings_hdf5_path}")
 
     try:
         cfg = OmegaConf.load(config_file_path)
+        embeddings_hdf5_path = cfg.embedding.load_path
+        logger.info(f"Loading the embeddings from {embeddings_hdf5_path}")
+
         seed = cfg.training.get("seed", None)
         _set_seeds(seed)
 
@@ -41,14 +35,14 @@ def run_embedding_training_pipeline(config_file_path: Path, embeddings_hdf5_path
         # Create embedding-based model
         model = _init_embedding_model(cfg, embeddings_hdf5_path)
 
-        # Initialize training arguments (same as your existing pipeline)
+        # Initialize training arguments
         training_args = _init_training_args(cfg)
 
-        # Optional: Initialize regression head weights (same as your existing code)
-        # if cfg.training.is_regression:
-        #     _init_regression_weights(model)
+        if cfg.embedding.init_regression_weights:
+            logger.info("Initializing the regression head weights")
+            _init_regression_weights(model)
 
-        # Train model (modified to work with embeddings)
+        # Train model
         _train_embedding_model(
             model=model,
             training_args=training_args,
@@ -112,6 +106,7 @@ def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> Embedd
         embedding_dim=int(embedding_dim),  # Convert numpy.int64 to Python int
         num_tasks=int(cfg.data.num_tasks),  # Convert to Python int
         num_targets_per_task=[int(x) for x in cfg.data.num_targets_per_task],  # Convert each element to Python int
+        hidden_dim=int(cfg.model.regressor_hidden_dim),
         is_regression=bool(cfg.model.is_regression),  # Convert to Python bool
     )
 
@@ -216,9 +211,6 @@ def _train_embedding_model(
     final_dir = os.path.join(training_args.output_dir, "final")
     trainer.save_model(final_dir)
     logger.info("Training complete. Model saved.")
-
-
-# Modified loss functions that work with embeddings:
 
 
 def embedding_mse_loss(

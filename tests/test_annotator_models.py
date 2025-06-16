@@ -11,22 +11,22 @@ from ml_filter.models.annotator_model_head import (
     MultiTargetRegressionHead,
     RegressionScalingLayer,
 )
-from ml_filter.models.annotator_models import AnnotatorConfig, AnnotatorModel
+from ml_filter.models.base_model import BaseModel, BaseModelConfig
 
 
-def test_annotator_model_initialization(annotator_model_config: AnnotatorConfig, is_regression: bool):
+def test_annotator_model_initialization(annotator_model_config: BaseModelConfig, is_regression: bool):
     """Tests if AnnotatorModel initializes correctly with a base model and head."""
-    model = AnnotatorModel(config=annotator_model_config)
+    model = BaseModel(config=annotator_model_config)
 
     assert model._base_model is not None
     expected_head = MultiTargetRegressionHead if is_regression else MultiTargetClassificationHead
     assert isinstance(model._base_model.classifier, expected_head)
 
 
-def test_annotator_model_freezing(annotator_model_config: AnnotatorConfig):
+def test_annotator_model_freezing(annotator_model_config: BaseModelConfig):
     """Tests if AnnotatorModel correctly freezes the base model when required."""
     # Create the model with freezing enabled
-    model = AnnotatorModel(config=annotator_model_config)
+    model = BaseModel(config=annotator_model_config)
     model.set_freeze_base_model(True)
 
     # Ensure that not all base model parameters are frozen
@@ -53,17 +53,17 @@ def test_annotator_model_freezing(annotator_model_config: AnnotatorConfig):
     ), "Some non-classifier and non-pooler parameters are still trainable!"
 
 
-def test_annotator_model_unfreezing(annotator_model_config: AnnotatorConfig):
+def test_annotator_model_unfreezing(annotator_model_config: BaseModelConfig):
     """Tests if AnnotatorModel correctly unfreezes the base model when required."""
-    model = AnnotatorModel(config=annotator_model_config)
+    model = BaseModel(config=annotator_model_config)
     model.set_freeze_base_model(True)
     model.set_freeze_base_model(False)
     assert all(param.requires_grad for name, param in model._base_model.named_parameters()), "Some are still frozen!"
 
 
-def test_annotator_model_forward(annotator_model_config: AnnotatorConfig):
+def test_annotator_model_forward(annotator_model_config: BaseModelConfig):
     """Tests if AnnotatorModel's forward pass correctly calls the base model."""
-    model = AnnotatorModel(config=annotator_model_config)
+    model = BaseModel(config=annotator_model_config)
 
     # Create dummy input
     dummy_input = {
@@ -148,9 +148,9 @@ def test_regression_scaling_layer():
 
 
 @pytest.fixture
-def annotator_model_config(dummy_base_model_path: str, is_regression: bool) -> AnnotatorConfig:
+def annotator_model_config(dummy_base_model_path: str, is_regression: bool) -> BaseModelConfig:
     """Fixture for AnnotatorModel configuration with parameterized is_regression."""
-    return AnnotatorConfig(
+    return BaseModelConfig(
         base_model_name_or_path=dummy_base_model_path,
         num_tasks=2,
         num_targets_per_task=[6, 6],

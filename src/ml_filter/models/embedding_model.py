@@ -56,6 +56,7 @@ class EmbeddingRegressionConfig(PretrainedConfig):
         embedding_dim: int = 768,
         num_tasks: int = 1,
         num_targets_per_task: list[int] = None,
+        hidden_dim: int = 1000,
         is_regression: bool = True,
         **kwargs,
     ):
@@ -63,6 +64,7 @@ class EmbeddingRegressionConfig(PretrainedConfig):
         self.embedding_dim = embedding_dim
         self.num_tasks = num_tasks
         self.num_targets_per_task = list(num_targets_per_task) if num_targets_per_task else [1]
+        self.hidden_dim = hidden_dim
         self.is_regression = is_regression
 
 
@@ -83,6 +85,7 @@ class EmbeddingRegressionModel(PreTrainedModel):
         head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
         return head_cls(
             input_dim=config.embedding_dim,
+            hidden_dim=config.hidden_dim,
             num_prediction_tasks=config.num_tasks,
             num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
         )

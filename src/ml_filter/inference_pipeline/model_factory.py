@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from ml_filter.models.annotator_models import AnnotatorModel
+from ml_filter.models.base_model import BaseModel
 
 
 class ModelWrapper(nn.Module):
@@ -29,7 +29,7 @@ class ModelFactory:
         device: torch.device,
         logger: logging.Logger,
     ) -> nn.Module:
-        model = AnnotatorModel.from_pretrained(model_checkpoint_path)
+        model = BaseModel.from_pretrained(model_checkpoint_path)
         wrapped_model = ModelWrapper(model, model.config.is_regression)
         wrapped_model.to(device).eval()
         logger.info("Compiling model...")

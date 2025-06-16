@@ -4,6 +4,7 @@ model:
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
   is_regression: ${training.is_regression}
+  regressor_hidden_dim: 1000
 
 tokenizer:
   pretrained_model_name_or_path: ${model.name}
@@ -46,3 +47,9 @@ training:
   dataloader_num_workers: 16
   load_best_model_at_end: false
   wandb_run_name:  regression_trainer
+
+embedding:
+  normalize_embeddings: true
+  init_regression_weights: false
+  save_path: /home/abbas-khan/ml_filter/data/output/embeddings/embeddings.h5
+  load_path: /home/abbas-khan/ml_filter/data/output/embeddings/embeddings.h5

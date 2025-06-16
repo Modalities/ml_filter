@@ -5,14 +5,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import torch
-from omegaconf import DictConfig
-from transformers import TrainingArguments
-from transformers.modeling_outputs import SequenceClassifierOutput
-
-from ml_filter.models.annotator_models import AnnotatorModel
-from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
-from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
-from ml_filter.training.annotator_model_pipeline import (
+from extract_embeddings import (
     _init_model,
     _init_tokenizer,
     _init_training_args,
@@ -21,6 +14,13 @@ from ml_filter.training.annotator_model_pipeline import (
     multi_target_mse_loss,
     run_annotator_training_pipeline,
 )
+from omegaconf import DictConfig
+from transformers import TrainingArguments
+from transformers.modeling_outputs import SequenceClassifierOutput
+
+from ml_filter.models.base_model import BaseModel
+from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
+from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
 
 def test_set_seeds():
@@ -63,7 +63,7 @@ def test_init_model():
     )
 
     model = _init_model(cfg)
-    assert isinstance(model, AnnotatorModel)
+    assert isinstance(model, BaseModel)
 
 
 def test_init_training_args():

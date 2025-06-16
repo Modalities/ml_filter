@@ -35,6 +35,7 @@ class MultiTargetRegressionHead(AnnotatorHead):
     def __init__(
         self,
         input_dim: int,
+        hidden_dim: int,
         num_prediction_tasks: int,
         num_targets_per_prediction_task: torch.Tensor,
         use_bias: bool = True,
@@ -49,13 +50,13 @@ class MultiTargetRegressionHead(AnnotatorHead):
             use_bias (bool, optional): Whether to include a bias term in the linear layer. Defaults to True.
         """
         super().__init__()
-        hidden_dim = 1000
+        # hidden_dim = 1000
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, hidden_dim, bias=use_bias),
             nn.ReLU(),
-            nn.Linear(hidden_dim, 1, bias=use_bias),
+            nn.Linear(hidden_dim, num_prediction_tasks, bias=use_bias),
         )
-        # Should not be 1, this should be num_prediction_tasks
+        # TODO check num_prediction_tasks works as 1 does
 
         # self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
