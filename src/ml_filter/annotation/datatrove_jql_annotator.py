@@ -306,7 +306,7 @@ class HDF5Writer(DiskWriter):
             del file[group_name]
 
         group = file.create_group(group_name)
-        group.create_dataset("embeddings", data=embeddings, compression="gzip")
+        group.create_dataset("embeddings", data=embeddings, compression="gzip", dtype=np.float32)
         group.create_dataset("document_id", data=document_id, compression="gzip")
 
     def _write(self, document: dict, file_handler, filename: str):
