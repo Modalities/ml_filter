@@ -307,7 +307,9 @@ class HDF5Writer(DiskWriter):
 
         group = file.create_group(group_name)
         group.create_dataset("embeddings", data=embeddings, compression="gzip", dtype=np.float32)
-        group.create_dataset("document_id", data=document_id, compression="gzip")
+        dt = h5py.string_dtype(encoding='utf-8')
+        group.create_dataset("document_id", data=document_id, compression="gzip", dtype=dt)
+
 
     def _write(self, document: dict, file_handler, filename: str):
         if filename not in self._writers:
