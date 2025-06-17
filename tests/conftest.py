@@ -4,12 +4,9 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 import pytest
-import torch
 import yaml
 from omegaconf import OmegaConf
-from transformers import AutoConfig, BertForSequenceClassification
 
-from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
@@ -214,7 +211,7 @@ def config_file(temp_output_dir):
             "save_strategy": "epoch",
             "logging_steps": 10,
             "logging_dir_path": str(temp_output_dir / "logs"),
-            "metric_for_best_model": "accuracy",
+            "metric_for_best_model": "eval_val_loss",
             "use_bf16": False,
             "greater_is_better": True,
             "is_regression": True,
@@ -225,6 +222,10 @@ def config_file(temp_output_dir):
             "name": "facebookai/xlm-roberta-base",
             "freeze_base_model_parameters": True,
             "is_regression": True,
+            "regressor_hidden_dim": 1000,
+            "loading_params": {
+                "trust_remote_code": False,
+            },
         },
         "data": {
             "text_column": "text",
@@ -237,8 +238,8 @@ def config_file(temp_output_dir):
             "test_file_path": str(temp_output_dir / "test.jsonl"),
             "test_file_split": "train",
             "num_tasks": 3,
-            "task_names": ["edu", "toxicity", "adult"],
-            "num_targets_per_task": [2, 3, 4],
+            "task_names": ["edu", "adult", "toxicity"],
+            "num_targets_per_task": [6, 6, 6],
             "num_processes": 2,
         },
         "tokenizer": {
@@ -247,6 +248,12 @@ def config_file(temp_output_dir):
             "max_length": 128,
             "padding": "max_length",
             "truncation": True,
+        },
+        "embedding": {
+            "normalize_embeddings": True,
+            "init_regression_weights": False,
+            "save_path": "/home/abbas-khan/ml_filter/data/output/temp_embeddings/embeddings.h5",
+            "load_path": "/home/abbas-khan/ml_filter/data/output/temp_embeddings/embeddings.h5",
         },
     }
 

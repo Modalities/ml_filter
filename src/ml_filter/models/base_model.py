@@ -19,6 +19,7 @@ class BaseModelConfig(PretrainedConfig):
         num_targets_per_task: list[int] = None,
         base_model_name_or_path: str = "",
         load_base_model_from_config: bool = False,
+        loading_params: dict = None,
         **kwargs,
     ):
         """Initializes the AnnotatorConfig.
@@ -43,6 +44,8 @@ class BaseModelConfig(PretrainedConfig):
         self.num_targets_per_task = list(num_targets_per_task) if num_targets_per_task is not None else []
         self.base_model_name_or_path = base_model_name_or_path
         self.load_base_model_from_config = load_base_model_from_config
+        # Store loading parameters (default to empty dict)
+        self.loading_params = loading_params or {}
 
 
 class BaseModel(PreTrainedModel):
@@ -86,7 +89,7 @@ class BaseModel(PreTrainedModel):
         # TODO: check for more general solution
         if hasattr(self._base_model, "bert") and hasattr(self._base_model.bert, "pooler"):
             for param in self._base_model.bert.pooler.parameters():
-                param.requires_grad = False
+                param.requires_grad = not freeze
 
     def _load_base_model(self, config: BaseModelConfig):
         try:
@@ -98,41 +101,23 @@ class BaseModel(PreTrainedModel):
             )
         self._base_model_config = AutoConfig.from_pretrained(
             config.base_model_name_or_path,
-            unpad_inputs=True,
-            add_pooling_layer=False,
-            use_memory_efficient_attention=True,
-            trust_remote_code=True,
+            **config.loading_params
+            # unpad_inputs=True,
+            # add_pooling_layer=False,
+            # use_memory_efficient_attention=True,
+            # trust_remote_code=True,
         )
         if config.load_base_model_from_config:
             self._base_model = model_class(self._base_model_config)
         else:
             self._base_model = model_class.from_pretrained(
                 config.base_model_name_or_path,
-                unpad_inputs=True,
-                add_pooling_layer=False,
-                use_memory_efficient_attention=True,
-                trust_remote_code=True,
+                **config.loading_params
+                # unpad_inputs=True,
+                # add_pooling_layer=False,
+                # use_memory_efficient_attention=True,
+                # trust_remote_code=True,
             )
-
-    # def _overwrite_head(self, config: BaseModelConfig):
-    #     """Replaces the classifier in the base model with the custom head."""
-    #     head = self._build_new_head(config)
-
-    #     if hasattr(self._base_model, "classifier") and hasattr(self._base_model.classifier, "out_proj"):
-    #         # Handle models with nested classifier structure (e.g., some BERT variants)
-    #         self._base_model.classifier.out_proj = head
-    #     else:
-    #         # For all other cases (including GTE models that don't have classifier initially)
-    #         self._base_model.classifier = head
-
-    # def _build_new_head(self, config: BaseModelConfig) -> AnnotatorHead:
-    #     head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
-    #     return head_cls(
-    #         input_dim=self._base_model_config.hidden_size,
-    #         hidden_dim=config.regressor_hidden_size,
-    #         num_prediction_tasks=config.num_tasks,
-    #         num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
-    #     )
 
     def extract_embeddings(
         self,
@@ -156,6 +141,8 @@ class BaseModel(PreTrainedModel):
                     token_type_ids=token_type_ids,
                     return_dict=True,
                 )
+                # Extract CLS token
+                outputs = outputs.last_hidden_state[:, 0]
             else:
                 # GTE models
                 outputs = self._base_model(
@@ -164,10 +151,10 @@ class BaseModel(PreTrainedModel):
                     token_type_ids=token_type_ids,
                     return_dict=True,
                 )
-                # Extract CLS token and normalize (same as forward())
+                # Extract CLS token
                 outputs = outputs.last_hidden_state[:, 0]
 
             if config.embedding.normalize_embeddings:
-                embeddings = F.normalize(outputs, p=2, dim=1)
+                outputs = F.normalize(outputs, p=2, dim=1)
 
-            return embeddings
+            return outputs

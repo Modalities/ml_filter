@@ -5,15 +5,6 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import torch
-from extract_embeddings import (
-    _init_model,
-    _init_tokenizer,
-    _init_training_args,
-    _load_datasets,
-    _set_seeds,
-    multi_target_mse_loss,
-    run_annotator_training_pipeline,
-)
 from omegaconf import DictConfig
 from transformers import TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
@@ -21,6 +12,13 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 from ml_filter.models.base_model import BaseModel
 from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
+from ml_filter.training.embedding_training_pipeline import (
+    _init_training_args,
+    _set_seeds,
+    embedding_mse_loss,
+    run_embedding_training_pipeline,
+)
+from ml_filter.training.extract_embeddings import _init_model, _init_tokenizer, _load_datasets
 
 
 def test_set_seeds():
@@ -54,9 +52,15 @@ def test_init_model():
     cfg = DictConfig(
         {
             "model": {
-                "name": "facebookai/xlm-roberta-base",
+                "name": "snowflake/snowflake-arctic-embed-m-v2.0",
                 "freeze_base_model_parameters": False,
                 "is_regression": False,
+                "loading_params": {
+                    "unpad_inputs": True,
+                    "add_pooling_layer": False,
+                    "trust_remote_code": True,
+                    "use_memory_efficient_attention": True,
+                },
             },
             "data": {"num_tasks": 3, "num_targets_per_task": [2, 3, 4]},
         }
@@ -113,7 +117,7 @@ def test_load_datasets():
     assert eval_datasets["test"] == "test_ds"
 
 
-def test_run_annotator_pipeline(config_file, temp_output_dir):
+def test_run_embedding_training_pipeline(config_file, temp_output_dir):
     """Runs the full pipeline end-to-end."""
     import os
 
@@ -121,7 +125,7 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Use only GPUs 0 and 1
 
     _dummy_dataset_files(temp_output_dir)
-    run_annotator_training_pipeline(config_file)
+    run_embedding_training_pipeline(config_file)
 
     # Verify model output directory
     model_output_path = temp_output_dir / "final"
@@ -136,12 +140,12 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
 
 
 def test_custom_mse_loss_same_as_torch_implementation():
-    num_tasks = 3
+    num_tasks = 1
     num_items_in_batch = 16
     logits = torch.rand((num_items_in_batch, num_tasks)) * 3.0 - 1.0
     target = torch.randint(0, 2, (num_items_in_batch, num_tasks)).float()
     predicted = SequenceClassifierOutput(logits=logits)
-    mse_loss = multi_target_mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
+    mse_loss = embedding_mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
     logits = predicted.logits
     target = target.to(dtype=logits.dtype)
     mse_loss_torch = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="mean")

@@ -36,6 +36,7 @@ def _init_model(cfg: DictConfig) -> BaseModel:
         num_targets_per_task=cfg.data.num_targets_per_task,
         base_model_name_or_path=cfg.model.name,
         load_base_model_from_config=cfg.model.get("load_base_model_from_config", False),
+        loading_params=cfg.model.get("loading_params", {}),  # Defaults to empty
     )
     model = BaseModel(config=config)
     model.set_freeze_base_model(cfg.model.freeze_base_model_parameters)

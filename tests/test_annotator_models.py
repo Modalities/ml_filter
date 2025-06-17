@@ -2,6 +2,7 @@ from typing import Iterable
 
 import pytest
 import torch
+from torch import nn
 from transformers import BertForSequenceClassification
 
 from constants import MODEL_CLASS_MAP
@@ -12,21 +13,55 @@ from ml_filter.models.annotator_model_head import (
     RegressionScalingLayer,
 )
 from ml_filter.models.base_model import BaseModel, BaseModelConfig
+from ml_filter.models.embedding_model import EmbeddingRegressionConfig, EmbeddingRegressionModel
+
+# def test_annotator_model_initialization(annotator_model_config: BaseModelConfig, is_regression: bool):
+#     """Tests if AnnotatorModel initializes correctly with a base model and head."""
+#     model = BaseModel(config=annotator_model_config)
+
+#     assert model._base_model is not None
+#     expected_head = MultiTargetRegressionHead if is_regression else MultiTargetClassificationHead
+#     assert isinstance(model._base_model.classifier, expected_head)
 
 
-def test_annotator_model_initialization(annotator_model_config: BaseModelConfig, is_regression: bool):
-    """Tests if AnnotatorModel initializes correctly with a base model and head."""
-    model = BaseModel(config=annotator_model_config)
+def test_base_model_initialization(base_model_config: BaseModelConfig):
+    """Tests if BaseModel initializes correctly with a base transformer (no custom head)."""
+    model = BaseModel(config=base_model_config)
 
     assert model._base_model is not None
-    expected_head = MultiTargetRegressionHead if is_regression else MultiTargetClassificationHead
-    assert isinstance(model._base_model.classifier, expected_head)
+    # BaseModel should keep the original classifier (no custom head replacement)
+    assert hasattr(model._base_model, "classifier")
+    # The classifier should be the original Linear layer from the transformer
+    assert isinstance(model._base_model.classifier, nn.Linear)
 
 
-def test_annotator_model_freezing(annotator_model_config: BaseModelConfig):
-    """Tests if AnnotatorModel correctly freezes the base model when required."""
+def test_base_model_embedding_extraction(base_model_config: BaseModelConfig):
+    """Tests if BaseModel can extract embeddings."""
+    from omegaconf import DictConfig
+
+    model = BaseModel(config=base_model_config)
+
+    # Create dummy config for embedding extraction
+    embedding_config = DictConfig({"embedding": {"normalize_embeddings": True}})
+
+    # Create dummy input
+    dummy_input = {
+        "input_ids": torch.randint(0, 100, (2, 128)),  # batch_size=2, sequence_length=128
+        "attention_mask": torch.ones(2, 128),
+    }
+
+    # Extract embeddings
+    embeddings = model.extract_embeddings(config=embedding_config, **dummy_input)
+
+    assert embeddings is not None
+    assert embeddings.shape[0] == 2  # batch size
+    assert embeddings.shape[1] > 0  # embedding dimension
+
+
+def test_base_model_freezing(base_model_config: BaseModelConfig):
+    """Tests if BaseModel correctly freezes the base model when required."""
     # Create the model with freezing enabled
-    model = BaseModel(config=annotator_model_config)
+    model = BaseModel(config=base_model_config)
     model.set_freeze_base_model(True)
 
     # Ensure that not all base model parameters are frozen
@@ -39,47 +74,84 @@ def test_annotator_model_freezing(annotator_model_config: BaseModelConfig):
         param.requires_grad for param in model._base_model.classifier.parameters()
     ), "Classifier parameters should be trainable!"
 
-    # Special case for BERT: Ensure pooler parameters are trainable
+    # Special case for BERT: Ensure pooler parameters are FROZEN (not trainable)
     if hasattr(model._base_model, "bert") and hasattr(model._base_model.bert, "pooler"):
         assert all(
-            param.requires_grad for param in model._base_model.bert.pooler.parameters()
-        ), "BERT pooler parameters should be trainable!"
+            not param.requires_grad for param in model._base_model.bert.pooler.parameters()
+        ), "BERT pooler parameters should be frozen!"
 
-    # Ensure all other parameters are frozen
+    # Ensure all other parameters (except classifier) are frozen
     assert all(
         not param.requires_grad
         for name, param in model._base_model.named_parameters()
-        if "classifier" not in name and "pooler" not in name  # Exclude classifier & pooler from check
-    ), "Some non-classifier and non-pooler parameters are still trainable!"
+        if "classifier" not in name  # Only exclude classifier from check (pooler should be frozen)
+    ), "Some non-classifier parameters are still trainable!"
 
 
-def test_annotator_model_unfreezing(annotator_model_config: BaseModelConfig):
-    """Tests if AnnotatorModel correctly unfreezes the base model when required."""
-    model = BaseModel(config=annotator_model_config)
+def test_base_model_unfreezing(base_model_config: BaseModelConfig):
+    """Tests if BaseModel correctly unfreezes the base model when required."""
+    model = BaseModel(config=base_model_config)
     model.set_freeze_base_model(True)
     model.set_freeze_base_model(False)
-    assert all(param.requires_grad for name, param in model._base_model.named_parameters()), "Some are still frozen!"
+
+    # All parameters should be trainable
+    assert all(param.requires_grad for param in model._base_model.parameters()), "All parameters should be trainable!"
 
 
-def test_annotator_model_forward(annotator_model_config: BaseModelConfig):
-    """Tests if AnnotatorModel's forward pass correctly calls the base model."""
-    model = BaseModel(config=annotator_model_config)
+def test_base_model_forward(base_model_config: BaseModelConfig):
+    """Tests if BaseModel's underlying transformer works."""
+    model = BaseModel(config=base_model_config)
 
-    # Create dummy input
     dummy_input = {
-        "input_ids": torch.randint(0, 100, (1, 128)),  # batch_size=1, sequence_length=128
-        "attention_mask": torch.ones(1, 128),
+        "input_ids": torch.randint(1, 1000, (1, 128)),
+        "attention_mask": torch.ones(1, 128, dtype=torch.long),
     }
 
-    # Ensure forward method runs without error
-    output = model(**dummy_input)
+    output = model._base_model(**dummy_input)
     assert output is not None
+
+
+def test_embedding_model_initialization():
+    """Tests if EmbeddingRegressionModel initializes correctly with custom heads."""
+    # Test regression model
+    regression_config = EmbeddingRegressionConfig(
+        embedding_dim=768, num_tasks=2, num_targets_per_task=[3, 4], hidden_dim=1000, is_regression=True
+    )
+
+    regression_model = EmbeddingRegressionModel(config=regression_config)
+    assert isinstance(regression_model.head, MultiTargetRegressionHead)
+
+    # Test classification model
+    classification_config = EmbeddingRegressionConfig(
+        embedding_dim=768, num_tasks=2, num_targets_per_task=[3, 4], hidden_dim=1000, is_regression=False
+    )
+
+    classification_model = EmbeddingRegressionModel(config=classification_config)
+    assert isinstance(classification_model.head, MultiTargetClassificationHead)
+
+
+def test_embedding_model_forward():
+    """Tests if EmbeddingRegressionModel forward pass works."""
+    config = EmbeddingRegressionConfig(embedding_dim=768, num_tasks=2, num_targets_per_task=[3, 4], is_regression=True)
+
+    model = EmbeddingRegressionModel(config=config)
+
+    # Create dummy embeddings and labels
+    embeddings = torch.randn(4, 768)  # batch_size=4, embedding_dim=768
+    labels = torch.randn(4, 2)  # batch_size=4, num_tasks=2
+
+    # Forward pass
+    output = model(embeddings=embeddings, labels=labels)
+
+    assert output.logits is not None
+    assert output.logits.shape == (4, 2)  # batch_size=4, num_tasks=2
 
 
 def test_multi_target_regression_head():
     """Tests MultiTargetRegressionHead functionality."""
     head = MultiTargetRegressionHead(
         input_dim=768,
+        hidden_dim=1000,
         num_prediction_tasks=2,
         num_targets_per_prediction_task=torch.tensor([6, 6]),
     )
@@ -156,6 +228,24 @@ def annotator_model_config(dummy_base_model_path: str, is_regression: bool) -> B
         num_targets_per_task=[6, 6],
         is_regression=is_regression,
         load_base_model_from_config=False,
+        loading_params={
+            "trust_remote_code": False,
+        },
+    )
+
+
+@pytest.fixture
+def base_model_config(dummy_base_model_path: str) -> BaseModelConfig:
+    """Fixture for BaseModel configuration (embedding extraction only)."""
+    return BaseModelConfig(
+        base_model_name_or_path=dummy_base_model_path,
+        num_tasks=2,
+        num_targets_per_task=[6, 6],
+        is_regression=True,  # This doesn't matter for BaseModel
+        load_base_model_from_config=False,
+        loading_params={
+            "trust_remote_code": False,
+        },
     )
 
 

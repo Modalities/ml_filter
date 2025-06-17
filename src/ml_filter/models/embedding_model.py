@@ -1,7 +1,3 @@
-"""
-NEW FILE: Create this as embedding_dataset.py in your project
-"""
-
 from pathlib import Path
 
 import h5py
@@ -11,7 +7,6 @@ from transformers import PretrainedConfig
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.modeling_utils import PreTrainedModel
 
-# Import your existing head implementations
 from ml_filter.models.annotator_model_head import (
     AnnotatorHead,
     MultiTargetClassificationHead,
@@ -83,12 +78,15 @@ class EmbeddingRegressionModel(PreTrainedModel):
     def _build_head(self, config: EmbeddingRegressionConfig) -> AnnotatorHead:
         """Build the regression or classification head using your existing classes."""
         head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
-        return head_cls(
-            input_dim=config.embedding_dim,
-            hidden_dim=config.hidden_dim,
-            num_prediction_tasks=config.num_tasks,
-            num_targets_per_prediction_task=torch.tensor(config.num_targets_per_task, dtype=torch.int64),
-        )
+        head_params = {
+            "input_dim": config.embedding_dim,
+            "num_prediction_tasks": config.num_tasks,
+            "num_targets_per_prediction_task": torch.tensor(config.num_targets_per_task, dtype=torch.int64),
+        }
+        if config.is_regression:
+            head_params["hidden_dim"] = config.hidden_dim
+
+        return head_cls(**head_params)
 
     def forward(
         self,

@@ -222,7 +222,6 @@ def embedding_mse_loss(
     ignored_index: int = -100,
     **kwargs,
 ) -> torch.Tensor:
-    """Same logic as your single_target_mse_loss but for embeddings."""
     logits = input.logits
     target = target.view(-1, num_tasks)
     mask = ~(target == ignored_index)
