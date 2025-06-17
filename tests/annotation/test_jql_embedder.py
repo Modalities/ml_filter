@@ -1,14 +1,13 @@
 import os
-import json
 import shutil
 import tempfile
 import unittest
 
 import h5py
 import numpy as np
-
-from datatrove.pipeline.base import DocumentsPipeline
 from datatrove.data import Document
+from datatrove.pipeline.base import DocumentsPipeline
+
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer
 
 
