@@ -1,0 +1,79 @@
+import os
+import json
+import shutil
+import tempfile
+import unittest
+
+import h5py
+import numpy as np
+
+from datatrove.pipeline.base import DocumentsPipeline
+from datatrove.data import Document
+from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer
+
+
+class JQLEmbedderTestBase(unittest.TestCase):
+    def setUp(self):
+        self.tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp_dir)
+
+        self.input_docs = [
+            Document(
+                id=str(i),
+                text=f"This is document {i}.",
+                metadata={"file_path": f"doc_{i}.jsonl"}
+            ) for i in range(3)
+        ]
+        self.doc_pipeline = DocumentsPipeline(self.input_docs)
+
+
+class TestJQLEmbedder(JQLEmbedderTestBase):
+    def test_embedding_output_structure(self):
+        embedder = JQLEmbedder(batch_size=2)
+        embedded_docs = list(embedder.run(self.doc_pipeline))
+
+        self.assertEqual(len(embedded_docs), len(self.input_docs))
+
+        for doc in embedded_docs:
+            self.assertIn("embedding", doc.metadata)
+            embedding = np.array(doc.metadata["embedding"])
+            self.assertEqual(embedding.ndim, 1)
+            self.assertEqual(embedding.shape[0], 768)
+
+            self.assertIn("document_id", doc.metadata)
+            self.assertIsInstance(doc.metadata["document_id"], str)
+
+
+class TestHDF5Writer(JQLEmbedderTestBase):
+    def test_write_and_verify_hdf5_output(self):
+        embedder = JQLEmbedder(batch_size=2)
+        embedded_docs = list(embedder.run(self.doc_pipeline))
+
+        writer = HDF5Writer(
+            output_folder=self.tmp_dir,
+            output_filename="output.h5",  # Fixed string, not a template
+            dataset_name="train",
+            batch_size=10
+        )
+        for doc in embedded_docs:
+            writer.write(doc)
+        writer.close()
+
+        h5_path = os.path.join(self.tmp_dir, "000_output.h5")
+        with h5py.File(h5_path, "r") as f:
+            self.assertIn("train", f)
+            group = f["train"]
+            self.assertIn("embeddings", group)
+            self.assertIn("document_id", group)
+
+            embeddings = group["embeddings"][:]
+            doc_ids = group["document_id"][:]
+
+            self.assertEqual(embeddings.shape[0], len(self.input_docs))
+            self.assertEqual(embeddings.shape[1], 768)
+
+            for i, doc in enumerate(embedded_docs):
+                expected_id = doc.metadata["document_id"]
+                actual_id = doc_ids[i].decode("utf-8") if isinstance(doc_ids[i], bytes) else str(doc_ids[i])
+                self.assertEqual(actual_id, expected_id)
+                np.testing.assert_allclose(embeddings[i], np.array(doc.metadata["embedding"]), rtol=1e-5)
