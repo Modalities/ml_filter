@@ -294,7 +294,7 @@ class HDF5Writer(DiskWriter):
         batch = self._batches.pop(filename)
 
         logger.info(f"the structure of document is {batch[0]}")
-        embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch])
+        embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=np.float32)
         document_id = [doc["metadata"]["document_id"] for doc in batch]
 
         file = self._writers[filename]
