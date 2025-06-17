@@ -38,7 +38,7 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
         data |= data.pop("metadata")
     return data
 
-
+#TODO modify this function based on csv lookup table
 def _get_unique_id(doc: Document, filepath: str) -> str:
     return f"{filepath}_{doc.id}"
 
@@ -93,6 +93,8 @@ class JQLEmbedder(PipelineStep):
                     # Convert tensor to list for JSON serialization
                     doc.metadata['embedding'] = embedding.cpu().tolist()
                     doc.metadata['document_id'] = _get_unique_id(doc, _get_file_path(doc))
+                    #print each embedding and document_id
+                    logger.info(f"Document ID: {doc.metadata['document_id']}, Embedding: {doc.metadata['embedding'][:5]}...")
                     yield doc
 
 
@@ -253,7 +255,7 @@ class JQLEmbeddingReader(BaseDiskReader):
 
 
 class HDF5Writer(DiskWriter):
-    default_output_filename: str = "${rank}.h5"
+    default_output_filename: str = None
     name = "💾 HDF5"
     _requires_dependencies = ["h5py"]
 
@@ -276,13 +278,12 @@ class HDF5Writer(DiskWriter):
             mode="wb",
             expand_metadata=expand_metadata,
             max_file_size=max_file_size,
-            dataset_name=dataset_name,
         )
         self._writers = {}
         self._batches = defaultdict(list)
         self._file_counter = Counter()
         self.batch_size = batch_size
-        self.schema = schema  # Optional, not strictly used for HDF5
+        self.schema = schema
         self.dataset_name = dataset_name
 
 
@@ -294,19 +295,19 @@ class HDF5Writer(DiskWriter):
 
         logger.info(f"the structure of document is {batch[0]}")
         embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch])
-        labels = np.stack([doc["metadata"]["scores"] for doc in batch])
+        document_id = [doc["metadata"]["document_id"] for doc in batch]
 
         file = self._writers[filename]
 
-        # group_name = os.path.splitext(os.path.basename(filename))[0]
         group_name = self.dataset_name
 
+        #TODO double check
         if group_name in file:
             del file[group_name]
 
         group = file.create_group(group_name)
         group.create_dataset("embeddings", data=embeddings, compression="gzip")
-        group.create_dataset("labels", data=labels, compression="gzip")
+        group.create_dataset("document_id", data=document_id, compression="gzip")
 
     def _write(self, document: dict, file_handler, filename: str):
         if filename not in self._writers:
