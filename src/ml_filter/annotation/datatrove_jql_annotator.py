@@ -213,12 +213,12 @@ class JQLEmbeddingReader(BaseDiskReader):
 
                     grp = f[dataset_name]
                     embeddings = torch.from_numpy(grp["embeddings"][:]).float()
-                    labels = torch.from_numpy(grp["labels"][:]).float()
+                    document_ids = torch.from_numpy(grp["document_id"][:]).float()
 
-                    if len(embeddings) != len(labels):
+                    if len(embeddings) != len(document_ids):
                         raise ValueError(
                             f"Mismatched number of embeddings and labels in {filepath}: "
-                            f"{len(embeddings)} embeddings vs {len(labels)} labels"
+                            f"{len(embeddings)} embeddings vs {len(document_ids)} labels"
                         )
 
                     n_samples = len(embeddings)
@@ -230,7 +230,7 @@ class JQLEmbeddingReader(BaseDiskReader):
                             doc_dict = {
                                 "id": str(i),
                                 "embedding": embeddings[i].tolist(),
-                                "labels": labels[i].tolist(),
+                                "labels": document_ids[i].tolist(),
                             }
                             yield self.get_document_from_dict(doc_dict, filepath, i)
 

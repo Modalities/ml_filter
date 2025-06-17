@@ -1,6 +1,6 @@
 #embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/data/embeddings
-embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/data/test_data/subset
-output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/outputs/data
+embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/embeddings
+output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/annotations/
 
 regression_head_checkpoints: null      # or path to checkpoints if needed
 #regression_head_checkpoints:
