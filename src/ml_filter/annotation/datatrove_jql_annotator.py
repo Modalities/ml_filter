@@ -29,10 +29,18 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
     """
     The datatrove adapter to write stats metadata without the actual document text
     """
-    data = {key: val for key, val in dataclasses.asdict(document).items() if val and key != "text"}
+    def safe_json(val):
+        if isinstance(val, bytes):
+            return val.decode('utf-8', errors='ignore')  # or base64 if binary
+        return val
+
+    data = {key: safe_json(val) for key, val in dataclasses.asdict(document).items() if val and key != "text"}
     if writer.expand_metadata and "metadata" in data:
-        data |= data.pop("metadata")
+        metadata = data.pop("metadata")
+        metadata = {k: safe_json(v) for k, v in metadata.items()}
+        data |= metadata
     return data
+
 
 
 def _get_file_path(doc: Document) -> str:
@@ -172,7 +180,7 @@ class JQLEmbeddingReader(BaseDiskReader):
             skip: int = 0,
             file_progress: bool = True,
             doc_progress: bool = True,
-            text_key: str = "embedding",
+            text_key: str = "embeddings",
             adapter: Callable = None,
             id_key: str = "id",
             default_metadata: dict = None,
@@ -213,7 +221,7 @@ class JQLEmbeddingReader(BaseDiskReader):
 
                     grp = f[dataset_name]
                     embeddings = torch.from_numpy(grp["embeddings"][:]).float()
-                    document_ids = torch.from_numpy(grp["document_id"][:]).float()
+                    document_ids = grp["document_id"][:]
 
                     if len(embeddings) != len(document_ids):
                         raise ValueError(
@@ -229,8 +237,8 @@ class JQLEmbeddingReader(BaseDiskReader):
                         with self.track_time():
                             doc_dict = {
                                 "id": str(i),
-                                "embedding": embeddings[i].tolist(),
-                                "labels": document_ids[i].tolist(),
+                                "embeddings": embeddings[i].tolist(),
+                                "document_id": document_ids[i],
                             }
                             yield self.get_document_from_dict(doc_dict, filepath, i)
 

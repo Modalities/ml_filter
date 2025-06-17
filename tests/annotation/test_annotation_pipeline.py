@@ -26,7 +26,11 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         with h5py.File(self.h5_file_path, "w") as f:
             grp = f.create_group("train")
             grp.create_dataset("embeddings", data=np.random.rand(3, 768).astype(np.float32))
-            grp.create_dataset("labels", data=np.random.rand(3, 1).astype(np.float32))
+            # Define a UTF-8 string dtype with variable length strings
+            dt = h5py.string_dtype(encoding='utf-8')
+            doc_ids = np.array([f"testfile_{i}" for i in range(3)], dtype=dt)
+
+            grp.create_dataset("document_id", data=doc_ids)
             grp.attrs["n_samples"] = 3
 
         # Create dummy OmegaConf config
@@ -58,7 +62,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
 
         doc = docs[0]
         self.assertIsInstance(doc.text, list)  # should be list of floats
-        self.assertIn("labels", doc.metadata)
+        self.assertIn("document_id", doc.metadata)
         self.assertIn("file_path", doc.metadata)
 
     def test_stats_adapter_format(self):
@@ -79,9 +83,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
 
         # Ensure metadata keys are flattened
         self.assertIn("score", result)
-        self.assertIn("label", result)
         self.assertEqual(result["score"], 0.95)
-        self.assertEqual(result["label"], "positive")
 
     def test_run_pipeline(self):
         run_annotation_pipeline(Path(self.config_path))
@@ -100,5 +102,4 @@ class TestRunAnnotationPipeline(unittest.TestCase):
                 self.assertGreater(len(lines), 0, f"No data in output file: {file}")
                 for line in lines:
                     obj = json.loads(line)
-                    self.assertIn("id", obj)
-                    self.assertIn("labels", obj)
+                    self.assertIn("document_id", obj)

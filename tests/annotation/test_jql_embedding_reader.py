@@ -23,23 +23,23 @@ class TestJQLEmbeddingReader(unittest.TestCase):
         with h5py.File(self.h5_file, "w") as f:
             grp = f.create_group("train")
             grp.create_dataset("embeddings", data=self.embeddings)
-            grp.create_dataset("labels", data=self.labels)
+            grp.create_dataset("document_id", data=self.labels)
             grp.attrs["n_samples"] = self.embeddings.shape[0]
 
-    def check_same_data(self, documents, expected_embeddings, expected_labels, skip=0, limit=None):
+    def check_same_data(self, documents, expected_embeddings, expected_document_id, skip=0, limit=None):
         if skip:
             expected_embeddings = expected_embeddings[skip:]
-            expected_labels = expected_labels[skip:]
+            expected_document_id = expected_document_id[skip:]
         if limit is not None:
             expected_embeddings = expected_embeddings[:limit]
-            expected_labels = expected_labels[:limit]
+            expected_document_id = expected_document_id[:limit]
 
         self.assertEqual(len(documents), len(expected_embeddings))
 
         for i, doc in enumerate(documents):
             self.assertEqual(doc.id, str(i + skip))
             np.testing.assert_allclose(doc.text, expected_embeddings[i], rtol=1e-5)
-            np.testing.assert_allclose(doc.metadata["labels"], expected_labels[i], rtol=1e-5)
+            np.testing.assert_allclose(doc.metadata["document_id"], expected_document_id[i], rtol=1e-5)
 
     def test_read(self):
         reader = JQLEmbeddingReader(self.tmp_dir)

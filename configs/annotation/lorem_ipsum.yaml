@@ -8,6 +8,6 @@ regression_head_checkpoints: null      # or path to checkpoints if needed
 #  regression_head_2_name: regression_head_2_checkpoint.ckpt
 batch_size: 1000
 
-tasks: 3
-local_tasks: 3
+tasks: 1
+local_tasks: 1
 local_rank_offset: 0
