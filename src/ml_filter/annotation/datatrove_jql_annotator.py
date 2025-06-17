@@ -253,20 +253,20 @@ class JQLEmbeddingReader(BaseDiskReader):
 
 
 class HDF5Writer(DiskWriter):
-    default_output_filename: str = "${source_filename}.h5"
+    default_output_filename: str = "${rank}.h5"
     name = "💾 HDF5"
     _requires_dependencies = ["h5py"]
 
     def __init__(
         self,
         output_folder: DataFolderLike,
-        output_filename: str = "${source_filename}.h5",
+        output_filename: str = None,
         adapter: Callable = None,
         batch_size: int = 1000,
         expand_metadata: bool = False,
         max_file_size: int = 5 * 2**30,  # 5GB
         schema: Any = None,  # Optional, not used in h5 but kept for compatibility
-        dataset_name: str = "train",
+        dataset_name: str = "train",  # Default dataset name
     ):
         super().__init__(
             output_folder,
@@ -276,6 +276,7 @@ class HDF5Writer(DiskWriter):
             mode="wb",
             expand_metadata=expand_metadata,
             max_file_size=max_file_size,
+            dataset_name=dataset_name,
         )
         self._writers = {}
         self._batches = defaultdict(list)
@@ -284,13 +285,6 @@ class HDF5Writer(DiskWriter):
         self.schema = schema  # Optional, not strictly used for HDF5
         self.dataset_name = dataset_name
 
-    def _resolve_filename(self, document: dict) -> str:
-        metadata = document.get("metadata", {})
-        try:
-            resolved = self._template.substitute(metadata)
-        except KeyError as e:
-            raise ValueError(f"Missing metadata field for filename substitution: {e}")
-        return resolved
 
     def _write_batch(self, filename: str):
         if not self._batches[filename]:
@@ -315,8 +309,6 @@ class HDF5Writer(DiskWriter):
         group.create_dataset("labels", data=labels, compression="gzip")
 
     def _write(self, document: dict, file_handler, filename: str):
-        filename = self._resolve_filename(document)
-
         if filename not in self._writers:
             self._writers[filename] = h5py.File(file_handler.name, "a")
 
