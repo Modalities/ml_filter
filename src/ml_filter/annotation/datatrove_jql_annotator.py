@@ -83,20 +83,17 @@ class JQLEmbedder(PipelineStep):
 
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
-        with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
-            for doc_batch in batched(doc_pipeline, self.batch_size):
-                with self.track_time(unit='batch'):
-                    embeddings = embedder.embed([doc.text for doc in doc_batch])
-                    for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
-                        base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
-                        filepath = os.path.splitext(base_name)[0]
-                        doc.metadata["source_filename"] = filepath
-                        # Convert tensor to list for JSON serialization
-                        doc.metadata['embedding'] = embedding.cpu().tolist()
-                        doc.metadata['document_id'] = _get_unique_id(doc, _get_file_path(doc))
-                        if writer:
-                            writer.write(doc, rank)
-                        yield doc
+        for doc_batch in batched(doc_pipeline, self.batch_size):
+            with self.track_time(unit='batch'):
+                embeddings = embedder.embed([doc.text for doc in doc_batch])
+                for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
+                    base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
+                    filepath = os.path.splitext(base_name)[0]
+                    doc.metadata["source_filename"] = _get_file_path(doc)
+                    # Convert tensor to list for JSON serialization
+                    doc.metadata['embedding'] = embedding.cpu().tolist()
+                    doc.metadata['document_id'] = _get_unique_id(doc, _get_file_path(doc))
+                    yield doc
 
 
 class JQLHead(PipelineStep):
@@ -256,14 +253,14 @@ class JQLEmbeddingReader(BaseDiskReader):
 
 
 class HDF5Writer(DiskWriter):
-    default_output_filename: str = "${rank}.h5"
+    default_output_filename: str = "${source_filename}.h5"
     name = "💾 HDF5"
     _requires_dependencies = ["h5py"]
 
     def __init__(
         self,
         output_folder: DataFolderLike,
-        output_filename: str = None,
+        output_filename: str = "${source_filename}.h5",
         adapter: Callable = None,
         batch_size: int = 1000,
         expand_metadata: bool = False,
@@ -286,6 +283,14 @@ class HDF5Writer(DiskWriter):
         self.batch_size = batch_size
         self.schema = schema  # Optional, not strictly used for HDF5
         self.dataset_name = dataset_name
+
+    def _resolve_filename(self, document: dict) -> str:
+        metadata = document.get("metadata", {})
+        try:
+            resolved = self._template.substitute(metadata)
+        except KeyError as e:
+            raise ValueError(f"Missing metadata field for filename substitution: {e}")
+        return resolved
 
     def _write_batch(self, filename: str):
         if not self._batches[filename]:
@@ -310,6 +315,8 @@ class HDF5Writer(DiskWriter):
         group.create_dataset("labels", data=labels, compression="gzip")
 
     def _write(self, document: dict, file_handler, filename: str):
+        filename = self._resolve_filename(document)
+
         if filename not in self._writers:
             self._writers[filename] = h5py.File(file_handler.name, "a")
 

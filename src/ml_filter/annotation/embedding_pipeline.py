@@ -25,14 +25,9 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
             batch_size=1000,
-            stats_writer=JsonlWriter(
-                output_folder=cfg.output_dir + '/embeddings',
-                output_filename="${source_filename}.jsonl",
-                adapter=stats_adapter,
-                expand_metadata=True,
-
-            ),
         ),
+        HDF5Writer(output_folder="/raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/embeddings",
+                   output_filename="${source_filename}.h5")
 
     ]
     stage = LocalPipelineExecutor(
