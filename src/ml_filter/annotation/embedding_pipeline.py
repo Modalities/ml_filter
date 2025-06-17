@@ -26,7 +26,7 @@ def run_embedding_pipeline(config_file_path: Path):
             embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
             batch_size=1000,
         ),
-        HDF5Writer(output_folder="/raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/embeddings",
+        HDF5Writer(output_folder=cfg.output_dir,
                    output_filename="${source_filename}.h5")
 
     ]
