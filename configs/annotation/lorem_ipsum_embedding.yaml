@@ -10,6 +10,8 @@ regression_head_checkpoints: null      # or path to checkpoints if needed
 #  regression_head_2_name: regression_head_2_checkpoint.ckpt
 batch_size: 1000
 
+hdf5_dataset_name: train
+
 tasks: 8
 local_tasks: 8
 local_rank_offset: 0

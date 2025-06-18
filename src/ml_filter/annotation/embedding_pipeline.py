@@ -3,7 +3,7 @@ from pathlib import Path
 from datatrove.executor import LocalPipelineExecutor
 from omegaconf import OmegaConf
 
-from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, stats_adapter, JQLJsonlReader
+from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, JQLJsonlReader
 
 
 def run_embedding_pipeline(config_file_path: Path):
@@ -21,11 +21,13 @@ def run_embedding_pipeline(config_file_path: Path):
             glob_pattern=cfg.glob_pattern,
         ),
         JQLEmbedder(
-            embedder_model_id="cfg.embedder_model",
+            embedder_model_id=cfg.embedding_model,
             batch_size=1000,
         ),
         HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-                   output_filename="${source_filename}.h5")
+                   output_filename="${source_filename}.h5",
+                   dataset_name=cfg.hdf5_dataset_name
+        )
 
     ]
     stage = LocalPipelineExecutor(
