@@ -12,7 +12,6 @@ def run_annotation_pipeline(config_file_path: Path):
     Runs the annotation pipeline for scoring text data using a multilingual embedding model
     and regression heads.
     """
-    # Define the pipeline steps
 
     cfg = OmegaConf.load(config_file_path)
 

@@ -364,7 +364,7 @@ def aggregate_human_annotations_cli(
     "--min_metrics",
     type=str,
     help="Comma-separated list of metrics for which lower is better."
-    + "All other metrics are considered to be better when higher.",
+         + "All other metrics are considered to be better when higher.",
 )
 @click.option(
     "--report_metrics",
@@ -736,6 +736,7 @@ def entry_run_annotations(config_file_path: Path):
     run_annotation_pipeline(
         config_file_path=config_file_path
     )
+
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
     translation_service_type = TranslationServiceType[translation_service]

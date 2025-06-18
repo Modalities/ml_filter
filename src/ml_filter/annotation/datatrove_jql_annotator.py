@@ -1,34 +1,45 @@
+import contextlib
+import dataclasses
 import os
-from typing import Optional
+from typing import Callable, Optional
 
+import h5py
+import torch
+from torch import bfloat16, cuda, no_grad
 from dotenv import load_dotenv
+from transformers.utils.hub import cached_file
 
-load_dotenv()
+from datatrove.data import Document, DocumentsPipeline
+from datatrove.io import DataFileLike, DataFolderLike
+from datatrove.pipeline.base import PipelineStep
+from datatrove.pipeline.readers.base import BaseDiskReader
+from datatrove.pipeline.writers.disk_base import DiskWriter
+from datatrove.utils.batching import batched
+from datatrove.utils.logging import logger
 
 from ml_filter.annotation.regression_head import RegressionHead
-from datatrove.pipeline.base import PipelineStep
-from datatrove.pipeline.writers.disk_base import DiskWriter
-from datatrove.data import DocumentsPipeline, Document
-from datatrove.utils.batching import batched
-from transformers.utils.hub import cached_file
-import dataclasses
-import contextlib
 
-from torch import no_grad, cuda, bfloat16
-
-from ml_filter.annotation.embedder import get_embedder_instance
-import torch
-from typing import Callable
-from datatrove.io import DataFileLike, DataFolderLike
-from datatrove.pipeline.readers.base import BaseDiskReader
-from datatrove.utils.logging import logger
-import h5py
+load_dotenv()
 
 
 def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
     """
-    The datatrove adapter to write stats metadata without the actual document text
+    Adapter function for extracting metadata from a Document object, excluding the 'text' field.
+
+    This is typically used in evaluation or statistics pipelines where only metadata such as
+    IDs, scores, and document properties are needed for storage or further analysis.
+
+    Byte values in metadata are decoded to UTF-8 to ensure safe serialization.
+
+    Args:
+        writer (DiskWriter): The disk writer handling output.
+        document (Document): The document to extract metadata from.
+        expand_metadata (bool): Whether to flatten the nested 'metadata' dict into the top level.
+
+    Returns:
+        dict: A metadata dictionary safe for JSON serialization, without the document text.
     """
+
     def safe_json(val):
         if isinstance(val, bytes):
             return val.decode('utf-8', errors='ignore')  # or base64 if binary
@@ -42,151 +53,58 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
     return data
 
 
-
 def _get_file_path(doc: Document) -> str:
     base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
     filepath = os.path.splitext(base_name)[0]
     return filepath
 
 
-class JQLEmbedder(PipelineStep):
-    """
-    A pipeline step for embedding text documents using a specified embedding model.
-    """
-    name = "🔢 - JQL-EMBEDDER"
-    type = "🔢 - JQL-EMBEDDER"
-
-    def __init__(
-            self,
-            embedder_model_id: str = 'Snowflake/snowflake-arctic-embed-m-v2.0',
-            batch_size: int = 1_000,
-            device_overwrite: Optional[str] = None,
-    ):
-        super().__init__()
-        self.embedder_model_id = embedder_model_id
-        self.batch_size = batch_size
-        self.device_overwrite = device_overwrite
-
-    def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
-        if not cuda.is_available():
-            logger.warning('CUDA is not available, using CPU')
-            device = 'cpu'
-        else:
-            if self.device_overwrite is None:
-                device_count = cuda.device_count()
-                cuda_device_id = rank % device_count
-                device = f'cuda:{cuda_device_id}'
-            else:
-                device = f'cuda:{self.device_overwrite}'
-
-        breakpoint()
-
-        embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
-
-        for doc_batch in batched(doc_pipeline, self.batch_size):
-            with self.track_time(unit='batch'):
-                embeddings = embedder.embed([doc.text for doc in doc_batch])
-                for doc, embedding in zip(doc_batch, embeddings):
-                    # Convert tensor to list for JSON serialization
-                    doc.metadata['embedding'] = embedding.cpu().tolist()
-                    yield doc
-
-
-class JQLHead(PipelineStep):
-    """
-    A pipeline step for applying regression heads to embeddings to produce scores.
-    """
-    name = "🔢 - JQL-HEAD"
-    type = "🔢 - JQL-HEAD"
-
-    def __init__(
-            self,
-            regression_head_checkpoints: Optional[dict[str, str]] = None,
-            batch_size: int = 1_000,
-            device_overwrite: Optional[str] = None,
-            stats_writer: DiskWriter = None,
-    ):
-        super().__init__()
-        if regression_head_checkpoints is None:
-            logger.info('No custom regression heads specified. Using default JQL Edu heads.')
-            self.regression_head_checkpoints = {
-                'Edu-JQL-Gemma-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
-                                                'checkpoints/edu-gemma-snowflake-balanced.ckpt'),
-                'Edu-JQL-Mistral-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
-                                                  'checkpoints/edu-mistral-snowflake-balanced.ckpt'),
-                'Edu-JQL-Llama-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
-                                                'checkpoints/edu-llama-snowflake-balanced.ckpt'),
-            }
-        else:
-            self.regression_head_checkpoints = regression_head_checkpoints
-        self.batch_size = batch_size
-        self.device_overwrite = device_overwrite
-        self.stats_writer = stats_writer
-
-    def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
-        if not cuda.is_available():
-            logger.warning('CUDA is not available, using CPU')
-            device = 'cpu'
-        else:
-            if self.device_overwrite is None:
-                device_count = cuda.device_count()
-                cuda_device_id = rank % device_count
-                device = f'cuda:{cuda_device_id}'
-            else:
-                device = f'cuda:{self.device_overwrite}'
-
-        self.regression_heads = {}
-        for name, path in self.regression_head_checkpoints.items():
-            self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
-
-        with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
-            for doc_batch in batched(doc_pipeline, self.batch_size):
-                # breakpoint()
-                with self.track_time(unit='batch'):
-                    # Convert embeddings back to tensors with bfloat16 dtype
-                    embeddings = [torch.tensor(doc.text, device=device, dtype=torch.bfloat16) for doc in doc_batch]
-                    # embeddings = [torch.tensor(doc.metadata['embedding'], device=device, dtype=torch.bfloat16) for doc in doc_batch]
-                    embeddings_tensor = torch.stack(embeddings)
-
-                    scores = {}
-                    with no_grad():
-                        for name, regression_head in self.regression_heads.items():
-                            scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
-
-                    for batch_idx, doc in enumerate(doc_batch):
-                        filepath = _get_file_path(doc)
-                        doc.metadata["source_filename"] = filepath
-                        for name, score in scores.items():
-                            doc.metadata[name] = score[batch_idx].item()
-                        if writer:
-                            writer.write(doc, rank)
-                        yield doc
-
-
 class JQLEmbeddingReader(BaseDiskReader):
     """
-    Read data from an HDF5 (.h5) file containing precomputed embeddings.
+    A specialized DiskReader that reads HDF5 (.h5) files containing precomputed embeddings.
+
+    Each .h5 file is expected to contain a group (e.g., 'train') with two datasets:
+    - 'embeddings': a 2D array of floats representing document embeddings
+    - 'document_id': a list of document identifiers
+
+    This reader converts each embedding into a Document object with optional tracking and metadata.
+
+    Args:
+        data_folder (DataFolderLike): Folder or archive containing the HDF5 files.
+        dataset_name (str): Name of the dataset group within each .h5 file.
+        paths_file (DataFileLike, optional): A file listing which files to read.
+        limit (int): Maximum number of documents to read (-1 for no limit).
+        skip (int): Number of documents to skip initially.
+        file_progress (bool): Whether to show progress for files.
+        doc_progress (bool): Whether to show progress for documents.
+        text_key (str): The field name used for embeddings.
+        adapter (Callable, optional): Optional adapter to transform raw doc dicts.
+        id_key (str): The field name to use as document ID.
+        default_metadata (dict, optional): Default metadata to attach to each document.
+        recursive (bool): Whether to recursively search for files.
+        glob_pattern (str, optional): File-matching pattern (default: '*.h5').
+        shuffle_files (bool): Whether to shuffle the order of files read.
     """
 
     name = "🔢 JQL-EMBEDDING-READER"
     _requires_dependencies = ["h5py", "numpy"]
 
     def __init__(
-            self,
-            data_folder: DataFolderLike,
-            dataset_name: str = "embeddings",
-            paths_file: DataFileLike | None = None,
-            limit: int = -1,
-            skip: int = 0,
-            file_progress: bool = True,
-            doc_progress: bool = True,
-            text_key: str = "embeddings",
-            adapter: Callable = None,
-            id_key: str = "id",
-            default_metadata: dict = None,
-            recursive: bool = False,
-            glob_pattern: str | None = "*.h5",
-            shuffle_files: bool = False,
+        self,
+        data_folder: DataFolderLike,
+        dataset_name: str = "embeddings",
+        paths_file: DataFileLike | None = None,
+        limit: int = -1,
+        skip: int = 0,
+        file_progress: bool = True,
+        doc_progress: bool = True,
+        text_key: str = "embeddings",
+        adapter: Callable = None,
+        id_key: str = "id",
+        default_metadata: dict = None,
+        recursive: bool = False,
+        glob_pattern: str | None = "*.h5",
+        shuffle_files: bool = False,
     ):
         super().__init__(
             data_folder=data_folder,
@@ -207,7 +125,20 @@ class JQLEmbeddingReader(BaseDiskReader):
 
     def read_file(self, filepath: str):
         """
-        Open .h5 file in SWMR-safe read-only mode. Yield docs with embedding.
+        Reads a single .h5 file and yields document objects with embeddings.
+
+        Expects the specified dataset group to contain 'embeddings' and 'document_id'.
+        Converts them into a document stream for downstream pipeline steps.
+
+        Args:
+            filepath (str): Path to the .h5 file.
+
+        Yields:
+            Document: A document object containing an embedding and its metadata.
+
+        Raises:
+            KeyError: If the expected dataset group is not found.
+            ValueError: If the number of embeddings and IDs do not match.
         """
         try:
 
@@ -244,3 +175,97 @@ class JQLEmbeddingReader(BaseDiskReader):
 
         except Exception as e:
             logger.warning(f"Failed to read `{filepath}`: {e}")
+
+
+class JQLHead(PipelineStep):
+    """
+    A pipeline step that applies one or more regression heads to document embeddings to generate scores.
+
+    This step supports evaluating large batches of precomputed embeddings by applying
+    fine-tuned regression models (e.g., for educational scoring, quality estimation, etc.).
+    The output scores are stored as new metadata fields in each document.
+
+    Args:
+        regression_head_checkpoints (dict[str, str], optional): Mapping of head names to checkpoint paths.
+            If None, defaults to JQL educational scoring heads from the Jackal-AI hub.
+        batch_size (int): Number of documents to process in a single batch.
+        device_overwrite (str, optional): Manually specify CUDA device (e.g., '0' or 'cuda:1').
+        stats_writer (DiskWriter, optional): Optional writer to log or save document scores.
+    """
+    name = "🔢 - JQL-HEAD"
+    type = "🔢 - JQL-HEAD"
+
+    def __init__(
+        self,
+        regression_head_checkpoints: Optional[dict[str, str]] = None,
+        batch_size: int = 1_000,
+        device_overwrite: Optional[str] = None,
+        stats_writer: DiskWriter = None,
+    ):
+        super().__init__()
+        if regression_head_checkpoints is None:
+            logger.info('No custom regression heads specified. Using default JQL Edu heads.')
+            self.regression_head_checkpoints = {
+                'Edu-JQL-Gemma-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
+                                                'checkpoints/edu-gemma-snowflake-balanced.ckpt'),
+                'Edu-JQL-Mistral-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
+                                                  'checkpoints/edu-mistral-snowflake-balanced.ckpt'),
+                'Edu-JQL-Llama-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
+                                                'checkpoints/edu-llama-snowflake-balanced.ckpt'),
+            }
+        else:
+            self.regression_head_checkpoints = regression_head_checkpoints
+        self.batch_size = batch_size
+        self.device_overwrite = device_overwrite
+        self.stats_writer = stats_writer
+
+    def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
+        """
+        Applies regression heads to document embeddings and yields documents with updated scores.
+
+        Handles device selection (CPU or CUDA), loads the regression heads, and writes scores
+        into document metadata fields like 'score_Edu-JQL-Gemma-SF'.
+
+        Args:
+            doc_pipeline (DocumentsPipeline): Iterable pipeline of documents with embedding data in `text`.
+            rank (int): Rank ID in distributed processing (used for device assignment).
+            world_size (int): Total number of distributed workers (not currently used).
+
+        Yields:
+            Document: Each document enriched with predicted scores in its metadata.
+        """
+        if not cuda.is_available():
+            logger.warning('CUDA is not available, using CPU')
+            device = 'cpu'
+        else:
+            if self.device_overwrite is None:
+                device_count = cuda.device_count()
+                cuda_device_id = rank % device_count
+                device = f'cuda:{cuda_device_id}'
+            else:
+                device = f'cuda:{self.device_overwrite}'
+
+        self.regression_heads = {}
+        for name, path in self.regression_head_checkpoints.items():
+            self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
+
+        with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
+            for doc_batch in batched(doc_pipeline, self.batch_size):
+                with self.track_time(unit='batch'):
+                    # Convert embeddings back to tensors with bfloat16 dtype
+                    embeddings = [torch.tensor(doc.text, device=device, dtype=torch.bfloat16) for doc in doc_batch]
+                    embeddings_tensor = torch.stack(embeddings)
+
+                    scores = {}
+                    with no_grad():
+                        for name, regression_head in self.regression_heads.items():
+                            scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
+
+                    for batch_idx, doc in enumerate(doc_batch):
+                        filepath = _get_file_path(doc)
+                        doc.metadata["source_filename"] = filepath
+                        for name, score in scores.items():
+                            doc.metadata[name] = score[batch_idx].item()
+                        if writer:
+                            writer.write(doc, rank)
+                        yield doc
