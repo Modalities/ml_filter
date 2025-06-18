@@ -143,7 +143,17 @@ class JQLJsonlReader(BaseDiskReader):
 
 class JQLEmbedder(PipelineStep):
     """
-    A pipeline step for embedding text documents using a specified embedding model.
+    A pipeline step that embeds batches of documents using a specified embedding model.
+
+    This step supports GPU acceleration and handles device assignment across multiple ranks
+    (e.g., in distributed settings). Each document receives an `embedding` field in metadata
+    containing the embedding vector.
+
+    Args:
+        embedder_model_id: HuggingFace model ID or local path to the embedding model. Default is Snowflake Arctic embed v2.0.
+        batch_size: number of documents to process in one embedding batch. Default is 1000.
+        device_overwrite: manually specify a CUDA device (e.g., "0"). If None, a device is selected automatically per rank.
+        stats_writer: optional writer to log stats to disk during embedding.
     """
     name = "🔢 - JQL-EMBEDDER"
     type = "🔢 - JQL-EMBEDDER"
@@ -193,7 +203,19 @@ class JQLEmbedder(PipelineStep):
 
 class JQLHead(PipelineStep):
     """
-    A pipeline step for applying regression heads to embeddings to produce scores.
+    A pipeline step that applies one or more regression heads to document embeddings to produce scalar scores.
+
+    This step supports batch processing and distributed device assignment. Each regression head outputs a
+    separate score, which is added to the document metadata under a prefixed key (e.g., "score_Edu-JQL-Mistral-SF").
+
+    If no custom regression head checkpoints are provided, the default JQL Edu regression heads for Gemma, Mistral,
+    and Llama (trained on Snowflake embeddings) are used.
+
+    Args:
+        regression_head_checkpoints: a dictionary mapping head names to checkpoint paths. If None, uses default heads.
+        batch_size: number of documents to process in one batch. Default is 1000.
+        device_overwrite: manually specify a CUDA device (e.g., "0"). If None, devices are assigned per rank automatically.
+        stats_writer: optional writer to record scored documents for analysis or debugging.
     """
     name = "🔢 - JQL-HEAD"
     type = "🔢 - JQL-HEAD"
@@ -265,7 +287,32 @@ class JQLHead(PipelineStep):
 
 class JQLEmbeddingReader(BaseDiskReader):
     """
-    Read data from an HDF5 (.h5) file containing precomputed embeddings.
+    Read data from HDF5 (.h5) files containing precomputed embeddings and associated labels.
+
+    Each HDF5 file is expected to contain a dataset group (default: 'train') with:
+      - "embeddings": an array of embedding vectors
+      - "labels": an array of corresponding label values (can be scalars or vectors)
+
+    Each embedding-label pair is treated as a document, where:
+      - "embedding" is stored as the main data
+      - "labels" are added to the metadata
+      - "id" is generated as the sample index
+
+    Args:
+        data_folder: a str, tuple, or DataFolder object representing a path/filesystem.
+        dataset_name: name of the dataset group inside each HDF5 file (default: "embeddings", overridden to "train" internally).
+        paths_file: optionally provide a file listing relative file paths to load, one per line.
+        limit: limit the number of documents read in total. Useful for debugging or sampling.
+        skip: number of initial documents to skip.
+        file_progress: show a progress bar across files being read.
+        doc_progress: show a progress bar for documents within each file.
+        text_key: the key used for the main data field in the document. Default is "embedding".
+        adapter: optional function to adapt the raw dict to a document. Signature: (self, data: dict, path: str, id_in_file: int | str).
+        id_key: the key used to identify each document. Default is "id".
+        default_metadata: dictionary of metadata to include in every document.
+        recursive: whether to scan subdirectories of `data_folder` for files.
+        glob_pattern: only files matching this pattern will be included (default: "*.h5").
+        shuffle_files: if True, shuffles the list of files before reading. Mostly for visualization/debugging.
     """
 
     name = "🔢 JQL-EMBEDDING-READER"
@@ -348,6 +395,27 @@ class JQLEmbeddingReader(BaseDiskReader):
 
 
 class HDF5Writer(DiskWriter):
+    """
+    A writer that stores batched documents with embeddings into HDF5 (.h5) files.
+
+    This writer accumulates documents in memory and periodically flushes them to disk
+    once `batch_size` is reached, storing them in a group called `dataset_name` within
+    the HDF5 file.
+
+    Each group contains:
+      - "embeddings": a 2D NumPy array of float32 embedding vectors
+      - "document_id": a list of UTF-8 encoded string identifiers
+
+    Args:
+        output_folder: where the HDF5 files will be written (can be a path or DataFolder).
+        output_filename: optional base filename to write to. May be ignored if file rotation occurs.
+        adapter: optional callable to adapt documents before writing.
+        batch_size: number of documents to accumulate before writing to file.
+        expand_metadata: whether to expand nested metadata dicts (not used here).
+        max_file_size: maximum file size in bytes before rotating to a new file (default: 5GB).
+        schema: not used in HDF5 writer, included for compatibility with other writers.
+        dataset_name: name of the group inside each HDF5 file where datasets will be written (default: "train").
+    """
     default_output_filename: str = None
     name = "💾 HDF5"
     _requires_dependencies = ["h5py"]

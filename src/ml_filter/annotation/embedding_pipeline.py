@@ -11,18 +11,17 @@ def run_embedding_pipeline(config_file_path: Path):
     Runs the annotation pipeline for scoring text data using a multilingual embedding model
     and regression heads.
     """
-    # Define the pipeline steps
 
     cfg = OmegaConf.load(config_file_path)
 
     pipeline = [
         JQLJsonlReader(
             data_folder=cfg.embeddings_directory,
-            csv_hashmap=Path("/raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv"),
-            glob_pattern='*.jsonl',
+            csv_hashmap=Path(cfg.csv_hashmap_path),
+            glob_pattern=cfg.glob_pattern,
         ),
         JQLEmbedder(
-            embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
+            embedder_model_id="cfg.embedder_model",
             batch_size=1000,
         ),
         HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
@@ -39,5 +38,6 @@ def run_embedding_pipeline(config_file_path: Path):
     stage.run()
 
 
+# Testing
 if __name__ == '__main__':
     run_embedding_pipeline(config_file_path=Path("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"))
