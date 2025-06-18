@@ -129,7 +129,7 @@ class JQLJsonlReader(BaseDiskReader):
                         try:
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
                             document.metadata['file_path'] = full_file_path
-                            document.metadata['document_id'] = file_hash + str(li)
+                            document.metadata['document_id'] = file_hash + "_" + str(li)
                             if not document:
                                 continue
                         except (EOFError, JSONDecodeError) as e:
@@ -186,9 +186,8 @@ class JQLEmbedder(PipelineStep):
                     doc.metadata["source_filename"] = _get_file_path(doc)
                     # Convert tensor to list for JSON serialization
                     doc.metadata['embedding'] = embedding.cpu().tolist()
-                    doc.metadata['document_id'] = _get_unique_id(doc, _get_file_path(doc))
                     #print each embedding and document_id
-                    logger.info(f"Document ID: {doc.metadata['document_id']}, Embedding: {doc.metadata['embedding'][:5]}...")
+                    logger.info(f"Document ID: {doc.metadata['document_id']}")
                     yield doc
 
 
