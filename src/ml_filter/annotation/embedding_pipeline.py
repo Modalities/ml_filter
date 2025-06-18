@@ -1,11 +1,9 @@
 from pathlib import Path
 
 from datatrove.executor import LocalPipelineExecutor
-from datatrove.pipeline.readers import JsonlReader
-from datatrove.pipeline.writers import JsonlWriter
 from omegaconf import OmegaConf
 
-from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, stats_adapter
+from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, stats_adapter, JQLJsonlReader
 
 
 def run_embedding_pipeline(config_file_path: Path):
@@ -18,8 +16,9 @@ def run_embedding_pipeline(config_file_path: Path):
     cfg = OmegaConf.load(config_file_path)
 
     pipeline = [
-        JsonlReader(
+        JQLJsonlReader(
             data_folder=cfg.embeddings_directory,
+            csv_hashmap=Path("/raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv"),
             glob_pattern='*.jsonl',
         ),
         JQLEmbedder(
