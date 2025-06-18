@@ -1,11 +1,13 @@
-from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 import logging
+
+from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
+
 
 class SpearmanEarlyStoppingCallback(TrainerCallback):
     def __init__(self, patience=5, min_delta=1e-3, metric_key="eval_spearman"):
         self.patience = patience
         self.min_delta = min_delta
-        self.metric_key = metric_key if metric_key == "eval_val_loss" else f"eval_val_edu/{metric_key}"
+        self.metric_key = metric_key if metric_key == "eval_val_loss" else f"eval_{metric_key}"
         self.best_score = None
         self.bad_epochs = 0
         self.logger = logging.getLogger(__name__)
@@ -26,7 +28,9 @@ class SpearmanEarlyStoppingCallback(TrainerCallback):
         improvement = current_score - self.best_score
         if improvement < self.min_delta:
             self.bad_epochs += 1
-            self.logger.info(f"No significant improvement (Δ={improvement:.6f} < {self.min_delta}). Bad epochs: {self.bad_epochs}")
+            self.logger.info(
+                f"No significant improvement (Δ={improvement:.6f} < {self.min_delta}). Bad epochs: {self.bad_epochs}"
+            )
         else:
             self.best_score = current_score
             self.bad_epochs = 0

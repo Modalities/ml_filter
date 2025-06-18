@@ -16,7 +16,7 @@ tokenizer:
   truncation: true
   padding: longest
   max_length: 8192 # Check this
-  add_generation_prompt: false
+  add_generation_prompt: true
 
 data: 
   train_file_path: /home/abbas-khan/processed_data_natural/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
@@ -34,18 +34,18 @@ data:
   num_processes: 64
 
 training:
-  batch_size: 512
-  eval_batch_size: 512 # 1024
+  batch_size: 1024
+  eval_batch_size: 1024 # 1024
   epochs: 20
   use_bf16: true
   weight_decay: 0.01 # 0.01
-  eval_strategy: steps
+  eval_strategy: epoch
   save_strategy: "no"
-  logging_steps: 10
+  logging_steps: 100
   seed: 42
   is_regression: true
-  greater_is_better: false  # Save model with lowest loss
-  metric_for_best_model: eval_val_loss
+  greater_is_better: yes  # Save model with lowest loss
+  metric_for_best_model: test_edu/spearman_corr
   learning_rate: 5e-04 # 5e-04
   logging_dir_path: data/output/fineweb_edu_model_artic_v1_m_test_100_epoch
   output_dir_path: ${training.logging_dir_path}
@@ -57,4 +57,4 @@ embedding:
   normalize_embeddings: true
   init_regression_weights: false
   save_path: /home/abbas-khan/ml_filter/data/output/embeddings/new_embeddings.h5
-  load_path: /home/abbas-khan/ml_filter/data/output/embeddings/embeddings.h5
+  load_path: /home/abbas-khan/ml_filter/data/output/embeddings/new_embeddings.h5

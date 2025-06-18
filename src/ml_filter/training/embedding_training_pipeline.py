@@ -150,8 +150,6 @@ def _init_training_args(cfg) -> TrainingArguments:
         bf16=cfg.training.use_bf16,
         greater_is_better=cfg.training.greater_is_better,
         eval_strategy=cfg.training.eval_strategy,
-        eval_steps=10,
-        # eval_on_start=True,
         dataloader_num_workers=cfg.training.get("dataloader_num_workers", 4),
         report_to=["wandb"],
         run_name=cfg.training.wandb_run_name,
@@ -289,7 +287,6 @@ def compute_embedding_metrics(
     # Convert logits to predictions
     preds = np.round(predictions) if is_regression else predictions.argmax(axis=1)
     preds_raw = predictions if is_regression else preds
-
     # Compute metrics for each target
     metric_dict = {
         f"{task_name}/{metric}": value
