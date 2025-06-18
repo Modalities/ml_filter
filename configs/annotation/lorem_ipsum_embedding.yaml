@@ -1,5 +1,5 @@
 #embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/data/embeddings
-embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train
+embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511 #/raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/temp_train
 output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
 
 regression_head_checkpoints: null      # or path to checkpoints if needed
@@ -8,6 +8,6 @@ regression_head_checkpoints: null      # or path to checkpoints if needed
 #  regression_head_2_name: regression_head_2_checkpoint.ckpt
 batch_size: 1000
 
-tasks: 2
-local_tasks: 2
+tasks: 8
+local_tasks: 8
 local_rank_offset: 0
