@@ -2,7 +2,7 @@
 import os
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, IO
 
 # --- Third-Party Libraries ---
 import h5py
@@ -36,9 +36,7 @@ def _get_file_path(doc: Document) -> str:
     Returns:
         str: The base filename without extension. Defaults to 'default' if no file_path is present.
     """
-    base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
-    filepath = os.path.splitext(base_name)[0]
-    return filepath
+    return Path(doc.metadata.get("file_path", "default.jsonl")).stem
 
 
 class JQLJsonlReader(BaseDiskReader):
@@ -102,7 +100,14 @@ class JQLJsonlReader(BaseDiskReader):
             shuffle_files,
         )
         self.compression = compression
-        self.hash_map = read_existing_hashes(csv_hashmap)
+        try:
+            self.hash_map = read_existing_hashes(csv_hashmap)
+        except FileNotFoundError:
+            logger.error(f"Hash CSV file not found at path: {csv_hashmap}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to load hash map from {csv_hashmap}: {e}")
+            raise
 
     def read_file(self, filepath: str):
         import orjson
@@ -111,7 +116,6 @@ class JQLJsonlReader(BaseDiskReader):
         with self.data_folder.open(filepath, "r", compression=self.compression) as f:
             try:
                 full_file_path = str(self.data_folder.path) + "/" + filepath
-                # log out self.data_folder
                 logger.info("Reading file %s", full_file_path)
                 logger.info("data folder %s", self.data_folder.path)
                 file_hash = self.hash_map[full_file_path]
@@ -181,10 +185,7 @@ class JQLEmbedder(PipelineStep):
                 embeddings = embedder.embed([doc.text for doc in doc_batch])
                 for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                     doc.metadata["source_filename"] = _get_file_path(doc)
-                    # Convert tensor to list for JSON serialization
                     doc.metadata['embedding'] = embedding.cpu().tolist()
-                    # # print each embedding and document_id
-                    # logger.info(f"Document ID: {doc.metadata['document_id']}")
                     yield doc
 
 
@@ -221,14 +222,14 @@ class HDF5Writer(DiskWriter):
             adapter: Callable = None,
             batch_size: int = 1000,
             expand_metadata: bool = False,
-            max_file_size: int = 5 * 2 ** 30,  # 5GB
-            schema: Any = None,  # Optional, not used in h5 but kept for compatibility
-            dataset_name: str = "train",  # Default dataset name
+            max_file_size: int = 5 * 2 ** 30,
+            schema: Any = None,
+            dataset_name: str = "train"
     ):
         super().__init__(
             output_folder,
             output_filename,
-            compression=None,  # No compression here
+            compression=None,
             adapter=adapter,
             mode="wb",
             expand_metadata=expand_metadata,
@@ -263,7 +264,7 @@ class HDF5Writer(DiskWriter):
         dt = h5py.string_dtype(encoding='utf-8')
         group.create_dataset("document_id", data=document_id, compression="gzip", dtype=dt)
 
-    def _write(self, document: dict, file_handler, filename: str):
+    def _write(self, document: dict, file_handler: IO, filename: str):
         if filename not in self._writers:
             self._writers[filename] = h5py.File(file_handler.name, "a")
 

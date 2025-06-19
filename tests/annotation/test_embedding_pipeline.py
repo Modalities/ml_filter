@@ -17,9 +17,9 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
 
     def setUp(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.embeddings_dir = os.path.join(self.tmp_dir, "jsonl_input")
+        self.input_dir = os.path.join(self.tmp_dir, "jsonl_input")
         self.output_dir = os.path.join(self.tmp_dir, "embedding_output")
-        os.makedirs(self.embeddings_dir, exist_ok=True)
+        os.makedirs(self.input_dir, exist_ok=True)
 
         # Create dummy JSONL file with text
         self.sample_docs = [
@@ -27,7 +27,7 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
             {"id": "1", "text": "The ocean is vast.", "metadata": {"document_id": "doc_1"}},
             {"id": "2", "text": "Mountains are tall.", "metadata": {"document_id": "doc_2"}},
         ]
-        self.sample_file = os.path.join(self.embeddings_dir, "sample.jsonl")
+        self.sample_file = os.path.join(self.input_dir, "sample.jsonl")
         with open(self.sample_file, "w") as f:
             for line in self.sample_docs:
                 f.write(json.dumps(line) + "\n")
@@ -39,7 +39,7 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
         # Create OmegaConf config file
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
         OmegaConf.save(config=OmegaConf.create({
-            "embeddings_directory": self.embeddings_dir,
+            "input_dir": self.input_dir,
             "output_dir": self.output_dir,
             "tasks": 1,
             "local_tasks": 1,

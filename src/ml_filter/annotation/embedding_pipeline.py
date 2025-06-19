@@ -11,12 +11,17 @@ def run_embedding_pipeline(config_file_path: Path):
     Runs the annotation pipeline for scoring text data using a multilingual embedding model
     and regression heads.
     """
+    if not config_file_path.exists():
+        raise FileNotFoundError(f"Config file not found at {config_file_path}")
 
-    cfg = OmegaConf.load(config_file_path)
+    try:
+        cfg = OmegaConf.load(config_file_path)
+    except Exception as e:
+        raise ValueError(f"Failed to load config from {config_file_path}: {e}")
 
     pipeline = [
         JQLJsonlReader(
-            data_folder=cfg.embeddings_directory,
+            data_folder=cfg.input_dir,
             csv_hashmap=Path(cfg.csv_hashmap_path),
             glob_pattern=cfg.glob_pattern,
         ),
