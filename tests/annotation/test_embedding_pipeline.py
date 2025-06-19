@@ -9,7 +9,7 @@ import h5py
 from omegaconf import OmegaConf
 
 from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
-from ml_filter.data_processing.hash_data_files import compute_file_hash, hash_files_to_csv
+from ml_filter.data_processing.hash_data_files import hash_files_to_csv
 
 
 class TestRunEmbeddingPipeline(unittest.TestCase):
@@ -75,4 +75,5 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
 
             self.assertEqual(embeddings.shape[0], len(self.sample_docs))
             self.assertEqual(embeddings.shape[1], 768)  # Check embedding dim
-            self.assertEqual(set(doc_ids), {'d437ffe88187d720a372636edfd8dcdf_0', 'd437ffe88187d720a372636edfd8dcdf_1', 'd437ffe88187d720a372636edfd8dcdf_2'})
+            self.assertEqual(set(doc_ids), {'d437ffe88187d720a372636edfd8dcdf_0', 'd437ffe88187d720a372636edfd8dcdf_1',
+                                            'd437ffe88187d720a372636edfd8dcdf_2'})
