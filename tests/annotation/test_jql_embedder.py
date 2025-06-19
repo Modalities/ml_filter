@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -9,6 +10,7 @@ from datatrove.data import Document
 from datatrove.pipeline.base import DocumentsPipeline
 
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer
+from ml_filter.data_processing.hash_data_files import compute_file_hash
 
 
 class JQLEmbedderTestBase(unittest.TestCase):
@@ -16,13 +18,31 @@ class JQLEmbedderTestBase(unittest.TestCase):
         self.tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp_dir)
 
-        self.input_docs = [
-            Document(
-                id=str(i),
-                text=f"This is document {i}.",
-                metadata={"file_path": f"doc_{i}.jsonl"}
-            ) for i in range(3)
+        # Create one dummy .jsonl file with 3 lines
+        jsonl_path = Path(self.tmp_dir) / "doc_0.jsonl"
+        lines = [
+            "This is document 0.",
+            "This is document 1.",
+            "This is document 2."
         ]
+        with jsonl_path.open("w") as f:
+            for line in lines:
+                f.write(f"{line}\n")
+
+        file_hash = compute_file_hash(jsonl_path)
+
+        # Create documents using file_path and document_id
+        self.input_docs = []
+        for i, text in enumerate(lines):
+            self.input_docs.append(Document(
+                id=str(i),
+                text=text,
+                metadata={
+                    "file_path": f"doc_{i}.jsonl",
+                    "document_id": f"{file_hash}_{i}"
+                }
+            ))
+
         self.doc_pipeline = DocumentsPipeline(self.input_docs)
 
 

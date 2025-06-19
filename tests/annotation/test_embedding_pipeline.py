@@ -8,10 +8,12 @@ from pathlib import Path
 import h5py
 from omegaconf import OmegaConf
 
-from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline  # adjust import path
+from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
+from ml_filter.data_processing.hash_data_files import compute_file_hash, hash_files_to_csv
 
 
 class TestRunEmbeddingPipeline(unittest.TestCase):
+    """End-to-end test for the embedding pipeline using a dummy JSONL file."""
 
     def setUp(self):
         self.tmp_dir = tempfile.mkdtemp()
@@ -25,10 +27,14 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
             {"id": "1", "text": "The ocean is vast.", "metadata": {"document_id": "doc_1"}},
             {"id": "2", "text": "Mountains are tall.", "metadata": {"document_id": "doc_2"}},
         ]
-        jsonl_path = os.path.join(self.embeddings_dir, "sample.jsonl")
-        with open(jsonl_path, "w") as f:
+        self.sample_file = os.path.join(self.embeddings_dir, "sample.jsonl")
+        with open(self.sample_file, "w") as f:
             for line in self.sample_docs:
                 f.write(json.dumps(line) + "\n")
+
+        # Create CSV hashmap for the sample file using your utility
+        self.csv_hashmap_path = Path(self.tmp_dir) / "hashmap.csv"
+        hash_files_to_csv([Path(self.sample_file)], self.csv_hashmap_path, chunk_size=1024 * 1024)
 
         # Create OmegaConf config file
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
@@ -38,6 +44,10 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
             "tasks": 1,
             "local_tasks": 1,
             "local_rank_offset": 0,
+            "csv_hashmap_path": str(self.csv_hashmap_path),
+            "glob_pattern": "*.jsonl",
+            "embedding_model": 'Snowflake/snowflake-arctic-embed-m-v2.0',
+            "hdf5_dataset_name": "train",
         }), f=self.config_path)
 
     def tearDown(self):
@@ -48,7 +58,7 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
 
         # Verify .h5 output was created
         output_file = os.path.join(
-            self.output_dir, "000_sample.h5"
+            self.output_dir, "embeddings", "000_sample.h5"
         )
         self.assertTrue(os.path.isfile(output_file), "HDF5 file not created.")
 
@@ -65,4 +75,4 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
 
             self.assertEqual(embeddings.shape[0], len(self.sample_docs))
             self.assertEqual(embeddings.shape[1], 768)  # Check embedding dim
-            self.assertEqual(set(doc_ids), {"sample_0", "sample_1", "sample_2"})
+            self.assertEqual(set(doc_ids), {'d437ffe88187d720a372636edfd8dcdf_0', 'd437ffe88187d720a372636edfd8dcdf_1', 'd437ffe88187d720a372636edfd8dcdf_2'})
