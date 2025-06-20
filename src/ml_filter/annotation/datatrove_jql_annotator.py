@@ -5,10 +5,6 @@ from typing import Callable, Optional
 
 import h5py
 import torch
-from torch import bfloat16, cuda, no_grad
-from dotenv import load_dotenv
-from transformers.utils.hub import cached_file
-
 from datatrove.data import Document, DocumentsPipeline
 from datatrove.io import DataFileLike, DataFolderLike
 from datatrove.pipeline.base import PipelineStep
@@ -16,6 +12,8 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.utils.batching import batched
 from datatrove.utils.logging import logger
+from dotenv import load_dotenv
+from torch import bfloat16, cuda, no_grad
 
 from ml_filter.annotation.regression_head import RegressionHead
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from transformers.utils.hub import cached_file
 from omegaconf import OmegaConf
 
 from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline  # adjust import if needed
@@ -33,10 +34,19 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             grp.create_dataset("document_id", data=doc_ids)
             grp.attrs["n_samples"] = 3
 
+        # Get the local cached path to the checkpoint
+        mistral_ckpt_path = cached_file(
+            "Jackal-AI/JQL-Edu-Heads",
+            "checkpoints/edu-mistral-snowflake-balanced.ckpt"
+        )
+
         # Create dummy OmegaConf config
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
         OmegaConf.save(config=OmegaConf.create({
             "embeddings_directory": self.embeddings_dir,
+            "regression_head_checkpoints": {
+                "Edu-JQL-Mistral-SF": mistral_ckpt_path
+            },
             "output_dir": self.output_dir,
             "batch_size": 2,
             "tasks": 1,

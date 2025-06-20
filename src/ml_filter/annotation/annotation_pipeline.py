@@ -16,10 +16,9 @@ def run_annotation_pipeline(config_file_path: Path):
     cfg = OmegaConf.load(config_file_path)
 
     pipeline = [
-        JQLEmbeddingReader(
-            data_folder=cfg.embeddings_directory, ),
+        JQLEmbeddingReader(data_folder=cfg.embeddings_directory),
         JQLHead(
-            regression_head_checkpoints=cfg.regression_head_checkpoints,  # Uses default heads
+            regression_head_checkpoints=cfg.regression_head_checkpoints,
             batch_size=cfg.batch_size,
             stats_writer=JsonlWriter(
                 output_folder=cfg.output_dir + '/annotated_data',
