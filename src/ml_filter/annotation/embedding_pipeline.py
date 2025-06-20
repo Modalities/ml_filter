@@ -27,7 +27,7 @@ def run_embedding_pipeline(config_file_path: Path):
         ),
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
-            batch_size=1000,
+            batch_size=cfg.batch_size,
         ),
         HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
                    output_filename="${source_filename}.h5",

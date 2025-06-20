@@ -4,10 +4,6 @@ output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
 csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
 
 embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
-regression_head_checkpoints: null      # or path to checkpoints if needed
-#regression_head_checkpoints:
-#  regression_head_1_name: regression_head_1_checkpoint.ckpt
-#  regression_head_2_name: regression_head_2_checkpoint.ckpt
 batch_size: 1000
 
 hdf5_dataset_name: train
