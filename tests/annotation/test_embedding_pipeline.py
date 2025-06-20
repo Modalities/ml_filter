@@ -48,6 +48,7 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
             "glob_pattern": "*.jsonl",
             "embedding_model": 'Snowflake/snowflake-arctic-embed-m-v2.0',
             "hdf5_dataset_name": "train",
+            "batch_size": 32,
         }), f=self.config_path)
 
     def tearDown(self):
