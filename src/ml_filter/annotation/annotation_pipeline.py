@@ -19,7 +19,7 @@ def run_annotation_pipeline(config_file_path: Path):
         JQLEmbeddingReader(
             data_folder=cfg.embeddings_directory, ),
         JQLHead(
-            regression_head_checkpoints=None,  # Uses default heads
+            regression_head_checkpoints=cfg.regression_head_checkpoints,  # Uses default heads
             batch_size=cfg.batch_size,
             stats_writer=JsonlWriter(
                 output_folder=cfg.output_dir + '/annotated_data',

@@ -204,17 +204,9 @@ class JQLHead(PipelineStep):
     ):
         super().__init__()
         if regression_head_checkpoints is None:
-            logger.info('No custom regression heads specified. Using default JQL Edu heads.')
-            self.regression_head_checkpoints = {
-                'Edu-JQL-Gemma-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
-                                                'checkpoints/edu-gemma-snowflake-balanced.ckpt'),
-                'Edu-JQL-Mistral-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
-                                                  'checkpoints/edu-mistral-snowflake-balanced.ckpt'),
-                'Edu-JQL-Llama-SF': cached_file('Jackal-AI/JQL-Edu-Heads',
-                                                'checkpoints/edu-llama-snowflake-balanced.ckpt'),
-            }
-        else:
-            self.regression_head_checkpoints = regression_head_checkpoints
+            raise ValueError("No regression head checkpoints provided. Please specify custom regression heads.")
+        self.regression_head_checkpoints = regression_head_checkpoints
+
         self.batch_size = batch_size
         self.device_overwrite = device_overwrite
         self.stats_writer = stats_writer
