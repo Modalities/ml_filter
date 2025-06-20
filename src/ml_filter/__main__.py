@@ -15,6 +15,7 @@ from ml_filter.analysis.plot_score_distributions import plot_differences_in_scor
 from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
+from ml_filter.data_processing.hash_data_files import hash_files_to_csv
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
@@ -722,6 +723,28 @@ def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) ->
         output_path=output_file_path,
         transform_fns=get_transform_functions(),
     )
+
+
+@main.command(name="hash_files_to_csv")
+@click.argument("input_files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--output_csv",
+    type=click.Path(exists=False, path_type=Path),
+    required=True,
+    help="Path to the output CSV file.",
+)
+@click.option(
+    "--chunk_size",
+    type=int,
+    default=1024 * 1024,
+    show_default=True,
+    help="Chunk size in bytes for reading files.",
+)
+def hash_files_to_csv_cli(input_files: tuple[Path], output_csv: Path, chunk_size: int):
+    """
+    Compute MD5 hashes for multiple files and write the hashes with file paths to a CSV file.
+    """
+    hash_files_to_csv(list(input_files), output_csv, chunk_size)
 
 
 @main.command(name="run_annotation_pipeline")
