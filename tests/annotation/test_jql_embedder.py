@@ -10,6 +10,7 @@ from datatrove.data import Document
 from datatrove.pipeline.base import DocumentsPipeline
 
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer
+from ml_filter.annotation.embedder import SnowflakeArcticEmbedMV2_0
 from ml_filter.data_processing.hash_data_files import compute_file_hash
 
 
@@ -96,3 +97,31 @@ class TestHDF5Writer(JQLEmbedderTestBase):
                 actual_id = doc_ids[i].decode("utf-8") if isinstance(doc_ids[i], bytes) else str(doc_ids[i])
                 self.assertEqual(actual_id, expected_id)
                 np.testing.assert_allclose(embeddings[i], np.array(doc.metadata["embedding"]), rtol=1e-5)
+
+
+class TestJQLEmbedderMatchesManualEmbedding(JQLEmbedderTestBase):
+    def test_jql_embedder_matches_snowflake_embed_class(self):
+        device = 'cuda'
+        model_wrapper = SnowflakeArcticEmbedMV2_0(device=device)
+
+        # Sample input documents
+        texts = [doc.text for doc in self.input_docs]
+
+        # Get manual embeddings using the .embed() method
+        manual_embeddings = model_wrapper.embed(texts).cpu().tolist()
+
+        # Run through JQLEmbedder pipeline
+        embedder = JQLEmbedder(batch_size=2)
+        embedded_docs = list(embedder.run(self.doc_pipeline))
+
+        # Compare each embedding
+        for i, doc in enumerate(embedded_docs):
+            actual = np.array(doc.metadata["embedding"])
+            expected = manual_embeddings[i]
+            np.testing.assert_allclose(
+                actual,
+                expected,
+                rtol=1e-5,
+                atol=1e-5,
+                err_msg=f"Embedding mismatch at index {i}"
+            )
