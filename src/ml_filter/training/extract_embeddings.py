@@ -39,7 +39,7 @@ def _init_model(cfg: DictConfig) -> BaseModel:
         loading_params=cfg.model.get("loading_params", {}),  # Defaults to empty
     )
     model = BaseModel(config=config)
-    model.set_freeze_base_model(cfg.model.freeze_base_model_parameters)
+    model.set_freeze_base_model(cfg.model.freeze_base_model_parameters, cfg.model.freeze_pooling_layer_params)
     return model
 
 

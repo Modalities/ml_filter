@@ -70,7 +70,7 @@ class BaseModel(PreTrainedModel):
         self._load_base_model(config)
         # self._overwrite_head(config)
 
-    def set_freeze_base_model(self, freeze: bool):
+    def set_freeze_base_model(self, freeze_training_params: bool, freeze_pooling_params: bool):
         """If enabled, freezes all base model parameters, so that only the classification head is trainable.
 
         This function works with any Transformer model that has a `classifier` or
@@ -78,7 +78,7 @@ class BaseModel(PreTrainedModel):
         """
         # Freeze all base model parameters
         for param in self._base_model.parameters():
-            param.requires_grad = not freeze
+            param.requires_grad = not freeze_training_params
 
         # Unfreeze classifier head
         if hasattr(self._base_model, "classifier"):
@@ -89,7 +89,7 @@ class BaseModel(PreTrainedModel):
         # TODO: check for more general solution
         if hasattr(self._base_model, "bert") and hasattr(self._base_model.bert, "pooler"):
             for param in self._base_model.bert.pooler.parameters():
-                param.requires_grad = not freeze
+                param.requires_grad = not freeze_pooling_params
 
     def _load_base_model(self, config: BaseModelConfig):
         try:
