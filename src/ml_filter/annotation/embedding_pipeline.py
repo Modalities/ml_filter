@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from datatrove.executor import LocalPipelineExecutor
+from datatrove.executor import SlurmPipelineExecutor
 from omegaconf import OmegaConf
 
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, JQLJsonlReader
@@ -35,12 +35,14 @@ def run_embedding_pipeline(config_file_path: Path):
         )
 
     ]
-    stage = LocalPipelineExecutor(
+    stage = SlurmPipelineExecutor(
         pipeline,
-        tasks=cfg.tasks,
-        local_tasks=cfg.local_tasks,
-        local_rank_offset=cfg.local_rank_offset,
+        job_name=cfg.slurm.job_name,
         logging_dir=cfg.output_dir + '/logs',
+        tasks=cfg.slurm.tasks,
+        workers=cfg.slurm.workers,
+        time=cfg.slurm.time,
+        partition=cfg.slurm.partition,
     )
     stage.run()
 
