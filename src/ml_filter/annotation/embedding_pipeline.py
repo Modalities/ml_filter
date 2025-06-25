@@ -39,10 +39,15 @@ def run_embedding_pipeline(config_file_path: Path):
         pipeline,
         job_name=cfg.slurm.job_name,
         logging_dir=cfg.output_dir + '/logs',
-        tasks=cfg.slurm.tasks,
+        tasks=cfg.tasks,
         workers=cfg.slurm.workers,
         time=cfg.slurm.time,
         partition=cfg.slurm.partition,
+        qos=cfg.slurm.qos,
+        cpus_per_task=cfg.slurm.cpus_per_task,
+        # mem_per_cpu=cfg.slurm.mem_per_cpu,
+        # gpu_per_task=cfg.slurm.gpu_per_task,
+        # account=cfg.slurm.account,
     )
     stage.run()
 

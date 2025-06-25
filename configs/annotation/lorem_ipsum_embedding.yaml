@@ -1,13 +1,27 @@
 glob_pattern: "*.jsonl"
-input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511
-output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
-csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
+input_dir: /data/cat/ws/alju972f-annotation_at_scale/data/sample_data
+output_dir: /data/cat/ws/alju972f-annotation_at_scale/data/embedding_output_dir
+csv_hashmap_path: /data/cat/ws/alju972f-annotation_at_scale/data/embedding_output_dir/scripts/hashes.csv
 
 embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
 batch_size: 1000
 
 hdf5_dataset_name: train
 
-tasks: 8
+tasks: 1
 local_tasks: 8
 local_rank_offset: 0
+
+
+slurm:
+  partition: "capella-interactive"
+  time: "00:10:00"
+  cpus_per_task: 56
+  gpus_per_task: 1
+  mem_per_gpu: "8G"
+  job_name: "lorem_ipsum_embedding"
+  output: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.out
+  error: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.err
+  workers: 1
+  account: "p_gptx"
+  qos: "normal"

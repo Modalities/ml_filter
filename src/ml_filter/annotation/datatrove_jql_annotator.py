@@ -167,6 +167,7 @@ class JQLEmbedder(PipelineStep):
         self.stats_writer = stats_writer
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
+        logger.info(f"Running JQL Embedder on rank {rank} with world size {world_size}")
         if not cuda.is_available():
             logger.warning('CUDA is not available, using CPU')
             device = 'cpu'
