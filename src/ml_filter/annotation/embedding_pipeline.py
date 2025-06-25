@@ -18,6 +18,10 @@ def run_embedding_pipeline(config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
     except Exception as e:
         raise ValueError(f"Failed to load config from {config_file_path}: {e}")
+    
+    if cfg.slurm.tasks <= 0:
+        raise ValueError("Number of tasks must be > 0")
+
 
     pipeline = [
         JQLJsonlReader(
@@ -36,22 +40,21 @@ def run_embedding_pipeline(config_file_path: Path):
 
     ]
     stage = SlurmPipelineExecutor(
-        pipeline,
+        pipeline=pipeline,
         job_name=cfg.slurm.job_name,
         logging_dir=cfg.output_dir + '/logs',
-        tasks=cfg.tasks,
+        tasks=cfg.slurm.tasks,
         workers=cfg.slurm.workers,
+        cpus_per_task=cfg.slurm.cpus_per_task,
         time=cfg.slurm.time,
         partition=cfg.slurm.partition,
-        qos=cfg.slurm.qos,
-        cpus_per_task=cfg.slurm.cpus_per_task,
-        # mem_per_cpu=cfg.slurm.mem_per_cpu,
-        # gpu_per_task=cfg.slurm.gpu_per_task,
-        # account=cfg.slurm.account,
+        # max_array_size=5,
+        requeue=False,
+        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks-per-node": cfg.slurm.ntasks_per_node, "gres": cfg.slurm.gres},
     )
     stage.run()
 
 
 # Testing
 if __name__ == '__main__':
-    run_embedding_pipeline(config_file_path=Path("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"))
+    run_embedding_pipeline(config_file_path=Path("/data/cat/ws/alju972f-annotation_at_scale/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"))
