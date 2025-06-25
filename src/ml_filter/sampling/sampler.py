@@ -1,8 +1,8 @@
 """
-Professional Data Sampling Script - Balanced Distribution
+Sampling Script - Balanced Distribution
 
-This script processes JSONL files containing scored data and creates a balanced
-distribution that's a middle ground between natural and uniform - keeping common 
+This script processes JSONL files containing scored data and creates a 
+distribution based on the Hessen AI's distribution - keeping common 
 classes roughly equal while moderately boosting rare classes, then splits the data 
 into training and validation sets while preventing ID leakage.
 """
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class BalancedDataSampler:
-    """Handles balanced distribution sampling - middle ground between natural and uniform distributions."""
+    """Handles balanced distribution sampling - Mimics Hessen AI's distributions."""
 
     def __init__(
         self,
@@ -79,7 +79,7 @@ class BalancedDataSampler:
             df[self.score_column] = pd.to_numeric(df[self.score_column], errors="coerce")
             df = df.dropna(subset=[self.score_column])
 
-            # Keep only values where int(number) == float(number)
+            # Keep only values where int(number) == float(number), as reported by Hessen AI
             df = df[df[self.score_column].apply(lambda x: int(x) == float(x))]
 
             # Add language identifier
@@ -247,7 +247,7 @@ class BalancedDataSampler:
     def _calculate_balanced_proportions(self, unique_scores, score_counts, total_available):
         """Calculate target proportions to match the paper's distribution."""
 
-        # Target proportions based on the hessen AI's distribution:
+        # Target proportions mimics Hessen AI's distribution:
         # Class 0: 115610, Class 1: 115716, Class 2: 116128, Class 3: 112935, Class 4: 39017, Class 5: 654
         # Total: ~500k, so proportions are:
         target_proportions = {
