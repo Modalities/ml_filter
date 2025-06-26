@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from datatrove.executor import LocalPipelineExecutor
+from datatrove.executor import SlurmPipelineExecutor
 from datatrove.pipeline.writers import JsonlWriter
 from omegaconf import OmegaConf
 
@@ -13,7 +13,16 @@ def run_annotation_pipeline(config_file_path: Path):
     and regression heads.
     """
 
-    cfg = OmegaConf.load(config_file_path)
+    if not config_file_path.exists():
+        raise FileNotFoundError(f"Config file not found at {config_file_path}")
+
+    try:
+        cfg = OmegaConf.load(config_file_path)
+    except Exception as e:
+        raise ValueError(f"Failed to load config from {config_file_path}: {e}")
+    
+    if cfg.slurm.tasks <= 0:
+        raise ValueError("Number of tasks must be > 0")
 
     pipeline = [
         JQLEmbeddingReader(data_folder=cfg.embeddings_directory),
@@ -29,11 +38,17 @@ def run_annotation_pipeline(config_file_path: Path):
             ),
         )
     ]
-    stage = LocalPipelineExecutor(
-        pipeline,
-        tasks=cfg.tasks,
-        local_tasks=cfg.local_tasks,
-        local_rank_offset=cfg.local_rank_offset,
+    stage = SlurmPipelineExecutor(
+        pipeline=pipeline,
+        job_name=cfg.slurm.job_name,
         logging_dir=cfg.output_dir + '/logs',
+        tasks=cfg.slurm.tasks,
+        workers=cfg.slurm.workers,
+        cpus_per_task=cfg.slurm.cpus_per_task,
+        time=cfg.slurm.time,
+        partition=cfg.slurm.partition,
+        # max_array_size=5,
+        requeue=False,
+        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks-per-node": cfg.slurm.ntasks_per_node, "gres": cfg.slurm.gres},
     )
     stage.run()
