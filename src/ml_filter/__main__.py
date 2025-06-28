@@ -18,7 +18,8 @@ from ml_filter.data_processing.hash_data_files import hash_files_to_csv
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
-from ml_filter.translate import TranslationServiceType, TranslatorFactory
+from ml_filter.translation.translate import TranslationServiceType, TranslatorFactory
+from ml_filter.translation.translation_evaluation import evaluate_translations
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
@@ -755,6 +756,29 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
+
+
+@main.command(name="evaluate_translations")
+@click.option("--data-dir", required=True, help="Directory containing translation JSONL files")
+@click.option("--gold-path", required=True, help="Path to gold reference JSONL file")
+@click.option("--model-name", default="Unbabel/wmt22-cometkiwi-da", help="COMET model to use")
+@click.option("--languages", type=str, required=True, help="Comma-separated list of supported language codes")
+@click.option("--batch-size", help="Batch size for processing translations")
+def evaluate_translations_cli(
+    data_dir: str,
+    gold_path: str,
+    model_name: str,
+    languages: str,
+    batch_size: int,
+):
+    """CLI entry point for evaluating translation quality."""
+    evaluate_translations(
+        data_dir=data_dir,
+        gold_path=gold_path,
+        languages=languages.split(","),
+        model_name=model_name,
+        batch_size=batch_size,
+    )
 
 
 if __name__ == "__main__":
