@@ -102,6 +102,9 @@ class SnowflakeArcticEmbedMV2_0():
         self.dtype = dtype
         
         model_id = 'Snowflake/snowflake-arctic-embed-m-v2.0'
+
+        ### Debugging
+        # model_id = '/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0'
         
         # Load the tokenizer specific to the embedding model.
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -116,6 +119,13 @@ class SnowflakeArcticEmbedMV2_0():
             use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
         )
         self.model = model
+
+        ### Debugging
+        print(next(model.parameters()).device) # the value is cpu here
+        self.model = model.to(device)
+        self.model.to(device)  # Move the model to the specified device.
+
+        
         # Compile the model's forward pass if `compile` is True.
         if compile:
             model.forward = torch.compile(self.model.forward)
@@ -139,7 +149,23 @@ class SnowflakeArcticEmbedMV2_0():
             padding='longest', 
             truncation=True, 
             return_tensors='pt'
-        ).to(self.device) # Move tokens to the specified device.
+        )
+
+        ### Debugging
+        print(next(model.parameters()).device) # the value is cpu here
+        self.model = model.to(device)
+        self.model.to(device)  # Move the model to the specified device.
+        print(f"Batch tokens: {batch_tokens}")  # Debugging line to check tokenization output.
+        # print(torch.device(self.device))  # Debugging line to check the device.
+        # batch_tokens = {k: v.to(torch.device(self.device)) for k, v in batch_tokens.items()} # Move tokens to the specified device.
+        print(self.model)
+        print(f"Device in embed(): {self.device}")
+        print(f"CUDA available: {torch.cuda.is_available()}")
+        # Get the device of the first parameter
+        device = next(self.model.parameters()).device
+        print(f"Model is on device: {device}")
+
+
 
         # Disable gradient calculation and ensure operations are on the correct CUDA device.
         with torch.no_grad(), torch.cuda.device(self.device):      

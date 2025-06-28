@@ -18,6 +18,9 @@ from datatrove.utils.logging import logger
 from dotenv import load_dotenv
 from torch import bfloat16, cuda
 
+### Debugging
+import torch
+
 from ml_filter.annotation.embedder import get_embedder_instance
 from ml_filter.data_processing.hash_data_files import read_existing_hashes
 
@@ -179,7 +182,23 @@ class JQLEmbedder(PipelineStep):
             else:
                 device = f'cuda:{self.device_overwrite}'
 
+        ### Debugging
+        print(torch.cuda.is_available())
+        logger.info(torch.cuda.is_available())
+        print(torch.cuda.get_device_name(0))
+        logger.info(torch.cuda.get_device_name(0))
+
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
+
+        ### Debugging
+        # try:
+        #     embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
+        # except Exception as e:
+        #     #i neeed to see what the issue is here
+        #     logger.error(f"Failed to load embedder model {self.embedder_model_id} on device {device}: {e}")
+        #     logger.error("This is error :", e)
+        # logger.info(f"Using device {device} for embedding")
+        # logger.info(f"Using embedder {self.embedder_model_id} on device {device}")
 
         for doc_batch in batched(doc_pipeline, self.batch_size):
             with self.track_time(unit='batch'):

@@ -50,7 +50,13 @@ def run_embedding_pipeline(config_file_path: Path):
         partition=cfg.slurm.partition,
         # max_array_size=5,
         requeue=False,
-        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks-per-node": cfg.slurm.ntasks_per_node, "gres": cfg.slurm.gres},
+        venv_path=cfg.slurm.venv_path,
+        sbatch_args={"account": cfg.slurm.account, 
+                     "qos": cfg.slurm.qos, 
+                     "nodes": cfg.slurm.nodes, 
+                     "ntasks-per-node": cfg.slurm.ntasks_per_node, 
+                     "gres": cfg.slurm.gres,
+                     },
     )
     stage.run()
 
