@@ -9,7 +9,7 @@ import openai
 import pytest
 import yaml
 
-from ml_filter.translate import Translator
+from ml_filter.translation.translate import Translator
 
 
 @dataclass
