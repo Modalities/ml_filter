@@ -38,6 +38,7 @@ EUROPEAN_LANGUAGES = {
     "ro": "Romanian",
     "sh": "Serbo-Croation",
     "sr": "Serbian",
+    "sr-cyrl": "Serbian (Cyrillic)",
     "sk": "Slovak",
     "sl": "Slovenian",
     "es": "Spanish",
@@ -59,3 +60,5 @@ MODEL_CLASS_MAP: dict[str, type[PreTrainedModel]] = {
     "snowflake/snowflake-arctic-embed-m-v2.0": BertForSequenceClassification,
     "snowflake/snowflake-arctic-embed-l-v2.0": BertForSequenceClassification,
 }
+
+TRANSLATION_SCORE_CLASSES = ["fine", "minor", "major", "critical"]

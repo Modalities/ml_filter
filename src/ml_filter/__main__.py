@@ -19,7 +19,10 @@ from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
 from ml_filter.translation.translate import TranslationServiceType, TranslatorFactory
-from ml_filter.translation.translation_evaluation import evaluate_translations
+from ml_filter.translation.translation_evaluation import (
+    evaluate_translations,
+    save_human_eval_translation_quality_results,
+)
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
@@ -763,13 +766,17 @@ def _get_target_language_codes_list_helper(target_language_codes: str) -> list[s
 @click.option("--gold-path", required=True, help="Path to gold reference JSONL file")
 @click.option("--model-name", default="Unbabel/wmt22-cometkiwi-da", help="COMET model to use")
 @click.option("--languages", type=str, required=True, help="Comma-separated list of supported language codes")
-@click.option("--batch-size", help="Batch size for processing translations")
+@click.option("--batch-size", type=int, help="Batch size for processing translations")
+@click.option(
+    "--output-dir", required=True, type=click.Path(file_okay=False), help="Directory to save histogram plots."
+)
 def evaluate_translations_cli(
     data_dir: str,
     gold_path: str,
     model_name: str,
     languages: str,
     batch_size: int,
+    output_dir: str,
 ):
     """CLI entry point for evaluating translation quality."""
     evaluate_translations(
@@ -778,6 +785,31 @@ def evaluate_translations_cli(
         languages=languages.split(","),
         model_name=model_name,
         batch_size=batch_size,
+        output_dir=Path(output_dir),
+    )
+
+
+@main.command(name="plot_translation_quality")
+@click.option(
+    "--data-dir",
+    required=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="Directory containing translation JSON files.",
+)
+@click.option(
+    "--gt-path", required=True, type=click.Path(exists=True, dir_okay=False), help="Path to ground truth JSONL file."
+)
+@click.option("--languages", required=True, type=str, help="Comma-separated list of supported language codes.")
+@click.option(
+    "--output-dir", required=True, type=click.Path(file_okay=False), help="Directory to save histogram plots."
+)
+def plot_translation_quality_cli(data_dir: str, gt_path: str, languages: str, output_dir: str):
+    """CLI entry point to plot translation quality histograms."""
+    save_human_eval_translation_quality_results(
+        data_dir=Path(data_dir),
+        gt_path=Path(gt_path),
+        languages=[lang.strip() for lang in languages.split(",")],
+        output_dir=Path(output_dir),
     )
 
 
