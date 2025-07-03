@@ -68,7 +68,9 @@ class BaseModel(PreTrainedModel):
         config = deepcopy(config)
         super().__init__(config)
         self._load_base_model(config)
-        # self._overwrite_head(config)
+
+        # self._base_model.to('cuda')
+        # self._overwrite_head(config)[]
 
     def set_freeze_base_model(self, freeze_training_params: bool, freeze_pooling_params: bool):
         """If enabled, freezes all base model parameters, so that only the classification head is trainable.
@@ -99,25 +101,11 @@ class BaseModel(PreTrainedModel):
                 f"Model class not found for {config.base_model_name_or_path}."
                 f" Available models: {MODEL_CLASS_MAP.keys()}"
             )
-        self._base_model_config = AutoConfig.from_pretrained(
-            config.base_model_name_or_path,
-            **config.loading_params
-            # unpad_inputs=True,
-            # add_pooling_layer=False,
-            # use_memory_efficient_attention=True,
-            # trust_remote_code=True,
-        )
+        self._base_model_config = AutoConfig.from_pretrained(config.base_model_name_or_path, **config.loading_params)
         if config.load_base_model_from_config:
             self._base_model = model_class(self._base_model_config)
         else:
-            self._base_model = model_class.from_pretrained(
-                config.base_model_name_or_path,
-                **config.loading_params
-                # unpad_inputs=True,
-                # add_pooling_layer=False,
-                # use_memory_efficient_attention=True,
-                # trust_remote_code=True,
-            )
+            self._base_model = model_class.from_pretrained(config.base_model_name_or_path, **config.loading_params)
 
     def extract_embeddings(
         self,
@@ -141,17 +129,17 @@ class BaseModel(PreTrainedModel):
                     token_type_ids=token_type_ids,
                     return_dict=True,
                 )
-                # Extract CLS token
-                outputs = outputs.last_hidden_state[:, 0]
             else:
-                # GTE models
+                # All other models
                 outputs = self._base_model(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     token_type_ids=token_type_ids,
                     return_dict=True,
                 )
-                # Extract CLS token
+            cls_extraction = config.embedding.get("cls_extraction", True)
+            if cls_extraction is True:
+                # TODO Look for a more general solution
                 outputs = outputs.last_hidden_state[:, 0]
 
             if config.embedding.normalize_embeddings:

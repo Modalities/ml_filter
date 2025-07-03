@@ -1,8 +1,4 @@
-from pathlib import Path
-
-import h5py
 import torch
-from torch.utils.data import Dataset
 from transformers import PretrainedConfig
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.modeling_utils import PreTrainedModel
@@ -12,35 +8,6 @@ from ml_filter.models.annotator_model_head import (
     MultiTargetClassificationHead,
     MultiTargetRegressionHead,
 )
-
-
-class EmbeddingDataset(Dataset):
-    """Dataset that loads pre-computed embeddings from HDF5 files."""
-
-    def __init__(self, hdf5_path: Path, dataset_name: str):
-        self.hdf5_path = Path(hdf5_path)
-        self.dataset_name = dataset_name
-
-        # Load embeddings and labels into memory
-        with h5py.File(self.hdf5_path, "r") as f:
-            if dataset_name not in f:
-                raise KeyError(f"Dataset '{dataset_name}' not found in {self.hdf5_path}")
-
-            grp = f[dataset_name]
-            self.embeddings = torch.from_numpy(grp["embeddings"][:]).float()
-            self.labels = torch.from_numpy(grp["labels"][:]).float()
-
-            self.n_samples = grp.attrs["n_samples"]
-            self.embedding_dim = grp.attrs["embedding_dim"]
-            self.n_tasks = grp.attrs["n_tasks"]
-
-        print(f"Loaded {self.n_samples} embeddings from {hdf5_path}:{dataset_name}")
-
-    def __len__(self):
-        return self.n_samples
-
-    def __getitem__(self, idx):
-        return {"embeddings": self.embeddings[idx], "labels": self.labels[idx]}
 
 
 class EmbeddingRegressionConfig(PretrainedConfig):
@@ -64,7 +31,7 @@ class EmbeddingRegressionConfig(PretrainedConfig):
 
 
 class EmbeddingRegressionModel(PreTrainedModel):
-    """Simplified model that works with pre-computed embeddings."""
+    """Model for regression or classification tasks using pre-computed embeddings."""
 
     config_class = EmbeddingRegressionConfig
 
@@ -76,7 +43,7 @@ class EmbeddingRegressionModel(PreTrainedModel):
         self.head = self._build_head(config)
 
     def _build_head(self, config: EmbeddingRegressionConfig) -> AnnotatorHead:
-        """Build the regression or classification head using your existing classes."""
+        """Builds the head for regression or classification tasks based on the configuration."""
         head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
         head_params = {
             "input_dim": config.embedding_dim,

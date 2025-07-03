@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
 from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ml_filter.logger import setup_logging
@@ -132,7 +133,7 @@ def collate(batch: list[dict[str, torch.Tensor]], pad_token: int) -> dict[str, t
 
 
 def extract_and_save_embeddings(config_file_path: Path):
-    """Extract embeddings and save to HDF5. Run this once before training."""
+    """Extracts embeddings from a model and saves them to an HDF5 file."""
     logger.info(f"Extracting embeddings using config: {config_file_path}")
 
     cfg = OmegaConf.load(config_file_path)
@@ -200,8 +201,8 @@ def extract_and_save_embeddings(config_file_path: Path):
 def _extract_embeddings_from_dataset(
     config, model, dataset, tokenizer, device, batch_size
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Extract embeddings from a dataset using your existing model."""
-    from torch.utils.data import DataLoader
+    """Extracts embeddings from a dataset using the provided model and tokenizer."""
+    logger.info("Extracting embeddings from dataset...")
 
     dataloader = DataLoader(
         dataset,

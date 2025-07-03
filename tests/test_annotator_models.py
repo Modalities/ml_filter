@@ -15,14 +15,6 @@ from ml_filter.models.annotator_model_head import (
 from ml_filter.models.base_model import BaseModel, BaseModelConfig
 from ml_filter.models.embedding_model import EmbeddingRegressionConfig, EmbeddingRegressionModel
 
-# def test_annotator_model_initialization(annotator_model_config: BaseModelConfig, is_regression: bool):
-#     """Tests if AnnotatorModel initializes correctly with a base model and head."""
-#     model = BaseModel(config=annotator_model_config)
-
-#     assert model._base_model is not None
-#     expected_head = MultiTargetRegressionHead if is_regression else MultiTargetClassificationHead
-#     assert isinstance(model._base_model.classifier, expected_head)
-
 
 def test_base_model_initialization(base_model_config: BaseModelConfig):
     """Tests if BaseModel initializes correctly with a base transformer (no custom head)."""
@@ -62,7 +54,7 @@ def test_base_model_freezing(base_model_config: BaseModelConfig):
     """Tests if BaseModel correctly freezes the base model when required."""
     # Create the model with freezing enabled
     model = BaseModel(config=base_model_config)
-    model.set_freeze_base_model(True)
+    model.set_freeze_base_model(True, True)
 
     # Ensure that not all base model parameters are frozen
     assert not all(
@@ -91,8 +83,8 @@ def test_base_model_freezing(base_model_config: BaseModelConfig):
 def test_base_model_unfreezing(base_model_config: BaseModelConfig):
     """Tests if BaseModel correctly unfreezes the base model when required."""
     model = BaseModel(config=base_model_config)
-    model.set_freeze_base_model(True)
-    model.set_freeze_base_model(False)
+    model.set_freeze_base_model(True, True)
+    model.set_freeze_base_model(False, False)
 
     # All parameters should be trainable
     assert all(param.requires_grad for param in model._base_model.parameters()), "All parameters should be trainable!"
@@ -242,6 +234,8 @@ def base_model_config(dummy_base_model_path: str) -> BaseModelConfig:
         num_tasks=2,
         num_targets_per_task=[6, 6],
         is_regression=True,  # This doesn't matter for BaseModel
+        freeze_base_model_parameters=True,  # Add option to freeze encoder
+        freeze_pooling_layer_params=True,  # Applicable on bert like models
         load_base_model_from_config=False,
         loading_params={
             "trust_remote_code": False,

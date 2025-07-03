@@ -15,7 +15,7 @@ from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.training.embedding_training_pipeline import (
     _init_training_args,
     _set_seeds,
-    embedding_mse_loss,
+    mse_loss,
     run_embedding_training_pipeline,
 )
 from ml_filter.training.extract_embeddings import _init_model, _init_tokenizer, _load_datasets
@@ -54,6 +54,7 @@ def test_init_model():
             "model": {
                 "name": "snowflake/snowflake-arctic-embed-m-v2.0",
                 "freeze_base_model_parameters": False,
+                "freeze_pooling_layer_params": True,
                 "is_regression": False,
                 "loading_params": {
                     "unpad_inputs": True,
@@ -87,6 +88,7 @@ def test_init_training_args():
                 "greater_is_better": False,
                 "eval_strategy": "steps",
                 "dataloader_num_workers": 4,
+                "wandb_run_name": "temp_run",
             }
         }
     )
@@ -145,11 +147,11 @@ def test_custom_mse_loss_same_as_torch_implementation():
     logits = torch.rand((num_items_in_batch, num_tasks)) * 3.0 - 1.0
     target = torch.randint(0, 2, (num_items_in_batch, num_tasks)).float()
     predicted = SequenceClassifierOutput(logits=logits)
-    mse_loss = embedding_mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
+    custom_mse_loss = mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
     logits = predicted.logits
     target = target.to(dtype=logits.dtype)
     mse_loss_torch = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="mean")
-    assert torch.allclose(mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
+    assert torch.allclose(custom_mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
 
 
 def _dummy_dataset_files(temp_output_dir):

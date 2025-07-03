@@ -50,15 +50,11 @@ class MultiTargetRegressionHead(AnnotatorHead):
             use_bias (bool, optional): Whether to include a bias term in the linear layer. Defaults to True.
         """
         super().__init__()
-        # hidden_dim = 1000
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, hidden_dim, bias=use_bias),
             nn.ReLU(),
             nn.Linear(hidden_dim, num_prediction_tasks, bias=use_bias),
         )
-        # TODO check num_prediction_tasks works as 1 does
-
-        # self.scaling = RegressionScalingLayer(num_targets_per_prediction_task - 1.0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Applies the regression head to the input tensor.
@@ -69,12 +65,7 @@ class MultiTargetRegressionHead(AnnotatorHead):
         Returns:
             Tensor: Scaled regression output tensor of shape `(batch_size, num_targets)`.
         """
-        # return self.scaling(self.linear(x))
-        # L2 normalize input embeddings (like the paper)
-        # x = F.normalize(x, p=2, dim=1)
-        # Todo investigate further, with normalization i am not getting the same scores
         return self.mlp(x)
-        # return self.scaling(self.mlp(x))
 
 
 class MultiTargetClassificationHead(AnnotatorHead):

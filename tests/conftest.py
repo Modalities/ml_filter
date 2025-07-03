@@ -201,6 +201,8 @@ def temp_output_dir(tmp_path):
 def config_file(temp_output_dir):
     """Creates a real configuration file for testing."""
     temp_output_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir = temp_output_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
     cfg = {
         "training": {
             "output_dir_path": str(temp_output_dir),
@@ -217,6 +219,7 @@ def config_file(temp_output_dir):
             "is_regression": True,
             "eval_strategy": "steps",
             "dataloader_num_workers": 1,
+            "wandb_run_name": "temp_run",
         },
         "model": {
             "name": "facebookai/xlm-roberta-base",

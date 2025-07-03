@@ -39,7 +39,7 @@ def compute_metrics_for_single_output(
     labels_are_continuous = not np.all(labels == labels.astype(int))
 
     if labels_are_continuous:
-        logging.info("Detected continuous labels - skipping classification metrics")
+        logging.warning("Detected continuous labels - skipping classification metrics")
     else:
         logging.info(f"Detected discrete labels with {len(np.unique(labels))} unique classes")
 
@@ -52,7 +52,7 @@ def compute_metrics_for_single_output(
 
     # Calculate binary metrics for different thresholds
     for threshold in thresholds:
-        # Convert to binary predictions using threshold
+        #     # Convert to binary predictions using threshold
         binary_preds = np.where(predictions >= threshold, 1, 0)
         binary_labels = np.where(labels >= threshold, 1, 0)
 

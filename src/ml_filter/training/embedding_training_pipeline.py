@@ -12,14 +12,19 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 
 from ml_filter.evaluation.evaluate_classifier import compute_metrics_for_single_output
 from ml_filter.logger import setup_logging
-from ml_filter.models.embedding_model import EmbeddingDataset, EmbeddingRegressionConfig, EmbeddingRegressionModel
+from ml_filter.models.embedding_model import EmbeddingRegressionConfig, EmbeddingRegressionModel
 from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
+from ml_filter.utils.embedding_dataset import EmbeddingDataset
 
 logger = setup_logging()
 
 
-def run_embedding_training_pipeline(config_file_path: Path):
-    """Modified version of your existing training pipeline for embeddings."""
+def run_embedding_head_training_pipeline(config_file_path: Path):
+    """Main function to run the embedding-based training pipeline.
+    Args:
+        config_file_path (Path): Path to the configuration file.
+    """
+
     logger.info(f"Loading configuration from {config_file_path}")
 
     try:
@@ -41,15 +46,15 @@ def run_embedding_training_pipeline(config_file_path: Path):
 
         if cfg.embedding.init_regression_weights:
             logger.info("Initializing the regression head weights")
-            _init_regression_weights(model)
+            _init_head_weights(model)
 
         # Train model
-        _train_embedding_model(
+        _train_model_head(
             model=model,
             training_args=training_args,
             train_dataset=train_dataset,
             eval_datasets=eval_datasets,
-            compute_loss_fn=_init_embedding_loss_fn(cfg),
+            compute_loss_fn=_init_head_loss_fn(cfg),
             compute_metrics_fn=_get_compute_metrics_fn(cfg),
             early_stopping_metric=cfg.training.metric_for_best_model,
         )
@@ -81,7 +86,7 @@ def _load_embedding_datasets(embeddings_hdf5_path: Path):
     eval_datasets = {}
     non_train_datasets = [name for name in available_datasets if name != "train"]
 
-    if non_train_datasets:
+    if len(non_train_datasets) > 0:
         for eval_name in non_train_datasets:
             eval_datasets[eval_name] = EmbeddingDataset(embeddings_path, eval_name)
             logger.info(f"✅ Loaded {eval_name} dataset: {len(eval_datasets[eval_name])} samples")
@@ -130,7 +135,8 @@ def _set_seeds(seed: int):
 
 
 def _init_training_args(cfg) -> TrainingArguments:
-    """Same as your existing function."""
+    """Initialize training arguments based on the configuration."""
+
     logger.info("Initializing training arguments.")
 
     return TrainingArguments(
@@ -156,8 +162,9 @@ def _init_training_args(cfg) -> TrainingArguments:
     )
 
 
-def _init_regression_weights(model: EmbeddingRegressionModel):
-    """Same initialization logic as your existing code."""
+def _init_head_weights(model: EmbeddingRegressionModel):
+    """Initialize the regression head weights."""
+    logger.info("Initializing regression head weights.")
     with torch.no_grad():
         if hasattr(model.head, "mlp") and len(model.head.mlp) >= 3:
             final_layer = model.head.mlp[2]  # The Linear(1000 -> 1) layer
@@ -167,18 +174,18 @@ def _init_regression_weights(model: EmbeddingRegressionModel):
             logger.info(f"Final layer bias set to {final_layer.bias.data.item()}")
 
 
-def _init_embedding_loss_fn(cfg) -> partial:
-    """Modified loss function for embeddings."""
+def _init_head_loss_fn(cfg) -> partial:
+    """Initialize the loss function for the regression or classification head."""
     num_tasks = cfg.data.num_tasks
     if cfg.training.is_regression:
-        return partial(embedding_mse_loss, num_tasks=num_tasks)
+        return partial(mse_loss, num_tasks=num_tasks)
     else:
         num_tasks = cfg.data.num_tasks
-        return partial(embedding_cross_entropy_loss, num_tasks=num_tasks)
+        return partial(cross_entropy_loss, num_tasks=num_tasks)
 
 
 def _get_compute_metrics_fn(cfg: DictConfig) -> partial:
-    """Same as your existing function."""
+    """Get the compute metrics function for the regression or classification head."""
     return partial(
         compute_embedding_metrics,
         is_regression=cfg.training.is_regression,
@@ -187,7 +194,7 @@ def _get_compute_metrics_fn(cfg: DictConfig) -> partial:
     )
 
 
-def _train_embedding_model(
+def _train_model_head(
     model: EmbeddingRegressionModel,
     training_args: TrainingArguments,
     train_dataset,
@@ -196,7 +203,7 @@ def _train_embedding_model(
     compute_metrics_fn: partial,
     early_stopping_metric: str,
 ) -> None:
-    """Modified training function for embeddings."""
+    """Train the embedding-based model head."""
     logger.info("Initializing Trainer and starting training...")
 
     early_stopping = SpearmanEarlyStoppingCallback(metric_key=early_stopping_metric, patience=5, min_delta=1e-3)
@@ -219,7 +226,7 @@ def _train_embedding_model(
     logger.info("Training complete. Model saved.")
 
 
-def embedding_mse_loss(
+def mse_loss(
     input: SequenceClassifierOutput,
     target: torch.Tensor,
     num_items_in_batch: int,
@@ -242,7 +249,7 @@ def embedding_mse_loss(
         return out
 
 
-def embedding_cross_entropy_loss(
+def cross_entropy_loss(
     input: SequenceClassifierOutput,
     target: torch.Tensor,
     num_items_in_batch: int,
@@ -250,7 +257,7 @@ def embedding_cross_entropy_loss(
     reduction: str = "mean",
     **kwargs,
 ) -> torch.Tensor:
-    """Same logic as your multi_target_cross_entropy_loss."""
+    """Compute cross-entropy loss for multi-target classification."""
     logits = input.logits
     return F.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
 

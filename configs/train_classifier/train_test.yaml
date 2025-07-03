@@ -1,5 +1,7 @@
 model:
-  name: snowflake/snowflake-arctic-embed-m-v2.0 # check model
+  #name: answerdotai/modernbert-base 
+  #name: EuroBERT/EuroBERT-610m
+  name: snowflake/snowflake-arctic-embed-m-v2.0
   loading_params:          
     unpad_inputs: true
     add_pooling_layer: false
@@ -22,7 +24,7 @@ tokenizer:
 data: 
   train_file_path: /home/abbas-khan/processed_data_natural/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
   train_file_split: train
-  test_file_path: /raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511
+  test_file_path: null
   test_file_split: train
   val_file_path: /home/abbas-khan/processed_data_natural/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
   val_file_split: train
@@ -35,8 +37,8 @@ data:
   num_processes: 64
 
 training:
-  batch_size: 1024
-  eval_batch_size: 1024 # 1024
+  batch_size: 64
+  eval_batch_size: 64 # 1024
   epochs: 20
   use_bf16: true
   weight_decay: 0.01 # 0.01
@@ -57,5 +59,6 @@ training:
 embedding:
   normalize_embeddings: true
   init_regression_weights: false
-  save_path: /home/abbas-khan/ml_filter/data/output/embeddings/new_embeddings.h5
-  load_path: /home/abbas-khan/ml_filter/data/output/embeddings/new_embeddings.h5
+  cls_extraction: true
+  save_path: /home/abbas-khan/ml_filter/data/output/embeddings/euro_bert_embeddings.h5
+  load_path: /home/abbas-khan/ml_filter/data/output/embeddings/euro_bert_embeddings.h5

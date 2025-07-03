@@ -59,4 +59,6 @@ MODEL_CLASS_MAP: dict[str, type[PreTrainedModel]] = {
     "snowflake/snowflake-arctic-embed-l": BertForSequenceClassification,
     "snowflake/snowflake-arctic-embed-m-v2.0": AutoModel,
     "snowflake/snowflake-arctic-embed-l-v2.0": AutoModel,
+    "answerdotai/modernbert-base": AutoModel,
+    "eurobert/eurobert-610m": AutoModel,
 }

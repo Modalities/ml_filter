@@ -759,16 +759,5 @@ def entry_train_with_embeddings(config_file_path: Path):
     run_embedding_training_pipeline(config_file_path=config_file_path)
 
 
-# @main.command(name="inference_pipeline")
-# @click.option(
-#     "--config_file_path",
-#     type=click_pathlib.Path(exists=True),
-#     required=True,
-#     help="Path to a file with the YAML config file.",
-# )
-# def entry_inference_pipeline(config_file_path: Path):
-#     run_pipeline(config_file_path)
-
-
 if __name__ == "__main__":
     main()
