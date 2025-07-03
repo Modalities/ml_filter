@@ -1,10 +1,10 @@
 glob_pattern: "*.jsonl"
-input_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/input_data_test
+input_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/input_data
 output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir
 csv_hashmap_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/hashes.csv
 
 embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
-batch_size: 1000
+batch_size: 2816
 
 hdf5_dataset_name: train
 
@@ -13,16 +13,16 @@ slurm:
   partition: "boost_usr_prod"
   tasks: 1
   workers: 1001
-  time: "01:00:00"
+  time: "00:30:00"
   cpus_per_task: 32
+  mem_per_cpu_gb: 8
   gpus_per_task: 1
-  mem_per_gpu: "8G"
   job_name: "lorem_ipsum_embedding"
   output: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/%j.out
   error: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/%j.err
   account: "EUHPC_E05_119"
-  qos: "normal"
+  qos: "boost_qos"
   nodes: 1
-  ntasks_per_node: 1
+  ntasks: 1
   gres: gpu:1
-  venv_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/env/env_annotation_pipeline/bin/activate
+  venv_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/env_backup/venv_test/bin/activate #/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/env/venv_annotation_pipeline/bin/python

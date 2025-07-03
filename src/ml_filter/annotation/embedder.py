@@ -101,7 +101,8 @@ class SnowflakeArcticEmbedMV2_0():
         self.device = device
         self.dtype = dtype
         
-        model_id = 'Snowflake/snowflake-arctic-embed-m-v2.0'
+        model_id = "/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0"
+        # model_id = 'Snowflake/snowflake-arctic-embed-m-v2.0'
 
         ### Debugging
         # model_id = '/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0'
@@ -109,26 +110,23 @@ class SnowflakeArcticEmbedMV2_0():
         # Load the tokenizer specific to the embedding model.
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         # Load the pre-trained Snowflake Arctic Embed M v2.0 model.
-        model = AutoModel.from_pretrained(
+        self.model = AutoModel.from_pretrained(
             model_id, 
             trust_remote_code=True,      # Allows loading custom code from the model's repository.
             torch_dtype=dtype,           # Sets the data type for model parameters and computations.
             unpad_inputs=True,           # Optimizes for unpadded inputs if applicable.
-            device_map={'': device},     # Maps the model to the specified device.
+            # device_map={'': device},     # Maps the model to the specified device.
             add_pooling_layer=False,     # Prevents adding an extra pooling layer if not needed.
             use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
         )
-        self.model = model
 
-        ### Debugging
-        print(next(model.parameters()).device) # the value is cpu here
-        self.model = model.to(device)
         self.model.to(device)  # Move the model to the specified device.
+        self.model.eval()  # Set the model to evaluation mode.
 
         
         # Compile the model's forward pass if `compile` is True.
         if compile:
-            model.forward = torch.compile(self.model.forward)
+            self.model.forward = torch.compile(self.model.forward)
 
     def embed(self, texts):
         """
@@ -141,6 +139,10 @@ class SnowflakeArcticEmbedMV2_0():
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
                           containing the normalized embeddings.
         """
+
+        print("Before tokenizing:")
+        print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
+
         
         # Tokenize the input texts with specified parameters.
         batch_tokens = self.tokenizer(
@@ -151,29 +153,30 @@ class SnowflakeArcticEmbedMV2_0():
             return_tensors='pt'
         )
 
-        ### Debugging
-        print(next(model.parameters()).device) # the value is cpu here
-        self.model = model.to(device)
-        self.model.to(device)  # Move the model to the specified device.
-        print(f"Batch tokens: {batch_tokens}")  # Debugging line to check tokenization output.
-        # print(torch.device(self.device))  # Debugging line to check the device.
-        # batch_tokens = {k: v.to(torch.device(self.device)) for k, v in batch_tokens.items()} # Move tokens to the specified device.
-        print(self.model)
-        print(f"Device in embed(): {self.device}")
-        print(f"CUDA available: {torch.cuda.is_available()}")
-        # Get the device of the first parameter
-        device = next(self.model.parameters()).device
-        print(f"Model is on device: {device}")
+        batch_tokens = {k: v.to(torch.device(self.device)) for k, v in batch_tokens.items()} # Move tokens to the specified device.
 
+        print("After moving tokens to device:")
+        print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
 
 
         # Disable gradient calculation and ensure operations are on the correct CUDA device.
-        with torch.no_grad(), torch.cuda.device(self.device):      
+        with torch.no_grad(), torch.cuda.device(self.device): 
+        # with torch.inference_mode():     
             output = self.model(**batch_tokens)
 
+            print("After model output:")
+            print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
+
+            #TODO put this behind a flag.
             # Extract and normalize the embeddings.
             embeddings = output.last_hidden_state[:, 0]
             embeddings = F.normalize(embeddings, p=2, dim=1)
+            embeddings = embeddings.cpu().tolist()
+
+        del batch_tokens, output  # Free up memory by deleting intermediate variables.
+        torch.cuda.empty_cache()  # Clear the CUDA cache to free up memory.
+        print("After cleanup:")
+        print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
 
         return embeddings
 

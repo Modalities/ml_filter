@@ -4,6 +4,8 @@ from datatrove.executor import SlurmPipelineExecutor
 from omegaconf import OmegaConf
 
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, JQLJsonlReader
+from datatrove.pipeline.writers import JsonlWriter
+from ml_filter.annotation.datatrove_jql_annotator import stats_adapter
 
 
 def run_embedding_pipeline(config_file_path: Path):
@@ -32,11 +34,17 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
+            stats_writer=JsonlWriter(
+                    output_folder=f'jql_outputs/stats', # Change to your output directory
+                    adapter=stats_adapter,
+                    expand_metadata=True,
+                    ),
         ),
-        HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-                   output_filename="${source_filename}.h5",
-                   dataset_name=cfg.hdf5_dataset_name
-        )
+        # HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
+        #            output_filename="${source_filename}.h5",
+        #            dataset_name=cfg.hdf5_dataset_name,
+        #            batch_size=cfg.batch_size,
+        # )
 
     ]
     stage = SlurmPipelineExecutor(
@@ -46,6 +54,7 @@ def run_embedding_pipeline(config_file_path: Path):
         tasks=cfg.slurm.tasks,
         workers=cfg.slurm.workers,
         cpus_per_task=cfg.slurm.cpus_per_task,
+        mem_per_cpu_gb=cfg.slurm.mem_per_cpu_gb,
         time=cfg.slurm.time,
         partition=cfg.slurm.partition,
         # max_array_size=5,
@@ -54,7 +63,7 @@ def run_embedding_pipeline(config_file_path: Path):
         sbatch_args={"account": cfg.slurm.account, 
                      "qos": cfg.slurm.qos, 
                      "nodes": cfg.slurm.nodes, 
-                     "ntasks-per-node": cfg.slurm.ntasks_per_node, 
+                     "ntasks": cfg.slurm.ntasks, 
                      "gres": cfg.slurm.gres,
                      },
     )
