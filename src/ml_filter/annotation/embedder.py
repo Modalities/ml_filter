@@ -7,6 +7,9 @@ import torch
 from transformers import AutoTokenizer, AutoModel
 
 
+def bytes_to_gib_str(bytes_val):
+    return f"{bytes_val / 1024 ** 3:.2f} GiB"
+
 class GteMultilingualBase():
     """
     A wrapper class for the 'Alibaba-NLP/gte-multilingual-base' embedding model.
@@ -106,19 +109,20 @@ class SnowflakeArcticEmbedMV2_0():
         # Load the tokenizer specific to the embedding model.
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         # Load the pre-trained Snowflake Arctic Embed M v2.0 model.
-        model = AutoModel.from_pretrained(
+        self.model = AutoModel.from_pretrained(
             model_id, 
             trust_remote_code=True,      # Allows loading custom code from the model's repository.
             torch_dtype=dtype,           # Sets the data type for model parameters and computations.
-            unpad_inputs=True,           # Optimizes for unpadded inputs if applicable.
-            device_map={'': device},     # Maps the model to the specified device.
+            unpad_inputs=False,           # Optimizes for unpadded inputs if applicable.
+            # device_map={'': device},     # Maps the model to the specified device.
             add_pooling_layer=False,     # Prevents adding an extra pooling layer if not needed.
             use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
         )
-        self.model = model
+        self.model.to(device)  # Move the model to the specified device.
+        self.model.eval()  # Set the model to evaluation mode.
         # Compile the model's forward pass if `compile` is True.
         if compile:
-            model.forward = torch.compile(self.model.forward)
+            self.model.forward = torch.compile(self.model.forward)
 
     def embed(self, texts):
         """
@@ -131,23 +135,46 @@ class SnowflakeArcticEmbedMV2_0():
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
                           containing the normalized embeddings.
         """
-        
-        # Tokenize the input texts with specified parameters.
-        batch_tokens = self.tokenizer(
-            texts, 
-            max_length=8192, 
-            padding='longest', 
-            truncation=True, 
-            return_tensors='pt'
-        ).to(self.device) # Move tokens to the specified device.
 
-        # Disable gradient calculation and ensure operations are on the correct CUDA device.
-        with torch.no_grad(), torch.cuda.device(self.device):      
+        torch.cuda.reset_peak_memory_stats(self.device)
+        # start_allocated = torch.cuda.memory_allocated(self.device)
+
+
+
+        ## test batch_tokesn with only ones.
+        # batch_tokens_test_ = {
+        #     'input_ids': torch.ones((284, 8192), dtype=torch.int64),  # Dummy input IDs for testing.
+
+        text_dummy = ["hello world" * 4000] * 2861
+
+        batch_tokens = self.tokenizer(text_dummy,
+                                      max_length=8192,  # Maximum sequence length for tokenization.
+                                      padding='max_length',  # Pad to the length of the longest sequence in the batch.
+                                      truncation=True,  # Truncate sequences longer than max_length.
+                                      return_tensors='pt')  # Return PyTorch tensors.
+        
+
+        batch_tokens = {k: v.to(torch.device(self.device)) for k, v in
+                        batch_tokens.items()}  # Move tokens to the specified device.
+
+        with torch.no_grad():
             output = self.model(**batch_tokens)
 
             # Extract and normalize the embeddings.
             embeddings = output.last_hidden_state[:, 0]
             embeddings = F.normalize(embeddings, p=2, dim=1)
+
+            embeddings = embeddings.cpu()
+        torch.cuda.empty_cache()
+        del batch_tokens  # Free up memory used by batch_tokens.
+        torch.cuda.empty_cache()
+
+        # # debugging
+        # peak_memory = torch.cuda.max_memory_allocated(self.device)
+        # # end_allocated = torch.cuda.memory_allocated(self.device)
+        # peak_memory_str = bytes_to_gib_str(peak_memory)
+        # used_memory_str = bytes_to_gib_str(peak_memory - start_allocated)
+        # # remaining_memory_str = bytes_to_gib_str(end_allocated - start_allocated)
 
         return embeddings
 

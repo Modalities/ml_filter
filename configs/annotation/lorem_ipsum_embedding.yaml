@@ -1,13 +1,13 @@
 glob_pattern: "*.jsonl"
-input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/ground_truth_511
+input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/input_data
 output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
 csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
 
 embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
-batch_size: 1000
+batch_size: 2861
 
 hdf5_dataset_name: train
 
-tasks: 8
-local_tasks: 8
+tasks: 1
+local_tasks: 1
 local_rank_offset: 0

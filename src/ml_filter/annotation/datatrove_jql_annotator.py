@@ -1,12 +1,15 @@
 # --- Standard Library ---
+import gc
 import os
 from collections import Counter, defaultdict
+import time
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional, IO
 
 # --- Third-Party Libraries ---
 import h5py
 import numpy as np
+import torch
 # --- Project-Specific Imports ---
 from datatrove.data import Document, DocumentsPipeline
 from datatrove.io import DataFileLike, DataFolderLike
@@ -21,8 +24,91 @@ from torch import bfloat16, cuda
 from ml_filter.annotation.embedder import get_embedder_instance
 from ml_filter.data_processing.hash_data_files import read_existing_hashes
 
+import dataclasses
+import contextlib
+
 load_dotenv()
 
+
+
+
+def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
+    """
+    Finds the max batch size that doesn't cause CUDA OOM.
+
+    Args:
+        embedder: your embedder instance with `.embed()` method
+        doc_pipeline: iterable or list of documents with `.text`
+        max_limit: upper bound for batch size search
+        step: increment step for searching
+
+    Returns:
+        int: max batch size that fits in GPU memory without OOM
+    """
+    batch_size = step
+    max_batch_size = 0
+
+    docs = list(doc_pipeline)
+
+    while batch_size <= max_limit:
+        try:
+            batch = docs[:batch_size]
+            texts = [doc.text for doc in batch]
+
+            # # Clear memory before inference
+            del batch
+            gc.collect()
+            torch.cuda.empty_cache()
+
+            batch = docs[:batch_size]
+            texts = [doc.text for doc in batch]
+
+            _ = embedder.embed(texts, batch_size)
+
+            logger.info(f"✅ Batch size {batch_size} succeeded")
+            max_batch_size = batch_size
+            batch_size += step
+
+        except RuntimeError as e:
+            if 'out of memory' in str(e):
+                logger.warning(f"❌ OOM at batch size {batch_size}, reducing step")
+                torch.cuda.empty_cache()
+                gc.collect()
+                if step <= 1:
+                    break
+                batch_size -= step
+                step = max(1, step // 2)
+                batch_size += step
+            else:
+                raise e
+
+        finally:
+            # Free references every iteration
+            if 'batch' in locals(): del batch
+            if 'texts' in locals(): del texts
+            gc.collect()
+            torch.cuda.empty_cache()
+            ...
+
+    logger.info(f"🏁 Max batch size found: {max_batch_size}")
+    return max_batch_size
+
+
+def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
+    """
+    The datatrove adapter to write stats metadata without the actual document text
+
+    Args:
+        writer: the diskwriter
+        document: a datatrove document
+
+    Returns: a dictionary of metadata without the text field
+
+    """
+    data = {key: val for key, val in dataclasses.asdict(document).items() if val and key != "text"}
+    if writer.expand_metadata and "metadata" in data:
+            data |= data.pop("metadata")
+    return data
 
 def _get_file_path(doc: Document) -> str:
     """
@@ -167,6 +253,7 @@ class JQLEmbedder(PipelineStep):
         self.stats_writer = stats_writer
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
+        torch.cuda.memory._record_memory_history(max_entries=100000)
         if not cuda.is_available():
             logger.warning('CUDA is not available, using CPU')
             device = 'cpu'
@@ -180,13 +267,49 @@ class JQLEmbedder(PipelineStep):
 
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
+        # self.batch_size = find_max_batch_size(embedder, doc_pipeline, max_limit=1000000, step=500)
+
         for doc_batch in batched(doc_pipeline, self.batch_size):
             with self.track_time(unit='batch'):
-                embeddings = embedder.embed([doc.text for doc in doc_batch])
-                for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
-                    doc.metadata["source_filename"] = _get_file_path(doc)
-                    doc.metadata['embedding'] = embedding.cpu().tolist()
-                    yield doc
+                start_time = time.time()
+
+                try:
+                    embeddings = embedder.embed([doc.text for doc in doc_batch])
+
+                    for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
+                        doc.metadata["source_filename"] = _get_file_path(doc)
+                        doc.metadata['embedding'] = embedding
+                        yield doc
+
+                    duration = time.time() - start_time
+                    num_docs = len(doc_batch)
+                    throughput = num_docs / duration if duration > 0 else 0
+                    logger.info(f"Processed {num_docs} docs in {duration:.2f}s → Throughput: {throughput:.2f} docs/sec")
+                    print(torch.cuda.max_memory_allocated())
+                    torch.cuda.empty_cache()
+                    gc.collect()
+                    torch.cuda.memory._dump_snapshot("snapshot_tok.pickle")
+
+                    for obj in gc.get_objects():
+                        try:
+                            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                                if obj.is_cuda:
+                                    print(
+                                        f"Tensor: {type(obj)}, Size: {obj.size()}, Memory: {obj.element_size() * obj.nelement() / 1024 ** 2:.2f} MB")
+                        except Exception as e:
+                            pass
+
+                except RuntimeError as e:
+                    if 'out of memory' in str(e):
+                        logger.error(f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
+                                     f"Consider reducing the batch size or using a smaller model.")
+                        print(torch.cuda.memory_summary())
+                        print(torch.cuda.max_memory_allocated())
+                        raise e
+                    else:
+                        logger.error(f"Runtime error on rank {rank}: {e}")
+                        raise e
+
 
 
 class HDF5Writer(DiskWriter):
