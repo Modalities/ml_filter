@@ -30,6 +30,11 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
+            # stats_writer=JsonlWriter(
+            # output_folder=cfg.output_dir + '/jql_outputs/stats',  # Change to your output directory
+            # adapter=stats_adapter,
+            # expand_metadata=True,
+            # ),
         ),
         # JsonlWriter(
         #     output_folder=cfg.output_dir + '/jql_outputs/stats',  # Change to your output directory

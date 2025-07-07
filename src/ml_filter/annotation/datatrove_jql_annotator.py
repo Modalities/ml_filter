@@ -271,12 +271,17 @@ class JQLEmbedder(PipelineStep):
         throughputs = []
 
         for doc_batch in batched(doc_pipeline, self.batch_size):
+            batch_tokens = embedder.tokenizer([doc.text for doc in doc_batch],
+                                      max_length=8192,  # Maximum sequence length for tokenization.
+                                      padding='longest',  # Pad to the length of the longest sequence in the batch.
+                                      truncation=True,  # Truncate sequences longer than max_length.
+                                      return_tensors='pt').to(device)  # Return PyTorch tensors.
+            
             with self.track_time(unit='batch'):
                 start_time = time.time()
-                torch.cuda.reset_peak_memory_stats(device)
                 try:
-                    embeddings = embedder.embed([doc.text for doc in doc_batch])
-
+                    # embeddings = embedder.embed([doc.text for doc in doc_batch])
+                    embeddings = embedder.embed(batch_tokens)
                     for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                         doc.metadata["source_filename"] = _get_file_path(doc)
                         doc.metadata['embedding'] = embedding
@@ -285,12 +290,10 @@ class JQLEmbedder(PipelineStep):
                     duration = time.time() - start_time
                     num_docs = len(doc_batch)
                     throughput = num_docs / duration if duration > 0 else 0
-                    logger.info(f"Processed {num_docs} docs in {duration:.2f}s → Throughput: {throughput:.2f} docs/sec")
-
+                    logger.info(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
+                    print(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
                     print("Peak memory allocated: ", torch.cuda.max_memory_allocated()) 
                     torch.cuda.empty_cache()
-                    # gc.collect()
-                    # torch.cuda.memory._dump_snapshot("snapshot_tok.pickle")
 
                 except RuntimeError as e:
                     if 'out of memory' in str(e):
@@ -364,7 +367,7 @@ class HDF5Writer(DiskWriter):
 
         batch = self._batches.pop(filename)
 
-        logger.info(f"the structure of document is {batch[0]}")
+        # logger.info(f"the structure of document is {batch[0]}")
         embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=np.float32)
         document_id = [doc["metadata"]["document_id"] for doc in batch]
 

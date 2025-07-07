@@ -113,7 +113,7 @@ class SnowflakeArcticEmbedMV2_0():
             model_id, 
             trust_remote_code=True,      # Allows loading custom code from the model's repository.
             torch_dtype=dtype,           # Sets the data type for model parameters and computations.
-            unpad_inputs=True,           # Optimizes for unpadded inputs if applicable.
+            unpad_inputs=False,           # Optimizes for unpadded inputs if applicable.
             # device_map={'': device},     # Maps the model to the specified device.
             add_pooling_layer=False,     # Prevents adding an extra pooling layer if not needed.
             use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
@@ -137,24 +137,24 @@ class SnowflakeArcticEmbedMV2_0():
                           containing the normalized embeddings.
         """
 
-        batch_tokens = self.tokenizer(texts,
-                                      max_length=8192,  # Maximum sequence length for tokenization.
-                                      padding='longest',  # Pad to the length of the longest sequence in the batch.
-                                      truncation=True,  # Truncate sequences longer than max_length.
-                                      return_tensors='pt')  # Return PyTorch tensors.
+        # batch_tokens = self.tokenizer(texts,
+        #                               max_length=8192,  # Maximum sequence length for tokenization.
+        #                               padding='longest',  # Pad to the length of the longest sequence in the batch.
+        #                               truncation=True,  # Truncate sequences longer than max_length.
+        #                               return_tensors='pt').to(self.device)  # Return PyTorch tensors.
         
-
-        batch_tokens = {k: v.to(torch.device(self.device)) for k, v in
-                        batch_tokens.items()}  # Move tokens to the specified device.
+        batch_tokens = texts
+        # batch_tokens = {k: v.to(torch.device(self.device)) for k, v in
+        #                 batch_tokens.items()}  # Move tokens to the specified device.
 
         with torch.no_grad():
             output = self.model(**batch_tokens)
 
             # Extract and normalize the embeddings.
-            embeddings = output.last_hidden_state[:, 0]
-            embeddings = F.normalize(embeddings, p=2, dim=1)
+            # embeddings = output.last_hidden_state[:, 0]
+            embeddings = F.normalize(output.last_hidden_state[:, 0], p=2, dim=1)
 
-        embeddings = embeddings.cpu()
+        embeddings = embeddings.cpu().tolist()
         # torch.cuda.empty_cache()  # Clear CUDA memory cache to free up resources.
 
         return embeddings
