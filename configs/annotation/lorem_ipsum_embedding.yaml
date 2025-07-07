@@ -4,10 +4,11 @@ output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
 csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
 
 embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
-batch_size: 200
+batch_size: 2000
 
 hdf5_dataset_name: train
 
-tasks: 1
-local_tasks: 1
+tasks: 2
+workers: 2
+local_tasks: 2
 local_rank_offset: 0
