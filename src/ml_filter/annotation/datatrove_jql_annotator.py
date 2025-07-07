@@ -63,7 +63,7 @@ def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
             batch = docs[:batch_size]
             texts = [doc.text for doc in batch]
 
-            _ = embedder.embed(texts, batch_size)
+            _ = embedder.embed(texts)
 
             logger.info(f"✅ Batch size {batch_size} succeeded")
             max_batch_size = batch_size
@@ -253,7 +253,7 @@ class JQLEmbedder(PipelineStep):
         self.stats_writer = stats_writer
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
-        torch.cuda.memory._record_memory_history(max_entries=100000)
+        # torch.cuda.memory._record_memory_history(max_entries=100000)
         if not cuda.is_available():
             logger.warning('CUDA is not available, using CPU')
             device = 'cpu'
@@ -268,11 +268,12 @@ class JQLEmbedder(PipelineStep):
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
         # self.batch_size = find_max_batch_size(embedder, doc_pipeline, max_limit=1000000, step=500)
+        throughputs = []
 
         for doc_batch in batched(doc_pipeline, self.batch_size):
             with self.track_time(unit='batch'):
                 start_time = time.time()
-
+                torch.cuda.reset_peak_memory_stats(device)
                 try:
                     embeddings = embedder.embed([doc.text for doc in doc_batch])
 
@@ -285,19 +286,11 @@ class JQLEmbedder(PipelineStep):
                     num_docs = len(doc_batch)
                     throughput = num_docs / duration if duration > 0 else 0
                     logger.info(f"Processed {num_docs} docs in {duration:.2f}s → Throughput: {throughput:.2f} docs/sec")
-                    print(torch.cuda.max_memory_allocated())
-                    torch.cuda.empty_cache()
-                    gc.collect()
-                    torch.cuda.memory._dump_snapshot("snapshot_tok.pickle")
 
-                    for obj in gc.get_objects():
-                        try:
-                            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                                if obj.is_cuda:
-                                    print(
-                                        f"Tensor: {type(obj)}, Size: {obj.size()}, Memory: {obj.element_size() * obj.nelement() / 1024 ** 2:.2f} MB")
-                        except Exception as e:
-                            pass
+                    print("Peak memory allocated: ", torch.cuda.max_memory_allocated()) 
+                    torch.cuda.empty_cache()
+                    # gc.collect()
+                    # torch.cuda.memory._dump_snapshot("snapshot_tok.pickle")
 
                 except RuntimeError as e:
                     if 'out of memory' in str(e):
