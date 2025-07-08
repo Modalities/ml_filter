@@ -14,10 +14,81 @@ from datatrove.utils.batching import batched
 from datatrove.utils.logging import logger
 from dotenv import load_dotenv
 from torch import bfloat16, cuda, no_grad
+import torch
+import time
+import gc
 
 from ml_filter.annotation.regression_head import RegressionHead
 
 load_dotenv()
+
+
+def find_max_batch_size(model, embedding_dim=768, initial_batch=16, max_batch=1_000_000_000_000, device='cuda', dtype=torch.bfloat16, warmup_iters=2, measure_iters=5):
+    """
+    Finds the largest batch size that fits in memory and measures throughput at each step.
+
+    Args:
+        model (torch.nn.Module): Model to test (should be on the correct device).
+        embedding_dim (int): Input embedding dimensionality.
+        initial_batch (int): Starting batch size.
+        max_batch (int): Upper limit for batch size.
+        device (str): Device to test on ('cuda' or 'cpu').
+        dtype (torch.dtype): Data type of input.
+        warmup_iters (int): Number of warm-up iterations before measuring.
+        measure_iters (int): Number of iterations to measure throughput.
+
+    Returns:
+        Tuple[int, float]: Largest batch size and its corresponding throughput (samples/sec).
+    """
+    low = initial_batch
+    high = max_batch
+    best = 0
+    best_throughput = 0.0
+
+    while low <= high:
+        batch_size = (low + high) // 2
+        try:
+            print(f"\nTesting batch size: {batch_size}")
+            dummy_input = torch.randn(batch_size, embedding_dim, device=device, dtype=dtype)
+
+            # Warm-up iterations (ignore timing)
+            with torch.no_grad():
+                for _ in range(warmup_iters):
+                    _ = model(dummy_input)
+
+            # Timed iterations
+            torch.cuda.synchronize()
+            start = time.time()
+            with torch.no_grad():
+                for _ in range(measure_iters):
+                    _ = model(dummy_input)
+            torch.cuda.synchronize()
+            elapsed = time.time() - start
+
+            throughput = (batch_size * measure_iters) / elapsed
+            print(f"✅ Batch size {batch_size} succeeded. Throughput: {throughput:.2f} samples/sec")
+
+            # Update best values
+            best = batch_size
+            best_throughput = throughput
+            low = batch_size + 1
+
+        except torch.cuda.OutOfMemoryError:
+            print(f"❌ OOM at batch size {batch_size}. Trying smaller batch...")
+            high = batch_size - 1
+
+        except Exception as e:
+            print(f"⚠️  Unexpected error at batch size {batch_size}: {e}")
+            break
+
+        finally:
+            torch.cuda.empty_cache()
+            gc.collect()
+
+    print(f"\nOptimal batch size: {best / 1_000_000:.2f}M, Throughput: {best_throughput / 1_000_000:.2f}M samples/sec")
+    return best, best_throughput
+
+
 
 
 def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
@@ -238,6 +309,8 @@ class JQLHead(PipelineStep):
         self.regression_heads = {}
         for name, path in self.regression_head_checkpoints.items():
             self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
+
+        self.batch_size = find_max_batch_size(next(iter(self.regression_heads.values())))[0]
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
