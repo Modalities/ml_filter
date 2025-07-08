@@ -30,21 +30,12 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
-            # stats_writer=JsonlWriter(
-            # output_folder=cfg.output_dir + '/jql_outputs/stats',  # Change to your output directory
-            # adapter=stats_adapter,
-            # expand_metadata=True,
-            # ),
         ),
-        # JsonlWriter(
-        #     output_folder=cfg.output_dir + '/jql_outputs/stats',  # Change to your output directory
-        #     adapter=stats_adapter,
-        #     expand_metadata=True,
-        # ),
-        # HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-        #            output_filename="${source_filename}.h5",
-        #            dataset_name=cfg.hdf5_dataset_name
-        # )
+        HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
+                   output_filename="${source_filename}.h5",
+                   dataset_name=cfg.hdf5_dataset_name,
+                   batch_size=cfg.writer_batch_size,
+        )
 
     ]
     stage = LocalPipelineExecutor(

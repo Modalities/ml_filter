@@ -366,22 +366,37 @@ class HDF5Writer(DiskWriter):
             return
 
         batch = self._batches.pop(filename)
-
-        # logger.info(f"the structure of document is {batch[0]}")
         embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=np.float32)
         document_id = [doc["metadata"]["document_id"] for doc in batch]
 
         file = self._writers[filename]
-
         group_name = self.dataset_name
 
-        if group_name in file:
-            del file[group_name]
+        if group_name not in file:
+            # Create group and datasets with unlimited first dimension (resizable)
+            group = file.create_group(group_name)
+            maxshape_emb = (None, embeddings.shape[1])  # None means unlimited rows
+            maxshape_ids = (None,)
+            group.create_dataset("embeddings", data=embeddings, maxshape=maxshape_emb, compression="gzip", dtype=np.float32)
+            dt = h5py.string_dtype(encoding='utf-8')
+            group.create_dataset("document_id", data=document_id, maxshape=maxshape_ids, compression="gzip", dtype=dt)
+        else:
+            group = file[group_name]
+            emb_ds = group["embeddings"]
+            id_ds = group["document_id"]
 
-        group = file.create_group(group_name)
-        group.create_dataset("embeddings", data=embeddings, compression="gzip", dtype=np.float32)
-        dt = h5py.string_dtype(encoding='utf-8')
-        group.create_dataset("document_id", data=document_id, compression="gzip", dtype=dt)
+            # Current sizes
+            old_size = emb_ds.shape[0]
+            new_size = old_size + embeddings.shape[0]
+
+            # Resize datasets to hold new batch
+            emb_ds.resize(new_size, axis=0)
+            id_ds.resize(new_size, axis=0)
+
+            # Append new data
+            emb_ds[old_size:new_size, :] = embeddings
+            id_ds[old_size:new_size] = document_id
+
 
     def _write(self, document: dict, file_handler: IO, filename: str):
         if filename not in self._writers:

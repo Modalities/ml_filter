@@ -113,7 +113,7 @@ class SnowflakeArcticEmbedMV2_0():
             model_id, 
             trust_remote_code=True,      # Allows loading custom code from the model's repository.
             torch_dtype=dtype,           # Sets the data type for model parameters and computations.
-            unpad_inputs=False,           # Optimizes for unpadded inputs if applicable.
+            unpad_inputs=True,           # Optimizes for unpadded inputs if applicable.
             # device_map={'': device},     # Maps the model to the specified device.
             add_pooling_layer=False,     # Prevents adding an extra pooling layer if not needed.
             use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
