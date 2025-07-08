@@ -20,6 +20,7 @@ from datatrove.utils.batching import batched
 from datatrove.utils.logging import logger
 from dotenv import load_dotenv
 from torch import bfloat16, cuda
+import torch.nn.functional as F
 
 from ml_filter.annotation.embedder import get_embedder_instance
 from ml_filter.data_processing.hash_data_files import read_existing_hashes
@@ -30,47 +31,61 @@ import contextlib
 load_dotenv()
 
 
-
-
-def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
+def find_max_batch_size(embedder, max_limit=50000, step=100):
     """
-    Finds the max batch size that doesn't cause CUDA OOM.
+    Finds the max batch size that doesn't cause CUDA OOM using dummy input data.
 
     Args:
-        embedder: your embedder instance with `.embed()` method
-        doc_pipeline: iterable or list of documents with `.text`
+        embedder: your embedder instance with a `.model` attribute (e.g., Hugging Face model)
         max_limit: upper bound for batch size search
         step: increment step for searching
 
     Returns:
         int: max batch size that fits in GPU memory without OOM
     """
+
+    # Create dummy data
+    dummy_input_ids = [0] * 8192  # One full sequence
+    dummy_attention_mask = [1] * 8192
+    dummy_doc = type('obj', (object,), {
+        'metadata': {
+            'input_ids': dummy_input_ids,
+            'attention_mask': dummy_attention_mask,
+            'token_count': 8192
+        }
+    })()
+
     batch_size = step
     max_batch_size = 0
 
-    docs = list(doc_pipeline)
-
     while batch_size <= max_limit:
         try:
-            batch = docs[:batch_size]
-            texts = [doc.text for doc in batch]
+            # Prepare dummy batch
+            batch = [dummy_doc] * batch_size
 
-            # # Clear memory before inference
-            del batch
+            # Convert to model input format
+            input_ids = torch.tensor([doc.metadata['input_ids'] for doc in batch], dtype=torch.long).to(embedder.device)
+            attention_mask = torch.tensor([doc.metadata['attention_mask'] for doc in batch], dtype=torch.long).to(embedder.device)
+
+            # Clear memory before inference
             gc.collect()
             torch.cuda.empty_cache()
 
-            batch = docs[:batch_size]
-            texts = [doc.text for doc in batch]
+            # Process batch
+            with torch.no_grad():
+                output = embedder.model(input_ids=input_ids, attention_mask=attention_mask)
 
-            _ = embedder.embed(texts)
+                # Extract and normalize the embeddings
+                embeddings = F.normalize(output.last_hidden_state[:, 0], p=2, dim=1)
+
+            embeddings = embeddings.cpu().tolist()
 
             logger.info(f"✅ Batch size {batch_size} succeeded")
             max_batch_size = batch_size
             batch_size += step
 
         except RuntimeError as e:
-            if 'out of memory' in str(e):
+            if 'out of memory' in str(e).lower():
                 logger.warning(f"❌ OOM at batch size {batch_size}, reducing step")
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -80,18 +95,20 @@ def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
                 step = max(1, step // 2)
                 batch_size += step
             else:
+                logger.error(f"❌ Error at batch size {batch_size}: {e}")
                 raise e
 
         finally:
-            # Free references every iteration
             if 'batch' in locals(): del batch
-            if 'texts' in locals(): del texts
+            if 'input_ids' in locals(): del input_ids
+            if 'attention_mask' in locals(): del attention_mask
+            if 'embeddings' in locals(): del embeddings
             gc.collect()
             torch.cuda.empty_cache()
-            ...
 
     logger.info(f"🏁 Max batch size found: {max_batch_size}")
     return max_batch_size
+
 
 
 def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
@@ -267,8 +284,7 @@ class JQLEmbedder(PipelineStep):
 
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
-        # self.batch_size = find_max_batch_size(embedder, doc_pipeline, max_limit=1000000, step=500)
-        throughputs = []
+        # self.batch_size = find_max_batch_size(embedder, max_limit=1000000, step=500)
 
         for doc_batch in batched(doc_pipeline, self.batch_size):
             batch_tokens = embedder.tokenizer([doc.text for doc in doc_batch],
@@ -280,8 +296,7 @@ class JQLEmbedder(PipelineStep):
             with self.track_time(unit='batch'):
                 start_time = time.time()
                 try:
-                    # embeddings = embedder.embed([doc.text for doc in doc_batch])
-                    embeddings = embedder.embed(batch_tokens)
+                    embeddings = embedder.embed([doc.text for doc in doc_batch])
                     for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                         doc.metadata["source_filename"] = _get_file_path(doc)
                         doc.metadata['embedding'] = embedding
