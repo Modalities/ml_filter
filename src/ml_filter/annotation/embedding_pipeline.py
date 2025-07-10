@@ -4,6 +4,7 @@ from datatrove.executor import LocalPipelineExecutor
 from omegaconf import OmegaConf
 
 from datatrove.pipeline.writers import JsonlWriter
+from datetime import datetime, timedelta
 
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, JQLJsonlReader, stats_adapter
 
@@ -30,12 +31,17 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
-        ),
-        HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
+            stats_writer=HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
                    output_filename="${source_filename}.h5",
                    dataset_name=cfg.hdf5_dataset_name,
                    batch_size=cfg.writer_batch_size,
-        )
+            )
+        ),
+        # HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
+        #            output_filename="${source_filename}.h5",
+        #            dataset_name=cfg.hdf5_dataset_name,
+        #            batch_size=cfg.writer_batch_size,
+        # )
 
     ]
     stage = LocalPipelineExecutor(
@@ -43,9 +49,13 @@ def run_embedding_pipeline(config_file_path: Path):
         tasks=cfg.tasks,
         local_tasks=cfg.local_tasks,
         local_rank_offset=cfg.local_rank_offset,
+        workers=cfg.workers,
         logging_dir=cfg.output_dir + '/logs',
     )
+
     stage.run()
+
+    print("Execution ends at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
 
 
 # Testing

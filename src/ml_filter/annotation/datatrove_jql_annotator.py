@@ -282,44 +282,44 @@ class JQLEmbedder(PipelineStep):
             else:
                 device = f'cuda:{self.device_overwrite}'
 
+
+        print(f"Using device: {device} for rank {rank}---------------------------------------->")
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
         # self.batch_size = find_max_batch_size(embedder, max_limit=1000000, step=500)
 
-        for doc_batch in batched(doc_pipeline, self.batch_size):
-            batch_tokens = embedder.tokenizer([doc.text for doc in doc_batch],
-                                      max_length=8192,  # Maximum sequence length for tokenization.
-                                      padding='longest',  # Pad to the length of the longest sequence in the batch.
-                                      truncation=True,  # Truncate sequences longer than max_length.
-                                      return_tensors='pt').to(device)  # Return PyTorch tensors.
-            
-            with self.track_time(unit='batch'):
-                start_time = time.time()
-                try:
-                    embeddings = embedder.embed([doc.text for doc in doc_batch])
-                    for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
-                        doc.metadata["source_filename"] = _get_file_path(doc)
-                        doc.metadata['embedding'] = embedding
-                        yield doc
+        with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
+            for doc_batch in batched(doc_pipeline, self.batch_size):
+                with self.track_time(unit='batch'):
+                    start_time = time.time()
+                    try:
+                        embeddings = embedder.embed([doc.text for doc in doc_batch])
+                        for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
+                            doc.metadata["source_filename"] = _get_file_path(doc)
+                            doc.metadata['embedding'] = embedding
+                            if writer:
+                                writer.write(doc, rank)
+                            yield doc
 
-                    duration = time.time() - start_time
-                    num_docs = len(doc_batch)
-                    throughput = num_docs / duration if duration > 0 else 0
-                    logger.info(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
-                    print(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
-                    print("Peak memory allocated: ", torch.cuda.max_memory_allocated()) 
-                    torch.cuda.empty_cache()
+                        duration = time.time() - start_time
+                        num_docs = len(doc_batch)
+                        throughput = num_docs / duration if duration > 0 else 0
+                        logger.info(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
+                        print(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
+                        # print("Peak memory allocated: ", torch.cuda.max_memory_allocated()) 
+                        torch.cuda.empty_cache()
 
-                except RuntimeError as e:
-                    if 'out of memory' in str(e):
-                        logger.error(f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
-                                     f"Consider reducing the batch size or using a smaller model.")
-                        print(torch.cuda.memory_summary())
-                        print(torch.cuda.max_memory_allocated())
-                        raise e
-                    else:
-                        logger.error(f"Runtime error on rank {rank}: {e}")
-                        raise e
+
+                    except RuntimeError as e:
+                        if 'out of memory' in str(e):
+                            logger.error(f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
+                                        f"Consider reducing the batch size or using a smaller model.")
+                            print(torch.cuda.memory_summary())
+                            print(torch.cuda.max_memory_allocated())
+                            raise e
+                        else:
+                            logger.error(f"Runtime error on rank {rank}: {e}")
+                            raise e
 
 
 

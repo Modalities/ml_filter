@@ -9,7 +9,7 @@ writer_batch_size: 1000
 
 hdf5_dataset_name: train
 
-tasks: 1
-workers: 1
-local_tasks: 1
+tasks: 8 # number of tasks
+workers: 8 
+local_tasks: 8 # number of gpus in a node
 local_rank_offset: 0
