@@ -22,7 +22,7 @@ slurm:
   output: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/%j.out
   error: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/%j.err
   account: "EUHPC_E05_119"
-  qos: "normal"
+  qos: "normal" #"boost_qos_dbg",
   nodes: 1
   ntasks: 1
   gres: gpu:1
