@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
+from torch.utils.data import ConcatDataset
 from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
@@ -36,10 +37,13 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
         _set_seeds(seed)
 
         # Load embedding datasets
-        train_dataset, eval_datasets = _load_embedding_datasets(embeddings_hdf5_path)
+        train_dataset, eval_datasets = _load_embedding_datasets(
+            "/home/abbas-khan/datatrove_embeddings/embeddings_training",
+            "/home/abbas-khan/datatrove_embeddings/embeddings_validation",
+        )
 
         # Create embedding-based model
-        model = _init_embedding_model(cfg, embeddings_hdf5_path)
+        model = _init_embedding_model(cfg, "/home/abbas-khan/datatrove_embeddings/embeddings_training")
 
         # Initialize training arguments
         training_args = _init_training_args(cfg)
@@ -66,48 +70,172 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
         raise
 
 
-def _load_embedding_datasets(embeddings_hdf5_path: Path):
-    """Load datasets from HDF5 file - loads train + ALL eval datasets."""
-    embeddings_path = Path(embeddings_hdf5_path)
+def find_hdf5_files(directory: Path):
+    """Find all HDF5 files in a directory."""
+    return list(directory.glob("*.h5")) + list(directory.glob("*.hdf5"))
 
-    # Check what datasets are available
-    with h5py.File(embeddings_path, "r") as f:
-        available_datasets = list(f.keys())
-        logger.info(f"Available datasets in HDF5 file: {available_datasets}")
 
-    # Load training dataset (must exist)
-    if "train" not in available_datasets:
-        raise ValueError(f"Training dataset not found in {embeddings_path}")
+def load_files(files, dataset_name, split_name):
+    """Load multiple HDF5 files for a given split."""
+    datasets = []
+    for file in files:
+        try:
+            with h5py.File(file, "r") as f:
+                available_datasets = list(f.keys())
 
-    train_dataset = EmbeddingDataset(embeddings_path, "train")
-    logger.info(f"✅ Loaded training dataset: {len(train_dataset)} samples")
+            actual_dataset = dataset_name if dataset_name in available_datasets else available_datasets[0]
+            if actual_dataset != dataset_name:
+                logger.info(f"Dataset '{dataset_name}' not found in {file.name}, using '{actual_dataset}'")
 
-    # Load ALL evaluation datasets (not just the first one!)
+            dataset = EmbeddingDataset(file, actual_dataset)
+            datasets.append(dataset)
+            logger.info(f"✅ Loaded {split_name} file {file.name}: {len(dataset)} samples")
+
+        except Exception as e:
+            logger.error(f"Failed to load {split_name} file {file.name}: {e}")
+            if split_name == "train":
+                raise  # Re-raise for training files
+            # Continue for validation/test files
+    return datasets
+
+
+def _load_embedding_datasets(
+    training_dir: Path, validation_dir: Path, test_dir: Path = None, dataset_name: str = "data"
+):
+    """
+    Load and organize training, validation, and optionally test datasets from HDF5 files.
+
+    Args:
+        training_dir: Path to directory containing training HDF5 files
+        validation_dir: Path to directory containing validation HDF5 files
+        test_dir: Optional path to directory containing test HDF5 files
+        dataset_name: Name of the dataset within each HDF5 file (default: "data")
+
+    Returns:
+        tuple: (train_dataset, eval_datasets) where eval_datasets is a dict with 'validation' and optionally 'test'
+    """
+    # Find files in each directory
+    training_files = find_hdf5_files(Path(training_dir))
+    validation_files = find_hdf5_files(Path(validation_dir))
+    test_files = find_hdf5_files(Path(test_dir)) if test_dir else []
+
+    # Check training files (required)
+    if not training_files:
+        raise ValueError(f"No HDF5 files found in training directory: {training_dir}")
+
+    # Check validation files (warn but continue)
+    if not validation_files:
+        logger.warning(f"No HDF5 files found in validation directory: {validation_dir}")
+
+    # Log found files
+    logger.info(f"Found {len(training_files)} training files: {[f.name for f in training_files]}")
+    if validation_files:
+        logger.info(f"Found {len(validation_files)} validation files: {[f.name for f in validation_files]}")
+    if test_dir and test_files:
+        logger.info(f"Found {len(test_files)} test files: {[f.name for f in test_files]}")
+    elif test_dir:
+        logger.warning(f"No HDF5 files found in test directory: {test_dir}")
+
+    # Load and combine training datasets
+    train_datasets = load_files(training_files, dataset_name, "train")
+    if not train_datasets:
+        raise ValueError("No training datasets could be loaded successfully")
+
+    train_dataset = train_datasets[0] if len(train_datasets) == 1 else ConcatDataset(train_datasets)
+    if len(train_datasets) > 1:
+        logger.info(f"✅ Combined {len(train_datasets)} training files: {len(train_dataset)} total samples")
+
+    # Load and combine evaluation datasets
     eval_datasets = {}
-    non_train_datasets = [name for name in available_datasets if name != "train"]
+    for name, files in [("validation", validation_files), ("test", test_files)]:
+        if not files:
+            continue
 
-    if len(non_train_datasets) > 0:
-        for eval_name in non_train_datasets:
-            eval_datasets[eval_name] = EmbeddingDataset(embeddings_path, eval_name)
-            logger.info(f"✅ Loaded {eval_name} dataset: {len(eval_datasets[eval_name])} samples")
+        datasets = load_files(files, dataset_name, name)
+        if datasets:
+            eval_datasets[name] = datasets[0] if len(datasets) == 1 else ConcatDataset(datasets)
+            if len(datasets) > 1:
+                logger.info(f"✅ Combined {len(datasets)} {name} files: {len(eval_datasets[name])} total samples")
 
-        logger.info(f"📊 Total evaluation datasets loaded: {len(eval_datasets)} ({list(eval_datasets.keys())})")
+    # Final summary
+    if eval_datasets:
+        logger.info(f"📊 Total evaluation datasets loaded: {list(eval_datasets.keys())}")
     else:
-        logger.warning("No evaluation dataset found!")
+        logger.warning("No evaluation datasets loaded!")
 
     return train_dataset, eval_datasets
 
 
-def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> EmbeddingRegressionModel:
-    """Initialize the embedding-based model."""
+# def _load_embedding_datasets(embeddings_hdf5_path: Path):
+#     """Load datasets from HDF5 file - loads train + ALL eval datasets."""
+#     embeddings_path = Path(embeddings_hdf5_path)
+
+#     # Check what datasets are available
+#     with h5py.File(embeddings_path, "r") as f:
+#         available_datasets = list(f.keys())
+#         logger.info(f"Available datasets in HDF5 file: {available_datasets}")
+
+#     # Load training dataset (must exist)
+#     if "train" not in available_datasets:
+#         raise ValueError(f"Training dataset not found in {embeddings_path}")
+
+#     train_dataset = EmbeddingDataset(embeddings_path, "train")
+#     logger.info(f"✅ Loaded training dataset: {len(train_dataset)} samples")
+
+#     # Load ALL evaluation datasets (not just the first one!)
+#     eval_datasets = {}
+#     non_train_datasets = [name for name in available_datasets if name != "train"]
+
+#     if len(non_train_datasets) > 0:
+#         for eval_name in non_train_datasets:
+#             eval_datasets[eval_name] = EmbeddingDataset(embeddings_path, eval_name)
+#             logger.info(f"✅ Loaded {eval_name} dataset: {len(eval_datasets[eval_name])} samples")
+
+#         logger.info(f"📊 Total evaluation datasets loaded: {len(eval_datasets)} ({list(eval_datasets.keys())})")
+#     else:
+#         logger.warning("No evaluation dataset found!")
+
+#     return train_dataset, eval_datasets
+
+
+# def _init_embedding_model(cfg: DictConfig, embeddings_hdf5_path: Path) -> EmbeddingRegressionModel:
+#     """Initialize the embedding-based model."""
+#     logger.info("Initializing embedding-based model.")
+
+#     # Get embedding dimension from the HDF5 file
+#     with h5py.File(embeddings_hdf5_path, "r") as f:
+#         available_datasets = list(f.keys())
+#         sample_dataset = available_datasets[0]  # Any dataset works for getting dimensions
+#         embedding_dim = f[sample_dataset].attrs["embedding_dim"]
+#         logger.info(f"Reading dimensions from '{sample_dataset}' dataset: {embedding_dim}D embeddings")
+
+#     config = EmbeddingRegressionConfig(
+#         embedding_dim=int(embedding_dim),  # Convert numpy.int64 to Python int
+#         num_tasks=int(cfg.data.num_tasks),  # Convert to Python int
+#         num_targets_per_task=[int(x) for x in cfg.data.num_targets_per_task],  # Convert each element to Python int
+#         hidden_dim=int(cfg.model.regressor_hidden_dim),
+#         is_regression=bool(cfg.model.is_regression),  # Convert to Python bool
+#     )
+
+#     return EmbeddingRegressionModel(config=config)
+
+
+def _init_embedding_model(cfg: DictConfig, training_dir: Path) -> EmbeddingRegressionModel:
+    """Initialize the embedding-based model by reading dimensions from training data."""
     logger.info("Initializing embedding-based model.")
 
-    # Get embedding dimension from the HDF5 file
-    with h5py.File(embeddings_hdf5_path, "r") as f:
+    # Find HDF5 files in training directory
+    training_files = find_hdf5_files(Path(training_dir))
+    if not training_files:
+        raise ValueError(f"No HDF5 files found in training directory: {training_dir}")
+
+    # Get embedding dimension from the first training file
+    sample_file = training_files[0]
+    with h5py.File(sample_file, "r") as f:
         available_datasets = list(f.keys())
         sample_dataset = available_datasets[0]  # Any dataset works for getting dimensions
         embedding_dim = f[sample_dataset].attrs["embedding_dim"]
-        logger.info(f"Reading dimensions from '{sample_dataset}' dataset: {embedding_dim}D embeddings")
+        logger.info(f"Reading dimensions from '{sample_file.name}:{sample_dataset}': {embedding_dim}D embeddings")
 
     config = EmbeddingRegressionConfig(
         embedding_dim=int(embedding_dim),  # Convert numpy.int64 to Python int

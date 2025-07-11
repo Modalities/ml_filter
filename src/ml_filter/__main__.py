@@ -16,7 +16,7 @@ from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
-from ml_filter.training.embedding_training_pipeline import run_embedding_training_pipeline
+from ml_filter.training.embedding_training_pipeline import run_embedding_head_training_pipeline
 from ml_filter.training.extract_embeddings import extract_and_save_embeddings
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
@@ -756,7 +756,7 @@ def entry_extract_embeddings(config_file_path: Path):
 )
 def entry_train_with_embeddings(config_file_path: Path):
     """Train regression head using pre-computed embeddings."""
-    run_embedding_training_pipeline(config_file_path=config_file_path)
+    run_embedding_head_training_pipeline(config_file_path=config_file_path)
 
 
 if __name__ == "__main__":
