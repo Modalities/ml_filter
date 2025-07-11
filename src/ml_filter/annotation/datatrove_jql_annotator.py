@@ -2,11 +2,12 @@
 import os
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, IO
+from typing import Any, Callable, Literal, Optional, IO, Union
 
 # --- Third-Party Libraries ---
 import h5py
 import numpy as np
+
 # --- Project-Specific Imports ---
 from datatrove.data import Document, DocumentsPipeline
 from datatrove.io import DataFileLike, DataFolderLike
@@ -22,7 +23,12 @@ from torch import bfloat16, cuda
 import torch
 import time
 
-from ml_filter.annotation.embedder import get_embedder_instance
+from ml_filter.annotation.embedder import (
+    GteMultilingualBase,
+    JinaEmbeddingsV3TextMatching,
+    SnowflakeArcticEmbedMV2_0,
+    get_embedder_instance,
+)
 from ml_filter.data_processing.hash_data_files import read_existing_hashes
 
 load_dotenv()
@@ -31,6 +37,7 @@ import os
 import torch
 import gc
 import dataclasses
+
 
 def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
     """
@@ -45,11 +52,16 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
     """
     data = {key: val for key, val in dataclasses.asdict(document).items() if val and key != "text"}
     if writer.expand_metadata and "metadata" in data:
-            data |= data.pop("metadata")
+        data |= data.pop("metadata")
     return data
 
 
-def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
+def find_max_batch_size(
+    embedder: Union[GteMultilingualBase, SnowflakeArcticEmbedMV2_0, JinaEmbeddingsV3TextMatching],
+    doc_pipeline: DocumentsPipeline,
+    max_limit: int = 5000,
+    step: int = 100,
+) -> int:
     """
     Finds the max batch size that doesn't cause CUDA OOM.
 
@@ -71,22 +83,15 @@ def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
         try:
             batch = docs[:batch_size]
             texts = [doc.text for doc in batch]
-
-            # # Clear memory before inference
-            torch.cuda.empty_cache()
-
             batch = docs[:batch_size]
             texts = [doc.text for doc in batch]
-
             _ = embedder.embed(texts)
-
             logger.info(f"✅ Batch size {batch_size} succeeded")
             max_batch_size = batch_size
             batch_size += step
             torch.cuda.empty_cache()
-
         except RuntimeError as e:
-            if 'out of memory' in str(e):
+            if "out of memory" in str(e):
                 logger.warning(f"❌ OOM at batch size {batch_size}, reducing step")
                 if step <= 1:
                     break
@@ -95,14 +100,11 @@ def find_max_batch_size(embedder, doc_pipeline, max_limit=5000, step=100):
                 batch_size += step
             else:
                 raise e
-
         finally:
             torch.cuda.empty_cache()
-            ...
 
     logger.info(f"🏁 Max batch size found: {max_batch_size}")
     return max_batch_size
-
 
 
 def _get_file_path(doc: Document) -> str:
@@ -148,22 +150,22 @@ class JQLJsonlReader(BaseDiskReader):
     _requires_dependencies = ["orjson"]
 
     def __init__(
-            self,
-            data_folder: DataFolderLike,
-            csv_hashmap: Path,
-            paths_file: DataFileLike | None = None,
-            compression: Literal["infer", "gzip", "zstd"] | None = "infer",
-            limit: int = -1,
-            skip: int = 0,
-            file_progress: bool = False,
-            doc_progress: bool = False,
-            adapter: Callable = None,
-            text_key: str = "text",
-            id_key: str = "id",
-            default_metadata: dict = None,
-            recursive: bool = True,
-            glob_pattern: str | None = None,
-            shuffle_files: bool = False,
+        self,
+        data_folder: DataFolderLike,
+        csv_hashmap: Path,
+        paths_file: DataFileLike | None = None,
+        compression: Literal["infer", "gzip", "zstd"] | None = "infer",
+        limit: int = -1,
+        skip: int = 0,
+        file_progress: bool = False,
+        doc_progress: bool = False,
+        adapter: Callable = None,
+        text_key: str = "text",
+        id_key: str = "id",
+        default_metadata: dict = None,
+        recursive: bool = True,
+        glob_pattern: str | None = None,
+        shuffle_files: bool = False,
     ):
         super().__init__(
             data_folder,
@@ -204,8 +206,8 @@ class JQLJsonlReader(BaseDiskReader):
                     with self.track_time():
                         try:
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
-                            document.metadata['file_path'] = full_file_path
-                            document.metadata['document_id'] = file_hash + "_" + str(li)
+                            document.metadata["file_path"] = full_file_path
+                            document.metadata["document_id"] = file_hash + "_" + str(li)
                             if not document:
                                 continue
                         except (EOFError, JSONDecodeError) as e:
@@ -230,16 +232,16 @@ class JQLEmbedder(PipelineStep):
         device_overwrite: manually specify a CUDA device (e.g., "0"). If None, a device is selected automatically per rank.
         stats_writer: optional writer to log stats to disk during embedding.
     """
+
     name = "🔢 - JQL-EMBEDDER"
     type = "🔢 - JQL-EMBEDDER"
 
     def __init__(
-            self,
-            embedder_model_id: str = 'Snowflake/snowflake-arctic-embed-m-v2.0',
-            batch_size: int = 1_000,
-            device_overwrite: Optional[str] = None,
-            stats_writer: DiskWriter = None,
-
+        self,
+        embedder_model_id: str = "Snowflake/snowflake-arctic-embed-m-v2.0",
+        batch_size: int = 1_000,
+        device_overwrite: Optional[str] = None,
+        stats_writer: DiskWriter = None,
     ):
         super().__init__()
         self.embedder_model_id = embedder_model_id
@@ -248,33 +250,35 @@ class JQLEmbedder(PipelineStep):
         self.stats_writer = stats_writer
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
-        # torch.cuda.memory._record_memory_history(max_entries=100000)
         if not cuda.is_available():
-            logger.warning('CUDA is not available, using CPU')
-            device = 'cpu'
+            logger.warning("CUDA is not available, using CPU")
+            device = "cpu"
         else:
             if self.device_overwrite is None:
                 device_count = cuda.device_count()
                 cuda_device_id = rank % device_count
-                device = f'cuda:{cuda_device_id}'
+                device = f"cuda:{cuda_device_id}"
             else:
-                device = f'cuda:{self.device_overwrite}'
+                device = f"cuda:{self.device_overwrite}"
 
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
+        # Find the maximum batch size that fits in GPU memory
+        # Uncomment the next line to find the max batch size dynamically
         # self.batch_size = find_max_batch_size(doc_pipeline, embedder, max_limit=1000000, step=500)
+
         total_docs = 0
         total_time = 0
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
-                with self.track_time(unit='batch'):
+                with self.track_time(unit="batch"):
                     start_time = time.time()
                     try:
                         embeddings = embedder.embed([doc.text for doc in doc_batch])
                         for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                             doc.metadata["source_filename"] = _get_file_path(doc)
-                            doc.metadata['embedding'] = embedding
+                            doc.metadata["embedding"] = embedding
                             if writer:
                                 writer.write(doc, rank)
                             yield doc
@@ -287,26 +291,28 @@ class JQLEmbedder(PipelineStep):
                         total_docs += num_docs
                         average_throughput = total_docs / total_time if total_time > 0 else 0
 
-                        logger.info(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
+                        logger.info(
+                            f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec"
+                        )
                         logger.info(f"Average throughput: {average_throughput:.2f} docs/sec")
-                        print(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
+                        print(
+                            f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec"
+                        )
                         print(f"Average throughput: {average_throughput:.2f} docs/sec")
                         torch.cuda.empty_cache()
 
-
                     except RuntimeError as e:
-                        if 'out of memory' in str(e):
-                            logger.error(f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
-                                        f"Consider reducing the batch size or using a smaller model.")
+                        if "out of memory" in str(e):
+                            logger.error(
+                                f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
+                                f"Consider reducing the batch size or using a smaller model."
+                            )
                             print(torch.cuda.memory_summary())
                             print(torch.cuda.max_memory_allocated())
                             raise e
                         else:
                             logger.error(f"Runtime error on rank {rank}: {e}")
                             raise e
-
-                    
-
 
 
 class HDF5Writer(DiskWriter):
@@ -331,20 +337,21 @@ class HDF5Writer(DiskWriter):
         schema: not used in HDF5 writer, included for compatibility with other writers.
         dataset_name: name of the group inside each HDF5 file where datasets will be written (default: "train").
     """
+
     default_output_filename: str = None
     name = "💾 HDF5"
     _requires_dependencies = ["h5py"]
 
     def __init__(
-            self,
-            output_folder: DataFolderLike,
-            output_filename: str = None,
-            adapter: Callable = None,
-            batch_size: int = 1000,
-            expand_metadata: bool = False,
-            max_file_size: int = 5 * 2 ** 30,
-            schema: Any = None,
-            dataset_name: str = "train"
+        self,
+        output_folder: DataFolderLike,
+        output_filename: str = None,
+        adapter: Callable = None,
+        batch_size: int = 1000,
+        expand_metadata: bool = False,
+        max_file_size: int = 5 * 2**30,
+        schema: Any = None,
+        dataset_name: str = "train",
     ):
         super().__init__(
             output_folder,
@@ -377,8 +384,10 @@ class HDF5Writer(DiskWriter):
             group = file.create_group(group_name)
             maxshape_emb = (None, embeddings.shape[1])
             maxshape_ids = (None,)
-            group.create_dataset("embeddings", data=embeddings, maxshape=maxshape_emb, compression="gzip", dtype=np.float32)
-            dt = h5py.string_dtype(encoding='utf-8')
+            group.create_dataset(
+                "embeddings", data=embeddings, maxshape=maxshape_emb, compression="gzip", dtype=np.float32
+            )
+            dt = h5py.string_dtype(encoding="utf-8")
             group.create_dataset("document_id", data=document_id, maxshape=maxshape_ids, compression="gzip", dtype=dt)
         else:
             group = file[group_name]
@@ -396,7 +405,6 @@ class HDF5Writer(DiskWriter):
             # Append new data
             emb_ds[old_size:new_size, :] = embeddings
             id_ds[old_size:new_size] = document_id
-
 
     def _write(self, document: dict, file_handler: IO, filename: str):
         if filename not in self._writers:

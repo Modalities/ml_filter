@@ -1,5 +1,6 @@
 # load hf key and set cache dir
 from dotenv import load_dotenv
+
 load_dotenv()
 
 import torch.nn.functional as F
@@ -7,12 +8,8 @@ import torch
 from transformers import AutoTokenizer, AutoModel
 import subprocess
 
-def log_nvidia_smi():
-    result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
-    print(result.stdout)
 
-
-class GteMultilingualBase():
+class GteMultilingualBase:
     """
     A wrapper class for the 'Alibaba-NLP/gte-multilingual-base' embedding model.
 
@@ -22,7 +19,7 @@ class GteMultilingualBase():
         tokenizer (AutoTokenizer): The tokenizer associated with the GTE model.
         model (AutoModel): The loaded GTE-Multilingual-Base model.
     """
-    
+
     def __init__(self, device, dtype=torch.bfloat16):
         """
         Initializes the GteMultilingualBase model.
@@ -31,21 +28,21 @@ class GteMultilingualBase():
             device (torch.device or str): The device to load the model onto (e.g., 'cuda', 'cpu').
             dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
         """
-        
+
         self.device = device
         self.dtype = dtype
-        
-        model_id = 'Alibaba-NLP/gte-multilingual-base'
-        
+
+        model_id = "Alibaba-NLP/gte-multilingual-base"
+
         # Load the tokenizer specific to the embedding model.
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         # Load the pre-trained GTE-Multilingual-Base model.
         self.model = AutoModel.from_pretrained(
-            model_id, 
+            model_id,
             trust_remote_code=True,  # Allows loading custom code from the model's repository.
-            torch_dtype=dtype,       # Sets the data type for model parameters and computations.
-            unpad_inputs=True,       # Optimizes for unpadded inputs if applicable.
-            use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
+            torch_dtype=dtype,  # Sets the data type for model parameters and computations.
+            unpad_inputs=True,  # Optimizes for unpadded inputs if applicable.
+            use_memory_efficient_attention=True,  # Leverages memory-efficient attention mechanisms.
         ).to(device)  # Move the model to the specified device.
 
     def embed(self, texts):
@@ -62,25 +59,27 @@ class GteMultilingualBase():
 
         # Tokenize the input texts, ensuring proper padding, truncation, and tensor conversion.
         batch_tokens = self.tokenizer(
-            texts, 
-            max_length=8192,         # Maximum sequence length for tokenization.
-            padding='longest',       # Pad to the length of the longest sequence in the batch.
-            truncation=True,         # Truncate sequences longer than max_length.
-            return_tensors='pt'      # Return PyTorch tensors.
-        ).to(self.device)            # Move tokens to the specified device.
+            texts,
+            max_length=8192,  # Maximum sequence length for tokenization.
+            padding="longest",  # Pad to the length of the longest sequence in the batch.
+            truncation=True,  # Truncate sequences longer than max_length.
+            return_tensors="pt",  # Return PyTorch tensors.
+        ).to(
+            self.device
+        )  # Move tokens to the specified device.
 
-        with torch.no_grad(): # Disable gradient calculation for inference to save memory and speed up computation.
+        with torch.no_grad():  # Disable gradient calculation for inference to save memory and speed up computation.
             output = self.model(**batch_tokens)
-            
+
         # Extract the embeddings from the CLS token (first token) of the last hidden state.
         embeddings = output.last_hidden_state[:, 0]
         # Normalize the embeddings to unit length (L2 normalization).
         embeddings = F.normalize(embeddings, p=2, dim=1)
-        
+
         return embeddings
-    
-    
-class SnowflakeArcticEmbedMV2_0():
+
+
+class SnowflakeArcticEmbedMV2_0:
     """
     A wrapper class for the 'Snowflake/snowflake-arctic-embed-m-v2.0' embedding model.
 
@@ -102,33 +101,30 @@ class SnowflakeArcticEmbedMV2_0():
             compile (bool, optional): Whether to compile the model's forward pass using `torch.compile`
                                       for potential performance improvements. Defaults to False.
         """
-        
+
         self.device = device
         self.dtype = dtype
-        
-        model_id = "/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0"
+
         # model_id = 'Snowflake/snowflake-arctic-embed-m-v2.0'
 
         ### Debugging
         # model_id = '/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0'
-        
+
         # Load the tokenizer specific to the embedding model.
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         # Load the pre-trained Snowflake Arctic Embed M v2.0 model.
         self.model = AutoModel.from_pretrained(
-            model_id, 
-            trust_remote_code=True,      # Allows loading custom code from the model's repository.
-            torch_dtype=dtype,           # Sets the data type for model parameters and computations.
-            unpad_inputs=True,           # Optimizes for unpadded inputs if applicable.
-            device_map=device,     # Maps the model to the specified device.
-            add_pooling_layer=False,     # Prevents adding an extra pooling layer if not needed.
-            use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
+            model_id,
+            trust_remote_code=True,  # Allows loading custom code from the model's repository.
+            torch_dtype=dtype,  # Sets the data type for model parameters and computations.
+            unpad_inputs=True,  # Optimizes for unpadded inputs if applicable.
+            device_map=device,  # Maps the model to the specified device.
+            add_pooling_layer=False,  # Prevents adding an extra pooling layer if not needed.
+            use_memory_efficient_attention=True,  # Leverages memory-efficient attention mechanisms.
         )
 
-        # self.model.to(device)  # Move the model to the specified device.
         self.model.eval()  # Set the model to evaluation mode.
 
-        
         # Compile the model's forward pass if `compile` is True.
         if compile:
             self.model.forward = torch.compile(self.model.forward)
@@ -145,15 +141,19 @@ class SnowflakeArcticEmbedMV2_0():
                           containing the normalized embeddings.
         """
 
-        batch_tokens = self.tokenizer(texts,
-                                      max_length=8192,  # Maximum sequence length for tokenization.
-                                      padding='longest',  # Pad to the length of the longest sequence in the batch.
-                                      truncation=True,  # Truncate sequences longer than max_length.
-                                      return_tensors='pt').to(self.device)  # Return PyTorch tensors.
-        
-        # batch_tokens = texts
-        batch_tokens = {k: v.to(torch.device(self.device)) for k, v in
-                        batch_tokens.items()}  # Move tokens to the specified device.
+        batch_tokens = self.tokenizer(
+            texts,
+            max_length=8192,  # Maximum sequence length for tokenization.
+            padding="longest",  # Pad to the length of the longest sequence in the batch.
+            truncation=True,  # Truncate sequences longer than max_length.
+            return_tensors="pt",
+        ).to(
+            self.device
+        )  # Return PyTorch tensors.
+
+        batch_tokens = {
+            k: v.to(torch.device(self.device)) for k, v in batch_tokens.items()
+        }  # Move tokens to the specified device.
 
         with torch.no_grad(), torch.cuda.device(self.device):
             output = self.model(**batch_tokens)
@@ -162,12 +162,11 @@ class SnowflakeArcticEmbedMV2_0():
             embeddings = F.normalize(output.last_hidden_state[:, 0], p=2, dim=1)
 
         embeddings = embeddings.cpu().tolist()
-        # torch.cuda.empty_cache()  # Clear CUDA memory cache to free up resources.
 
         return embeddings
 
 
-class JinaEmbeddingsV3TextMatching():
+class JinaEmbeddingsV3TextMatching:
     """
     A wrapper class for the 'jinaai/jina-embeddings-v3' model, specifically
     configured for 'text-matching' tasks.
@@ -186,18 +185,20 @@ class JinaEmbeddingsV3TextMatching():
             device (torch.device or str): The device to load the model onto.
             dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
         """
-        
+
         self.device = device
         self.dtype = dtype
-        
-        model_id = 'jinaai/jina-embeddings-v3'
-        
+
+        model_id = "jinaai/jina-embeddings-v3"
+
         # Load the Jina Embeddings V3 model.
         self.model = AutoModel.from_pretrained(
-            model_id, 
-            trust_remote_code=True,   # Allows loading custom code from the model's repository.
-            torch_dtype=torch.bfloat16, # Specifically set dtype to bfloat16 for this model.
-        ).to(device) # Move the model to the specified device.
+            model_id,
+            trust_remote_code=True,  # Allows loading custom code from the model's repository.
+            torch_dtype=torch.bfloat16,  # Specifically set dtype to bfloat16 for this model.
+        ).to(
+            device
+        )  # Move the model to the specified device.
 
     def embed(self, texts):
         """
@@ -210,19 +211,19 @@ class JinaEmbeddingsV3TextMatching():
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
                           containing the embeddings.
         """
-        
-        with torch.no_grad(): # Disable gradient calculation for inference.
+
+        with torch.no_grad():  # Disable gradient calculation for inference.
             # Use the model's built-in encode method with 'text-matching' task.
-            output = self.model.encode(texts, task='text-matching')
-            
+            output = self.model.encode(texts, task="text-matching")
+
         # Convert the output (which might be a numpy array or list) to a PyTorch tensor
         # and move it to the specified device and data type.
         embeddings = torch.tensor(output).to(self.device, self.dtype)
-        
+
         return embeddings
 
 
-class JinaEmbeddingsV3TextMatching():
+class JinaEmbeddingsV3TextMatching:
     """
     A wrapper class for the 'jinaai/jina-embeddings-v3' model, specifically
     configured for 'text-matching' tasks.
@@ -241,18 +242,20 @@ class JinaEmbeddingsV3TextMatching():
             device (torch.device or str): The device to load the model onto.
             dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
         """
-        
+
         self.device = device
         self.dtype = dtype
-        
-        model_id = 'jinaai/jina-embeddings-v3'
-        
+
+        model_id = "jinaai/jina-embeddings-v3"
+
         # Load the Jina Embeddings V3 model.
         self.model = AutoModel.from_pretrained(
-            model_id, 
-            trust_remote_code=True,   # Allows loading custom code from the model's repository.
-            torch_dtype=torch.bfloat16, # Specifically set dtype to bfloat16 for this model.
-        ).to(device) # Move the model to the specified device.
+            model_id,
+            trust_remote_code=True,  # Allows loading custom code from the model's repository.
+            torch_dtype=torch.bfloat16,  # Specifically set dtype to bfloat16 for this model.
+        ).to(
+            device
+        )  # Move the model to the specified device.
 
     def embed(self, texts):
         """
@@ -265,18 +268,18 @@ class JinaEmbeddingsV3TextMatching():
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
                           containing the embeddings.
         """
-        
-        with torch.no_grad(), torch.inference_mode(): # Disable gradient calculation for inference.
+
+        with torch.no_grad(), torch.inference_mode():  # Disable gradient calculation for inference.
             # Use the model's built-in encode method with 'text-matching' task.
-            output = self.model.encode(texts, task='text-matching')
-            
+            output = self.model.encode(texts, task="text-matching")
+
         # Convert the output (which might be a numpy array or list) to a PyTorch tensor
         # and move it to the specified device and data type.
         embeddings = torch.tensor(output).to(self.device, self.dtype)
-        
+
         return embeddings
-    
-    
+
+
 def get_embedder_instance(model_id, device, dtype):
     """
     Factory function to get an instance of a specified embedding model.
@@ -303,17 +306,17 @@ def get_embedder_instance(model_id, device, dtype):
     Raises:
         ValueError: If an unknown `model_id` is provided.
     """
-    
-    if model_id == 'Alibaba-NLP/gte-multilingual-base':
+
+    if model_id == "Alibaba-NLP/gte-multilingual-base":
         embedder_class = GteMultilingualBase
-    
-    elif model_id == 'Snowflake/snowflake-arctic-embed-m-v2.0':
+
+    elif model_id == "Snowflake/snowflake-arctic-embed-m-v2.0":
         embedder_class = SnowflakeArcticEmbedMV2_0
-    
-    elif model_id == 'jinaai/jina-embeddings-v3':
+
+    elif model_id == "jinaai/jina-embeddings-v3":
         embedder_class = JinaEmbeddingsV3TextMatching
-    
+
     else:
         raise ValueError(f"Unknown model ID: {model_id}")
-    
+
     return embedder_class(device, dtype)

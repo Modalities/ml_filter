@@ -20,10 +20,9 @@ def run_embedding_pipeline(config_file_path: Path):
         cfg = OmegaConf.load(config_file_path)
     except Exception as e:
         raise ValueError(f"Failed to load config from {config_file_path}: {e}")
-    
-    if cfg.slurm.tasks <= 0:
-        raise ValueError("Number of tasks must be > 0")
 
+    if cfg.datatrove.tasks <= 0:
+        raise ValueError("Number of tasks must be > 0")
 
     pipeline = [
         JQLJsonlReader(
@@ -34,19 +33,20 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
-            stats_writer=HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-                   output_filename="${source_filename}.h5",
-                   dataset_name=cfg.hdf5_dataset_name,
-                   batch_size=cfg.batch_size,
-            )
+            stats_writer=HDF5Writer(
+                output_folder=cfg.output_dir + "/embeddings",
+                output_filename="${source_filename}.h5",
+                dataset_name=cfg.hdf5_dataset_name,
+                batch_size=cfg.batch_size,
+            ),
         ),
     ]
     stage = SlurmPipelineExecutor(
         pipeline=pipeline,
         job_name=cfg.slurm.job_name,
-        logging_dir=cfg.output_dir + '/logs',
-        tasks=cfg.datarove.tasks,
-        workers=cfg.datarove.workers,
+        logging_dir=cfg.output_dir + "/logs",
+        tasks=cfg.datatrove.tasks,
+        workers=cfg.datatrove.workers,
         cpus_per_task=cfg.slurm.cpus_per_task,
         mem_per_cpu_gb=cfg.slurm.mem_per_cpu_gb,
         time=cfg.slurm.time,
@@ -55,10 +55,10 @@ def run_embedding_pipeline(config_file_path: Path):
         venv_path=cfg.slurm.venv_path,
         qos=cfg.slurm.qos,
         sbatch_args={
-            "account": cfg.slurm.account, 
+            "account": cfg.slurm.account,
             "exclusive": "",
-            "nodes": cfg.slurm.nodes, 
-            "ntasks": cfg.slurm.ntasks, 
+            "nodes": cfg.slurm.nodes,
+            "ntasks": cfg.slurm.ntasks,
             "gres": cfg.slurm.gres,
         },
     )
@@ -66,5 +66,9 @@ def run_embedding_pipeline(config_file_path: Path):
 
 
 # Testing
-if __name__ == '__main__':
-    run_embedding_pipeline(config_file_path=Path("/data/cat/ws/alju972f-annotation_at_scale/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"))
+if __name__ == "__main__":
+    run_embedding_pipeline(
+        config_file_path=Path(
+            "/data/cat/ws/alju972f-annotation_at_scale/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"
+        )
+    )
