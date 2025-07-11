@@ -33,6 +33,7 @@ dependencies = [
     "flash-attn",
     "dotenv",
     "lightning"
+    "h5py"
 
 
 ]

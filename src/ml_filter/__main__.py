@@ -740,7 +740,7 @@ def entry_run_embedding_pipeline(config_file_path: Path):
 
 
 @main.command(name="hash_files_to_csv")
-@click.argument("input_files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.option("--directory", type=click.Path(exists=True, path_type=Path))
 @click.option(
     "--output_csv",
     type=click.Path(exists=False, path_type=Path),
@@ -754,11 +754,12 @@ def entry_run_embedding_pipeline(config_file_path: Path):
     show_default=True,
     help="Chunk size in bytes for reading files.",
 )
-def hash_files_to_csv_cli(input_files: tuple[Path], output_csv: Path, chunk_size: int):
+def hash_files_to_csv_cli(directory: Path, output_csv: Path, chunk_size: int):
     """
     Compute MD5 hashes for multiple files and write the hashes with file paths to a CSV file.
     """
-    hash_files_to_csv(list(input_files), output_csv, chunk_size)
+    jsonl_files = list(Path(directory).rglob("*.jsonl"))
+    hash_files_to_csv(jsonl_files, output_csv, chunk_size)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
