@@ -34,38 +34,33 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
-            stats_writer=JsonlWriter(
-                    output_folder=f'jql_outputs/stats', # Change to your output directory
-                    adapter=stats_adapter,
-                    expand_metadata=True,
-                    ),
+            stats_writer=HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
+                   output_filename="${source_filename}.h5",
+                   dataset_name=cfg.hdf5_dataset_name,
+                   batch_size=cfg.batch_size,
+            )
         ),
-        # HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-        #            output_filename="${source_filename}.h5",
-        #            dataset_name=cfg.hdf5_dataset_name,
-        #            batch_size=cfg.batch_size,
-        # )
-
     ]
     stage = SlurmPipelineExecutor(
         pipeline=pipeline,
         job_name=cfg.slurm.job_name,
         logging_dir=cfg.output_dir + '/logs',
-        tasks=cfg.slurm.tasks,
-        workers=cfg.slurm.workers,
+        tasks=cfg.datarove.tasks,
+        workers=cfg.datarove.workers,
         cpus_per_task=cfg.slurm.cpus_per_task,
         mem_per_cpu_gb=cfg.slurm.mem_per_cpu_gb,
         time=cfg.slurm.time,
         partition=cfg.slurm.partition,
-        # max_array_size=5,
         requeue=False,
         venv_path=cfg.slurm.venv_path,
-        sbatch_args={"account": cfg.slurm.account, 
-                     "qos": cfg.slurm.qos, 
-                     "nodes": cfg.slurm.nodes, 
-                     "ntasks": cfg.slurm.ntasks, 
-                     "gres": cfg.slurm.gres,
-                     },
+        qos=cfg.slurm.qos,
+        sbatch_args={
+            "account": cfg.slurm.account, 
+            "exclusive": "",
+            "nodes": cfg.slurm.nodes, 
+            "ntasks": cfg.slurm.ntasks, 
+            "gres": cfg.slurm.gres,
+        },
     )
     stage.run()
 

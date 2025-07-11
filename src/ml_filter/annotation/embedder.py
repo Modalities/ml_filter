@@ -5,6 +5,11 @@ load_dotenv()
 import torch.nn.functional as F
 import torch
 from transformers import AutoTokenizer, AutoModel
+import subprocess
+
+def log_nvidia_smi():
+    result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
+    print(result.stdout)
 
 
 class GteMultilingualBase():
@@ -115,12 +120,12 @@ class SnowflakeArcticEmbedMV2_0():
             trust_remote_code=True,      # Allows loading custom code from the model's repository.
             torch_dtype=dtype,           # Sets the data type for model parameters and computations.
             unpad_inputs=True,           # Optimizes for unpadded inputs if applicable.
-            # device_map={'': device},     # Maps the model to the specified device.
+            device_map=device,     # Maps the model to the specified device.
             add_pooling_layer=False,     # Prevents adding an extra pooling layer if not needed.
             use_memory_efficient_attention=True, # Leverages memory-efficient attention mechanisms.
         )
 
-        self.model.to(device)  # Move the model to the specified device.
+        # self.model.to(device)  # Move the model to the specified device.
         self.model.eval()  # Set the model to evaluation mode.
 
         
@@ -140,43 +145,24 @@ class SnowflakeArcticEmbedMV2_0():
                           containing the normalized embeddings.
         """
 
-        print("Before tokenizing:")
-        print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
-
+        batch_tokens = self.tokenizer(texts,
+                                      max_length=8192,  # Maximum sequence length for tokenization.
+                                      padding='longest',  # Pad to the length of the longest sequence in the batch.
+                                      truncation=True,  # Truncate sequences longer than max_length.
+                                      return_tensors='pt').to(self.device)  # Return PyTorch tensors.
         
-        # Tokenize the input texts with specified parameters.
-        batch_tokens = self.tokenizer(
-            texts, 
-            max_length=8192, 
-            padding='longest', 
-            truncation=True, 
-            return_tensors='pt'
-        )
+        # batch_tokens = texts
+        batch_tokens = {k: v.to(torch.device(self.device)) for k, v in
+                        batch_tokens.items()}  # Move tokens to the specified device.
 
-        batch_tokens = {k: v.to(torch.device(self.device)) for k, v in batch_tokens.items()} # Move tokens to the specified device.
-
-        print("After moving tokens to device:")
-        print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
-
-
-        # Disable gradient calculation and ensure operations are on the correct CUDA device.
-        with torch.no_grad(), torch.cuda.device(self.device): 
-        # with torch.inference_mode():     
+        with torch.no_grad(), torch.cuda.device(self.device):
             output = self.model(**batch_tokens)
 
-            print("After model output:")
-            print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
-
-            #TODO put this behind a flag.
             # Extract and normalize the embeddings.
-            embeddings = output.last_hidden_state[:, 0]
-            embeddings = F.normalize(embeddings, p=2, dim=1)
-            embeddings = embeddings.cpu().tolist()
+            embeddings = F.normalize(output.last_hidden_state[:, 0], p=2, dim=1)
 
-        del batch_tokens, output  # Free up memory by deleting intermediate variables.
-        torch.cuda.empty_cache()  # Clear the CUDA cache to free up memory.
-        print("After cleanup:")
-        print(f"Allocated: {torch.cuda.memory_allocated(self.device)/1024**2:.2f} MiB")
+        embeddings = embeddings.cpu().tolist()
+        # torch.cuda.empty_cache()  # Clear CUDA memory cache to free up resources.
 
         return embeddings
 
@@ -226,6 +212,61 @@ class JinaEmbeddingsV3TextMatching():
         """
         
         with torch.no_grad(): # Disable gradient calculation for inference.
+            # Use the model's built-in encode method with 'text-matching' task.
+            output = self.model.encode(texts, task='text-matching')
+            
+        # Convert the output (which might be a numpy array or list) to a PyTorch tensor
+        # and move it to the specified device and data type.
+        embeddings = torch.tensor(output).to(self.device, self.dtype)
+        
+        return embeddings
+
+
+class JinaEmbeddingsV3TextMatching():
+    """
+    A wrapper class for the 'jinaai/jina-embeddings-v3' model, specifically
+    configured for 'text-matching' tasks.
+
+    Attributes:
+        device (torch.device or str): The device on which to load the model.
+        dtype (torch.dtype): The data type for model computations (default: torch.bfloat16).
+        model (AutoModel): The loaded Jina Embeddings V3 model.
+    """
+
+    def __init__(self, device, dtype=torch.bfloat16):
+        """
+        Initializes the JinaEmbeddingsV3TextMatching model.
+
+        Args:
+            device (torch.device or str): The device to load the model onto.
+            dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
+        """
+        
+        self.device = device
+        self.dtype = dtype
+        
+        model_id = 'jinaai/jina-embeddings-v3'
+        
+        # Load the Jina Embeddings V3 model.
+        self.model = AutoModel.from_pretrained(
+            model_id, 
+            trust_remote_code=True,   # Allows loading custom code from the model's repository.
+            torch_dtype=torch.bfloat16, # Specifically set dtype to bfloat16 for this model.
+        ).to(device) # Move the model to the specified device.
+
+    def embed(self, texts):
+        """
+        Generates embeddings for a list of text strings using the Jina Embeddings V3 model
+        with a 'text-matching' task.
+        Args:
+            texts (list[str]): A list of text strings to embed.
+
+        Returns:
+            torch.Tensor: A tensor of shape (batch_size, embedding_dim)
+                          containing the embeddings.
+        """
+        
+        with torch.no_grad(), torch.inference_mode(): # Disable gradient calculation for inference.
             # Use the model's built-in encode method with 'text-matching' task.
             output = self.model.encode(texts, task='text-matching')
             
