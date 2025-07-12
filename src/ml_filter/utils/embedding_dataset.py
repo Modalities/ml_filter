@@ -21,9 +21,9 @@ class EmbeddingDataset(Dataset):
             self.embeddings = torch.from_numpy(grp["embeddings"][:]).float()
             self.labels = torch.from_numpy(grp["labels"][:]).float()
 
-            self.n_samples = grp.attrs["n_samples"]
-            self.embedding_dim = grp.attrs["embedding_dim"]
-            self.n_tasks = grp.attrs["n_tasks"]
+            self.n_samples = len(self.embeddings)
+            self.embedding_dim = self.embeddings.shape[1]
+            self.n_tasks = self.labels.shape[1] if len(self.labels.shape) > 1 else 1
 
         print(f"Loaded {self.n_samples} embeddings from {hdf5_path}:{dataset_name}")
 

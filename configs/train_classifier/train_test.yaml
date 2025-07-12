@@ -1,7 +1,7 @@
 model:
   #name: answerdotai/modernbert-base 
   #name: EuroBERT/EuroBERT-610m
-  name: snowflake/snowflake-arctic-embed-m-v2.0
+  name: snowflake/snowflake-arctic-embed-l-v2.0
   loading_params:          
     unpad_inputs: true
     add_pooling_layer: false
@@ -37,8 +37,8 @@ data:
   num_processes: 64
 
 training:
-  batch_size: 64
-  eval_batch_size: 64 # 1024
+  batch_size: 1024
+  eval_batch_size: 1024 # 1024
   epochs: 20
   use_bf16: true
   weight_decay: 0.01 # 0.01
@@ -48,7 +48,7 @@ training:
   seed: 42
   is_regression: true
   greater_is_better: yes  # Save model with lowest loss
-  metric_for_best_model: test_edu/spearman_corr
+  metric_for_best_model: validation_edu/spearman_corr
   learning_rate: 5e-04 # 5e-04
   logging_dir_path: data/output/fineweb_edu_model_artic_v1_m_test_100_epoch
   output_dir_path: ${training.logging_dir_path}

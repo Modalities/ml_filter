@@ -30,20 +30,20 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
 
     try:
         cfg = OmegaConf.load(config_file_path)
-        embeddings_hdf5_path = cfg.embedding.load_path
-        logger.info(f"Loading the embeddings from {embeddings_hdf5_path}")
+        # embeddings_hdf5_path = cfg.embedding.load_path
+        # logger.info(f"Loading the embeddings from {embeddings_hdf5_path}")
 
         seed = cfg.training.get("seed", None)
         _set_seeds(seed)
 
         # Load embedding datasets
         train_dataset, eval_datasets = _load_embedding_datasets(
-            "/home/abbas-khan/datatrove_embeddings/embeddings_training",
-            "/home/abbas-khan/datatrove_embeddings/embeddings_validation",
+            "/home/abbas-khan/datatrove_embeddings/training_embeddings",
+            "/home/abbas-khan/datatrove_embeddings/validation_embeddings",
         )
 
         # Create embedding-based model
-        model = _init_embedding_model(cfg, "/home/abbas-khan/datatrove_embeddings/embeddings_training")
+        model = _init_embedding_model(cfg, "/home/abbas-khan/datatrove_embeddings/training_embeddings")
 
         # Initialize training arguments
         training_args = _init_training_args(cfg)
@@ -100,7 +100,7 @@ def load_files(files, dataset_name, split_name):
 
 
 def _load_embedding_datasets(
-    training_dir: Path, validation_dir: Path, test_dir: Path = None, dataset_name: str = "data"
+    training_dir: Path, validation_dir: Path, test_dir: Path = None, dataset_name: str = "train"
 ):
     """
     Load and organize training, validation, and optionally test datasets from HDF5 files.
@@ -234,7 +234,7 @@ def _init_embedding_model(cfg: DictConfig, training_dir: Path) -> EmbeddingRegre
     with h5py.File(sample_file, "r") as f:
         available_datasets = list(f.keys())
         sample_dataset = available_datasets[0]  # Any dataset works for getting dimensions
-        embedding_dim = f[sample_dataset].attrs["embedding_dim"]
+        embedding_dim = f[sample_dataset]["embeddings"].shape[1]
         logger.info(f"Reading dimensions from '{sample_file.name}:{sample_dataset}': {embedding_dim}D embeddings")
 
     config = EmbeddingRegressionConfig(
