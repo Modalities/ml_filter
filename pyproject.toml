@@ -21,6 +21,7 @@ dependencies = [
     # If Keras is not installed this check is just skipped.
     "tf-keras==2.18.0",
     "deepl",
+    "accelerate",
     "openai",
     "statsmodels",
     "krippendorff",
@@ -32,7 +33,7 @@ dependencies = [
     "orjson",
     "flash-attn",
     "dotenv",
-    "lightning"
+    "lightning",
     "h5py"
 
 
@@ -46,7 +47,7 @@ cuda126 = [
   "torch==2.5.1+cu126",
   "torchvision==0.20.1+cu126",
   "torchaudio==2.5.1+cu126",
-  "xformers==0.0.29.post3",
+  "xformers==0.0.29.post3"
 ]
 
 [project.scripts]
