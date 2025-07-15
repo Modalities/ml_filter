@@ -17,7 +17,6 @@ from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
 from ml_filter.training.embedding_training_pipeline import run_embedding_head_training_pipeline
-from ml_filter.training.extract_embeddings import extract_and_save_embeddings
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
@@ -733,18 +732,6 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
-
-
-@main.command(name="extract_embeddings")
-@click.option(
-    "--config_file_path",
-    type=click_pathlib.Path(exists=True),
-    required=True,
-    help="Path to the config file.",
-)
-def entry_extract_embeddings(config_file_path: Path):
-    """Extract embeddings from frozen base model and save to HDF5."""
-    extract_and_save_embeddings(config_file_path=config_file_path)
 
 
 @main.command(name="train_with_embeddings")

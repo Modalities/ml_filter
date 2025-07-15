@@ -1,18 +1,9 @@
 model:
-  #name: answerdotai/modernbert-base 
-  #name: EuroBERT/EuroBERT-610m
-  name: snowflake/snowflake-arctic-embed-l-v2.0
-  loading_params:          
-    unpad_inputs: true
-    add_pooling_layer: false
-    use_memory_efficient_attention: true
-    trust_remote_code: true
-  freeze_base_model_parameters: true  # Add option to freeze encoder
-  freeze_pooling_layer_params: true # Applicable on bert like models
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
   is_regression: ${training.is_regression}
   regressor_hidden_dim: 1000
+  init_regression_weights: false
 
 tokenizer:
   pretrained_model_name_or_path: ${model.name}
@@ -22,12 +13,11 @@ tokenizer:
   add_generation_prompt: true
 
 data: 
-  train_file_path: /home/abbas-khan/processed_data_natural/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/training_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/training_set  # /home/alex-jude/training_set
+  train_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_training_set_embeddings 
   train_file_split: train
-  test_file_path: null
+  test_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_ground_truth_511_embeddings
   test_file_split: train
-  val_file_path: /home/abbas-khan/processed_data_natural/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/final_dataset/validation_set # /raid/s3/opengptx/jude/repos/ml_filter/data/sampled_data/data_training/validation_set  # /home/alex-jude/validation_set
-  val_file_split: train
+  val_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_validation_set_embeddings 
   label_column: score  # Ensure this matches dataset format
   text_column: text  # Ensure this matches dataset format
   document_id_column: id  # Ensure this matches dataset format
@@ -48,17 +38,11 @@ training:
   seed: 42
   is_regression: true
   greater_is_better: yes  # Save model with lowest loss
-  metric_for_best_model: validation_edu/spearman_corr
+  metric_for_best_model: test_edu/spearman_corr
+  #metric_for_best_model: validation_edu/spearman_corr
   learning_rate: 5e-04 # 5e-04
   logging_dir_path: data/output/fineweb_edu_model_artic_v1_m_test_100_epoch
   output_dir_path: ${training.logging_dir_path}
   dataloader_num_workers: 16
   load_best_model_at_end: false
   wandb_run_name:  regression_trainer
-
-embedding:
-  normalize_embeddings: true
-  init_regression_weights: false
-  cls_extraction: true
-  save_path: /home/abbas-khan/ml_filter/data/output/embeddings/euro_bert_embeddings.h5
-  load_path: /home/abbas-khan/ml_filter/data/output/embeddings/euro_bert_embeddings.h5
