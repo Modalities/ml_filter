@@ -4,6 +4,32 @@ from transformers import TrainerCallback, TrainerControl, TrainerState, Training
 
 
 class SpearmanEarlyStoppingCallback(TrainerCallback):
+    """
+    A callback for early stopping based on the Spearman correlation metric during model training.
+
+    Args:
+        patience (int): The number of consecutive epochs without significant improvement
+                        before stopping training. Default is 5.
+        min_delta (float): The minimum change in the monitored metric to qualify as an improvement.
+                        Default is 1e-3.
+        metric_key (str): The key of the evaluation metric to monitor. Default is "eval_spearman".
+                        If set to "eval_val_loss", it will monitor the validation loss instead.
+
+    Attributes:
+        patience (int): The patience value provided during initialization.
+        min_delta (float): The minimum delta value provided during initialization.
+        metric_key (str): The key of the evaluation metric being monitored.
+        best_score (float or None): The best score observed for the monitored metric.
+                                    Initialized to None.
+        bad_epochs (int): The count of consecutive epochs without significant improvement.
+        logger (logging.Logger): Logger instance for logging callback events.
+
+    Methods:
+        on_evaluate(args, state, control, **kwargs):
+            Called during evaluation. Monitors the specified metric and determines whether
+            training should stop based on the early stopping criteria.
+    """
+
     def __init__(self, patience=5, min_delta=1e-3, metric_key="eval_spearman"):
         self.patience = patience
         self.min_delta = min_delta
@@ -12,7 +38,9 @@ class SpearmanEarlyStoppingCallback(TrainerCallback):
         self.bad_epochs = 0
         self.logger = logging.getLogger(__name__)
 
-    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+    def on_evaluate(
+        self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs
+    ) -> TrainerControl:
         metrics = kwargs.get("metrics")
         if metrics is None or self.metric_key not in metrics:
             self.logger.warning(f"Metric '{self.metric_key}' not found in evaluation metrics.")

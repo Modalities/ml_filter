@@ -151,17 +151,6 @@ def entry_point_compare_experiments(config_file_path: Path):
     compare_experiments(config_file_path)
 
 
-# @main.command(name="annotator_training_pipeline")
-# @click.option(
-#     "--config_file_path",
-#     type=click_pathlib.Path(exists=False),
-#     required=True,
-#     help="Path to the config file.",
-# )
-# def entry_annotator_training_pipeline(config_file_path: Path):
-#     run_annotator_training_pipeline(config_file_path=config_file_path)
-
-
 @main.command(name="chunk_jsonl")
 @click.option(
     "--input_file_path",

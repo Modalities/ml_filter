@@ -21,14 +21,21 @@ logger = setup_logging()
 
 
 def run_embedding_head_training_pipeline(config_file_path: Path):
-    """Main function to run the embedding-based training pipeline.
-    Args:
-        config_file_path (Path): Path to the configuration file.
     """
+    Run the embedding-based training pipeline.
 
+    This function orchestrates the process of loading configuration, setting random seeds,
+    loading embedding datasets, initializing the embedding-based model and training arguments,
+    optionally initializing the regression head weights, and training the model head with early stopping.
+
+    Args:
+        config_file_path (Path): Path to the configuration file (YAML or similar).
+            The configuration should specify training, data, and model parameters.
+    """
     logger.info(f"Loading configuration from {config_file_path}")
 
     try:
+        # Load configuration
         cfg = OmegaConf.load(config_file_path)
         seed = cfg.training.get("seed", None)
         _set_seeds(seed)
@@ -44,6 +51,7 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
         # Initialize training arguments
         training_args = _init_training_args(cfg)
 
+        # Optionally initialize regression head weights
         if cfg.model.init_regression_weights:
             logger.info("Initializing the regression head weights")
             _init_head_weights(model)
@@ -82,10 +90,6 @@ def load_files(files, dataset_name, split_name):
 
     Returns:
         list: A list of EmbeddingDataset objects, one for each successfully loaded file.
-
-    Raises:
-        Exception: If a training file ("train" split) fails to load, the exception is re-raised.
-        Other exceptions are logged and skipped for validation/test files.
     """
 
     datasets = []
@@ -130,15 +134,11 @@ def _load_embedding_datasets(
     validation_files = find_hdf5_files(Path(validation_dir))
     test_files = find_hdf5_files(Path(test_dir)) if test_dir else []
 
-    # Check training files (required)
     if not training_files:
         raise ValueError(f"No HDF5 files found in training directory: {training_dir}")
 
-    # Check validation files (warn but continue)
     if not validation_files:
         logger.warning(f"No HDF5 files found in validation directory: {validation_dir}")
-
-    # Log found files
     logger.info(f"Found {len(training_files)} training files: {[f.name for f in training_files]}")
     if validation_files:
         logger.info(f"Found {len(validation_files)} validation files: {[f.name for f in validation_files]}")
@@ -288,7 +288,21 @@ def _train_model_head(
     compute_metrics_fn: partial,
     early_stopping_metric: str,
 ) -> None:
-    """Train the embedding-based model head."""
+    """
+    Train the embedding-based regression model head using Hugging Face's Trainer.
+
+    This function initializes the Trainer with the provided model, training arguments, datasets,
+    loss and metrics functions, and early stopping criteria. It performs training and saves the final model.
+
+    Args:
+        model (EmbeddingRegressionModel): The embedding-based regression model to be trained.
+        training_args (TrainingArguments): Hugging Face training arguments for configuration.
+        train_dataset: The dataset used for training. Should be compatible with Hugging Face datasets.
+        eval_datasets (dict): A dictionary of evaluation datasets used for validation during training.
+        compute_loss_fn (partial): A partially-applied loss computation function.
+        compute_metrics_fn (partial): A partially-applied function to compute evaluation metrics.
+        early_stopping_metric (str): The name of the evaluation metric to monitor for early stopping.
+    """
     logger.info("Initializing Trainer and starting training...")
 
     early_stopping = SpearmanEarlyStoppingCallback(metric_key=early_stopping_metric, patience=5, min_delta=1e-3)
@@ -320,6 +334,23 @@ def mse_loss(
     ignored_index: int = -100,
     **kwargs,
 ) -> torch.Tensor:
+    """
+    Computes the mean squared error (MSE) loss for multi-task regression.
+
+    Args:
+        input (SequenceClassifierOutput): Model output containing logits of shape (batch_size, num_tasks).
+        target (torch.Tensor): Ground truth tensor of shape (batch_size, num_tasks) or (batch_size * num_tasks,).
+        num_items_in_batch (int): Number of items in the batch (unused, included for compatibility).
+        num_tasks (int): Number of regression tasks (columns in logits/target).
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            'mean', 'sum', or 'none'. Default is 'mean'.
+        ignored_index (int, optional): Specifies a target value that is ignored and does not contribute to the loss.
+            Default is -100.
+        **kwargs: Additional keyword arguments (ignored).
+
+    Returns:
+        torch.Tensor: The computed MSE loss (scalar if reduction is 'mean' or 'sum', otherwise per-element).
+    """
     logits = input.logits
     target = target.view(-1, num_tasks)
     mask = ~(target == ignored_index)
@@ -342,7 +373,21 @@ def cross_entropy_loss(
     reduction: str = "mean",
     **kwargs,
 ) -> torch.Tensor:
-    """Compute cross-entropy loss for multi-target classification."""
+    """
+    Compute the cross-entropy loss for multi-target classification tasks.
+
+    Args:
+        input (SequenceClassifierOutput): The model output containing logits.
+        target (torch.Tensor): The ground-truth labels, expected shape (batch_size * num_tasks).
+        num_items_in_batch (int): Number of items (samples) in the batch.
+        num_tasks (int): Number of classification tasks per sample.
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            'none' | 'mean' | 'sum'. Default is 'mean'.
+        **kwargs: Additional keyword arguments (ignored in this function, but accepted for compatibility).
+
+    Returns:
+        torch.Tensor: The computed cross-entropy loss.
+    """
     logits = input.logits
     return F.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
 

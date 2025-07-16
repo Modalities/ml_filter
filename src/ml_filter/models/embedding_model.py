@@ -11,7 +11,18 @@ from ml_filter.models.annotator_model_head import (
 
 
 class EmbeddingRegressionConfig(PretrainedConfig):
-    """Configuration for embedding-based regression model."""
+    """
+    Configuration class for an embedding-based regression model.
+
+    Attributes:
+        embedding_dim (int): The dimensionality of the embedding vector. Default is 768.
+        num_tasks (int): The number of tasks for the regression model. Default is 1.
+        num_targets_per_task (list[int]): A list specifying the number of target values per task.
+            If not provided, defaults to [1].
+        hidden_dim (int): The dimensionality of the hidden layer in the model. Default is 1000.
+        is_regression (bool): A flag indicating whether the model is for regression tasks. Default is True.
+        **kwargs: Additional keyword arguments passed to the parent PretrainedConfig class.
+    """
 
     def __init__(
         self,
@@ -31,7 +42,14 @@ class EmbeddingRegressionConfig(PretrainedConfig):
 
 
 class EmbeddingRegressionModel(PreTrainedModel):
-    """Model for regression or classification tasks using pre-computed embeddings."""
+    """
+    Model for regression or classification tasks using pre-computed embeddings.
+
+    Attributes:
+        config_class (EmbeddingRegressionConfig): The configuration class used for the model.
+        config (EmbeddingRegressionConfig): The configuration instance containing model parameters.
+        head (AnnotatorHead): The task-specific head for regression or classification.
+    """
 
     config_class = EmbeddingRegressionConfig
 
