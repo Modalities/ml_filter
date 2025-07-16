@@ -208,6 +208,7 @@ class JQLJsonlReader(BaseDiskReader):
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
                             document.metadata["file_path"] = full_file_path
                             document.metadata["document_id"] = file_hash + "_" + str(li)
+                            document.metadata["source_filename"] = Path(full_file_path).relative_to(self.data_folder.path)
                             if not document:
                                 continue
                         except (EOFError, JSONDecodeError) as e:
@@ -277,7 +278,7 @@ class JQLEmbedder(PipelineStep):
                     try:
                         embeddings = embedder.embed([doc.text for doc in doc_batch])
                         for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
-                            doc.metadata["source_filename"] = _get_file_path(doc)
+                            # doc.metadata["source_filename"] = _get_file_path(doc)
                             doc.metadata["embedding"] = embedding
                             if writer:
                                 writer.write(doc, rank)
@@ -422,4 +423,5 @@ class HDF5Writer(DiskWriter):
             f.close()
         self._writers.clear()
         self._batches.clear()
+        logger.info("#### SUCCESS #####")
         super().close()
