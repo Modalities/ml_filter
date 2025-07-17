@@ -55,7 +55,6 @@ def run_embedding_pipeline(config_file_path: Path):
 
     stage.run()
 
-    print("Execution ends at:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
 
 
 # Testing
