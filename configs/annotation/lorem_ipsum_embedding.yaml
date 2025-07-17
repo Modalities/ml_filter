@@ -1,5 +1,5 @@
-glob_pattern: "*.jsonl"
-input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/input_data
+glob_pattern: "**/*.jsonl" #"*.jsonl"
+input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/input_dir_hierarchy #/raid/s3/opengptx/jude/repos/ml_filter/data/input_data
 output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
 csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
 
