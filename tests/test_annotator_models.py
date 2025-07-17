@@ -1,106 +1,13 @@
-from typing import Iterable
-
 import pytest
 import torch
-from torch import nn
-from transformers import BertForSequenceClassification
 
-from constants import MODEL_CLASS_MAP
 from ml_filter.models.annotator_model_head import (
     LogitMaskLayer,
     MultiTargetClassificationHead,
     MultiTargetRegressionHead,
     RegressionScalingLayer,
 )
-from ml_filter.models.base_model import BaseModel, BaseModelConfig
 from ml_filter.models.embedding_model import EmbeddingRegressionConfig, EmbeddingRegressionModel
-
-
-def test_base_model_initialization(base_model_config: BaseModelConfig):
-    """Tests if BaseModel initializes correctly with a base transformer (no custom head)."""
-    model = BaseModel(config=base_model_config)
-
-    assert model._base_model is not None
-    # BaseModel should keep the original classifier (no custom head replacement)
-    assert hasattr(model._base_model, "classifier")
-    # The classifier should be the original Linear layer from the transformer
-    assert isinstance(model._base_model.classifier, nn.Linear)
-
-
-def test_base_model_embedding_extraction(base_model_config: BaseModelConfig):
-    """Tests if BaseModel can extract embeddings."""
-    from omegaconf import DictConfig
-
-    model = BaseModel(config=base_model_config)
-
-    # Create dummy config for embedding extraction
-    embedding_config = DictConfig({"embedding": {"normalize_embeddings": True}})
-
-    # Create dummy input
-    dummy_input = {
-        "input_ids": torch.randint(0, 100, (2, 128)),  # batch_size=2, sequence_length=128
-        "attention_mask": torch.ones(2, 128),
-    }
-
-    # Extract embeddings
-    embeddings = model.extract_embeddings(config=embedding_config, **dummy_input)
-
-    assert embeddings is not None
-    assert embeddings.shape[0] == 2  # batch size
-    assert embeddings.shape[1] > 0  # embedding dimension
-
-
-def test_base_model_freezing(base_model_config: BaseModelConfig):
-    """Tests if BaseModel correctly freezes the base model when required."""
-    # Create the model with freezing enabled
-    model = BaseModel(config=base_model_config)
-    model.set_freeze_base_model(True, True)
-
-    # Ensure that not all base model parameters are frozen
-    assert not all(
-        param.requires_grad for param in model._base_model.parameters()
-    ), "All base model parameters are frozen!"
-
-    # Ensure classifier parameters are trainable
-    assert all(
-        param.requires_grad for param in model._base_model.classifier.parameters()
-    ), "Classifier parameters should be trainable!"
-
-    # Special case for BERT: Ensure pooler parameters are FROZEN (not trainable)
-    if hasattr(model._base_model, "bert") and hasattr(model._base_model.bert, "pooler"):
-        assert all(
-            not param.requires_grad for param in model._base_model.bert.pooler.parameters()
-        ), "BERT pooler parameters should be frozen!"
-
-    # Ensure all other parameters (except classifier) are frozen
-    assert all(
-        not param.requires_grad
-        for name, param in model._base_model.named_parameters()
-        if "classifier" not in name  # Only exclude classifier from check (pooler should be frozen)
-    ), "Some non-classifier parameters are still trainable!"
-
-
-def test_base_model_unfreezing(base_model_config: BaseModelConfig):
-    """Tests if BaseModel correctly unfreezes the base model when required."""
-    model = BaseModel(config=base_model_config)
-    model.set_freeze_base_model(True, True)
-    model.set_freeze_base_model(False, False)
-
-    # All parameters should be trainable
-    assert all(param.requires_grad for param in model._base_model.parameters()), "All parameters should be trainable!"
-
-
-def test_base_model_forward(base_model_config: BaseModelConfig):
-    """Tests if BaseModel's underlying transformer works."""
-    model = BaseModel(config=base_model_config)
-
-    dummy_input = {
-        "input_ids": torch.randint(1, 1000, (1, 128)),
-        "attention_mask": torch.ones(1, 128, dtype=torch.long),
-    }
-
-    output = model._base_model(**dummy_input)
-    assert output is not None
 
 
 def test_embedding_model_initialization():
@@ -211,48 +118,6 @@ def test_regression_scaling_layer():
     assert torch.all(output_eval == expected_eval), f"Unexpected eval output: {output_eval}"
 
 
-@pytest.fixture
-def annotator_model_config(dummy_base_model_path: str, is_regression: bool) -> BaseModelConfig:
-    """Fixture for AnnotatorModel configuration with parameterized is_regression."""
-    return BaseModelConfig(
-        base_model_name_or_path=dummy_base_model_path,
-        num_tasks=2,
-        num_targets_per_task=[6, 6],
-        is_regression=is_regression,
-        load_base_model_from_config=False,
-        loading_params={
-            "trust_remote_code": False,
-        },
-    )
-
-
-@pytest.fixture
-def base_model_config(dummy_base_model_path: str) -> BaseModelConfig:
-    """Fixture for BaseModel configuration (embedding extraction only)."""
-    return BaseModelConfig(
-        base_model_name_or_path=dummy_base_model_path,
-        num_tasks=2,
-        num_targets_per_task=[6, 6],
-        is_regression=True,  # This doesn't matter for BaseModel
-        freeze_base_model_parameters=True,  # Add option to freeze encoder
-        freeze_pooling_layer_params=True,  # Applicable on bert like models
-        load_base_model_from_config=False,
-        loading_params={
-            "trust_remote_code": False,
-        },
-    )
-
-
 @pytest.fixture(params=[True, False])
 def is_regression(request):
     return request.param
-
-
-@pytest.fixture
-def dummy_base_model_path() -> Iterable[str]:
-    dummy_path = "bert-base-uncased"
-    remove = dummy_path.lower() not in MODEL_CLASS_MAP
-    MODEL_CLASS_MAP[dummy_path.lower()] = BertForSequenceClassification
-    yield dummy_path
-    if remove:
-        del MODEL_CLASS_MAP[dummy_path.lower()]

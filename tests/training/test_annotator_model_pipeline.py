@@ -1,7 +1,6 @@
 import json
 import random
 import shutil
-from unittest.mock import MagicMock
 
 import numpy as np
 import torch
@@ -9,16 +8,12 @@ from omegaconf import DictConfig
 from transformers import TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-from ml_filter.models.base_model import BaseModel
-from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
-from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 from ml_filter.training.embedding_training_pipeline import (
     _init_training_args,
     _set_seeds,
     mse_loss,
-    run_embedding_training_pipeline,
+    run_embedding_head_training_pipeline,
 )
-from ml_filter.training.extract_embeddings import _init_model, _init_tokenizer, _load_datasets
 
 
 def test_set_seeds():
@@ -33,42 +28,6 @@ def test_set_seeds():
     _set_seeds(42)
     random_numbers = [random.randint(0, 100) for _ in range(5)]
     assert random_numbers == expected_sequence, f"Random sequence mismatch: {random_numbers}"
-
-
-def test_init_tokenizer():
-    cfg = DictConfig(
-        {
-            "tokenizer": {
-                "pretrained_model_name_or_path": "bert-base-uncased",
-                "add_generation_prompt": False,
-            }
-        }
-    )
-    tokenizer = _init_tokenizer(cfg)
-    assert isinstance(tokenizer, PreTrainedHFTokenizer)
-
-
-def test_init_model():
-    cfg = DictConfig(
-        {
-            "model": {
-                "name": "snowflake/snowflake-arctic-embed-m-v2.0",
-                "freeze_base_model_parameters": False,
-                "freeze_pooling_layer_params": True,
-                "is_regression": False,
-                "loading_params": {
-                    "unpad_inputs": True,
-                    "add_pooling_layer": False,
-                    "trust_remote_code": True,
-                    "use_memory_efficient_attention": True,
-                },
-            },
-            "data": {"num_tasks": 3, "num_targets_per_task": [2, 3, 4]},
-        }
-    )
-
-    model = _init_model(cfg)
-    assert isinstance(model, BaseModel)
 
 
 def test_init_training_args():
@@ -98,25 +57,7 @@ def test_init_training_args():
     assert training_args.output_dir == "./output"
 
 
-def test_load_datasets():
-    cfg = DictConfig(
-        {
-            "data": {
-                "train_file_path": "train.json",
-                "train_file_split": "train",
-                "val_file_path": "val.json",
-                "val_file_split": "val",
-                "test_file_path": "test.json",
-                "test_file_split": "test",
-            }
-        }
-    )
-    tokenized_dataset_builder = MagicMock(spec=DataPreprocessor)
-    tokenized_dataset_builder.load_and_tokenize.side_effect = ["train_ds", "val_ds", "test_ds"]
-    train_dataset, eval_datasets = _load_datasets(cfg, tokenized_dataset_builder)
-    assert train_dataset == "train_ds"
-    assert eval_datasets["val"] == "val_ds"
-    assert eval_datasets["test"] == "test_ds"
+# TODO add load dataset test with hdf5 loader
 
 
 def test_run_embedding_training_pipeline(config_file, temp_output_dir):
@@ -127,7 +68,7 @@ def test_run_embedding_training_pipeline(config_file, temp_output_dir):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Use only GPUs 0 and 1
 
     _dummy_dataset_files(temp_output_dir)
-    run_embedding_training_pipeline(config_file)
+    run_embedding_head_training_pipeline(config_file)
 
     # Verify model output directory
     model_output_path = temp_output_dir / "final"

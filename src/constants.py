@@ -1,12 +1,4 @@
-from transformers import (
-    AutoModel,
-    BertForSequenceClassification,
-    PreTrainedModel,
-    XLMRobertaForSequenceClassification,
-    XLMRobertaXLForSequenceClassification,
-)
-
-# Check
+# Constants for the translation module
 EUROPEAN_LANGUAGES = {
     "sq": "Albanian",
     "hy": "Armenian",
@@ -50,15 +42,3 @@ EUROPEAN_LANGUAGES = {
 DEEPL = "deepl"
 OPENAI = "openai"
 TARGET_LANGAUGE_PLACEHOLDER = "{##TARGET_LANGUAGE##}"
-MODEL_CLASS_MAP: dict[str, type[PreTrainedModel]] = {
-    "facebook/xlm-roberta-xl": XLMRobertaXLForSequenceClassification,
-    "facebookai/xlm-roberta-base": XLMRobertaForSequenceClassification,
-    "facebookai/xlm-roberta-large": XLMRobertaForSequenceClassification,
-    "jinaai/jina-embeddings-v3": XLMRobertaForSequenceClassification,
-    "snowflake/snowflake-arctic-embed-m": BertForSequenceClassification,
-    "snowflake/snowflake-arctic-embed-l": BertForSequenceClassification,
-    "snowflake/snowflake-arctic-embed-m-v2.0": AutoModel,
-    "snowflake/snowflake-arctic-embed-l-v2.0": AutoModel,
-    "answerdotai/modernbert-base": AutoModel,
-    "eurobert/eurobert-610m": AutoModel,
-}

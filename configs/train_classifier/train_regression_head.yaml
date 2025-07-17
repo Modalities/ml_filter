@@ -5,12 +5,12 @@ model:
   regressor_hidden_dim: 1000
   init_regression_weights: false
 
-tokenizer:
-  pretrained_model_name_or_path: ${model.name}
-  truncation: true
-  padding: longest
-  max_length: 8192 # Check this
-  add_generation_prompt: true
+# tokenizer:
+#   pretrained_model_name_or_path: ${model.name}
+#   truncation: true
+#   padding: longest
+#   max_length: 8192 # Check this
+#   add_generation_prompt: true
 
 data: 
   train_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_training_set_embeddings 
