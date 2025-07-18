@@ -198,11 +198,16 @@ def temp_output_dir(tmp_path):
 
 
 @pytest.fixture
-def config_file(temp_output_dir):
-    """Creates a real configuration file for testing."""
+def config_file(temp_output_dir: Path):
+    """Creates a real configuration file for testing, pointing at split dirs."""
+    # ensure base and logs dir exist
     temp_output_dir.mkdir(parents=True, exist_ok=True)
-    logs_dir = temp_output_dir / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
+    (temp_output_dir / "logs").mkdir(parents=True, exist_ok=True)
+
+    # pre-create split dirs so they exist before the pipeline runs
+    for split in ("train", "val", "test"):
+        (temp_output_dir / split).mkdir(parents=True, exist_ok=True)
+
     cfg = {
         "training": {
             "output_dir_path": str(temp_output_dir),
@@ -222,41 +227,27 @@ def config_file(temp_output_dir):
             "wandb_run_name": "temp_run",
         },
         "model": {
-            "name": "facebookai/xlm-roberta-base",
-            "freeze_base_model_parameters": True,
             "is_regression": True,
             "regressor_hidden_dim": 1000,
+            "init_regression_weights": False,  # Add this missing key
             "loading_params": {
                 "trust_remote_code": False,
             },
         },
         "data": {
             "text_column": "text",
-            "label_column": "labels",
+            "label_column": "scores",  # now matches HDF5 field
             "document_id_column": "id",
-            "train_file_path": str(temp_output_dir / "train.jsonl"),
-            "train_file_split": "train",
-            "val_file_path": str(temp_output_dir / "val.jsonl"),
-            "val_file_split": "train",
-            "test_file_path": str(temp_output_dir / "test.jsonl"),
-            "test_file_split": "train",
+            "train_file_path": str(temp_output_dir / "train"),  # directory
+            "train_file_split": "data",
+            "val_file_path": str(temp_output_dir / "val"),
+            "val_file_split": "data",
+            "test_file_path": str(temp_output_dir / "test"),
+            "test_file_split": "data",
             "num_tasks": 3,
             "task_names": ["edu", "adult", "toxicity"],
             "num_targets_per_task": [6, 6, 6],
             "num_processes": 2,
-        },
-        "tokenizer": {
-            "pretrained_model_name_or_path": "facebookai/xlm-roberta-base",
-            "add_generation_prompt": False,
-            "max_length": 128,
-            "padding": "max_length",
-            "truncation": True,
-        },
-        "embedding": {
-            "normalize_embeddings": True,
-            "init_regression_weights": False,
-            "save_path": "/home/abbas-khan/ml_filter/data/output/temp_embeddings/embeddings.h5",
-            "load_path": "/home/abbas-khan/ml_filter/data/output/temp_embeddings/embeddings.h5",
         },
     }
 

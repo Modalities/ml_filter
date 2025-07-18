@@ -1,7 +1,8 @@
-import json
 import random
 import shutil
+from pathlib import Path
 
+import h5py
 import numpy as np
 import torch
 from omegaconf import DictConfig
@@ -95,19 +96,35 @@ def test_custom_mse_loss_same_as_torch_implementation():
     assert torch.allclose(custom_mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
 
 
-def _dummy_dataset_files(temp_output_dir):
-    """Creates dummy dataset files in JSONL format for the test."""
-    dummy_data = [
-        {"text": "Sample text 1", "labels": [1, 0, 1]},
-        {"text": "Sample text 2", "labels": [1, 1, 1]},
-        {"text": "Sample text 3", "labels": [0, 0, 0]},
-        {"text": "Sample text 4", "labels": [0, 1, 0]},
-    ]
+def _dummy_dataset_files(temp_output_dir: Path):
+    """
+    Create minimal HDF5 files for train/val/test with 'embeddings' and 'scores' datasets,
+    each in its own split‑named subdirectory, using a lowercase .h5 extension.
+    """
+    splits = {"train": 20, "val": 10, "test": 10}
 
-    for split in ["train", "val", "test"]:
-        dataset_path = temp_output_dir / f"{split}.jsonl"
+    for split, n_examples in splits.items():
+        # 1) create the split directory
+        split_dir = temp_output_dir / split
+        split_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write each JSON object on a new line
-        with dataset_path.open("w") as f:
-            for item in dummy_data:
-                f.write(json.dumps(item) + "\n")
+        # 2) write the HDF5 file inside it with a lowercase .h5 extension
+        hdf5_path = split_dir / f"{split}.h5"
+        with h5py.File(hdf5_path, "w") as f:
+            grp = f.create_group("data")
+
+            # embeddings: dummy embedding vectors (n_examples, embedding_dim)
+            # Using 768 as a typical embedding dimension
+            embedding_dim = 768
+            embeddings = np.random.randn(n_examples, embedding_dim).astype(np.float32)
+            grp.create_dataset("embeddings", data=embeddings)
+
+            # labels: regression targets, shape=(n_examples, num_tasks)
+            # Based on config: num_tasks=3, so create 3 task labels per example
+            num_tasks = 3
+            labels = np.random.rand(n_examples, num_tasks).astype(np.float32)
+            grp.create_dataset("labels", data=labels)
+
+            # id column
+            ids = np.arange(n_examples, dtype=np.int64)
+            grp.create_dataset("id", data=ids)
