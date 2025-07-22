@@ -226,11 +226,11 @@ class JQLJsonlReader(BaseDiskReader):
                     with self.track_time():
                         try:
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
+                            if not document:
+                                continue
                             document.metadata['file_path'] = full_file_path
                             document.metadata['document_id'] = file_hash + "_" + str(li)
                             document.metadata["source_filename"] = Path(full_file_path).relative_to(self.data_folder.path)
-                            if not document:
-                                continue
                         except (EOFError, JSONDecodeError) as e:
                             logger.warning(f"Error when reading `{filepath}`: {e}")
                             continue
