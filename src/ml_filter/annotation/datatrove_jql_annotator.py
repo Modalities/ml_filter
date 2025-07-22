@@ -1,6 +1,7 @@
 import contextlib
 import dataclasses
 import os
+from pathlib import Path
 from typing import Callable, Optional
 
 import h5py
@@ -98,10 +99,10 @@ class JQLEmbeddingReader(BaseDiskReader):
         doc_progress: bool = True,
         text_key: str = "embeddings",
         adapter: Callable = None,
-        id_key: str = "id",
+        id_key: str = "document_id",
         default_metadata: dict = None,
-        recursive: bool = False,
-        glob_pattern: str | None = "*.h5",
+        recursive: bool = True,
+        glob_pattern: str | None = "**/*.h5",
         shuffle_files: bool = False,
     ):
         super().__init__(
@@ -169,7 +170,10 @@ class JQLEmbeddingReader(BaseDiskReader):
                                 "embeddings": embeddings[i].tolist(),
                                 "document_id": document_ids[i],
                             }
-                            yield self.get_document_from_dict(doc_dict, filepath, i)
+                            doc = self.get_document_from_dict(doc_dict, filepath, i)
+                            doc.metadata["document_id"] = document_ids[i].decode('utf-8')
+                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path))
+                            yield doc
 
         except Exception as e:
             logger.warning(f"Failed to read `{filepath}`: {e}")
@@ -252,8 +256,6 @@ class JQLHead(PipelineStep):
                             scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
-                        filepath = _get_file_path(doc)
-                        doc.metadata["source_filename"] = filepath
                         for name, score in scores.items():
                             doc.metadata[name] = score[batch_idx].item()
                         if writer:

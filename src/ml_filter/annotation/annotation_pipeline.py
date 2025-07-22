@@ -47,8 +47,9 @@ def run_annotation_pipeline(config_file_path: Path):
         cpus_per_task=cfg.slurm.cpus_per_task,
         time=cfg.slurm.time,
         partition=cfg.slurm.partition,
-        # max_array_size=5,
+        venv_path=cfg.slurm.venv_path,
+        qos=cfg.slurm.qos,
         requeue=False,
-        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks-per-node": cfg.slurm.ntasks_per_node, "gres": cfg.slurm.gres},
+        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks-per-node": cfg.slurm.ntasks, "gres": cfg.slurm.gres},
     )
     stage.run()
