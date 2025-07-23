@@ -1,6 +1,6 @@
 glob_pattern: "*.jsonl"
-input_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/input_data_test
-output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/new_embeddings
+input_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/511_input_data
+output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/511_embeddings
 csv_hashmap_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/hashes.csv
 
 embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
@@ -22,7 +22,7 @@ slurm:
   output: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/%j.out
   error: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/%j.err
   account: "EUHPC_E05_119"
-  qos: "normal" #"boost_qos_dbg",
+  qos: "boost_qos_dbg"
   nodes: 1
   ntasks: 1
   gres: gpu:1

@@ -1,10 +1,10 @@
-embeddings_directory: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/new_embeddings/embeddings
-output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/new_annotations/
+embeddings_directory: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/511_embeddings/embeddings
+output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/511_annotations/
 
 regression_head_checkpoints:
   Gemma_Snowflake: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/regression_heads/checkpoints/edu-gemma-snowflake-balanced.ckpt
   Llama_Snowflake: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/regression_heads/checkpoints/edu-llama-snowflake-balanced.ckpt
-batch_size: 9468634
+batch_size: 9468634 #1000 #9468634
 
 
 slurm:

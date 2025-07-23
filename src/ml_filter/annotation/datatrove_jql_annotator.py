@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import h5py
+import numpy as np
 import torch
 from datatrove.data import Document, DocumentsPipeline
 from datatrove.io import DataFileLike, DataFolderLike
@@ -632,7 +633,7 @@ class JQLEmbeddingReader(BaseDiskReader):
                             }
                             doc = self.get_document_from_dict(doc_dict, filepath, i)
                             doc.metadata["document_id"] = document_ids[i].decode('utf-8')
-                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path))
+                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path).stem)
                             yield doc
 
         except Exception as e:
@@ -707,6 +708,8 @@ class JQLHead(PipelineStep):
 
         total_docs = 0
         total_time = 0
+        # log batch size.
+        logger.info(f"Using batch size: {self.batch_size} for rank {rank}")
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
