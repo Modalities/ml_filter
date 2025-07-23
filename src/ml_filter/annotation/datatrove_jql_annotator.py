@@ -22,7 +22,7 @@ load_dotenv()
 
 
 
-def find_max_batch_size(model, embedding_dim=768, initial_batch=16, max_batch=1_000_000_000_000, device='cuda', dtype=torch.bfloat16, warmup_iters=2, measure_iters=5):
+def find_max_batch_size_annotation(model, embedding_dim=768, initial_batch=16, max_batch=1_000_000_000_000, device='cuda', dtype=torch.bfloat16, warmup_iters=2, measure_iters=5):
     """
     Finds the largest batch size that fits in memory and measures throughput at each step.
 
@@ -310,7 +310,7 @@ class JQLHead(PipelineStep):
         for name, path in self.regression_head_checkpoints.items():
             self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
 
-        self.batch_size = find_max_batch_size(next(iter(self.regression_heads.values())))[0]
+        self.batch_size = find_max_batch_size_annotation(next(iter(self.regression_heads.values())))[0]
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
