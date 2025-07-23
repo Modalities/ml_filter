@@ -1,0 +1,26 @@
+embeddings_directory: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/new_embeddings/embeddings
+output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/new_annotations/
+
+regression_head_checkpoints:
+  Gemma_Snowflake: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/regression_heads/checkpoints/edu-gemma-snowflake-balanced.ckpt
+  Llama_Snowflake: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/regression_heads/checkpoints/edu-llama-snowflake-balanced.ckpt
+batch_size: 1000
+
+
+slurm:
+  partition: "boost_usr_prod"
+  tasks: 2
+  workers: 1001
+  time: "01:00:00"
+  cpus_per_task: 32
+  gpus_per_task: 1
+  mem_per_gpu: "8G"
+  job_name: "lorem_ipsum_embedding"
+  output: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.out
+  error: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.err
+  account: "EUHPC_E05_119"
+  qos: "normal"
+  nodes: 1
+  ntasks: 1
+  gres: gpu:4
+  venv_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/env_backup/venv_test/bin/activate
