@@ -703,7 +703,10 @@ class JQLHead(PipelineStep):
         for name, path in self.regression_head_checkpoints.items():
             self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
 
-        self.batch_size = find_max_batch_size_annotation(next(iter(self.regression_heads.values())))[0]
+        # self.batch_size = find_max_batch_size_annotation(next(iter(self.regression_heads.values())))[0]
+
+        total_docs = 0
+        total_time = 0
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):

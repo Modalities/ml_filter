@@ -4,14 +4,14 @@ output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run
 regression_head_checkpoints:
   Gemma_Snowflake: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/regression_heads/checkpoints/edu-gemma-snowflake-balanced.ckpt
   Llama_Snowflake: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/regression_heads/checkpoints/edu-llama-snowflake-balanced.ckpt
-batch_size: 1000
+batch_size: 9468634
 
 
 slurm:
   partition: "boost_usr_prod"
   tasks: 2
   workers: 1001
-  time: "01:00:00"
+  time: "00:10:00"
   cpus_per_task: 32
   gpus_per_task: 1
   mem_per_gpu: "8G"
@@ -19,7 +19,7 @@ slurm:
   output: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.out
   error: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.err
   account: "EUHPC_E05_119"
-  qos: "normal"
+  qos: "boost_qos_dbg" #"normal"
   nodes: 1
   ntasks: 1
   gres: gpu:4
