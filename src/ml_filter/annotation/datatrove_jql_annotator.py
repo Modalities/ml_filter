@@ -296,7 +296,7 @@ class JQLJsonlReader(BaseDiskReader):
                                 continue
                             document.metadata["file_path"] = full_file_path
                             document.metadata["document_id"] = file_hash + "_" + str(li)
-                            document.metadata["source_filename"] = Path(full_file_path).relative_to(self.data_folder.path)
+                            document.metadata["source_filename"] = str(Path(full_file_path).relative_to(self.data_folder.path).stem)
                         except (EOFError, JSONDecodeError) as e:
                             logger.warning(f"Error when reading `{filepath}`: {e}")
                             continue
