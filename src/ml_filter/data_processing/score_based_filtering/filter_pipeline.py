@@ -185,7 +185,7 @@ def build_pipeline(
         output_folder (Path): The folder where the filtered datasets will be saved.
         thresholds (dict[str, float]): A dictionary where keys are score names and values are the
             thresholds to filter samples.
-        hash_to_base_file (dict[str, Path]): A mapping from base file hashes to their corresponding paths.
+        hash_to_base_file_mapping_csv (Path): A CSV file mapping base file hashes to their corresponding paths.
         base_file_prefix (Path): The prefix path for the base files.
         tokenized_data_extension (str): The file extension for the tokenized data files.
     Returns:
