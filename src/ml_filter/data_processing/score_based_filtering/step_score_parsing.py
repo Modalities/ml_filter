@@ -78,8 +78,6 @@ class ScoresParser(BaseDiskReader):
         """
         base_file_hash, scores_as_list = self._parse_scores_jsonl_file(filepath)
         tokenized_data_path = self._map_to_tokenized_data_path(base_file_hash)
-        if not tokenized_data_path.exists():
-            raise FileNotFoundError(f"Tokenized data file {tokenized_data_path} does not exist.")
         doc_content = {
             "text": ".",  # Text needs to be non-empty.
             self.SCORE_ENTRIES_KEY: scores_as_list,
