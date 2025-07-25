@@ -9,6 +9,7 @@ dependencies = [
     "tqdm",
     "datasets",
     "pydantic",
+    "pydantic-settings",
     "transformers @ git+https://github.com/huggingface/transformers.git@v4.49.0-Gemma-3",
     "click",
     "click_pathlib",
@@ -28,6 +29,7 @@ dependencies = [
     "python-dotenv",
     "jq",
     "tabulate",
+    "datatrove",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,22 @@
+params:
+  score_path: /path/to/annotations
+  tokenized_data_path: /path/to/tokenized
+  output_folder: /path/to/filtered
+
+  thresholds:
+    score_Gemma_Snowflake: 3.0
+    score_Llama_Snowflake: 2.0
+
+  hash_to_base_file_mapping_csv: path/to/hashes.csv
+  base_file_prefix: /path/to/raw
+  tokenized_data_extension: .pbin
+
+running_on_slurm: false
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  logging_dir: null
+
+slurm_settings: null
