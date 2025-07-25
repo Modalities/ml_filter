@@ -1,4 +1,4 @@
-glob_pattern: "*.jsonl"
+glob_pattern: "**/*.jsonl"
 input_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/511_input_data
 output_dir: /leonardo_work/EUHPC_D21_101/alexj/repos/ml_filter_outputs/trail_run/output_dir/511_embeddings
 csv_hashmap_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/hashes.csv
