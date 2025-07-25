@@ -50,6 +50,6 @@ def run_annotation_pipeline(config_file_path: Path):
         venv_path=cfg.slurm.venv_path,
         qos=cfg.slurm.qos,
         requeue=False,
-        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks-per-node": cfg.slurm.ntasks, "gres": cfg.slurm.gres},
+        sbatch_args={"account": cfg.slurm.account, "qos": cfg.slurm.qos, "exclusive": "", "nodes": cfg.slurm.nodes, "ntasks": cfg.slurm.ntasks, "gres": cfg.slurm.gres},
     )
     stage.run()

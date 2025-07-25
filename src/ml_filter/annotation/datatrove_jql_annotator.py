@@ -296,7 +296,7 @@ class JQLJsonlReader(BaseDiskReader):
                                 continue
                             document.metadata["file_path"] = full_file_path
                             document.metadata["document_id"] = file_hash + "_" + str(li)
-                            document.metadata["source_filename"] = str(Path(full_file_path).relative_to(self.data_folder.path).stem)
+                            document.metadata["source_filename"] = Path(full_file_path).relative_to(self.data_folder.path)
                         except (EOFError, JSONDecodeError) as e:
                             logger.warning(f"Error when reading `{filepath}`: {e}")
                             continue
@@ -369,7 +369,6 @@ class JQLEmbedder(PipelineStep):
                     try:
                         embeddings = embedder.embed([doc.text for doc in doc_batch])
                         for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
-                            # doc.metadata["source_filename"] = _get_file_path(doc)
                             doc.metadata["embedding"] = embedding
                             if writer:
                                 writer.write(doc, rank)
@@ -633,7 +632,7 @@ class JQLEmbeddingReader(BaseDiskReader):
                             }
                             doc = self.get_document_from_dict(doc_dict, filepath, i)
                             doc.metadata["document_id"] = document_ids[i].decode('utf-8')
-                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path).stem)
+                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path))
                             yield doc
 
         except Exception as e:
