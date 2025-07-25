@@ -94,7 +94,7 @@ class ScoresParser(BaseDiskReader):
         with self.data_folder.open(filepath, "r", compression=self._compression) as f:
             for line in f:
                 file_data = json.loads(line)
-                base_file_hash, document_idx = file_data["document_id"].rsplit("_")
+                base_file_hash, document_idx = file_data["document_id"].rsplit("_", 1)
                 scores_for_idx[int(document_idx)] = {k: file_data[k] for k in self._score_keys}
                 hashes.add(base_file_hash)
         self._verify_file_format(scores_for_idx, hashes)
