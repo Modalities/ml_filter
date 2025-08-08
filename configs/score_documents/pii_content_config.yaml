@@ -1,5 +1,5 @@
 settings:
-  model_name: google/gemma-2-9b-it
+  model_name: google/gemma-2-27b-it
   num_gpus: 1
   tokenizer_name_or_path: ${settings.model_name}
   paths:
