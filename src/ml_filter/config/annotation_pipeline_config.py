@@ -65,6 +65,7 @@ class DocumentProcessorConfig(BaseModel):
     score_metric_name: str
     strings_to_remove: List[str] = Field(default_factory=list)
     jq_language_pattern: str
+    document_id_column: str
 
 
 class AnnotationPipelineConfig(BaseModel):

@@ -63,6 +63,7 @@ class LLMClient:
         self.num_processes = cfg.document_processor.num_processes
         self.score_metric_name = cfg.document_processor.score_metric_name
         self.jq_language_pattern = cfg.document_processor.jq_language_pattern
+        self.document_id_column = cfg.document_processor.document_id_column
 
     def run(self):
         """Runs the LLM service.
@@ -110,6 +111,7 @@ class LLMClient:
             num_processes=self.num_processes,
             score_metric_name=self.score_metric_name,
             jq_language_pattern=self.jq_language_pattern,
+            document_id_column=self.document_id_column,
         )
 
         document_processor.run()

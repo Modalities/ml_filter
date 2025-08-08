@@ -4,7 +4,7 @@ settings:
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths:
-    - data/deu_Latn_sampled_500k_first200.jsonl
+    - data/deu_Latn_sampled_500k_first_200.jsonl
     start_indexes:
     - 150   
     output_directory_path: data/output
@@ -39,3 +39,4 @@ document_processor:
   score_metric_name: pii_score
   strings_to_remove: []
   jq_language_pattern: .language
+  document_id_column: id
