@@ -146,6 +146,19 @@ Alternativley, just use execute `bash scripts/host_vllm_model.sh $CONTAINER_NAME
 bash scripts/host_vllm_model.sh my_vllm_container 9123 meta-llama/Llama-3.1-8B-Instruct
 ```
 
+##### Mistral
+For mistral models make sure to manually set the correct chat template file in the tokenizer_config.json.
+We tried hosting the model as described by MistralAI, 
+```bash
+vllm serve mistralai/Mistral-Small-3.1-24B-Instruct-2503 --tensor-parallel-size 4 --port 8003 --tokenizer_mode mistral --config_format mistral --load_format mistral
+```
+
+but still ran into:
+```bash
+ValueError: Cannot use chat template functions because tokenizer.chat_template is not set and no template argument was passed! For information about writing templates and setting the tokenizer.chat_template attribute, please see the documentation at
+```
+
+
 #### Test the hosted model
 ```bash
 curl http://localhost:port_number/v1/completions \
