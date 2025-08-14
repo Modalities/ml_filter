@@ -26,6 +26,9 @@ def plot_scores(file_paths: tuple[Path], output_dir: Path, labels: list[str], ag
         input_file_paths=file_paths, aggregation_strategy=aggregation, valid_labels=labels
     )
 
+    # handle invalid aggregated scores
+    document_scores.score = document_scores.score.apply(lambda x: x if x != "invalid" else None)
+
     # Iterate over different prompts
     for prompt in document_scores["prompt"].unique():
         prompt_df = document_scores[document_scores["prompt"] == prompt]
@@ -57,8 +60,10 @@ def plot_scores(file_paths: tuple[Path], output_dir: Path, labels: list[str], ag
             )
 
             # Save and close the plot
-            plt.savefig(output_dir / (prompt + f"_score_distributions_{annotator}.png"))
+            output_path = output_dir / (prompt + f"_score_distributions_{annotator}.png")
+            plt.savefig(output_path)
             plt.close()
+            print(f"Saved plot to {output_path}")
 
 
 def plot_differences_in_scores(file_paths: tuple[Path], output_dir: Path, labels: list[str], aggregation: str) -> None:
@@ -85,6 +90,8 @@ def plot_differences_in_scores(file_paths: tuple[Path], output_dir: Path, labels
 
         # Initialize a list to store the differences for each consecutive annotator pair
         score_differences = {}
+        if len(prompt_df["annotator"].unique()) < 2:
+            continue
 
         # Compute differences for each document for all pairs of annotators
         for annotator_1, annotator_2 in combinations(prompt_df["annotator"].unique(), 2):
@@ -121,8 +128,10 @@ def plot_differences_in_scores(file_paths: tuple[Path], output_dir: Path, labels
             )
 
         plt.tight_layout()
-        plt.savefig(output_dir / (prompt + f"_score_distributions_difference_histogram_{aggregation}.png"))
+        output_path = output_dir / (prompt + f"_score_distributions_difference_histogram_{aggregation}.png")
+        plt.savefig(output_path)
         plt.close()
+        print(f"Saved histogram plot to {output_path}")
 
         # Plot boxplot of the score differences
         sns.reset_defaults()
@@ -156,8 +165,10 @@ def plot_differences_in_scores(file_paths: tuple[Path], output_dir: Path, labels
         plt.tight_layout()
 
         # Save boxplot
-        plt.savefig(output_dir / (prompt + f"_score_distributions_difference_boxplot_{aggregation}.png"))
+        output_path = output_dir / (prompt + f"_score_distributions_difference_boxplot_{aggregation}.png")
+        plt.savefig(output_path)
         plt.close()
+        print(f"Saved boxplot to {output_path}")
 
 
 def plot_confusion_matrix(
@@ -187,4 +198,5 @@ def plot_confusion_matrix(
     plt.ylabel("True")
     plt.title(f"Confusion Matrix for {annotator_name} and language {language}.")
     plt.savefig(output_file_path)
+    print(f"Saved confusion matrix to {output_file_path}")
     plt.show()

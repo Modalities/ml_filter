@@ -75,9 +75,14 @@ def get_document_scores_df(
 
     # Loop through each file
     for file_path in input_file_paths:
-        # Extract relevant metadata from the filename
-        # TODO: This is a bit fragile, consider using a more robust method to extract metadata
-        prompt, prompt_lang, annotator = file_path.stem.split("__")[1:4]
+        # Extract relevant metadata from the first entry in the jsonl
+        with open(file_path, "r") as f:
+            first_line = f.readline()
+            json_obj = json.loads(first_line)
+        meta_info = json_obj["meta_information"]
+        prompt = meta_info["prompt_name"]
+        prompt_lang = "en"  # FIXME: #237 then: meta_info["prompt_lang"]
+        annotator = meta_info["model_name"].replace("/", "__")
 
         # Read the JSONL file and extract scores for each document
         with open(file_path, "r") as f:
