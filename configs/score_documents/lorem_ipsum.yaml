@@ -1,22 +1,22 @@
 #Points to an endpoint where the model is running
 
 settings:
-  model_name: google/gemma-2-9b-it
+  model_name: google/gemma-3-27b-it
   # we need to set this here manually as this is specified only when hosting the model
   num_gpus: 1
   tokenizer_name_or_path: ${settings.model_name}
   
   paths:
     raw_data_file_paths: 
-    - data/test_fineweb2_dump.jsonl
+    - /home/abbas-khan/ml_filter/data/test_fineweb2_dump.jsonl
     output_directory_path: data/output
-    prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
+    prompt_template_file_path: /raid/s3/opengptx/mehdi-ali/git_repos/ml_filter/data/prompts/reasoning/general_reasoning.yaml
     start_indexes:
-    - 10   
+    - 0   
 
 llm_rest_client:
   model_name: ${settings.model_name}
-  max_tokens: 8192 # The maximum total number of tokens supported by the model (input + output)
+  max_tokens: 8096 # The maximum total number of tokens supported by the model (input + output)
   sampling_params:
     max_tokens: 500 # The maximum number of tokens to generate
     temperature: 0.7
@@ -44,8 +44,8 @@ prompt_builder:
 
 document_processor:
   output_directory_path: ${settings.paths.output_directory_path}
-  queue_size: 1000
+  queue_size: 511
   num_processes: 1
-  score_metric_name: educational_score
+  score_metric_name: reasoning_score
   strings_to_remove: []
-  jq_language_pattern: .metadata.language
+  jq_language_pattern: .language

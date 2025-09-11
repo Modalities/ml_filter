@@ -2,7 +2,8 @@ from copy import deepcopy
 
 import torch
 from transformers import AutoConfig, PretrainedConfig
-from transformers.modeling_utils import ModelOutput, PreTrainedModel
+from transformers.modeling_utils import PreTrainedModel
+from transformers.modeling_outputs import ModelOutput
 
 from constants import MODEL_CLASS_MAP
 from ml_filter.models.annotator_model_head import (

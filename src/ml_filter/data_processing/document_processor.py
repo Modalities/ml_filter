@@ -62,7 +62,7 @@ class DocumentProcessor:
         if score_metric_name not in score_metrics:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
 
-        self.score_metric = score_metrics[score_metric_name]
+        self.score_metric = score_metrics[score_metric_name]()
         self.termination_event = multiprocessing.Event()
 
     @staticmethod

@@ -1,55 +1,47 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+# General pattern used for extracting the numeric score
+VALUE_PATTERN = r"\s*(\d+(?:\.\d+)?)"
 
 @dataclass
 class LLMScoreMetric:
-    """A class used to represent a scoring metric for a Language Learning Model (LLM).
+    """
+    Base class for LLM score metrics.
 
     Attributes:
-        metric_name (str): The name of the metric.
-        pattern (str): The pattern used for the metric.
+        metric_name (str): Name of the metric.
+        prefix (str): Regex prefix to identify the score type (e.g., "Educational score:").
+        pattern (str): Full regex pattern for extracting the score (auto-generated).
     """
-
     metric_name: str
-    pattern: str
+    prefix: str
+    pattern: str = field(init=False)
+
+    def __post_init__(self):
+        self.pattern = rf"{self.prefix}{VALUE_PATTERN}"
 
 
 @dataclass
 class EducationalScoreMetric(LLMScoreMetric):
-    """
-    A metric class for extracting educational scores from text.
-
-    This class inherits from `LLMScoreMetric` and is designed to identify and
-    process educational scores using a specific regex pattern.
-
-    Attributes:
-        metric_name (str): The name of the metric, set to "educational_score".
-        pattern (str): The regex pattern used to extract the educational score
-            from text. The pattern looks for the phrase "Educational score:"
-            followed by one or more digits.
-    """
-
-    metric_name: str = "educational_score"
-    pattern: str = r"Educational score:\s*(\d+(?:\.\d+)?)"
+    def __init__(self):
+        super().__init__(metric_name="educational_score", prefix=r"Educational score:")
 
 
 @dataclass
 class AdultScoreMetric(LLMScoreMetric):
-    """
-    A metric class for extracting educational scores from text.
-
-    This class inherits from `LLMScoreMetric` and is designed to identify and
-    process educational scores using a specific regex pattern.
-
-    Attributes:
-        metric_name (str): The name of the metric, set to "educational_score".
-        pattern (str): The regex pattern used to extract the educational score
-            from text. The pattern looks for the phrase "Educational score:"
-            followed by one or more digits.
-    """
-
-    metric_name: str = "adult_score"
-    pattern: str = r"Adult score:\s*(\d+(?:\.\d+)?)"
+    def __init__(self):
+        super().__init__(metric_name="adult_score", prefix=r"Adult score:")
 
 
-score_metrics = {"educational_score": EducationalScoreMetric, "adult_score": AdultScoreMetric}
+@dataclass
+class ReasoningScoreMetric(LLMScoreMetric):
+    def __init__(self):
+        super().__init__(metric_name="reasoning_score", prefix=r"Reasoning score:")
+
+
+# Factory dictionary to retrieve metric classes by name
+score_metrics = {
+    "educational_score": EducationalScoreMetric,
+    "adult_score": AdultScoreMetric,
+    "reasoning_score": ReasoningScoreMetric,
+}

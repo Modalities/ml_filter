@@ -1,0 +1,18 @@
+prompt: |
+ Below is an extract from a document. Evaluate the quality of its reasoning using the additive 5-point scoring system described below. 
+ Points are accumulated based on the depth and sophistication of reasoning demonstrated across any domain (programming, mathematics, ethics, logic, natural sciences, social sciences, 
+ and other disciplines):
+
+  - Add 1 point if the extract identifies a reasoning challenge - whether it's a problem to solve, code to understand, conflict to resolve, concept to explain, or question to answer. The domain and basic elements are recognizable, even if presentation is minimal or disorganized. The document may contain some irrelevant or non-reasoning content like advertisements and promotional material.
+  - Add another point if the extract demonstrates structured thinking - using clear organization, meaningful terminology, logical sequencing, or systematic approaches that reveal understanding of the domain's conventions and best practices. It might mix reasoning content with non-reasoning material.
+  - Award a third point if the extract provides explanatory reasoning - offering natural language explanations, describing processes or relationships, connecting cause and effect, or making the underlying logic transparent to readers. The document may include minimal amount of extraneous information.
+  - Grant a fourth point if the extract engages in analytical reasoning - examining components systematically, tracing through steps or implications, considering multiple perspectives, addressing potential objections, or demonstrating critical evaluation of the reasoning process.
+  - Bestow a fifth point if the extract demonstrates integrative or meta-level reasoning - discussing broader implications, design principles, trade-offs, limitations, connections to other domains, or reflecting on the reasoning process itself to achieve a coherent, well-justified conclusion.
+
+  The extract:
+  {placeholder}
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'Reasoning score: <total points>'
+
+prompt_name: reasoning_content_filter
