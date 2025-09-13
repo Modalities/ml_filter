@@ -3,7 +3,7 @@ input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/input_dir_hierarchy #/rai
 output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
 csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
 
-embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0
+embedding_model: Qwen/Qwen3-Embedding-0.6B
 batch_size: 256
 writer_batch_size: 1000
 
