@@ -1,15 +1,18 @@
 # --- Standard Library ---
+import contextlib
+import dataclasses
 import gc
-import os
-from collections import Counter, defaultdict
 import time
+from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, IO
+from typing import IO, Any, Callable, Literal, Optional
 
 # --- Third-Party Libraries ---
 import h5py
 import numpy as np
 import torch
+import torch.nn.functional as F
+
 # --- Project-Specific Imports ---
 from datatrove.data import Document, DocumentsPipeline
 from datatrove.io import DataFileLike, DataFolderLike
@@ -20,13 +23,9 @@ from datatrove.utils.batching import batched
 from datatrove.utils.logging import logger
 from dotenv import load_dotenv
 from torch import bfloat16, cuda
-import torch.nn.functional as F
 
 from ml_filter.annotation.embedder import get_embedder_instance
 from ml_filter.data_processing.hash_data_files import read_existing_hashes
-
-import dataclasses
-import contextlib
 
 load_dotenv()
 
@@ -47,13 +46,11 @@ def find_max_batch_size(embedder, max_limit=50000, step=100):
     # Create dummy data
     dummy_input_ids = [0] * 8192  # One full sequence
     dummy_attention_mask = [1] * 8192
-    dummy_doc = type('obj', (object,), {
-        'metadata': {
-            'input_ids': dummy_input_ids,
-            'attention_mask': dummy_attention_mask,
-            'token_count': 8192
-        }
-    })()
+    dummy_doc = type(
+        "obj",
+        (object,),
+        {"metadata": {"input_ids": dummy_input_ids, "attention_mask": dummy_attention_mask, "token_count": 8192}},
+    )()
 
     batch_size = step
     max_batch_size = 0
@@ -64,8 +61,10 @@ def find_max_batch_size(embedder, max_limit=50000, step=100):
             batch = [dummy_doc] * batch_size
 
             # Convert to model input format
-            input_ids = torch.tensor([doc.metadata['input_ids'] for doc in batch], dtype=torch.long).to(embedder.device)
-            attention_mask = torch.tensor([doc.metadata['attention_mask'] for doc in batch], dtype=torch.long).to(embedder.device)
+            input_ids = torch.tensor([doc.metadata["input_ids"] for doc in batch], dtype=torch.long).to(embedder.device)
+            attention_mask = torch.tensor([doc.metadata["attention_mask"] for doc in batch], dtype=torch.long).to(
+                embedder.device
+            )
 
             # Clear memory before inference
             gc.collect()
@@ -85,7 +84,7 @@ def find_max_batch_size(embedder, max_limit=50000, step=100):
             batch_size += step
 
         except RuntimeError as e:
-            if 'out of memory' in str(e).lower():
+            if "out of memory" in str(e).lower():
                 logger.warning(f"❌ OOM at batch size {batch_size}, reducing step")
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -99,16 +98,19 @@ def find_max_batch_size(embedder, max_limit=50000, step=100):
                 raise e
 
         finally:
-            if 'batch' in locals(): del batch
-            if 'input_ids' in locals(): del input_ids
-            if 'attention_mask' in locals(): del attention_mask
-            if 'embeddings' in locals(): del embeddings
+            if "batch" in locals():
+                del batch
+            if "input_ids" in locals():
+                del input_ids
+            if "attention_mask" in locals():
+                del attention_mask
+            if "embeddings" in locals():
+                del embeddings
             gc.collect()
             torch.cuda.empty_cache()
 
     logger.info(f"🏁 Max batch size found: {max_batch_size}")
     return max_batch_size
-
 
 
 def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
@@ -124,8 +126,9 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
     """
     data = {key: val for key, val in dataclasses.asdict(document).items() if val and key != "text"}
     if writer.expand_metadata and "metadata" in data:
-            data |= data.pop("metadata")
+        data |= data.pop("metadata")
     return data
+
 
 def _get_file_path(doc: Document) -> str:
     """
@@ -162,30 +165,33 @@ class JQLJsonlReader(BaseDiskReader):
         id_key: the key containing the id for each sample (default: "id").
         default_metadata: a dictionary with any data that should be added to all samples' metadata
         recursive: whether to search files recursively. Ignored if paths_file is provided
-        glob_pattern: pattern that all files must match exactly to be included (relative to data_folder). Ignored if paths_file is provided
-        shuffle_files: shuffle the files within the returned shard. Mostly used for data viz. purposes, do not use with dedup blocks
+        glob_pattern: pattern that all files must match exactly to be included (relative to data_folder).
+        Ignored if paths_file is provided
+        shuffle_files: shuffle the files within the returned shard. Mostly used for data viz.
+        purposes, do not use with dedup blocks
     """
 
     name = "🐿 Jsonl"
     _requires_dependencies = ["orjson"]
 
     def __init__(
-            self,
-            data_folder: DataFolderLike,
-            csv_hashmap: Path,
-            paths_file: DataFileLike | None = None,
-            compression: Literal["infer", "gzip", "zstd"] | None = "infer",
-            limit: int = -1,
-            skip: int = 0,
-            file_progress: bool = False,
-            doc_progress: bool = False,
-            adapter: Callable = None,
-            text_key: str = "text",
-            id_key: str = "id",
-            default_metadata: dict = None,
-            recursive: bool = True,
-            glob_pattern: str | None = None,
-            shuffle_files: bool = False,
+        self,
+        data_folder: DataFolderLike,
+        csv_hashmap: Path,
+        paths_file: DataFileLike | None = None,
+        compression: Literal["infer", "gzip", "zstd"] | None = "infer",
+        limit: int = -1,
+        skip: int = 0,
+        file_progress: bool = False,
+        doc_progress: bool = False,
+        adapter: Callable = None,
+        text_key: str = "text",
+        id_key: str = "id",
+        default_metadata: dict = None,
+        recursive: bool = True,
+        glob_pattern: str | None = None,
+        shuffle_files: bool = False,
+        save_labels: bool = True,
     ):
         super().__init__(
             data_folder,
@@ -203,6 +209,7 @@ class JQLJsonlReader(BaseDiskReader):
             shuffle_files,
         )
         self.compression = compression
+        self.save_labels = save_labels
         try:
             self.hash_map = read_existing_hashes(csv_hashmap)
         except FileNotFoundError:
@@ -228,9 +235,17 @@ class JQLJsonlReader(BaseDiskReader):
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
                             if not document:
                                 continue
-                            document.metadata['file_path'] = full_file_path
-                            document.metadata['document_id'] = file_hash + "_" + str(li)
-                            document.metadata["source_filename"] = Path(full_file_path).relative_to(self.data_folder.path)
+                            document.metadata["file_path"] = full_file_path
+                            document.metadata["document_id"] = file_hash + "_" + str(li)
+                            if self.save_labels:
+                                # copy score into label for downstream consumers if enabled
+                                if "score" in document.metadata:
+                                    document.metadata["label"] = document.metadata["score"]
+                                else:
+                                    raise ValueError("No 'score' field found in document metadata to copy to 'label'.")
+                            document.metadata["source_filename"] = Path(full_file_path).relative_to(
+                                self.data_folder.path
+                            )
                         except (EOFError, JSONDecodeError) as e:
                             logger.warning(f"Error when reading `{filepath}`: {e}")
                             continue
@@ -248,41 +263,48 @@ class JQLEmbedder(PipelineStep):
     containing the embedding vector.
 
     Args:
-        embedder_model_id: HuggingFace model ID or local path to the embedding model. Default is Snowflake Arctic embed v2.0.
+        embedder_model_id: HuggingFace model ID or local path to the embedding model.
+        Default is Snowflake Arctic embed v2.0.
         batch_size: number of documents to process in one embedding batch. Default is 1000.
-        device_overwrite: manually specify a CUDA device (e.g., "0"). If None, a device is selected automatically per rank.
+        device_overwrite: manually specify a CUDA device (e.g., "0").
+        If None, a device is selected automatically per rank.
         stats_writer: optional writer to log stats to disk during embedding.
     """
+
     name = "🔢 - JQL-EMBEDDER"
     type = "🔢 - JQL-EMBEDDER"
 
     def __init__(
-            self,
-            embedder_model_id: str = 'Snowflake/snowflake-arctic-embed-m-v2.0',
-            batch_size: int = 1_000,
-            device_overwrite: Optional[str] = None,
-            stats_writer: DiskWriter = None,
-
+        self,
+        embedder_model_id: str,
+        batch_size: int = 1_000,
+        device_overwrite: Optional[str] = None,
+        stats_writer: DiskWriter = None,
+        max_length: int = 8192,
+        padding: bool | str = True,
+        truncation: bool | str = True,
     ):
         super().__init__()
         self.embedder_model_id = embedder_model_id
         self.batch_size = batch_size
         self.device_overwrite = device_overwrite
         self.stats_writer = stats_writer
+        self.max_length = max_length
+        self.padding = padding
+        self.truncation = truncation
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
         # torch.cuda.memory._record_memory_history(max_entries=100000)
         if not cuda.is_available():
-            logger.warning('CUDA is not available, using CPU')
-            device = 'cpu'
+            logger.warning("CUDA is not available, using CPU")
+            device = "cpu"
         else:
             if self.device_overwrite is None:
                 device_count = cuda.device_count()
                 cuda_device_id = rank % device_count
-                device = f'cuda:{cuda_device_id}'
+                device = f"cuda:{cuda_device_id}"
             else:
-                device = f'cuda:{self.device_overwrite}'
-
+                device = f"cuda:{self.device_overwrite}"
 
         print(f"Using device: {device} for rank {rank}---------------------------------------->")
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
@@ -291,13 +313,18 @@ class JQLEmbedder(PipelineStep):
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
-                with self.track_time(unit='batch'):
+                with self.track_time(unit="batch"):
                     start_time = time.time()
                     try:
-                        embeddings = embedder.embed([doc.text for doc in doc_batch])
+                        embeddings = embedder.embed(
+                            [doc.text for doc in doc_batch],
+                            max_length=self.max_length,
+                            padding=self.padding,
+                            truncation=self.truncation,
+                        )
                         for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                             # doc.metadata["source_filename"] = _get_file_path(doc)
-                            doc.metadata['embedding'] = embedding
+                            doc.metadata["embedding"] = embedding
                             if writer:
                                 writer.write(doc, rank)
                             yield doc
@@ -305,23 +332,29 @@ class JQLEmbedder(PipelineStep):
                         duration = time.time() - start_time
                         num_docs = len(doc_batch)
                         throughput = num_docs / duration if duration > 0 else 0
-                        logger.info(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
-                        print(f"Processed {num_docs} docs in {duration:.2f}s in rank {rank} → Throughput: {throughput:.2f} docs/sec")
-                        # print("Peak memory allocated: ", torch.cuda.max_memory_allocated()) 
+                        logger.info(
+                            f"""Processed {num_docs} docs in {duration:.2f}s in rank {rank}
+                             → Throughput: {throughput:.2f} docs/sec"""
+                        )
+                        print(
+                            f"""Processed {num_docs} docs in {duration:.2f}s in rank {rank}
+                             → Throughput: {throughput:.2f} docs/sec"""
+                        )
+                        # print("Peak memory allocated: ", torch.cuda.max_memory_allocated())
                         torch.cuda.empty_cache()
 
-
                     except RuntimeError as e:
-                        if 'out of memory' in str(e):
-                            logger.error(f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
-                                        f"Consider reducing the batch size or using a smaller model.")
+                        if "out of memory" in str(e):
+                            logger.error(
+                                f"CUDA OOM error on rank {rank} with batch size {self.batch_size}. "
+                                f"Consider reducing the batch size or using a smaller model."
+                            )
                             print(torch.cuda.memory_summary())
                             print(torch.cuda.max_memory_allocated())
                             raise e
                         else:
                             logger.error(f"Runtime error on rank {rank}: {e}")
                             raise e
-
 
 
 class HDF5Writer(DiskWriter):
@@ -346,20 +379,22 @@ class HDF5Writer(DiskWriter):
         schema: not used in HDF5 writer, included for compatibility with other writers.
         dataset_name: name of the group inside each HDF5 file where datasets will be written (default: "train").
     """
+
     default_output_filename: str = None
     name = "💾 HDF5"
     _requires_dependencies = ["h5py"]
 
     def __init__(
-            self,
-            output_folder: DataFolderLike,
-            output_filename: str = None,
-            adapter: Callable = None,
-            batch_size: int = 1000,
-            expand_metadata: bool = False,
-            max_file_size: int = 5 * 2 ** 30,
-            schema: Any = None,
-            dataset_name: str = "train"
+        self,
+        output_folder: DataFolderLike,
+        output_filename: str = None,
+        adapter: Callable = None,
+        batch_size: int = 1000,
+        expand_metadata: bool = False,
+        max_file_size: int = 5 * 2**30,
+        schema: Any = None,
+        dataset_name: str = "train",
+        save_labels: bool = True,
     ):
         super().__init__(
             output_folder,
@@ -376,6 +411,7 @@ class HDF5Writer(DiskWriter):
         self.batch_size = batch_size
         self.schema = schema
         self.dataset_name = dataset_name
+        self.save_labels = save_labels
 
     def _write_batch(self, filename: str):
         if not self._batches[filename]:
@@ -384,6 +420,10 @@ class HDF5Writer(DiskWriter):
         batch = self._batches.pop(filename)
         embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=np.float32)
         document_id = [doc["metadata"]["document_id"] for doc in batch]
+        if self.save_labels and "label" in batch[0]["metadata"]:
+            labels = np.array([doc["metadata"]["label"] for doc in batch], dtype=np.float32)
+        else:
+            labels = None
 
         file = self._writers[filename]
         group_name = self.dataset_name
@@ -393,13 +433,20 @@ class HDF5Writer(DiskWriter):
             group = file.create_group(group_name)
             maxshape_emb = (None, embeddings.shape[1])  # None means unlimited rows
             maxshape_ids = (None,)
-            group.create_dataset("embeddings", data=embeddings, maxshape=maxshape_emb, compression="gzip", dtype=np.float32)
-            dt = h5py.string_dtype(encoding='utf-8')
+            group.create_dataset(
+                "embeddings", data=embeddings, maxshape=maxshape_emb, compression="gzip", dtype=np.float32
+            )
+            dt = h5py.string_dtype(encoding="utf-8")
             group.create_dataset("document_id", data=document_id, maxshape=maxshape_ids, compression="gzip", dtype=dt)
-        else:
+            if labels is not None:
+                maxshape_labels = (None, labels.shape[1])
+                group.create_dataset(
+                    "labels", data=labels, maxshape=maxshape_labels, compression="gzip", dtype=np.float32
+                )
             group = file[group_name]
             emb_ds = group["embeddings"]
             id_ds = group["document_id"]
+            labels_ds = group.get("labels") if "labels" in group else None
 
             # Current sizes
             old_size = emb_ds.shape[0]
@@ -408,11 +455,14 @@ class HDF5Writer(DiskWriter):
             # Resize datasets to hold new batch
             emb_ds.resize(new_size, axis=0)
             id_ds.resize(new_size, axis=0)
+            if labels_ds is not None and labels is not None:
+                labels_ds.resize(new_size, axis=0)
 
             # Append new data
             emb_ds[old_size:new_size, :] = embeddings
             id_ds[old_size:new_size] = document_id
-
+            if labels_ds is not None and labels is not None:
+                labels_ds[old_size:new_size] = labels
 
     def _write(self, document: dict, file_handler: IO, filename: str):
         if filename not in self._writers:

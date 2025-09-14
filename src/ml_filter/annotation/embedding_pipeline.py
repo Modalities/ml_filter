@@ -3,10 +3,7 @@ from pathlib import Path
 from datatrove.executor import LocalPipelineExecutor
 from omegaconf import OmegaConf
 
-from datatrove.pipeline.writers import JsonlWriter
-from datetime import datetime, timedelta
-
-from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer, JQLJsonlReader, stats_adapter
+from ml_filter.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder, JQLJsonlReader
 
 
 def run_embedding_pipeline(config_file_path: Path):
@@ -22,6 +19,8 @@ def run_embedding_pipeline(config_file_path: Path):
     except Exception as e:
         raise ValueError(f"Failed to load config from {config_file_path}: {e}")
 
+    embedding_dir = getattr(cfg, "embedding_dir")
+    embedding_output_path = str(Path(cfg.output_dir) / embedding_dir)
     pipeline = [
         JQLJsonlReader(
             data_folder=cfg.input_dir,
@@ -31,18 +30,16 @@ def run_embedding_pipeline(config_file_path: Path):
         JQLEmbedder(
             embedder_model_id=cfg.embedding_model,
             batch_size=cfg.batch_size,
-            stats_writer=HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-                   output_filename="${source_filename}.h5",
-                   dataset_name=cfg.hdf5_dataset_name,
-                   batch_size=cfg.writer_batch_size,
-            )
+            max_length=cfg.max_length,
+            padding=cfg.padding,
+            truncation=cfg.truncation,
+            stats_writer=HDF5Writer(
+                output_folder=embedding_output_path,
+                output_filename="${source_filename}.h5",
+                dataset_name=cfg.hdf5_dataset_name,
+                batch_size=cfg.writer_batch_size,
+            ),
         ),
-        # HDF5Writer(output_folder=cfg.output_dir + '/embeddings',
-        #            output_filename="${source_filename}.h5",
-        #            dataset_name=cfg.hdf5_dataset_name,
-        #            batch_size=cfg.writer_batch_size,
-        # )
-
     ]
     stage = LocalPipelineExecutor(
         pipeline,
@@ -50,13 +47,16 @@ def run_embedding_pipeline(config_file_path: Path):
         local_tasks=cfg.local_tasks,
         local_rank_offset=cfg.local_rank_offset,
         workers=cfg.workers,
-        logging_dir=cfg.output_dir + '/logs',
+        logging_dir=cfg.output_dir + "/logs",
     )
 
     stage.run()
 
 
-
 # Testing
-if __name__ == '__main__':
-    run_embedding_pipeline(config_file_path=Path("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"))
+if __name__ == "__main__":
+    run_embedding_pipeline(
+        config_file_path=Path(
+            "/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/annotation/lorem_ipsum_embedding.yaml"
+        )
+    )

@@ -1,11 +1,21 @@
 glob_pattern: "**/*.jsonl" #"*.jsonl"
-input_dir: /home/abbas-khan/processed_data_natural/training_set #/raid/s3/opengptx/jude/repos/ml_filter/data/input_data
-output_dir: /home/abbas-khan/ml_filter/data/embedding_output_Qwen_32k/training #/raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output
+input_dir: /home/abbas-khan/processed_data_natural/training_set 
+output_dir: /home/abbas-khan/ml_filter/data/embedding_output_Qwen_8k/
+embedding_dir: training_embeddings  
 csv_hashmap_path: /home/abbas-khan/ml_filter/data/output/hashes/training.csv
 
 embedding_model: Qwen/Qwen3-Embedding-0.6B
-batch_size: 8
+batch_size: 16
 writer_batch_size: 1000
+
+# Whether to copy score into label and persist labels in output artifacts
+save_labels: true
+
+# Tokenization / embedding parameters
+# These will be forwarded to the embedder.embed() method
+max_length: 8192 #32768 #8192        # maximum sequence length for tokenization (adjust as needed)
+padding: true           # whether to pad shorter sequences
+truncation: true        # whether to truncate sequences longer than max_length
 
 hdf5_dataset_name: train
 

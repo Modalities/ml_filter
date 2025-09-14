@@ -49,12 +49,18 @@ class GteMultilingualBase:
             device
         )  # Move the model to the specified device.
 
-    def embed(self, texts):
+    def embed(self, texts, max_length: int = 8192, padding: bool | str = True, truncation: bool | str = True):
         """
         Generates embeddings for a list of text strings.
 
         Args:
             texts (list[str]): A list of text strings to embed.
+            max_length (int, optional): Maximum sequence length for tokenization.
+            Defaults to 8192.
+            padding (bool | str, optional): Padding strategy passed to tokenizer.
+             Defaults to True.
+            truncation (bool | str, optional): Truncation strategy passed to tokenizer .
+            Defaults to True.
 
         Returns:
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
@@ -133,12 +139,18 @@ class SnowflakeArcticEmbedMV2_0:
         if compile:
             self.model.forward = torch.compile(self.model.forward)
 
-    def embed(self, texts):
+    def embed(self, texts, max_length: int, padding: bool, truncation: bool):
         """
         Generates embeddings for a list of text strings using the Snowflake Arctic Embed model.
 
         Args:
             texts (list[str]): A list of text strings to embed.
+            max_length (int, optional): Maximum sequence length for tokenization.
+             Defaults to 8192.
+            padding (bool | str, optional): Padding strategy passed to tokenizer (True/False/"max_length").
+             Defaults to True.
+            truncation (bool | str, optional): Truncation strategy passed to tokenizer (True/False/"longest_first").
+            Defaults to True.
 
         Returns:
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
@@ -147,9 +159,9 @@ class SnowflakeArcticEmbedMV2_0:
 
         batch_tokens = self.tokenizer(
             texts,
-            max_length=8192,  # Maximum sequence length for tokenization.
-            padding="longest",  # Pad to the length of the longest sequence in the batch.
-            truncation=True,  # Truncate sequences longer than max_length.
+            max_length=max_length,  # Maximum sequence length for tokenization.
+            padding=padding,  # longest  # Pad to the length of the longest sequence in the batch.
+            truncation=truncation,  # Truncate sequences longer than max_length.
             return_tensors="pt",
         )  # Return PyTorch tensors.
 
@@ -205,12 +217,15 @@ class JinaEmbeddingsV3TextMatching:
             device
         )  # Move the model to the specified device.
 
-    def embed(self, texts):
+    def embed(self, texts, max_length: int = 8192, padding: bool | str = True, truncation: bool | str = True):
         """
         Generates embeddings for a list of text strings using the Jina Embeddings V3 model
         with a 'text-matching' task.
         Args:
             texts (list[str]): A list of text strings to embed.
+            max_length (int, optional): Maximum sequence length for tokenization. Defaults to 8192.
+            padding (bool | str, optional): Padding strategy passed to tokenizer. Defaults to True.
+            truncation (bool | str, optional): Truncation strategy passed to tokenizer. Defaults to True.
 
         Returns:
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
@@ -328,7 +343,7 @@ class Qwen3Embedder:
         """
         return f"Instruct: {task_description}\nQuery:{query}"
 
-    def embed(self, texts):
+    def embed(self, texts, max_length: int, padding: bool, truncation: bool):
         """
         Generates embeddings for a list of text strings using the Qwen 3 embedding model.
 
@@ -337,24 +352,28 @@ class Qwen3Embedder:
 
         Args:
             texts (list[str]): A list of text strings to embed.
+            max_length (int, optional): Maximum sequence length for tokenization. Defaults to 8192.
+            padding (bool | str, optional): Padding strategy (True/False/"max_length"). Defaults to True.
+            truncation (bool | str, optional): Truncation strategy (True/False/"longest_first"). Defaults to True.
 
         Returns:
             torch.Tensor: A tensor of shape (batch_size, embedding_dim)
                           containing the normalized embeddings for the input texts.
         """
 
-        # Tokenize the input texts with Qwen-specific configuration
+        # Tokenize the input texts with Qwen-specific configuration and user-specified parameters
         batch_tokens = self.tokenizer(
             texts,
-            max_length=32768,  # Maximum sequence length as specified for Qwen model
-            padding=True,  # Enable padding to handle variable length sequences
-            truncation=True,  # Truncate sequences longer than max_length
-            return_tensors="pt",  # Return PyTorch tensors
-        ).to(
-            self.device
-        )  # Move tokens to the specified device
+            max_length=max_length,
+            padding=padding,
+            truncation=truncation,
+            return_tensors="pt",
+        )
+        batch_tokens = {
+            k: v.to(torch.device(self.device)) for k, v in batch_tokens.items()
+        }  # Move tokens to the specified device.
 
-        with torch.no_grad():  # Disable gradient calculation for inference
+        with torch.no_grad(), torch.cuda.device(self.device):  # Disable gradient calculation for inference
             output = self.model(**batch_tokens)
             # Extract embeddings using last token pooling strategy
             embeddings = self.last_token_pool(output.last_hidden_state, batch_tokens["attention_mask"])
@@ -381,7 +400,7 @@ def get_embedder_instance(model_id, device, dtype):
                         - 'Alibaba-NLP/gte-multilingual-base'
                         - 'Snowflake/snowflake-arctic-embed-m-v2.0'
                         - 'jinaai/jina-embeddings-v3'
-                        - 'embedding_at_scale' (for Qwen/Qwen3-Embedding-8B)
+                        - 'Qwen/Qwen3-Embedding-0.6B'
         device (torch.device or str): The device to load the model onto.
         dtype (torch.dtype): The data type for model operations.
 
