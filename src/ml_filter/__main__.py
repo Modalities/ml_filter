@@ -734,13 +734,16 @@ def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) ->
 )
 def entry_run_embedding_pipeline(config_file_path: Path):
     """Run annotation pipeline using precomputed embeddings from HDF5."""
-    run_embedding_pipeline(
-        config_file_path=config_file_path
-    )
+    run_embedding_pipeline(config_file_path=config_file_path)
 
 
-@main.command(name="hash_files_to_csv")
-@click.argument("input_files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@main.command(name="calculate_file_hashes")
+@click.option(
+    "--input_dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    required=True,
+    help="Directory containing .jsonl files to hash.",
+)
 @click.option(
     "--output_csv",
     type=click.Path(exists=False, path_type=Path),
@@ -754,11 +757,20 @@ def entry_run_embedding_pipeline(config_file_path: Path):
     show_default=True,
     help="Chunk size in bytes for reading files.",
 )
-def hash_files_to_csv_cli(input_files: tuple[Path], output_csv: Path, chunk_size: int):
+def hash_files_to_csv_cli(input_dir: Path, output_csv: Path, chunk_size: int):
+    """Compute MD5 hashes for all .jsonl files in a directory tree and write them with file paths to a CSV file.
+    Args:
+        input_dir (Path): Root directory in which to search recursively for .jsonl files.
+        output_csv (Path): Path to the output CSV file.
+        chunk_size (int): Chunk size in bytes for reading files.
     """
-    Compute MD5 hashes for multiple files and write the hashes with file paths to a CSV file.
-    """
-    hash_files_to_csv(list(input_files), output_csv, chunk_size)
+    # Recursively gather .jsonl files; sorted for deterministic ordering
+    jsonl_files = sorted(p for p in input_dir.rglob("*.jsonl") if p.is_file())
+    if not jsonl_files:
+        raise click.UsageError(f"No .jsonl files found in directory: {input_dir}")
+
+    hash_files_to_csv(list(jsonl_files), output_csv, chunk_size)
+    click.echo(f"Hashed {len(jsonl_files)} files (recursive) from {input_dir} -> {output_csv}")
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):

@@ -1,15 +1,15 @@
 glob_pattern: "**/*.jsonl" #"*.jsonl"
-input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/input_dir_hierarchy #/raid/s3/opengptx/jude/repos/ml_filter/data/input_data
-output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir
-csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/scripts/hashes.csv
+input_dir: /home/abbas-khan/processed_data_natural/training_set #/raid/s3/opengptx/jude/repos/ml_filter/data/input_data
+output_dir: /home/abbas-khan/ml_filter/data/embedding_output_Qwen_32k/training #/raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output
+csv_hashmap_path: /home/abbas-khan/ml_filter/data/output/hashes/training.csv
 
 embedding_model: Qwen/Qwen3-Embedding-0.6B
-batch_size: 256
+batch_size: 8
 writer_batch_size: 1000
 
 hdf5_dataset_name: train
 
-tasks: 8 # number of tasks
-workers: 8 
-local_tasks: 8 # number of gpus in a node
+tasks: 4 # number of tasks
+workers: 4 
+local_tasks: 4 # number of gpus in a node
 local_rank_offset: 0
