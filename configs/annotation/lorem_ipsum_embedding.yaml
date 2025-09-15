@@ -1,8 +1,9 @@
+dataset_name: training
 glob_pattern: "**/*.jsonl" #"*.jsonl"
-input_dir: /home/abbas-khan/processed_data_natural/training_set 
+input_dir: /home/abbas-khan/processed_data_natural/${dataset_name}_set
 output_dir: /home/abbas-khan/ml_filter/data/embedding_output_Qwen_8k/
-embedding_dir: training_embeddings  
-csv_hashmap_path: /home/abbas-khan/ml_filter/data/output/hashes/training.csv
+embedding_dir: ${dataset_name}_embeddings  
+csv_hashmap_path: /home/abbas-khan/ml_filter/data/output/hashes/${dataset_name}.csv
 
 embedding_model: Qwen/Qwen3-Embedding-0.6B
 batch_size: 16
