@@ -1,6 +1,7 @@
 import contextlib
 import dataclasses
 import os
+from pathlib import Path
 from typing import Callable, Optional
 
 import h5py
@@ -169,10 +170,10 @@ class JQLEmbeddingReader(BaseDiskReader):
         doc_progress: bool = True,
         text_key: str = "embeddings",
         adapter: Callable = None,
-        id_key: str = "id",
+        id_key: str = "document_id",
         default_metadata: dict = None,
-        recursive: bool = False,
-        glob_pattern: str | None = "*.h5",
+        recursive: bool = True,
+        glob_pattern: str | None =  "**/*.h5",
         shuffle_files: bool = False,
     ):
         super().__init__(
@@ -240,7 +241,10 @@ class JQLEmbeddingReader(BaseDiskReader):
                                 "embeddings": embeddings[i].tolist(),
                                 "document_id": document_ids[i],
                             }
-                            yield self.get_document_from_dict(doc_dict, filepath, i)
+                            doc = self.get_document_from_dict(doc_dict, filepath, i)
+                            doc.metadata["document_id"] = document_ids[i].decode('utf-8')
+                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path))
+                            yield doc
 
         except Exception as e:
             logger.warning(f"Failed to read `{filepath}`: {e}")
@@ -310,7 +314,7 @@ class JQLHead(PipelineStep):
         for name, path in self.regression_head_checkpoints.items():
             self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
 
-        self.batch_size = find_max_batch_size(next(iter(self.regression_heads.values())))[0]
+        # self.batch_size = find_max_batch_size(next(iter(self.regression_heads.values())))[0]
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
@@ -326,7 +330,7 @@ class JQLHead(PipelineStep):
 
                     for batch_idx, doc in enumerate(doc_batch):
                         filepath = _get_file_path(doc)
-                        doc.metadata["source_filename"] = filepath
+                        # doc.metadata["source_filename"] = Path(doc.metadata.get("file_path")).relative_to(writer.output_folder.path)
                         for name, score in scores.items():
                             doc.metadata[name] = score[batch_idx].item()
                         if writer:
