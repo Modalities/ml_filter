@@ -243,6 +243,69 @@ class JinaEmbeddingsV3TextMatching:
         return embeddings
 
 
+class MmBertEmbedder:
+    """
+    A wrapper class for the 'jhu-clsp/mmBERT-base' embedding model.
+
+    Attributes:
+        device (torch.device or str): The device on which to load the model.
+        dtype (torch.dtype): The data type for model computations (default: torch.bfloat16).
+        tokenizer (AutoTokenizer): The tokenizer for the mmBERT model.
+        model (AutoModel): The loaded mmBERT model.
+    """
+
+    def __init__(self, device, dtype=torch.bfloat16):
+        """
+        Initializes the MmBertEmbedder model.
+
+        Args:
+            device (torch.device or str): The device to load the model onto.
+            dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
+        """
+        self.device = device
+        self.dtype = dtype
+
+        model_id = "jhu-clsp/mmBERT-base"
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        self.model = AutoModel.from_pretrained(
+            model_id,
+            torch_dtype=dtype,
+        ).to(device)
+        self.model.eval()
+
+    def embed(self, texts, max_length: int = 512, padding: bool | str = True, truncation: bool | str = True):
+        """
+        Generates embeddings for a list of text strings using the mmBERT model.
+
+        Args:
+            texts (list[str]): A list of text strings to embed.
+            max_length (int, optional): Maximum sequence length for tokenization. Defaults to 512.
+            padding (bool | str, optional): Padding strategy passed to tokenizer. Defaults to True.
+            truncation (bool | str, optional): Truncation strategy passed to tokenizer. Defaults to True.
+
+        Returns:
+            torch.Tensor: A tensor of shape (batch_size, embedding_dim)
+                          containing the embeddings.
+        """
+        batch_tokens = self.tokenizer(
+            texts,
+            max_length=max_length,
+            padding=padding,
+            truncation=truncation,
+            return_tensors="pt",
+        )
+        batch_tokens = {k: v.to(self.device) for k, v in batch_tokens.items()}
+
+        with torch.no_grad():
+            output = self.model(**batch_tokens)
+            # Use the CLS token embedding (first token)
+            # embeddings = output.last_hidden_state[:, 0]
+            embeddings = output.last_hidden_state.mean(dim=1)
+            embeddings = F.normalize(embeddings, p=2, dim=1)
+
+        return embeddings.cpu().tolist()
+
 class Qwen3Embedder:
     """
     A wrapper class for the 'Qwen/Qwen3-Embedding-8B' embedding model.
@@ -424,6 +487,8 @@ def get_embedder_instance(model_id, device, dtype):
     elif model_id == "Qwen/Qwen3-Embedding-0.6B":
         embedder_class = Qwen3Embedder
 
+    elif model_id == "jhu-clsp/mmBERT-base":
+        embedder_class = MmBertEmbedder
     else:
         raise ValueError(f"Unknown model ID: {model_id}")
 
