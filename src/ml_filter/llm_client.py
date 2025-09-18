@@ -9,16 +9,24 @@ from ml_filter.config.annotation_pipeline_config import AnnotationPipelineConfig
 from ml_filter.data_processing.document_processor import DocumentProcessor
 from ml_filter.data_processing.prompt_builder import PromptBuilder
 from ml_filter.llm_api.llm_rest_client import LLMRestClient
+from ml_filter.llm_api.openai_batch_request_collector import LLMRestClientBatchCollector
 from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
 class LLMClient:
-    def __init__(self, config_file_path: Path, experiment_id: str, rest_endpoint: str):
+    def __init__(
+        self,
+        config_file_path: Path,
+        experiment_id: str,
+        rest_endpoint: str,
+        use_llm_rest_client_request_collector: bool = False,
+    ):
         """Initializes the LLMService."""
         self.experiment_id = experiment_id
         self.rest_endpoint = rest_endpoint
+        self.use_llm_rest_client_request_collector = use_llm_rest_client_request_collector
 
         OmegaConf.register_new_resolver("eval", eval)
         config_omegaconf = OmegaConf.load(config_file_path)
@@ -84,7 +92,10 @@ class LLMClient:
         )
 
         # Get LLMRestClient
-        llm_rest_client = LLMRestClient(
+        llm_rest_client_class = (
+            LLMRestClientBatchCollector if self.use_llm_rest_client_request_collector else LLMRestClient
+        )
+        llm_rest_client = llm_rest_client_class(
             max_retries=self.max_retries,
             backoff_factor=self.backoff_factor,
             model_name=self.model_name,

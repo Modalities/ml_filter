@@ -183,6 +183,7 @@ class DocumentProcessor:
             annotation.errors.append(processed_document_variation.errors)
             annotation.time_stamps.append(processed_document_variation.timestamp)
             annotation.document_processing_status.append(processed_document_variation.document_processing_status)
+            annotation.request = processed_document_variation.request
 
         return annotation
 

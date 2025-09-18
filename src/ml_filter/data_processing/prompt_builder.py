@@ -81,6 +81,7 @@ class PromptBuilder:
                     processed_document.document_text_detokenized = document_text_detokenized
                 prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
                 processed_document.prompt = prompt_string
+                processed_document.messages = prompt_dict
                 processed_document.prompt_name = self.prompt_name
                 return processed_document
 
@@ -90,4 +91,5 @@ class PromptBuilder:
         prompt_string = self.tokenizer.apply_tokenizer_chat_template(prompt_dict, tokenize=False)
         processed_document.prompt = prompt_string
         processed_document.prompt_name = self.prompt_name
+        processed_document.messages = prompt_dict
         return processed_document

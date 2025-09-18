@@ -48,4 +48,5 @@ document_processor:
   num_processes: 1
   score_metric_name: educational_score
   strings_to_remove: []
-  jq_language_pattern: .metadata.language
+  jq_language_pattern: .language
+  document_id_column: document_id

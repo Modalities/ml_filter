@@ -127,7 +127,18 @@ def main() -> None:
     required=True,
     help="The endpoint for the LLM service.",
 )
-def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
+@click.option(
+    "--use_llm_rest_client_request_collector",
+    type=bool,
+    default=False,
+    help="Whether to use the LLM REST client request collector to run requests with OpenAI batched API.",
+)
+def entry_point_score_documents(
+    config_file_path: Path,
+    rest_endpoint: str,
+    use_llm_rest_client_request_collector,
+    experiment_id: Optional[str] = None,
+):
     with open(config_file_path, "rb") as f:
         hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
     experiment_id_postfix = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
@@ -136,7 +147,12 @@ def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, expe
         experiment_id = experiment_id_postfix
     else:
         experiment_id = experiment_id + f"/{experiment_id_postfix}"
-    llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
+    llm_service = LLMClient(
+        config_file_path=config_file_path,
+        experiment_id=experiment_id,
+        rest_endpoint=rest_endpoint,
+        use_llm_rest_client_request_collector=use_llm_rest_client_request_collector,
+    )
     llm_service.run()
 
 
@@ -755,6 +771,45 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
+
+
+@main.command(name="submit_batch_requests")
+@click.argument("input_files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--model_name",
+    type=str,
+    required=True,
+    help="Name of the OpenAI model to use.",
+)
+@click.option(
+    "--max_requests_per_file",
+    type=int,
+    default=None,
+    help="Maximum number of requests to send per input file.",
+)
+@click.option(
+    "--check_status_only",
+    type=bool,
+    default=False,
+    help="Whether to check the status of existing batch requests only.",
+)
+def submit_collected_requests_to_batched_openai_api_cli(
+    input_files: tuple[Path], model_name: str, max_requests_per_file: int | None, check_status_only: bool
+):
+    """
+    CLI command to submit collected requests to the batched OpenAI API.
+    """
+    from ml_filter.llm_api.openai_batch_request_collector import OpenAIBatchAPIRequestSubmitter
+
+    input_files = [Path(p) for p in input_files]
+    # Not all mdoels are supported: https://community.openai.com/t/error-on-tryng-to-use-batches/935474/7
+    collector = OpenAIBatchAPIRequestSubmitter(
+        input_files=input_files, model_name=model_name, max_requests_per_file=max_requests_per_file
+    )
+    if not check_status_only:
+        collector.submit()
+    else:
+        collector.check_status()
 
 
 if __name__ == "__main__":

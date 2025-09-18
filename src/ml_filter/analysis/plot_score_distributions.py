@@ -97,6 +97,18 @@ def plot_differences_in_scores(file_paths: tuple[Path], output_dir: Path, labels
         for annotator_1, annotator_2 in combinations(prompt_df["annotator"].unique(), 2):
             # Compute the difference between the two annotators for all documents that have scores for both annotators
             common_docs_df = get_common_docs(prompt_df, annotator_1, annotator_2)
+
+            # handle invalid values
+            common_docs_df["rounded_score_0"] = common_docs_df["rounded_score_0"].apply(
+                lambda x: x if x != "invalid" else None
+            )
+            common_docs_df["rounded_score_1"] = common_docs_df["rounded_score_0"].apply(
+                lambda x: x if x != "invalid" else None
+            )
+            common_docs_df = common_docs_df[
+                common_docs_df["rounded_score_1"].notna() & common_docs_df["rounded_score_0"].notna()
+            ]
+
             score_differences[(annotator_1, annotator_2)] = (
                 common_docs_df["rounded_score_1"] - common_docs_df["rounded_score_0"]
             ).to_list()
