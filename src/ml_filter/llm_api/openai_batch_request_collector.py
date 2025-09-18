@@ -61,7 +61,8 @@ class OpenAIBatchAPIRequestSubmitter:
 
         if batch_check.status == "completed" and batch_check.request_counts is not None:
             if batch_check.request_counts.completed > 0:
-                self.logger.info(self.client.files.content(batch_check.output_file_id))
+                file_content = self.client.files.content(batch_check.output_file_id)
+                self.logger.info(file_content)
             if batch_check.request_counts.failed > 0:
                 self.logger.error(self.client.files.content(batch_check.error_file_id).content.decode("utf-8"))
 
@@ -102,7 +103,7 @@ class OpenAIBatchAPIRequestSubmitter:
         # A single batch may include up to 50,000 requests, and a batch input file can be up to 200 MB in size.
         batch_requests = {}
 
-        removed_generation_kwargs = []
+        removed_generation_kwargs = set()
         for input_file in self.input_files:
             requests = []
             with open(input_file, "r") as f:
@@ -120,9 +121,11 @@ class OpenAIBatchAPIRequestSubmitter:
                 if self.model_name:
                     request["body"]["model"] = self.model_name
                     if "gpt-5" in self.model_name:
-                        if "max_tokens" in request["body"]:
-                            del request["body"]["max_tokens"]
-                            removed_generation_kwargs.append("max_tokens")
+                        forbidden_generation_kwargs = ["max_tokens", "temperature"]
+                        for param in forbidden_generation_kwargs:
+                            if param in request["body"]:
+                                del request["body"][param]
+                                removed_generation_kwargs.add(param)
                 else:
                     raise ValueError("OpenAI model name is not set.")
                 requests.append(request)
