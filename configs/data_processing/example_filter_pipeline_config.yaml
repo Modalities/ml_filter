@@ -1,17 +1,45 @@
 params:
-  score_path: /path/to/annotations
-  tokenized_data_path: /path/to/tokenized
-  output_folder: /path/to/filtered
+  score_path: /data/horse/ws/alju972f-tokenization_at_scale/annotated_scores/sample/annotations
+  tokenized_data_path: /data/horse/ws/alju972f-tokenization_at_scale/eurolingua_tokenization/raw_data_tokenized/
+  output_folder: /data/horse/ws/alju972f-tokenization_at_scale/annotated_scores/output
 
   thresholds:
     score_Gemma_Snowflake: 3.0
-    score_Llama_Snowflake: 2.0
 
-  hash_to_base_file_mapping_csv: path/to/hashes.csv
-  base_file_prefix: /path/to/raw
+  hash_to_base_file_mapping_csv: /data/horse/ws/alju972f-tokenization_at_scale/annotated_scores/sample/hashes.csv
+  base_file_prefix: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/eurolingua/data/raw_data
   tokenized_data_extension: .pbin
 
-running_on_slurm: false
+params:
+  score_path: /data/horse/ws/alju972f-tokenization_at_scale/annotated_scores/annotations
+  tokenized_data_path: /data/horse/ws/alju972f-tokenization_at_scale/eurolingua_tokenization/raw_data_tokenized/
+  output_folder: /data/horse/ws/alju972f-tokenization_at_scale/annotated_scores/output
+
+  thresholds:
+    score_Mistral_Snowflake: 3.0
+
+  hash_to_base_file_mapping_csv: /data/horse/ws/alju972f-tokenization_at_scale/scripts/hashing/hashes_fineweb_final.csv
+  base_file_prefix: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/eurolingua/data/raw_data
+  tokenized_data_extension: .pbin
+
+# running_on_slurm: true
+
+# slurm_settings:
+#   tasks: 10
+#   sbatch_args:
+#     account: "p_gptx"
+#     nodes: "1"
+#     ntasks: "1"
+#   partition: "barnard"
+#   time: "02:00:00"
+#   cpus_per_task: 40
+#   mem_per_cpu: 2500
+#   job_name: "filter_tokenized_data"
+#   output: /data/horse/ws/alju972f-tokenization_at_scale/final_run/logs/filtering/output_dir/%j.out
+#   error: /data/horse/ws/alju972f-tokenization_at_scale/final_run/logs/filtering/error_dir/%j.err
+#   venv_path: /data/horse/ws/alju972f-tokenization_at_scale/env_filtering/bin/activate
+
+running_on_slurm: false   # set false to run locally
 
 local_settings:
   tasks: 1
@@ -19,4 +47,4 @@ local_settings:
   local_rank_offset: 0
   logging_dir: null
 
-slurm_settings: null
+

@@ -1,8 +1,3 @@
-"""Language sampling, filtering, and validation pipeline.
-
-Refactored for clarity, testability, and CLI flexibility.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -16,7 +11,7 @@ from typing import Dict, Tuple, Set
 
 import yaml
 import sentencepiece as spm
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from ml_filter.src.ml_filter.data_processing.lang_based_sampling.sampling_utils import (
     load_hash_mapping,
     invert_hash_mapping,
@@ -33,7 +28,7 @@ logger = logging.getLogger("language_pipeline")
 
 
 def setup_logging(level: str) -> None:
-    """Configure root logging once."""
+    """Configure root logging."""
     logging.basicConfig(
         level=getattr(logging, level.upper(), logging.INFO),
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -41,35 +36,28 @@ def setup_logging(level: str) -> None:
 
 
 class PathsConfig(BaseModel):
+    """Filesystem paths used by the pipeline."""
     tokenized_base: Path
     output_folder: Path
     base_file_prefix: Path
     csv_path: Path
     tokenizer_model: Path
 
-    @validator("tokenized_base", "output_folder", "base_file_prefix", "csv_path", "tokenizer_model", pre=True)
-    def _to_path(cls, v):  # type: ignore
-        return Path(v)
-
 
 class SamplingConfig(BaseModel):
+    """Sampling parameters: language distribution and total size."""
     language_distribution: Dict[str, int]
     total_sample_size: int = Field(gt=0)
 
-    @validator("language_distribution")
-    def non_empty_distribution(cls, v):  # type: ignore
-        if not v:
-            raise ValueError("language_distribution cannot be empty")
-        return v
-
 
 class PipelineConfig(BaseModel):
+    """Top-level pipeline configuration object."""
     paths: PathsConfig
     sampling: SamplingConfig
 
 
 def load_config(path: Path) -> PipelineConfig:
-    """Load YAML config into strongly typed PipelineConfig."""
+    """Load YAML config into PipelineConfig."""
     with open(path) as f:
         raw = yaml.safe_load(f)
     return PipelineConfig(**raw)
@@ -80,7 +68,7 @@ def run_sampling_and_filter(
     cfg: PipelineConfig,
     use_wc: bool,
 ) -> Tuple[Set[str], Dict[str, Dict[Path, int]], dict, dict]:
-    """Run sampling for all languages, return selected IDs for requested language and related mappings."""
+    """Run sampling and filtering, returning selected ids and metadata."""
     paths_cfg = cfg.paths
     sampling_cfg = cfg.sampling
     tokenized_base = paths_cfg.tokenized_base
@@ -109,7 +97,6 @@ def run_sampling_and_filter(
     selected_ids = set(selected_doc_ids_all[lang])
     logger.info(f"Selected {len(selected_ids)} synthetic IDs for {lang}")
 
-    # Filtering
     filterer = TokenizedFilterer(
         tokenized_base,
         output_folder,
@@ -133,10 +120,7 @@ def validate_filtered(
     cfg: PipelineConfig,
     samples_per_file: int | None = None,
 ) -> int:
-    """Validate filtered tokenized output against SentencePiece encoding.
-
-    Returns number of validated documents.
-    """
+    """Validate filtered tokenized output; return count validated."""
     hash_mapping, inv_hash_mapping = mappings
     tokenizer_model = cfg.paths.tokenizer_model
     base_file_prefix = cfg.paths.base_file_prefix
@@ -194,11 +178,8 @@ def validate_filtered(
                     continue
                 selected_lines.append((idx, rec))
 
-        # Optionally subsample validation lines for this file
         if samples_per_file is not None and len(selected_lines) > samples_per_file:
-            selected_lines = random.sample(selected_lines, samples_per_file)
-        
-        #logger the selected lines
+            selected_lines = selected_lines[:samples_per_file]
         logger.debug(f"Selected lines for validation in {data_file}: {[idx for idx, _ in selected_lines]}")
 
         for out_idx, (row_idx, rec) in enumerate(selected_lines):
@@ -213,7 +194,7 @@ def validate_filtered(
                 and (len(pipeline_tokens) - 1) == len(ref_tokens)
             ):
                 had_trailing_eod = True
-                logger.debug(f"Trailing EOD token found in line {row_idx} of {data_file}, ignoring for validation")
+                logger.debug(f"Trailing EOD token line={row_idx} file={data_file}")
                 compare_pipeline = pipeline_tokens[:-1]
             else:
                 compare_pipeline = pipeline_tokens
@@ -239,6 +220,7 @@ def validate_filtered(
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    """Parse CLI arguments."""
     p = argparse.ArgumentParser(
         description="Run language sampling/filtering/validation pipeline"
     )
@@ -259,12 +241,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     p.add_argument(
         "--validation-samples-per-file", type=int, default=5,
-        help="Maximum number of documents to validate per file (random sample). If omitted, validate all."
+        help="Max docs to validate per file."
     )
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Entry point for sampling + filtering + optional validation."""
     args = parse_args(argv or sys.argv[1:])
     setup_logging(args.log_level)
     logger.info(f"Starting pipeline lang={args.lang}")
@@ -287,5 +270,5 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     raise SystemExit(main())

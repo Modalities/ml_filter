@@ -15,16 +15,19 @@ from modalities.dataloader.dataset import PackedMemMapDatasetBase
 logger = logging.getLogger(__name__)
 
 def compute_target_samples(language_distribution: dict[str, int], total_sample_size: int) -> dict[str, int]:
+    """Return per-language target counts from percentage distribution.
+
+    language_distribution: mapping language -> percent (0-100)
+    total_sample_size: total desired documents across all languages
+    Returns: mapping language -> integer target count (rounded)
+    """
     targets = {lang: round(total_sample_size * pct / 100) for lang, pct in language_distribution.items()}
     logger.info(f"Computed targets (total={total_sample_size}): {targets}")
     return targets
 
 
 def load_hash_mapping(csv_path: Path) -> dict[str, Path]:
-    """
-    CSV has columns: file_path,md5
-    Returns: {md5: Path(raw_jsonl)}
-    """
+    """Load md5 -> raw file path mapping from a CSV with columns md5,file_path."""
     mapping = {}
     with open(csv_path, "r") as f:
         reader = csv.DictReader(f)
@@ -37,8 +40,7 @@ def load_hash_mapping(csv_path: Path) -> dict[str, Path]:
 
 
 def invert_hash_mapping(hash_mapping: dict[str, Path]) -> dict[Path, str]:
-    """Return inverse mapping: {Path(raw_jsonl): md5}.
-    """
+    """Invert md5->path mapping to path->md5, warning on duplicates."""
     inverse: dict[Path, str] = {}
     for md5, p in hash_mapping.items():
         if p in inverse:
@@ -48,15 +50,11 @@ def invert_hash_mapping(hash_mapping: dict[str, Path]) -> dict[Path, str]:
 
 
 def load_jsonl_counts(annotated_base: Path, use_wc: bool = True) -> dict[str, dict[Path, int]]:
-    """Traverse annotated_base/<lang>/... and count docs in each JSONL.
+    """Return nested mapping lang -> jsonl file -> line count.
 
-    Args:
-        annotated_base: Root directory containing per-language subdirectories with JSONL files.
-        use_wc: If True (default), attempt fast line counting via external `wc -l` command.
-                Falls back to Python iteration on failure.
-
-    Returns:
-        {lang: {annotated_file_path: num_docs}}
+    Uses `wc -l` when use_wc is True for speed, falling back to Python counting on failure.
+    annotated_base: root containing per-language subdirectories.
+    use_wc: attempt shell wc -l acceleration.
     """
     lang_to_files: dict[str, dict[Path, int]] = defaultdict(dict)
 
@@ -73,7 +71,7 @@ def load_jsonl_counts(annotated_base: Path, use_wc: bool = True) -> dict[str, di
             logger.debug(f"No JSONL files found under {lang_dir}")
             continue
         if use_wc:
-            logger.info(f"Using 'wc -l' to count lines in {len(jsonl_files)} files for language '{lang}'")
+            logger.info(f"Using wc -l for {len(jsonl_files)} files lang={lang}")
             try:
                 cmd = ["wc", "-l", *[str(p) for p in jsonl_files]]
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -118,16 +116,13 @@ def sample_documents(
     file_to_hash: dict[Path, str],
     rng: Optional[random.Random] = None
 ) -> Dict[str, List[str]]:
-    """Sample synthetic document IDs of the form <documenthash>_<line_index>.
+    """Sample document line indices proportionally per file to meet per-language targets.
 
-    Args:
-        lang_to_files: { lang: { Path(jsonl): n_docs, ... }, ... }
-        targets: { lang: target_count, ... }
-        file_to_hash: { Path(jsonl): md5 } mapping (inverse of the CSV md5->path mapping)
-        rng: optional random.Random instance for reproducibility
-
-    Returns:
-        { lang: [ "<md5>_<line_index>", ... ], ... }
+    lang_to_files: lang -> file -> line count
+    targets: lang -> desired sample size
+    file_to_hash: file path -> md5 hash used in synthetic id prefix
+    rng: optional random.Random for deterministic tests
+    Returns: lang -> list of synthetic ids <md5>_<line_index>
     """
     if rng is None:
         rng = random.Random()
@@ -147,11 +142,8 @@ def sample_documents(
 
         logger.info(f"Sampling lang={lang} target={target} files={len(files_items)} total_docs={total_docs}")
 
-        # Step 1: proportional allocation (floating)
         raw_allocs = [target * (n_docs / total_docs) for _, n_docs in files_items]
         allocs = [int(x) for x in raw_allocs]
-
-        # Step 2: distribute remainder by largest fractional part (tie-break random)
         remainder = target - sum(allocs)
         if remainder > 0:
             frac_info = [(i, raw_allocs[i] - allocs[i]) for i in range(len(files_items))]
@@ -164,15 +156,11 @@ def sample_documents(
                     allocs[i] += 1
                     remainder -= 1
         logger.debug(f"ALLOC_INITIAL lang={lang} allocs={allocs}")
-
-        # Step 3: cap allocations and reclaim overflow
         remainder = 0
         for i, (_, n_docs) in enumerate(files_items):
             if allocs[i] > n_docs:
                 remainder += allocs[i] - n_docs
                 allocs[i] = n_docs
-
-        # Step 3b: redistribute reclaimed remainder greedily
         while remainder > 0:
             candidates = [i for i, (_, n_docs) in enumerate(files_items) if allocs[i] < n_docs]
             if not candidates:
@@ -185,15 +173,12 @@ def sample_documents(
                 allocs[i] += 1
                 remainder -= 1
         logger.debug(f"ALLOC_FINAL lang={lang} allocs={allocs}")
-
-        # Step 4: sample line indices for each file and synthesize IDs
         for (fpath, n_docs), quota in zip(files_items, allocs):
             if quota <= 0:
                 continue
             doc_hash = file_to_hash.get(fpath)
             if doc_hash is None:
                 raise KeyError(f"Hash for file {fpath} not found in file_to_hash mapping")
-            # sample unique line indices (0-based)
             if quota > n_docs:
                 raise ValueError(f"Quota {quota} exceeds available lines {n_docs} in {fpath}")
             if quota == n_docs:
@@ -210,9 +195,8 @@ def sample_documents(
     return selected_doc_ids
 
 
-
-# --- Helper to make filter function ---
 def make_filter_func_from_ids(doc_ids: list[str], selected_ids: set[str]) -> Callable[[tuple[int, dict[str, np.ndarray]]], bool]:
+    """Build predicate for filtering PackedMemMap items by synthetic id membership."""
     def filter_func(item: tuple[int, dict[str, np.ndarray]]) -> bool:
         idx, _ = item
         try:
@@ -224,11 +208,7 @@ def make_filter_func_from_ids(doc_ids: list[str], selected_ids: set[str]) -> Cal
 
 
 def _filter_ids_for_file(file_path: Path, selected: set[str], inv_map: dict[Path, str]):
-    """Return (filtered_ids, target_rows) for a given annotated file.
-    filtered_ids: list of selected ids whose md5 prefix matches this file's md5.
-    target_rows: {row_index: full_id}
-    Assumes doc_id format: <md5>_<row_number>.
-    """
+    """Return (ids_for_file, index_map) for one annotated file based on selected ids."""
     base_md5 = inv_map.get(file_path)
     if not base_md5:
         raise ValueError(f"File path {file_path} not found in inverse hash mapping")
@@ -246,35 +226,50 @@ def _filter_ids_for_file(file_path: Path, selected: set[str], inv_map: dict[Path
     logger.debug(f"FILTER_IDS file={file_path} hash={base_md5} count={len(file_ids)}")
     return file_ids, rows
 
-# --- Tokenized filterer ---
+
 class TokenizedFilterer:
+    """Filter tokenized packed dataset files based on selected synthetic ids.
+
+    Maps annotated jsonl files (line-based) to corresponding tokenized .pbin files
+    and writes filtered copies preserving only selected document indices.
+    """
     def __init__(self, tokenized_base: Path, output_folder: Path, hash_mapping: dict[str, Path], inverse_mapping: dict[Path, str], base_file_prefix: Path):
+        """Create filterer.
+
+        tokenized_base: root directory of tokenized .pbin files
+        output_folder: destination root for filtered outputs
+        hash_mapping: md5 -> raw path mapping (from CSV)
+        inverse_mapping: raw path -> md5 mapping
+        base_file_prefix: common prefix directory of raw paths for relative resolution
+        """
         self._tokenized_base = tokenized_base
         self._output_folder = output_folder
-        self._hash_mapping = hash_mapping        # md5 -> raw_path
-        self._inverse_mapping = inverse_mapping  # Path(jsonl) -> md5
+        self._hash_mapping = hash_mapping
+        self._inverse_mapping = inverse_mapping
         self._base_file_prefix = base_file_prefix
 
     def _prepare_output_path(self, tokenized_file: Path) -> Path:
+        """Return output path for a tokenized file ensuring parent directories exist."""
         tokenized_file_rel = tokenized_file.relative_to(self._tokenized_base)
         output_path = self._output_folder / tokenized_file_rel.with_suffix(".filtered.pbin")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         return output_path
 
     def filter_document(self, annotated_file: Path, selected_ids: set[str]):
-        """Filter a tokenized file using synthetic IDs (<hash>_<idx>)."""
+        """Filter one annotated jsonl file's corresponding tokenized file using selected ids.
+
+        annotated_file: path to the annotated jsonl
+        selected_ids: full set of synthetic ids to retain (across languages)
+        """
         base_hash = self._inverse_mapping.get(annotated_file)
         if not base_hash:
             logger.info(f"Skipping {annotated_file}: no hash mapping found")
             return
 
-        # fast check: do any selected ids reference this hash?
         prefix = base_hash + "_"
         if not any(sid.startswith(prefix) for sid in selected_ids):
             logger.info(f"Skipping {annotated_file}: no selected ids for hash {base_hash}")
             return
-
-        # Build doc_ids list for index alignment (no need to parse JSON; just count lines)
         with open(annotated_file, "r") as f:
             doc_ids = [f"{base_hash}_{i}" for i, _ in enumerate(f)]
         logger.debug(
@@ -291,102 +286,7 @@ class TokenizedFilterer:
         except ValueError:
             raise ValueError(f"Raw path {raw_path} is not under base prefix {self._base_file_prefix}")
         output_path = self._prepare_output_path(tokenized_file)
-
         filter_func = make_filter_func_from_ids(doc_ids, selected_ids)
         logger.info(f"Filtering hash={base_hash} src={tokenized_file} -> dst={output_path}")
         filter_dataset(src_path=tokenized_file, dst_path=output_path, filter_func=filter_func)
         logger.info(f"Finished filtering hash={base_hash} output={output_path}")
-
-
-
-# # --- Main pipeline ---
-if __name__ == "__main__":
-    csv_path = Path("/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/hashes.csv")
-    annotations_base = Path("/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/annotations")
-    tokenized_base = Path("/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/tokenized")
-    output_folder = Path("/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/output_filtered")
-    base_file_prefix = Path("/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/jsonl_files")
-
-    language_distribution = {"als_Latn": 25, "deu_Latn": 75}
-    total_sample_size = 10
-
-    # # Load CSV hash mapping
-    hash_mapping = load_hash_mapping(csv_path)
-    inv_hash_mapping = invert_hash_mapping(hash_mapping)
-    # # Count annotated JSONL docs
-    lang_to_files = load_jsonl_counts(base_file_prefix)
-
-    # Compute targets
-    targets = compute_target_samples(language_distribution, total_sample_size)
-
-    # Sample documents
-    selected_doc_ids = sample_documents(lang_to_files, targets, inv_hash_mapping)
-
-    # Filter tokenized files
-    filterer = TokenizedFilterer(tokenized_base, output_folder, hash_mapping, inv_hash_mapping, base_file_prefix)
-    for lang, ids in selected_doc_ids.items():
-        selected_set = set(ids)
-        for annotated_file in lang_to_files[lang].keys():
-            filterer.filter_document(annotated_file, selected_set)
-
-
-    # # --- Validation step: re-tokenize and compare ---
-    # import json
-    import sentencepiece as spm
-    # from pathlib import Path
-
-    # # --- Validation step: re-tokenize and compare ---
-    # from collections import defaultdict
-
-    # selected_doc_ids = defaultdict(list)
-
-    # # selected_doc_ids["als_Latn"].append("29d82196d55803ab9c792e45b59919bf_273561")
-    # # selected_doc_ids["deu_Latn"].append("6f174ddca737f54cea5f34da31e15178_931238")
-
-    sp = spm.SentencePieceProcessor(
-        model_file="/data/horse/ws/alju972f-tokenization_at_scale/eurolingua_tokenization/tokenizer/tueken2_tokenizer_model.model"
-    )
-
-    for lang, ids in selected_doc_ids.items():
-        for data_file in lang_to_files[lang].keys():
-            filtered_ids, target_rows = _filter_ids_for_file(data_file, ids, inv_hash_mapping)
-            if not filtered_ids:
-                continue
-
-            rel = data_file.relative_to(base_file_prefix)
-            filtered_file = output_folder / rel.with_suffix(".filtered.pbin")
-            source_data = PackedMemMapDatasetBase(filtered_file, sample_key="input_ids", load_index=True)
-
-            # print out which files are being compared
-            print(f"Validating {data_file} against {filtered_file} for language {lang}")
-            
-            selected_lines: list[tuple[int, dict]] = []
-            with open(data_file) as f:
-                for idx, line in enumerate(f):
-                    if idx not in target_rows:
-                        continue
-                    rec = json.loads(line)
-                    selected_lines.append((idx, rec))
-
-            if len(selected_lines) != len(source_data):
-                logging.warning(
-                    f"Length mismatch for {annotated_file}: filtered_pbin={len(source_data)} selected_lines={len(selected_lines)}"
-                )
-
-            selected_lines = random.sample(selected_lines, 3)
-            for out_idx, (row_idx, rec) in enumerate(selected_lines):
-                if out_idx >= len(source_data):
-                    break
-                pipeline_tokens = source_data[out_idx]["input_ids"].tolist()
-                ref_tokens = sp.encode(rec["text"], out_type=int)
-                # First check length mismatch (often most informative / faster)
-                if len(pipeline_tokens) != len(ref_tokens):
-                    print(
-                        f"Length mismatch for line {row_idx}: pipeline_len={len(pipeline_tokens)} ref_len={len(ref_tokens)}"
-                    )
-                    raise AssertionError(f"❌ Length mismatch for line {row_idx}")
-                for i, (p_tok, r_tok) in enumerate(zip(pipeline_tokens, ref_tokens)):
-                    if p_tok != r_tok:
-                        print(f"Token mismatch at position {i} for line {row_idx}: pipeline={p_tok} ref={r_tok}")
-                        break
-                raise AssertionError(f"❌ Token mismatch for line {row_idx}")
