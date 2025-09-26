@@ -1,0 +1,14 @@
+paths:
+  annotations_base: "/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/annotations"
+  tokenized_base: "/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/tokenized"
+  output_folder: "/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/output_filtered"
+  base_file_prefix: "/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/jsonl_files" #"/data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/eurolingua/data/raw_data/fineweb2"
+  csv_path: "/data/horse/ws/alju972f-tokenization_at_scale/sampling_pipeline_test/hashes.csv"
+  tokenizer_model: "/data/horse/ws/alju972f-tokenization_at_scale/eurolingua_tokenization/tokenizer/tueken2_tokenizer_model.model"
+
+sampling:
+  language_distribution:
+    als_Latn: 25
+    deu_Latn: 75
+  total_sample_size: 10
+  random_seed: 42
