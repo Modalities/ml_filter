@@ -28,8 +28,7 @@ dependencies = [
     "seaborn",
     "python-dotenv",
     "jq",
-    "tabulate",
-    "datatrove",
+    "tabulate"
 ]
 
 [project.optional-dependencies]
