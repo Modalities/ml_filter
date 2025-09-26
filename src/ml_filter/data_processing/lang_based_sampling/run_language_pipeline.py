@@ -12,7 +12,7 @@ from typing import Dict, Tuple, Set
 import yaml
 import sentencepiece as spm
 from pydantic import BaseModel, Field
-from ml_filter.src.ml_filter.data_processing.lang_based_sampling.sampling_utils import (
+from sampling_utils import (
     load_hash_mapping,
     invert_hash_mapping,
     load_jsonl_counts,
