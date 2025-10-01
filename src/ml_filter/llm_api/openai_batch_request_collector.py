@@ -33,9 +33,14 @@ class OpenAIBatchAPIRequestSubmitter:
                 response_data = json.load(f)
             batch = Batch.model_validate(response_data)
             self.logger.info(f"Checking status for requests file {filepath}:")
-            self._check_batch(batch)
+            data = self._check_batch(batch)
+            if data is not None:
+                out_path = filepath.parent / "batch_results.jsonl"
+                with open(out_path, "w") as out_f:
+                    for item in data:
+                        out_f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    def _check_batch(self, batch: Batch):
+    def _check_batch(self, batch: Batch) -> List[Dict[str, Any]] | None:
         batch_check = self.client.batches.retrieve(batch.id)
 
         status_reason_mapping = {
@@ -61,10 +66,22 @@ class OpenAIBatchAPIRequestSubmitter:
 
         if batch_check.status == "completed" and batch_check.request_counts is not None:
             if batch_check.request_counts.completed > 0:
-                file_content = self.client.files.content(batch_check.output_file_id)
-                self.logger.info(file_content)
+                if batch_check.request_counts.completed == batch_check.request_counts.total:
+                    self.logger.info(f"All {batch_check.request_counts.completed} requests completed successfully.")
+                else:
+                    self.logger.warning(
+                        f"{batch_check.request_counts.completed} out "
+                        + f"of {batch_check.request_counts.total} requests completed successfully."
+                    )
+                result = self.client.files.content(batch_check.output_file_id).content.decode("utf-8")
+                lines = result.strip().split("\n")
+                data = [json.loads(line) for line in lines]
+                self.logger.info(result)
+                return data
             if batch_check.request_counts.failed > 0:
-                self.logger.error(self.client.files.content(batch_check.error_file_id).content.decode("utf-8"))
+                self.logger.error(f"{batch_check.request_counts.failed} requests failed:")
+                error = self.client.files.content(batch_check.error_file_id).content.decode("utf-8")
+                self.logger.error(error)
 
     def submit(self):
         batch_request_file_paths = self._store_batch_requests()
@@ -121,7 +138,7 @@ class OpenAIBatchAPIRequestSubmitter:
                 if self.model_name:
                     request["body"]["model"] = self.model_name
                     if "gpt-5" in self.model_name:
-                        forbidden_generation_kwargs = ["max_tokens", "temperature"]
+                        forbidden_generation_kwargs = ["max_tokens", "temperature", "top_p"]
                         for param in forbidden_generation_kwargs:
                             if param in request["body"]:
                                 del request["body"][param]

@@ -20,6 +20,7 @@ from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file
 from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
+from ml_filter.utils.get_costs_of_openai_batched_requests import find_and_process_files
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
@@ -810,6 +811,46 @@ def submit_collected_requests_to_batched_openai_api_cli(
         collector.submit()
     else:
         collector.check_status()
+
+
+@main.command(name="get_costs_of_openai_batched_requests")
+# parser = argparse.ArgumentParser(
+#     description="Process 'batch_results.jsonl' files to generate a markdown cost report."
+# )
+# parser.add_argument("root_directory", type=str, help="The root directory to search recursively.")
+# parser.add_argument(
+#     "--cost-plan",
+#     type=str,
+#     choices=["batched", "not batched"],
+#     default="batched",
+#     help="The cost plan to use for calculations.",
+# )
+# parser.add_argument(
+#     "-o",
+#     "--output-file",
+#     type=str,
+#     default="report.md",
+#     help="Path to save the markdown report (default: report.md).",
+# )
+
+
+# args = parser.parse_args()
+@click.option(
+    "--root_directory",
+    type=str,
+    required=True,
+    help="The root directory to search recursively.",
+)
+@click.option(
+    "-o",
+    "--output_file",
+    type=str,
+    default="report.md",
+    show_default=True,
+    help="Path to save the markdown report (default: report.md under the root dir).",
+)
+def get_costs_of_openai_batched_requests_cli(root_directory: str, output_file: str):
+    find_and_process_files(root_directory, output_file)
 
 
 if __name__ == "__main__":
