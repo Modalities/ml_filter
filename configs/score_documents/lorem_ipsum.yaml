@@ -8,7 +8,8 @@ settings:
   
   paths:
     raw_data_file_paths: 
-    - data/test_fineweb2_dump.jsonl
+    - data/fineweb_2_500k_both/split/spa_Latn_sampled_500k_0_to_600.jsonl
+    - data/fineweb_2_500k_both/split/srp_Cyrl_sampled_500k_0_to_600.jsonl
     output_directory_path: data/output
     prompt_template_file_path: data/prompts/fineweb_edu/educational_prompt.yaml
     start_indexes:
@@ -49,4 +50,4 @@ document_processor:
   score_metric_name: educational_score
   strings_to_remove: []
   jq_language_pattern: .language
-  document_id_column: document_id
+  document_id_column: id

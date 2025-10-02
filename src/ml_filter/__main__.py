@@ -810,7 +810,7 @@ def submit_collected_requests_to_batched_openai_api_cli(
     if not check_status_only:
         collector.submit()
     else:
-        collector.check_status()
+        collector.check_status_maybe_get_results()
 
 
 @main.command(name="get_costs_of_openai_batched_requests")

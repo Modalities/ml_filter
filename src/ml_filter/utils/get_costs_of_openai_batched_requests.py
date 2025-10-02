@@ -1,5 +1,6 @@
 import argparse
 import json
+from collections import defaultdict
 from pathlib import Path
 
 from tabulate import tabulate
@@ -82,6 +83,15 @@ def find_and_process_files(root_dir, output_file):
     all_results = []
     total_cost_batched = 0.0
     total_cost_not_batched = 0.0
+    folder_totals = defaultdict(
+        lambda: {
+            "batched": 0.0,
+            "not_batched": 0.0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "models": set(),
+        }
+    )
 
     search_path = Path(root_dir)
     if not search_path.is_dir():
@@ -110,13 +120,24 @@ def find_and_process_files(root_dir, output_file):
                     total_cost_batched += cost_batched
                     total_cost_not_batched += cost_not_batched
 
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    total_tokens = usage.get("total_tokens", 0)
+
+                    # Aggregate data per folder
+                    folder_totals[parent_folder]["batched"] += cost_batched
+                    folder_totals[parent_folder]["not_batched"] += cost_not_batched
+                    folder_totals[parent_folder]["prompt_tokens"] += prompt_tokens
+                    folder_totals[parent_folder]["completion_tokens"] += completion_tokens
+                    folder_totals[parent_folder]["models"].add(model)
+
                     all_results.append(
                         [
                             parent_folder,
                             model,
-                            usage.get("prompt_tokens", 0),
-                            usage.get("completion_tokens", 0),
-                            usage.get("total_tokens", 0),
+                            f"{prompt_tokens:,}",
+                            f"{completion_tokens:,}",
+                            f"{total_tokens:,}",
                             f"${cost_batched:.6f}",
                             f"${cost_not_batched:.6f}",
                         ]
@@ -124,10 +145,10 @@ def find_and_process_files(root_dir, output_file):
                 except (json.JSONDecodeError, KeyError) as e:
                     print(f"Warning: Could not process line {i} in {file_path}. Error: {e}")
 
-    generate_markdown_report(all_results, total_cost_batched, total_cost_not_batched, output_file)
+    generate_markdown_report(all_results, folder_totals, total_cost_batched, total_cost_not_batched, output_file)
 
 
-def generate_markdown_report(results, total_cost_batched, total_cost_not_batched, output_file):
+def generate_markdown_report(results, folder_totals, total_cost_batched, total_cost_not_batched, output_file):
     """Generates and saves the final report as a markdown file."""
     md_content = ["# 📊 Cost Analysis Report: Batched vs. Not Batched Plans", "\n---"]
 
@@ -150,21 +171,70 @@ def generate_markdown_report(results, total_cost_batched, total_cost_not_batched
     if not results:
         md_content.append("No 'batch_results.jsonl' files with valid data found.")
     else:
-        headers = [
-            "Parent Folder",
+        pass
+        # md_content.append(tabulate(results, headers=headers, tablefmt="pipe"))
+
+    md_content.append("\n---")
+    md_content.append("## 📊 Cost Summary by Dataset (Parent Folder)")
+    if not folder_totals:
+        md_content.append("No data to summarize.")
+    else:
+        summary_headers = [
+            "Dataset (Parent Folder)",
             "Model",
             "Prompt Tokens",
             "Completion Tokens",
-            "Total Tokens",
-            "Cost (Batched)",
-            "Cost (Not Batched)",
+            "Total Cost (Batched)",
+            "Total Cost (Not Batched)",
         ]
-        md_content.append(tabulate(results, headers=headers, tablefmt="pipe"))
+        summary_data = []
+        for folder, totals in sorted(folder_totals.items()):
+            models_str = ", ".join(sorted(list(totals["models"])))
+            summary_data.append(
+                [
+                    folder,
+                    models_str,
+                    f"{totals['prompt_tokens']:,}",
+                    f"{totals['completion_tokens']:,}",
+                    f"${totals['batched']:.6f}",
+                    f"${totals['not_batched']:.6f}",
+                ]
+            )
+        md_content.append(tabulate(summary_data, headers=summary_headers, tablefmt="pipe"))
+
+    md_content.append("\n---")
+    md_content.append("## 🌍 Cost Extrapolation for 37 Languages")
+
+    if not folder_totals:
+        md_content.append("No data available to perform extrapolation.")
+    else:
+        num_folders = len(folder_totals)
+        mean_batched = total_cost_batched / num_folders
+        mean_not_batched = total_cost_not_batched / num_folders
+
+        extrapolated_batched = mean_batched * 37
+        extrapolated_not_batched = mean_not_batched * 37
+
+        extrapolation_headers = ["Metric", "Value"]
+        extrapolation_data = [
+            ["Number of Datasets (Languages) Analyzed", f"{num_folders}"],
+            ["Mean Cost per Language (Batched)", f"${mean_batched:.4f}"],
+            ["Mean Cost per Language (Not Batched)", f"${mean_not_batched:.4f}"],
+            [
+                "Extrapolated Cost for 37 Languages (Batched)",
+                f"${extrapolated_batched:,.2f}",
+            ],
+            [
+                "Extrapolated Cost for 37 Languages (Not Batched)",
+                f"${extrapolated_not_batched:,.2f}",
+            ],
+        ]
+        md_content.append(tabulate(extrapolation_data, headers=extrapolation_headers, tablefmt="pipe"))
 
     md_content.append("\n---")
     md_content.append("## 💰 Grand Totals")
-    md_content.append(f"- **Batched Plan Total:** `${total_cost_batched:.4f}`")
-    md_content.append(f"- **Not Batched Plan Total:** `${total_cost_not_batched:.4f}`")
+    md_content.append(f"- **Batched Plan Total:** `${total_cost_batched:,.4f}`")
+    md_content.append(f"- **Not Batched Plan Total:** `${total_cost_not_batched:,.4f}`")
 
     try:
         output_file = Path(output_file)

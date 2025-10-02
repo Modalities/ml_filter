@@ -22,7 +22,7 @@ class OpenAIBatchAPIRequestSubmitter:
         self.client = OpenAI()
         self.logger = get_logger(name=self.__class__.__name__, level=logging.INFO)
 
-    def check_status(self):
+    def check_status_maybe_get_results(self):
         batch_response_filepath = [
             Path(f).parent / self.batch_response_filename for f, _ in self._get_batched_requests().items()
         ]
