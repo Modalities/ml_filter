@@ -3,16 +3,16 @@ dataset_name: training
 params:
   # File selection
   glob_pattern: "**/*.jsonl"
-  input_dir: /raid/s3/opengptx/abbas/processed_data_natural/${dataset_name}_set
-  csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/dataset/hashes/${dataset_name}.csv
+  input_dir: /data/cat/ws/alju972f-regression_heads/dataset/Regression_head/abbas/processed_data_natural/${dataset_name}_set
+  csv_hashmap_path: /data/cat/ws/alju972f-regression_heads/dataset/Regression_head/abbas/hashes/${dataset_name}.csv
 
   # Output
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/mmbert_results/embeddings
+  output_dir: /data/cat/ws/alju972f-regression_heads/dataset/mmbet_embeddings/test_set
   embedding_dir: ${dataset_name}_embeddings
 
   # Model and embedding parameters
   embedding_model: jhu-clsp/mmBERT-base
-  batch_size: 128
+  batch_size: 16
   writer_batch_size: 1000
   hdf5_dataset_name: train
   save_labels: true
@@ -20,24 +20,25 @@ params:
   padding: true
   truncation: true
 
-running_on_slurm: false
+running_on_slurm: true
 
 local_settings: null
 
-slurm_settings: 
+slurm_settings:
+  sbatch_args:
+    account: "p_gptx"
+    nodes: 1
+    ntasks: 1
+    gres: gpu:1
   partition: "capella"
-  tasks: 1
-  workers: 1001
   time: "04:00:00"
-  cpus_per_task: 32
-  mem_per_cpu_gb: 8
+  cpus_per_task: 8
+  mem_per_cpu_gb: 2
   gpus_per_task: 1
   job_name: "MMbert_embedder"
   output: /data/cat/ws/alju972f-regression_heads/dataset/mmbet_embeddings/mmber_logs/%j.out
   error: /data/cat/ws/alju972f-regression_heads/dataset/mmbet_embeddings/mmber_logs/%j.err
-  account: "p_gptx"
   qos: "normal"
-  nodes: 4
-  ntasks: 1
-  gres: gpu:4
   venv_path: /data/cat/ws/alju972f-regression_heads/envs/env_regression_heads/bin/activate
+  tasks: 10
+  workers: 1001

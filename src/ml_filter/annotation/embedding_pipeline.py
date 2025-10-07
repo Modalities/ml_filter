@@ -21,24 +21,17 @@ from ml_filter.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder
 class EmbeddingPipelineParameters(BaseModel):
     input_dir: str = Field(..., description="Directory containing JSONL files.")
     csv_hashmap_path: Path = Field(..., description="CSV mapping file paths to md5 hashes.")
-    glob_pattern: str = Field("*.jsonl", description="Glob for selecting JSONL files.")
+    glob_pattern: str = Field(..., description="Glob for selecting JSONL files.")
     output_dir: Path = Field(..., description="Root output directory.")
-    embedding_dir: str = Field("embeddings", description="Subdirectory for embedding outputs.")
-    embedding_model: str = Field(
-        "Snowflake/snowflake-arctic-embed-m-v2.0", description="Embedding model identifier."
-    )
-    hdf5_dataset_name: str = Field("train", description="Dataset/group name in HDF5 output.")
-    batch_size: int = Field(256, description="Embedding batch size.")
-    writer_batch_size: int = Field(1000, description="Batch size for flush to disk in writer.")
-    max_length: int = Field(8192, description="Max token length.")
-    padding: bool | str = Field(True, description="Padding strategy.")
-    truncation: bool | str = Field(True, description="Truncation strategy.")
-    save_labels: bool = Field(True, description="Copy score->label if present when writing.")
-    # execution parameters (now loaded from YAML when present)
-    tasks: int = 1
-    workers: int = -1
-    local_tasks: int = 1
-    local_rank_offset: int = 0
+    embedding_dir: str = Field(..., description="Subdirectory for embedding outputs.")
+    embedding_model: str = Field(..., description="Embedding model identifier.")
+    hdf5_dataset_name: str = Field(..., description="Dataset/group name in HDF5 output.")
+    batch_size: int = Field(..., description="Embedding batch size.")
+    writer_batch_size: int = Field(..., description="Batch size for flush to disk in writer.")
+    max_length: int = Field(..., description="Max token length.")
+    padding: bool | str = Field(..., description="Padding strategy.")
+    truncation: bool | str = Field(..., description="Truncation strategy.")
+    save_labels: bool = Field(..., description="Copy score->label if present when writing.")
 
     @property
     def embedding_output_dir(self) -> Path:
@@ -65,7 +58,9 @@ class SlurmExecutionSettings(BaseModel):
     env_command: str | None = None
     condaenv: str | None = None
     venv_path: str | None = None
-    sbatch_args: dict[str, str] | None = None
+    # Allow users to supply any sbatch arg (e.g. nodes, ntasks, gres, account, output, error, gpus-per-task, etc.)
+    # using either snake_case or dash-case. Primitive values get coerced to strings.
+    sbatch_args: dict[str, str | int | float | bool] | None = None
     max_array_size: int = 1001
     depends_job_id: str | None = None
     job_id_position: int = -1
@@ -80,8 +75,27 @@ class SlurmExecutionSettings(BaseModel):
     mail_type: str = "ALL"
     mail_user: str | None = None
     requeue: bool = True
-    srun_args: dict[str, str] | None = None
+    srun_args: dict[str, str | int | float | bool] | None = None
     tasks_per_job: int = 1
+
+    @model_validator(mode="before")
+    def _normalize_sbatch(cls, values):  # type: ignore[override]
+        """Normalize sbatch_args only.
+
+        - Accept numeric/bool types and coerce to string
+        - Fold common top-level keys (output, error, gpus_per_task) into sbatch_args
+        - Convert snake_case keys to dash-case
+        """
+        from omegaconf import DictConfig as _DictConfig  # local import
+
+        sbatch_args = values.get("sbatch_args") or {}
+        if isinstance(sbatch_args, _DictConfig):
+            sbatch_args = OmegaConf.to_container(sbatch_args, resolve=True)  # type: ignore[arg-type]
+        if not isinstance(sbatch_args, dict):
+            raise TypeError(f"sbatch_args must be a mapping if provided (got type {type(sbatch_args)})")
+
+        values["sbatch_args"] = sbatch_args
+        return values
 
 
 class EmbeddingPipelineBuilder(BaseSettings):
@@ -113,7 +127,11 @@ class EmbeddingPipelineBuilder(BaseSettings):
         return self
 
     @classmethod
-    def from_yaml(cls, path: Path, running_on_slurm: bool = False) -> "EmbeddingPipelineBuilder":
+    def from_yaml(
+        cls,
+        path: Path,
+        running_on_slurm: bool | None = None,
+    ) -> "EmbeddingPipelineBuilder":
         """Create a builder directly from a YAML file.
 
         Supports two schema styles:
@@ -122,7 +140,9 @@ class EmbeddingPipelineBuilder(BaseSettings):
 
         Args:
             path: Path to YAML file
-            running_on_slurm: Override execution mode (if provided in YAML, this arg takes precedence)
+            running_on_slurm: Optional override execution mode. If None, value will be read from YAML
+                (key: `running_on_slurm`; defaults to False when absent). If a boolean is provided it
+                takes precedence over the YAML value.
         """
         if not path.is_file():
             raise FileNotFoundError(f"Config file not found: {path}")
@@ -132,19 +152,14 @@ class EmbeddingPipelineBuilder(BaseSettings):
         if "params" in raw:  # builder style
             params_cfg = raw["params"]  # still a DictConfig
             OmegaConf.resolve(params_cfg)  # resolves all ${...} references
-            rs = running_on_slurm if running_on_slurm is not None else raw.get("running_on_slurm", False)
+            # Respect explicit override only when the caller supplies a value; otherwise honor YAML
+            rs = raw.get("running_on_slurm", False) if running_on_slurm is None else running_on_slurm
             slurm_settings = raw.get("slurm_settings", None)
             local_section = raw.get("local_settings", None)
         else:  # legacy flat style (your current YAML)
-            params_cfg = raw
-            rs = running_on_slurm if running_on_slurm is not None else raw.get("running_on_slurm", False)
-            slurm_settings = raw.get("slurm_settings", None)
-            local_section = {
-                "tasks": raw.get("tasks"),
-                "workers": raw.get("workers"),
-                "local_tasks": raw.get("local_tasks"),
-                "local_rank_offset": raw.get("local_rank_offset"),
-            }
+            raise DeprecationWarning(
+                "Legacy flat config style is deprecated. Please migrate to builder style with a top-level 'params:' section."
+            )
 
         # Simple interpolation for ${dataset_name} tokens in legacy-style values
         dataset_name = params_cfg.get("dataset_name") if isinstance(params_cfg, dict) else None
@@ -227,8 +242,10 @@ class EmbeddingPipelineBuilder(BaseSettings):
     def build_executor(self) -> LocalPipelineExecutor | SlurmPipelineExecutor:
         pipeline = self.build_pipeline()
         if self.running_on_slurm:
-            return SlurmPipelineExecutor(pipeline=pipeline, **self.slurm_settings.model_dump())  # type: ignore[arg-type]
-        return LocalPipelineExecutor(pipeline=pipeline, **self.local_settings.model_dump())  # type: ignore[arg-type]
+            print("Running Slurm Pipeline Executor")
+            return SlurmPipelineExecutor(pipeline=pipeline, **self.slurm_settings.model_dump())
+        print("Running Local Pipeline Executor")
+        return LocalPipelineExecutor(pipeline=pipeline, **self.local_settings.model_dump())
 
 
 

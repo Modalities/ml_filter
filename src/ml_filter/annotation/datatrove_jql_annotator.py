@@ -306,7 +306,6 @@ class JQLEmbedder(PipelineStep):
             else:
                 device = f"cuda:{self.device_overwrite}"
 
-        print(f"Using device: {device} for rank {rank}---------------------------------------->")
         embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
 
         # self.batch_size = find_max_batch_size(embedder, max_limit=1000000, step=500)
