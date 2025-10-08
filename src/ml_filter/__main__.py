@@ -365,7 +365,7 @@ def aggregate_human_annotations_cli(
     "--min_metrics",
     type=str,
     help="Comma-separated list of metrics for which lower is better."
-    + "All other metrics are considered to be better when higher.",
+         + "All other metrics are considered to be better when higher.",
 )
 @click.option(
     "--report_metrics",
@@ -771,6 +771,20 @@ def hash_files_to_csv_cli(input_dir: Path, output_csv: Path, chunk_size: int):
 
     hash_files_to_csv(list(jsonl_files), output_csv, chunk_size)
     click.echo(f"Hashed {len(jsonl_files)} files (recursive) from {input_dir} -> {output_csv}")
+
+
+@main.command(name="run_annotation_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_run_annotations(config_file_path: Path):
+    """Run annotation pipeline using precomputed embeddings from HDF5."""
+    run_annotation_pipeline(
+        config_file_path=config_file_path
+    )
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):

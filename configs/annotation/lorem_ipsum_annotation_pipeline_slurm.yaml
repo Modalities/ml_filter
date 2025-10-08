@@ -1,0 +1,31 @@
+params:
+  embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/data/input_dir_hierarchy
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/annotations_new/
+
+  regression_head_checkpoints:
+    Gemma_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-gemma-snowflake-balanced.ckpt
+    Llama_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-llama-snowflake-balanced.ckpt
+  batch_size: 1000
+
+running_on_slurm: true
+
+local_settings: null
+
+slurm_settings:
+  sbatch_args:
+    account: "p_gptx"
+    nodes: 1
+    ntasks: 1
+    gres: gpu:1
+  partition: "capella"
+  time: "04:00:00"
+  cpus_per_task: 8
+  mem_per_cpu_gb: 2
+  gpus_per_task: 1
+  job_name: "MMbert_embedder"
+  output: /data/cat/ws/alju972f-regression_heads/dataset/mmbet_embeddings/mmber_logs/%j.out
+  error: /data/cat/ws/alju972f-regression_heads/dataset/mmbet_embeddings/mmber_logs/%j.err
+  qos: "normal"
+  venv_path: /data/cat/ws/alju972f-regression_heads/envs/env_regression_heads/bin/activate
+  tasks: 10
+  workers: 1001
