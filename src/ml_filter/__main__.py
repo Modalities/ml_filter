@@ -13,6 +13,7 @@ from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
 from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
+from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.data_processing.hash_data_files import hash_files_to_csv
