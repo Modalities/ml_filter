@@ -1,0 +1,31 @@
+dataset_name: minority
+
+params:
+  # File selection
+  glob_pattern: "**/*.jsonl"
+  input_dir: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/minority_languages/jsonl_files
+  csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/minority_languages/hashes_min.csv
+
+  # Output
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/minority_languages
+  embedding_dir: ${dataset_name}_embeddings
+
+  # Model and embedding parameters
+  embedding_model: jhu-clsp/mmBERT-base
+  batch_size: 128
+  writer_batch_size: 1000
+  hdf5_dataset_name: train
+  save_labels: true
+  max_length: 8192
+  padding: true
+  truncation: true
+
+running_on_slurm: false
+
+local_settings:
+  tasks: 1
+  workers: 1
+  local_tasks: 1
+  local_rank_offset: 0
+
+slurm_settings: null
