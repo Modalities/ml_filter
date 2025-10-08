@@ -43,6 +43,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         # Create dummy OmegaConf config
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
         OmegaConf.save(config=OmegaConf.create({
+            "params": {
             "embeddings_directory": self.embeddings_dir,
             "regression_head_checkpoints": {
                 "Edu-JQL-Mistral-SF": mistral_ckpt_path
@@ -52,16 +53,16 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             "tasks": 1,
             "local_tasks": 1,
             "local_rank_offset": 0,
-        }), f=self.config_path)
+        }}), f=self.config_path)
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
 
     def test_config_loading(self):
         cfg = OmegaConf.load(self.config_path)
-        self.assertEqual(cfg.embeddings_directory, self.embeddings_dir)
-        self.assertEqual(cfg.batch_size, 2)
-        self.assertEqual(cfg.output_dir, self.output_dir)
+        self.assertEqual(cfg.params.embeddings_directory, self.embeddings_dir)
+        self.assertEqual(cfg.params.batch_size, 2)
+        self.assertEqual(cfg.params.output_dir, self.output_dir)
 
     def test_jql_embedding_reader(self):
         from ml_filter.annotation.datatrove_jql_annotator import JQLEmbeddingReader

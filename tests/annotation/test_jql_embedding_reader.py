@@ -18,7 +18,7 @@ class TestJQLEmbeddingReader(unittest.TestCase):
         # Create a dummy HDF5 file
         self.h5_file = os.path.join(self.tmp_dir, "mock_data.h5")
         self.embeddings = np.random.rand(3, 5).astype(np.float32)
-        self.labels = np.array([[1], [0], [1]], dtype=np.float32)
+        self.labels = np.array(["doc1", "doc2", "doc3"], dtype=h5py.string_dtype(encoding="utf-8"))
 
         with h5py.File(self.h5_file, "w") as f:
             grp = f.create_group("train")
@@ -37,9 +37,8 @@ class TestJQLEmbeddingReader(unittest.TestCase):
         self.assertEqual(len(documents), len(expected_embeddings))
 
         for i, doc in enumerate(documents):
-            self.assertEqual(doc.id, str(i + skip))
             np.testing.assert_allclose(doc.text, expected_embeddings[i], rtol=1e-5)
-            np.testing.assert_allclose(doc.metadata["document_id"], expected_document_id[i], rtol=1e-5)
+            np.testing.assert_equal(doc.metadata["document_id"], expected_document_id[i])
 
     def test_read(self):
         reader = JQLEmbeddingReader(self.tmp_dir)
