@@ -427,41 +427,44 @@ class HDF5Writer(DiskWriter):
         file = self._writers[filename]
         group_name = self.dataset_name
 
+        # If group does not exist, create fresh datasets (no duplication)
         if group_name not in file:
-            # Create group and datasets with unlimited first dimension (resizable)
             group = file.create_group(group_name)
-            maxshape_emb = (None, embeddings.shape[1])  # None means unlimited rows
+            maxshape_emb = (None, embeddings.shape[1])
             maxshape_ids = (None,)
-            group.create_dataset(
-                "embeddings", data=embeddings, maxshape=maxshape_emb, compression="gzip", dtype=np.float32
+            emb_ds = group.create_dataset(
+                "embeddings", shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression="gzip", dtype=np.float32
             )
             dt = h5py.string_dtype(encoding="utf-8")
-            group.create_dataset("document_id", data=document_id, maxshape=maxshape_ids, compression="gzip", dtype=dt)
+            id_ds = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression="gzip", dtype=dt)
+            labels_ds = None
             if labels is not None:
-                maxshape_labels = (None, labels.shape[1])
-                group.create_dataset(
-                    "labels", data=labels, maxshape=maxshape_labels, compression="gzip", dtype=np.float32
+                maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
+                labels_ds = group.create_dataset(
+                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression="gzip", dtype=np.float32
                 )
+        else:
             group = file[group_name]
             emb_ds = group["embeddings"]
             id_ds = group["document_id"]
             labels_ds = group.get("labels") if "labels" in group else None
 
-            # Current sizes
-            old_size = emb_ds.shape[0]
-            new_size = old_size + embeddings.shape[0]
-
-            # Resize datasets to hold new batch
-            emb_ds.resize(new_size, axis=0)
-            id_ds.resize(new_size, axis=0)
-            if labels_ds is not None and labels is not None:
-                labels_ds.resize(new_size, axis=0)
-
-            # Append new data
-            emb_ds[old_size:new_size, :] = embeddings
-            id_ds[old_size:new_size] = document_id
-            if labels_ds is not None and labels is not None:
-                labels_ds[old_size:new_size] = labels
+        # Resize for new batch once and append
+        old_size = emb_ds.shape[0]
+        new_size = old_size + embeddings.shape[0]
+        emb_ds.resize(new_size, axis=0)
+        id_ds.resize(new_size, axis=0)
+        emb_ds[old_size:new_size, :] = embeddings
+        id_ds[old_size:new_size] = document_id
+        if labels is not None:
+            if labels_ds is None:
+                # Create labels dataset now if first time labels appear
+                maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
+                labels_ds = group.create_dataset(
+                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression="gzip", dtype=np.float32
+                )
+            labels_ds.resize(new_size, axis=0)
+            labels_ds[old_size:new_size] = labels
 
     def _write(self, document: dict, file_handler: IO, filename: str):
         if filename not in self._writers:

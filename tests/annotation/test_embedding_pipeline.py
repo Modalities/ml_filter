@@ -72,6 +72,7 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
         OmegaConf.save(
             config=OmegaConf.create({
+                "params": {
                 "input_dir": self.input_dir,
                 "output_dir": self.output_dir,
                 "tasks": 2,
@@ -82,7 +83,8 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
                 "embedding_model": 'Snowflake/snowflake-arctic-embed-m-v2.0',
                 "hdf5_dataset_name": "train",
                 "batch_size": 32,
-            }),
+                "save_labels": False,
+                }}),
             f=self.config_path,
         )
 

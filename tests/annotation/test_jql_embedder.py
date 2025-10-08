@@ -49,7 +49,7 @@ class JQLEmbedderTestBase(unittest.TestCase):
 
 class TestJQLEmbedder(JQLEmbedderTestBase):
     def test_embedding_output_structure(self):
-        embedder = JQLEmbedder(batch_size=2)
+        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2)
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         self.assertEqual(len(embedded_docs), len(self.input_docs))
@@ -66,7 +66,7 @@ class TestJQLEmbedder(JQLEmbedderTestBase):
 
 class TestHDF5Writer(JQLEmbedderTestBase):
     def test_write_and_verify_hdf5_output(self):
-        embedder = JQLEmbedder(batch_size=2)
+        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2)
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         writer = HDF5Writer(
@@ -108,10 +108,16 @@ class TestJQLEmbedderMatchesManualEmbedding(JQLEmbedderTestBase):
         texts = [doc.text for doc in self.input_docs]
 
         # Get manual embeddings using the .embed() method
-        manual_embeddings = model_wrapper.embed(texts).cpu().tolist()
+        manual_embeddings = model_wrapper.embed(texts, max_length=64, padding="max_length", truncation=True)
 
         # Run through JQLEmbedder pipeline
-        embedder = JQLEmbedder(batch_size=2)
+        embedder = JQLEmbedder(
+            embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
+            batch_size=len(self.input_docs),  # ensure single forward pass for determinism
+            max_length=64,
+            padding="max_length",
+            truncation=True,
+        )
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         # Compare each embedding
