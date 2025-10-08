@@ -43,6 +43,11 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
         embeddings_dataset = cfg.data.get("embeddings_dataset")
         labels_dataset = cfg.data.get("labels_dataset")
 
+        if embeddings_dataset is None:
+            raise ValueError("`data.embeddings_dataset` must be defined in the configuration.")
+        if labels_dataset is None:
+            raise ValueError("`data.labels_dataset` must be defined in the configuration.")
+
         # Load embedding datasets
         train_dataset, eval_datasets = _load_embedding_datasets(
             cfg.data.train_file_path,

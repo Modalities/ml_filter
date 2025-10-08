@@ -235,15 +235,14 @@ def config_file(temp_output_dir: Path):
             },
         },
         "data": {
-            "text_column": "text",
-            "label_column": "scores",  # now matches HDF5 field
-            "document_id_column": "id",
             "train_file_path": str(temp_output_dir / "train"),  # directory
             "train_file_split": "data",
             "val_file_path": str(temp_output_dir / "val"),
             "val_file_split": "data",
             "test_file_path": str(temp_output_dir / "test"),
             "test_file_split": "data",
+            "embeddings_dataset": "embeddings",
+            "labels_dataset": "labels",
             "num_tasks": 3,
             "task_names": ["edu", "adult", "toxicity"],
             "num_targets_per_task": [6, 6, 6],
