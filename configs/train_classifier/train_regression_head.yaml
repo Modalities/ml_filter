@@ -6,14 +6,13 @@ model:
   init_regression_weights: false
 
 data: 
-  train_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_training_set_embeddings 
+  train_file_path: /home/abbas-khan/embedding_output_Qwen_8k/training_embeddings
   train_file_split: train
-  test_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_ground_truth_511_embeddings
+  test_file_path: /home/abbas-khan/embedding_output_Qwen_8k/test_embeddings_new/
   test_file_split: train
-  val_file_path: /home/abbas-khan/datatrove_embeddings/medium_model/snowflake-arctic-embed-m-v2.0_validation_set_embeddings 
-  label_column: score  # Ensure this matches dataset format
-  text_column: text  # Ensure this matches dataset format
-  document_id_column: id  # Ensure this matches dataset format
+  val_file_path: /home/abbas-khan/embedding_output_Qwen_8k/validation_embeddings
+  embeddings_dataset: embeddings  # Name of the HDF5 dataset containing embedding vectors
+  labels_dataset: labels  # Name of the HDF5 dataset containing labels
   num_tasks: 1
   num_targets_per_task: [6]
   task_names: ["edu"]
@@ -22,7 +21,7 @@ data:
 training:
   batch_size: 1024
   eval_batch_size: 1024 # 1024
-  epochs: 20
+  epochs: 30
   use_bf16: true
   weight_decay: 0.01 # 0.01
   eval_strategy: epoch

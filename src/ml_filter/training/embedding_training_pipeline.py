@@ -40,13 +40,20 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
         seed = cfg.training.get("seed", None)
         _set_seeds(seed)
 
+        embeddings_dataset = cfg.data.get("embeddings_dataset")
+        labels_dataset = cfg.data.get("labels_dataset")
+
         # Load embedding datasets
         train_dataset, eval_datasets = _load_embedding_datasets(
-            cfg.data.train_file_path, cfg.data.val_file_path, cfg.data.test_file_path
+            cfg.data.train_file_path,
+            cfg.data.val_file_path,
+            cfg.data.test_file_path,
+            embeddings_dataset=embeddings_dataset,
+            labels_dataset=labels_dataset,
         )
 
         # Create embedding-based model
-        model = _init_embedding_model(cfg)
+        model = _init_embedding_model(cfg, embeddings_dataset=embeddings_dataset)
 
         # Initialize training arguments
         training_args = _init_training_args(cfg)
@@ -79,7 +86,7 @@ def find_hdf5_files(directory: Path):
     return list(directory.glob("*.h5")) + list(directory.glob("*.hdf5"))
 
 
-def load_files(files, dataset_name, split_name):
+def load_files(files, dataset_name, split_name, embeddings_dataset, labels_dataset):
     """
     Load multiple HDF5 files for a given dataset split.
 
@@ -87,6 +94,8 @@ def load_files(files, dataset_name, split_name):
         files (list): List of file paths or file-like objects pointing to HDF5 files.
         dataset_name (str): Name of the dataset to load from each HDF5 file.
         split_name (str): Name of the data split (e.g., "train", "val", "test") for logging and error handling.
+        embeddings_dataset (str): Dataset name inside the HDF5 group that stores embeddings.
+        labels_dataset (str): Dataset name inside the HDF5 group that stores labels.
 
     Returns:
         list: A list of EmbeddingDataset objects, one for each successfully loaded file.
@@ -102,7 +111,12 @@ def load_files(files, dataset_name, split_name):
             if actual_dataset != dataset_name:
                 logger.info(f"Dataset '{dataset_name}' not found in {file.name}, using '{actual_dataset}'")
 
-            dataset = EmbeddingDataset(file, actual_dataset)
+            dataset = EmbeddingDataset(
+                file,
+                actual_dataset,
+                embeddings_dataset=embeddings_dataset,
+                labels_dataset=labels_dataset,
+            )
             datasets.append(dataset)
             logger.info(f"✅ Loaded {split_name} file {file.name}: {len(dataset)} samples")
 
@@ -115,7 +129,12 @@ def load_files(files, dataset_name, split_name):
 
 
 def _load_embedding_datasets(
-    training_dir: Path, validation_dir: Path, test_dir: Path = None, dataset_name: str = "train"
+    training_dir: Path,
+    validation_dir: Path,
+    test_dir: Path = None,
+    dataset_name: str = "train",
+    embeddings_dataset: str = "embeddings",
+    labels_dataset: str = "labels",
 ):
     """
     Load and organize training, validation, and optionally test datasets from HDF5 files.
@@ -125,6 +144,8 @@ def _load_embedding_datasets(
         validation_dir: Path to directory containing validation HDF5 files
         test_dir: Optional path to directory containing test HDF5 files
         dataset_name: Name of the dataset within each HDF5 file (default: "data")
+        embeddings_dataset: Dataset name inside the HDF5 group that stores embeddings.
+        labels_dataset: Dataset name inside the HDF5 group that stores labels.
 
     Returns:
         tuple: (train_dataset, eval_datasets) where eval_datasets is a dict with 'validation' and optionally 'test'
@@ -148,7 +169,7 @@ def _load_embedding_datasets(
         logger.warning(f"No HDF5 files found in test directory: {test_dir}")
 
     # Load and combine training datasets
-    train_datasets = load_files(training_files, dataset_name, "train")
+    train_datasets = load_files(training_files, dataset_name, "train", embeddings_dataset, labels_dataset)
     if not train_datasets:
         raise ValueError("No training datasets could be loaded successfully")
 
@@ -162,7 +183,7 @@ def _load_embedding_datasets(
         if not files:
             continue
 
-        datasets = load_files(files, dataset_name, name)
+        datasets = load_files(files, dataset_name, name, embeddings_dataset, labels_dataset)
         if datasets:
             eval_datasets[name] = datasets[0] if len(datasets) == 1 else ConcatDataset(datasets)
             if len(datasets) > 1:
@@ -177,7 +198,7 @@ def _load_embedding_datasets(
     return train_dataset, eval_datasets
 
 
-def _init_embedding_model(cfg: DictConfig) -> EmbeddingRegressionModel:
+def _init_embedding_model(cfg: DictConfig, embeddings_dataset: str = "embeddings") -> EmbeddingRegressionModel:
     """Initialize the embedding-based model by reading dimensions from training data."""
     logger.info("Initializing embedding-based model.")
 
@@ -191,7 +212,11 @@ def _init_embedding_model(cfg: DictConfig) -> EmbeddingRegressionModel:
     with h5py.File(sample_file, "r") as f:
         available_datasets = list(f.keys())
         sample_dataset = available_datasets[0]  # Any dataset works for getting dimensions
-        embedding_dim = f[sample_dataset]["embeddings"].shape[1]
+        if embeddings_dataset not in f[sample_dataset]:
+            raise KeyError(
+                f"Embeddings dataset '{embeddings_dataset}' not found in {sample_file.name}:{sample_dataset}"
+            )
+        embedding_dim = f[sample_dataset][embeddings_dataset].shape[1]
         logger.info(f"Reading dimensions from '{sample_file.name}:{sample_dataset}': {embedding_dim}D embeddings")
 
     config = EmbeddingRegressionConfig(
