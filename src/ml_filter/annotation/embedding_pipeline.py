@@ -13,6 +13,7 @@ from typing import Optional
 from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
 from datatrove.pipeline.base import PipelineStep
 from omegaconf import OmegaConf
+from omegaconf import DictConfig as _DictConfig
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, YamlConfigSettingsSource
 from ml_filter.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder, JQLJsonlReader
@@ -174,43 +175,33 @@ class EmbeddingPipelineBuilder(BaseSettings):
         params = EmbeddingPipelineParameters(
             input_dir=_p("input_dir"),
             csv_hashmap_path=_p("csv_hashmap_path"),
-            glob_pattern=_p("glob_pattern", "*.jsonl"),
+            glob_pattern=_p("glob_pattern"),
             output_dir=_p("output_dir"),
-            embedding_dir=_p("embedding_dir", "embeddings"),
-            embedding_model=_p("embedding_model", "Snowflake/snowflake-arctic-embed-m-v2.0"),
+            embedding_dir=_p("embedding_dir"),
+            embedding_model=_p("embedding_model"),
             hdf5_dataset_name=_p("hdf5_dataset_name", "train"),
-            batch_size=_p("batch_size", 256),
-            writer_batch_size=_p("writer_batch_size", 1000),
-            max_length=_p("max_length", 8192),
-            padding=_p("padding", True),
-            truncation=_p("truncation", True),
-            save_labels=_p("save_labels", True),
-            tasks=_p("tasks", local_section.get("tasks") if isinstance(local_section, dict) else 1) or 1,
-            workers=_p("workers", local_section.get("workers") if isinstance(local_section, dict) else -1) or -1,
-            local_tasks=_p("local_tasks", local_section.get("local_tasks") if isinstance(local_section, dict) else 1) or 1,
-            local_rank_offset=_p(
-                "local_rank_offset",
-                local_section.get("local_rank_offset") if isinstance(local_section, dict) else 0,
-            ) or 0,
+            batch_size=_p("batch_size"),
+            writer_batch_size=_p("writer_batch_size"),
+            max_length=_p("max_length"),
+            padding=_p("padding"),
+            truncation=_p("truncation"),
+            save_labels=_p("save_labels")
         )
-
-        # Build explicit local settings if provided
-        local_settings_obj = None
-        if not rs and isinstance(local_section, dict):
-            # None fallback logic ensures defaults if missing
-            local_settings_obj = LocalExecutionSettings(
-                tasks=local_section.get("tasks", params.tasks),
-                local_tasks=local_section.get("local_tasks", params.local_tasks),
-                local_rank_offset=local_section.get("local_rank_offset", params.local_rank_offset),
-                workers=local_section.get("workers", params.workers),
-            )
-
         builder_kwargs = {"params": params, "running_on_slurm": rs}
-        if local_settings_obj is not None:
-            builder_kwargs["local_settings"] = local_settings_obj
-        if rs and slurm_settings:
-            # Only include recognized slurm settings keys
-            builder_kwargs["slurm_settings"] = SlurmExecutionSettings(**slurm_settings)
+
+        # Unified execution settings parsing
+        if rs:
+            if slurm_settings is not None:
+                # Convert DictConfig to plain dict first
+                if isinstance(slurm_settings, _DictConfig):
+                    slurm_settings = OmegaConf.to_container(slurm_settings, resolve=True)  # type: ignore
+                builder_kwargs["slurm_settings"] = SlurmExecutionSettings(**slurm_settings)
+        else:
+            if isinstance(local_section, _DictConfig):
+                local_section = OmegaConf.to_container(local_section, resolve=True)  # type: ignore
+            if isinstance(local_section, dict):
+                builder_kwargs["local_settings"] = LocalExecutionSettings(**{k: v for k, v in local_section.items() if k in LocalExecutionSettings.model_fields})
+
         return cls(**builder_kwargs)  # type: ignore[arg-type]
 
     def build_pipeline(self) -> list[PipelineStep]:
