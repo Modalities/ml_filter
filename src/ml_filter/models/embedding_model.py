@@ -3,11 +3,7 @@ from transformers import PretrainedConfig
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.modeling_utils import PreTrainedModel
 
-from ml_filter.models.annotator_model_head import (
-    AnnotatorHead,
-    MultiTargetClassificationHead,
-    MultiTargetRegressionHead,
-)
+from ml_filter.models.annotator_model_head import AnnotatorHead, MultiTargetRegressionHead
 
 
 class EmbeddingRegressionConfig(PretrainedConfig):
@@ -20,7 +16,6 @@ class EmbeddingRegressionConfig(PretrainedConfig):
         num_targets_per_task (list[int]): A list specifying the number of target values per task.
             If not provided, defaults to [1].
         hidden_dim (int): The dimensionality of the hidden layer in the model. Default is 1000.
-        is_regression (bool): A flag indicating whether the model is for regression tasks. Default is True.
         **kwargs: Additional keyword arguments passed to the parent PretrainedConfig class.
     """
 
@@ -30,7 +25,6 @@ class EmbeddingRegressionConfig(PretrainedConfig):
         num_tasks: int = 1,
         num_targets_per_task: list[int] = None,
         hidden_dim: int = 1000,
-        is_regression: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -38,17 +32,16 @@ class EmbeddingRegressionConfig(PretrainedConfig):
         self.num_tasks = num_tasks
         self.num_targets_per_task = list(num_targets_per_task) if num_targets_per_task else [1]
         self.hidden_dim = hidden_dim
-        self.is_regression = is_regression
 
 
 class EmbeddingRegressionModel(PreTrainedModel):
     """
-    Model for regression or classification tasks using pre-computed embeddings.
+    Model for regression tasks using pre-computed embeddings.
 
     Attributes:
         config_class (EmbeddingRegressionConfig): The configuration class used for the model.
         config (EmbeddingRegressionConfig): The configuration instance containing model parameters.
-        head (AnnotatorHead): The task-specific head for regression or classification.
+        head (AnnotatorHead): The task-specific head for regression.
     """
 
     config_class = EmbeddingRegressionConfig
@@ -57,21 +50,19 @@ class EmbeddingRegressionModel(PreTrainedModel):
         super().__init__(config)
         self.config = config
 
-        # Initialize the classification head
+        # Initialize the regression head
         self.head = self._build_head(config)
 
     def _build_head(self, config: EmbeddingRegressionConfig) -> AnnotatorHead:
-        """Builds the head for regression or classification tasks based on the configuration."""
-        head_cls = MultiTargetRegressionHead if config.is_regression else MultiTargetClassificationHead
+        """Builds the regression head based on the configuration."""
         head_params = {
             "input_dim": config.embedding_dim,
             "num_prediction_tasks": config.num_tasks,
             "num_targets_per_prediction_task": torch.tensor(config.num_targets_per_task, dtype=torch.int64),
+            "hidden_dim": config.hidden_dim,
         }
-        if config.is_regression:
-            head_params["hidden_dim"] = config.hidden_dim
 
-        return head_cls(**head_params)
+        return MultiTargetRegressionHead(**head_params)
 
     def forward(
         self,

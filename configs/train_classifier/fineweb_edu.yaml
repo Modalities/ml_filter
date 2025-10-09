@@ -3,7 +3,6 @@ model:
   freeze_base_model_parameters: true  # Add option to freeze encoder
   num_tasks: ${data.num_tasks}  # Number of prediction tasks
   num_targets_per_task: ${data.num_targets_per_task}  # Number of classes per output
-  is_regression: ${training.is_regression}
 
 tokenizer:
   pretrained_model_name_or_path: ${model.name}
@@ -37,9 +36,8 @@ training:
   save_strategy: epoch
   logging_steps: 100
   seed: 42
-  is_regression: true
-  greater_is_better: false  # Save model with lowest loss
-  metric_for_best_model: eval_val_loss
+  greater_is_better: true  # Spearman correlation is maximised
+  metric_for_best_model: eval_validation_edu/spearman_corr
   learning_rate: 0.0003
   logging_dir_path: data/output/fineweb_edu_model_artic_v1_m
   output_dir_path: ${training.logging_dir_path}

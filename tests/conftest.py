@@ -218,16 +218,14 @@ def config_file(temp_output_dir: Path):
             "save_strategy": "epoch",
             "logging_steps": 10,
             "logging_dir_path": str(temp_output_dir / "logs"),
-            "metric_for_best_model": "eval_val_loss",
+            "metric_for_best_model": "eval_validation_edu/spearman_corr",
             "use_bf16": False,
             "greater_is_better": True,
-            "is_regression": True,
             "eval_strategy": "steps",
             "dataloader_num_workers": 1,
             "wandb_run_name": "temp_run",
         },
         "model": {
-            "is_regression": True,
             "regressor_hidden_dim": 1000,
             "init_regression_weights": False,  # Add this missing key
             "loading_params": {

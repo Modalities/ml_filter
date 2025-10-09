@@ -5,7 +5,6 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
-import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import ConcatDataset
 from transformers import EvalPrediction, SchedulerType, Trainer, TrainingArguments
@@ -16,8 +15,10 @@ from ml_filter.logger import setup_logging
 from ml_filter.models.embedding_model import EmbeddingRegressionConfig, EmbeddingRegressionModel
 from ml_filter.training.callbacks import SpearmanEarlyStoppingCallback
 from ml_filter.utils.embedding_dataset import EmbeddingDataset
+from ml_filter.utils.logging import EvaluationSplitLoggerCallback, SuppressTransformersFLOPWarning
 
 logger = setup_logging()
+SuppressTransformersFLOPWarning.install(logger)
 
 
 def run_embedding_head_training_pipeline(config_file_path: Path):
@@ -68,6 +69,14 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
             logger.info("Initializing the regression head weights")
             _init_head_weights(model)
 
+        resolved_metric = _validate_metric_for_best_model(
+            eval_datasets=eval_datasets,
+            metric_for_best_model=cfg.training.get("metric_for_best_model"),
+        )
+        if resolved_metric is not None:
+            training_args.metric_for_best_model = resolved_metric
+        early_stopping_metric = training_args.metric_for_best_model
+
         # Train model
         _train_model_head(
             model=model,
@@ -76,7 +85,7 @@ def run_embedding_head_training_pipeline(config_file_path: Path):
             eval_datasets=eval_datasets,
             compute_loss_fn=_init_head_loss_fn(cfg),
             compute_metrics_fn=_get_compute_metrics_fn(cfg),
-            early_stopping_metric=cfg.training.metric_for_best_model,
+            early_stopping_metric=early_stopping_metric,
         )
 
         logger.info("Embedding-based training pipeline completed successfully.")
@@ -122,6 +131,8 @@ def load_files(files, dataset_name, split_name, embeddings_dataset, labels_datas
                 embeddings_dataset=embeddings_dataset,
                 labels_dataset=labels_dataset,
             )
+            if len(dataset) == 0:
+                raise ValueError(f"HDF5 group '{actual_dataset}' in file '{file}' is empty for split '{split_name}'.")
             datasets.append(dataset)
             logger.info(f"✅ Loaded {split_name} file {file.name}: {len(dataset)} samples")
 
@@ -197,10 +208,51 @@ def _load_embedding_datasets(
     # Final summary
     if eval_datasets:
         logger.info(f"📊 Total evaluation datasets loaded: {list(eval_datasets.keys())}")
+        for split_name, dataset in eval_datasets.items():
+            logger.info("Registered evaluation split '%s' with %d samples.", split_name, len(dataset))
     else:
         logger.warning("No evaluation datasets loaded!")
 
     return train_dataset, eval_datasets
+
+
+def _validate_metric_for_best_model(
+    eval_datasets: dict[str, torch.utils.data.Dataset],
+    metric_for_best_model: str | None,
+) -> str | None:
+    """
+    Ensure the configured metric for selecting the best checkpoint refers to an existing evaluation split.
+
+    Args:
+        eval_datasets: Dict of evaluation datasets keyed by split name.
+        metric_for_best_model: Configured metric identifier.
+
+    Returns:
+        str | None: The metric name to use (identical to `metric_for_best_model` when valid) or None.
+
+    Raises:
+        ValueError: If the configured metric references a split that is not available.
+    """
+    if not metric_for_best_model:
+        return None
+
+    metric = metric_for_best_model.strip()
+    if not metric.startswith("eval_"):
+        raise ValueError(
+            "Unsupported value for `metric_for_best_model`: "
+            f"'{metric_for_best_model}'. Please provide a full metric name prefixed with 'eval_'."
+        )
+
+    remainder = metric[len("eval_") :]
+    split_candidate, _, _ = remainder.partition("_")
+
+    if split_candidate not in eval_datasets:
+        raise ValueError(
+            f"Evaluation split '{split_candidate}' referenced in `metric_for_best_model` "
+            f"is not available. Available splits: {list(eval_datasets.keys())}"
+        )
+
+    return metric
 
 
 def _init_embedding_model(cfg: DictConfig, embeddings_dataset: str = "embeddings") -> EmbeddingRegressionModel:
@@ -229,7 +281,6 @@ def _init_embedding_model(cfg: DictConfig, embeddings_dataset: str = "embeddings
         num_tasks=int(cfg.data.num_tasks),  # Convert to Python int
         num_targets_per_task=[int(x) for x in cfg.data.num_targets_per_task],  # Convert each element to Python int
         hidden_dim=int(cfg.model.regressor_hidden_dim),
-        is_regression=bool(cfg.model.is_regression),  # Convert to Python bool
     )
 
     return EmbeddingRegressionModel(config=config)
@@ -290,20 +341,15 @@ def _init_head_weights(model: EmbeddingRegressionModel):
 
 
 def _init_head_loss_fn(cfg) -> partial:
-    """Initialize the loss function for the regression or classification head."""
+    """Initialize the loss function for the regression head."""
     num_tasks = cfg.data.num_tasks
-    if cfg.training.is_regression:
-        return partial(mse_loss, num_tasks=num_tasks)
-    else:
-        num_tasks = cfg.data.num_tasks
-        return partial(cross_entropy_loss, num_tasks=num_tasks)
+    return partial(mse_loss, num_tasks=num_tasks)
 
 
 def _get_compute_metrics_fn(cfg: DictConfig) -> partial:
-    """Get the compute metrics function for the regression or classification head."""
+    """Get the compute metrics function for the regression head."""
     return partial(
         compute_embedding_metrics,
-        is_regression=cfg.training.is_regression,
         task_names=cfg.data.task_names,
         num_targets_per_task=cfg.data.num_targets_per_task,
     )
@@ -345,7 +391,7 @@ def _train_model_head(
         compute_loss_func=compute_loss_fn,
         compute_metrics=compute_metrics_fn,
         data_collator=collate_embeddings,
-        callbacks=[early_stopping],
+        callbacks=[early_stopping, EvaluationSplitLoggerCallback()],
     )
 
     trainer.train()
@@ -395,50 +441,19 @@ def mse_loss(
         return out
 
 
-def cross_entropy_loss(
-    input: SequenceClassifierOutput,
-    target: torch.Tensor,
-    num_items_in_batch: int,
-    num_tasks: int,
-    reduction: str = "mean",
-    **kwargs,
-) -> torch.Tensor:
-    """
-    Compute the cross-entropy loss for multi-target classification tasks.
-
-    Args:
-        input (SequenceClassifierOutput): The model output containing logits.
-        target (torch.Tensor): The ground-truth labels, expected shape (batch_size * num_tasks).
-        num_items_in_batch (int): Number of items (samples) in the batch.
-        num_tasks (int): Number of classification tasks per sample.
-        reduction (str, optional): Specifies the reduction to apply to the output:
-            'none' | 'mean' | 'sum'. Default is 'mean'.
-        **kwargs: Additional keyword arguments (ignored in this function, but accepted for compatibility).
-
-    Returns:
-        torch.Tensor: The computed cross-entropy loss.
-    """
-    logits = input.logits
-    return F.cross_entropy(logits, target.view(-1, num_tasks), reduction=reduction)
-
-
 def compute_embedding_metrics(
     eval_pred: EvalPrediction,
-    is_regression: bool,
     task_names: list[str],
     num_targets_per_task: list[int],
 ) -> dict[str, float]:
-    """Computes metrics for multi-target classification or regression.
+    """Computes metrics for multi-task regression heads.
 
     Args:
-        eval_pred (EvalPrediction): A tuple containing:
-            - `predictions` (np.ndarray): Logits of shape
-                (batch_size, num_classes, num_regressor_outputs) for classification, or
-                (batch_size, num_regressor_outputs) for regression.
-            - `labels` (np.ndarray): Ground truth labels of shape (batch_size, num_regressor_outputs).
-        is_regression (bool): Whether the task is a regression or classification task.
-        output_names (list[str]): List of output names for each target.
-        num_targets_per_task (list[int]): Number of target classes per task.
+        eval_pred (EvalPrediction): A tuple containing predictions of shape
+            (batch_size, num_regressor_outputs) and labels of the same shape.
+        task_names (list[str]): List of output names for each task.
+        num_targets_per_task (list[int]): Number of target classes per task
+            (used to derive threshold ranges for binary metrics).
 
     Returns:
         dict[str, float]: A dictionary containing computed metrics for each output.
@@ -452,8 +467,8 @@ def compute_embedding_metrics(
         raise ValueError(f"Shape mismatch: predictions {predictions.shape}, labels {labels.shape}")
 
     # Convert logits to predictions
-    preds = np.round(predictions) if is_regression else predictions.argmax(axis=1)
-    preds_raw = predictions if is_regression else preds
+    preds = np.round(predictions)
+    preds_raw = predictions
     # Compute metrics for each target
     metric_dict = {
         f"{task_name}/{metric}": value

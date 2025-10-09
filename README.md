@@ -253,7 +253,6 @@ Example configs can be found in [configs/train_classifier](configs/train_classif
 |--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | `model.name`                         | The name of the base model to be used for training. Only models specified in [src/constants.py](src/constants.py) are supported. |
 | `model.freeze_base_model_parameters` | Whether the base model weights should be trained or frozen.                                                                      |
-| `...is_regression`                   | Whether a regression head or a classification head should be used.                                                               |
 | `...num_tasks`                       | How many tasks should be trained for (e.g. when scoring for educational and adult content together).                             |
 | `...num_targets_per_task`            | A list of length num_tasks specifying the number of targets/classes/score values for each task.                                  |
 | `data.train_file_path`               | Path to the training dataset file.                                                                                               |
@@ -262,6 +261,7 @@ Example configs can be found in [configs/train_classifier](configs/train_classif
 | `training.batch_size`                | The number of samples per batch during training.                                                                                 |
 | `training.num_epochs`                | The total number of epochs for training the model.                                                                               |
 | `training.output_dir_path`             | Directory where the trained model and logs will be saved.                 |
+| `training.metric_for_best_model`     | Full metric name that appears in Trainer logs (e.g. `eval_validation_edu/spearman_corr`).                                        |
 
 The data should consist of a .jsonl file or a directory structure containing such. Each JSON line should contain a text field matching the data.text_column key from the config. Its value should be a string. Additionally, a scores key specified by data.label_column should contain a list of length num_tasks with the i-th value being in `0, ..., num_targets_per_task[i] - 1`.
 

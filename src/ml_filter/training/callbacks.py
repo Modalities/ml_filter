@@ -33,7 +33,10 @@ class SpearmanEarlyStoppingCallback(TrainerCallback):
     def __init__(self, patience=5, min_delta=1e-3, metric_key="eval_spearman"):
         self.patience = patience
         self.min_delta = min_delta
-        self.metric_key = metric_key if metric_key == "eval_val_loss" else f"eval_{metric_key}"
+        if metric_key.startswith("eval_"):
+            self.metric_key = metric_key
+        else:
+            self.metric_key = f"eval_{metric_key}"
         self.best_score = None
         self.bad_epochs = 0
         self.logger = logging.getLogger(__name__)
