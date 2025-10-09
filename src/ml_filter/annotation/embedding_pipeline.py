@@ -143,7 +143,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
             raise ValueError("YAML must contain a top-level 'params:' section (builder-style schema).")
 
         params_cfg = raw["params"]
-        if isinstance(params_cfg, DictConfig):
+        if isinstance(params_cfg, _DictConfig):
             OmegaConf.resolve(params_cfg)
             params_cfg = OmegaConf.to_container(params_cfg, resolve=True)  # type: ignore[assignment]
         if not isinstance(params_cfg, dict):
@@ -153,10 +153,10 @@ class EmbeddingPipelineBuilder(BaseSettings):
         rs = raw.get("running_on_slurm", False) if running_on_slurm is None else running_on_slurm
         slurm_settings = raw.get("slurm_settings", None)
         local_section = raw.get("local_settings", None)
-
-        if isinstance(local_section, DictConfig):
+    
+        if isinstance(local_section, _DictConfig):
             local_section = OmegaConf.to_container(local_section, resolve=True)
-        if isinstance(slurm_settings, DictConfig):
+        if isinstance(slurm_settings, _DictConfig):
             slurm_settings = OmegaConf.to_container(slurm_settings, resolve=True)
         if local_section is not None and not isinstance(local_section, dict):
             raise TypeError("`local_settings` section must be a mapping when provided.")
@@ -195,15 +195,15 @@ class EmbeddingPipelineBuilder(BaseSettings):
             if slurm_settings is not None:
                 # Convert DictConfig to plain dict first
                 if isinstance(slurm_settings, _DictConfig):
-                    slurm_settings = OmegaConf.to_container(slurm_settings, resolve=True)  # type: ignore
+                    slurm_settings = OmegaConf.to_container(slurm_settings, resolve=True)
                 builder_kwargs["slurm_settings"] = SlurmExecutionSettings(**slurm_settings)
         else:
             if isinstance(local_section, _DictConfig):
-                local_section = OmegaConf.to_container(local_section, resolve=True)  # type: ignore
+                local_section = OmegaConf.to_container(local_section, resolve=True)
             if isinstance(local_section, dict):
                 builder_kwargs["local_settings"] = LocalExecutionSettings(**{k: v for k, v in local_section.items() if k in LocalExecutionSettings.model_fields})
 
-        return cls(**builder_kwargs)  # type: ignore[arg-type]
+        return cls(**builder_kwargs)
 
     def build_pipeline(self) -> list[PipelineStep]:
         p = self.params

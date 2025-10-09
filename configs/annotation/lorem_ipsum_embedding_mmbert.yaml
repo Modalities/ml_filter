@@ -23,9 +23,9 @@ params:
 running_on_slurm: false
 
 local_settings:
-  tasks: 1
-  workers: 1
-  local_tasks: 1
+  tasks: 2
+  workers: 2
+  local_tasks: 2
   local_rank_offset: 0
 
 slurm_settings: null

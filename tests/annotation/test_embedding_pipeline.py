@@ -71,20 +71,34 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
         # Create OmegaConf config file
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
         OmegaConf.save(
-            config=OmegaConf.create({
-                "params": {
-                "input_dir": self.input_dir,
-                "output_dir": self.output_dir,
-                "tasks": 2,
-                "local_tasks": 2,
-                "local_rank_offset": 0,
-                "csv_hashmap_path": str(self.csv_hashmap_path),
-                "glob_pattern": "*.jsonl",
-                "embedding_model": 'Snowflake/snowflake-arctic-embed-m-v2.0',
-                "hdf5_dataset_name": "train",
-                "batch_size": 32,
-                "save_labels": False,
-                }}),
+            config=OmegaConf.create(
+                {
+                    "dataset_name": "test_dataset",  # optional for interpolation
+                    "running_on_slurm": False,
+                    "params": {
+                        "input_dir": self.input_dir,
+                        "output_dir": self.output_dir,
+                        "embedding_dir": "embeddings",  # required by builder for output path
+                        "csv_hashmap_path": str(self.csv_hashmap_path),
+                        "glob_pattern": "*.jsonl",
+                        "embedding_model": "Snowflake/snowflake-arctic-embed-m-v2.0",
+                        "hdf5_dataset_name": "train",
+                        "batch_size": 32,
+                        "writer_batch_size": 1000,
+                        "max_length": 256,
+                        "padding": True,
+                        "truncation": True,
+                        "save_labels": False,
+                    },
+                    "local_settings": {
+                        "tasks": 2,
+                        "workers": -1,
+                        "local_tasks": 2,
+                        "local_rank_offset": 0,
+                    },
+                    "slurm_settings": None,
+                }
+            ),
             f=self.config_path,
         )
 
@@ -144,28 +158,22 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
 
         # Zip input jsonl files and corresponding .h5 shards
         for jsonl_path, h5_path in zip(sorted_input_files, h5_files):
-
             with open(jsonl_path, "r") as jf, h5py.File(h5_path, "r") as hf:
                 self.assertIn("train", hf)
                 group = hf["train"]
 
                 jsonl_lines = list(jf)
-                h5_doc_ids = group["document_id"][:]
-                h5_doc_ids = [d.decode() if isinstance(d, bytes) else d for d in h5_doc_ids]
+                h5_doc_ids = [d.decode() if isinstance(d, bytes) else d for d in group["document_id"][:]]
 
-                # Assert count match
+                # Count parity
                 self.assertEqual(len(jsonl_lines), len(h5_doc_ids),
                                  f"Mismatch in doc count for {jsonl_path} vs {h5_path}")
 
-                # Check Document ID alignment
+                # ID alignment
                 for i, jsonl_line in enumerate(jsonl_lines):
                     doc = json.loads(jsonl_line)
-                    expected_id = doc["metadata"]["document_id"]
-                    actual_id = h5_doc_ids[i]
-                    self.assertEqual(expected_id, actual_id,
-                                     f"Document ID mismatch at index {i} in {h5_path}: expected {expected_id}, got {actual_id}")
+                    self.assertEqual(doc["metadata"]["document_id"], h5_doc_ids[i])
 
-                # Count samples and check dimensions
                 embeddings = group["embeddings"][:]
                 self.assertEqual(embeddings.shape[0], len(jsonl_lines))
                 self.assertEqual(embeddings.shape[1], 768)
