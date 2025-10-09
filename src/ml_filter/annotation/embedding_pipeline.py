@@ -1,22 +1,16 @@
+import logging
 from pathlib import Path
-
-from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
-from omegaconf import OmegaConf
-
-from ml_filter.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder, JQLJsonlReader
-
-import os
-import sys
-from pathlib import Path
-from typing import Optional
 
 from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
 from datatrove.pipeline.base import PipelineStep
 from omegaconf import OmegaConf
 from omegaconf import DictConfig as _DictConfig
 from pydantic import BaseModel, Field, model_validator
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, YamlConfigSettingsSource
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from ml_filter.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder, JQLJsonlReader
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingPipelineParameters(BaseModel):
@@ -135,10 +129,6 @@ class EmbeddingPipelineBuilder(BaseSettings):
     ) -> "EmbeddingPipelineBuilder":
         """Create a builder directly from a YAML file.
 
-        Supports two schema styles:
-          1. Legacy flat (keys like input_dir, embedding_model, tasks, ...)
-          2. Builder style with a top-level `params:` mapping (and optional running_on_slurm/slurm_settings)
-
         Args:
             path: Path to YAML file
             running_on_slurm: Optional override execution mode. If None, value will be read from YAML
@@ -149,18 +139,29 @@ class EmbeddingPipelineBuilder(BaseSettings):
             raise FileNotFoundError(f"Config file not found: {path}")
         raw = OmegaConf.load(path)
 
-        # Detect builder vs legacy style
-        if "params" in raw:  # builder style
-            params_cfg = raw["params"]  # still a DictConfig
-            OmegaConf.resolve(params_cfg)  # resolves all ${...} references
-            # Respect explicit override only when the caller supplies a value; otherwise honor YAML
-            rs = raw.get("running_on_slurm", False) if running_on_slurm is None else running_on_slurm
-            slurm_settings = raw.get("slurm_settings", None)
-            local_section = raw.get("local_settings", None)
-        else:  # legacy flat style (your current YAML)
-            raise DeprecationWarning(
-                "Legacy flat config style is deprecated. Please migrate to builder style with a top-level 'params:' section."
-            )
+        if "params" not in raw:
+            raise ValueError("YAML must contain a top-level 'params:' section (builder-style schema).")
+
+        params_cfg = raw["params"]
+        if isinstance(params_cfg, DictConfig):
+            OmegaConf.resolve(params_cfg)
+            params_cfg = OmegaConf.to_container(params_cfg, resolve=True)  # type: ignore[assignment]
+        if not isinstance(params_cfg, dict):
+            raise TypeError("`params` section must be a mapping.")
+
+        # Respect explicit override only when the caller supplies a value; otherwise honor YAML
+        rs = raw.get("running_on_slurm", False) if running_on_slurm is None else running_on_slurm
+        slurm_settings = raw.get("slurm_settings", None)
+        local_section = raw.get("local_settings", None)
+
+        if isinstance(local_section, DictConfig):
+            local_section = OmegaConf.to_container(local_section, resolve=True)
+        if isinstance(slurm_settings, DictConfig):
+            slurm_settings = OmegaConf.to_container(slurm_settings, resolve=True)
+        if local_section is not None and not isinstance(local_section, dict):
+            raise TypeError("`local_settings` section must be a mapping when provided.")
+        if slurm_settings is not None and not isinstance(slurm_settings, dict):
+            raise TypeError("`slurm_settings` section must be a mapping when provided.")
 
         # Simple interpolation for ${dataset_name} tokens in legacy-style values
         dataset_name = params_cfg.get("dataset_name") if isinstance(params_cfg, dict) else None
@@ -237,7 +238,6 @@ class EmbeddingPipelineBuilder(BaseSettings):
             return SlurmPipelineExecutor(pipeline=pipeline, **self.slurm_settings.model_dump())
         print("Running Local Pipeline Executor")
         return LocalPipelineExecutor(pipeline=pipeline, **self.local_settings.model_dump())
-
 
 
 def run_embedding_pipeline(config_file_path: Path):
