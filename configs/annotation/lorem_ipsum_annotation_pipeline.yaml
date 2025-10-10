@@ -1,11 +1,12 @@
 params:
   embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/mmbert_results/embeddings/validation_embeddings
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/annotations_new2/
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/annotations_new_format/
 
   regression_head_checkpoints:
     Gemma_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-gemma-snowflake-balanced.ckpt
     Llama_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-llama-snowflake-balanced.ckpt
   batch_size: 1000
+  output_keys: ["document_id", "score_Gemma_Snowflake", "score_Llama_Snowflake"]
 
 running_on_slurm: false
 

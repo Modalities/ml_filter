@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingPipelineParameters(BaseModel):
     input_dir: str = Field(..., description="Directory containing JSONL files.")
-    csv_hashmap_path: Path = Field(..., description="CSV mapping file paths to md5 hashes.")
     glob_pattern: str = Field(..., description="Glob for selecting JSONL files.")
+    keys_to_index: list[str] = Field(..., description="List of keys to index in the output HDF5.")
     output_dir: Path = Field(..., description="Root output directory.")
     embedding_dir: str = Field(..., description="Subdirectory for embedding outputs.")
     embedding_model: str = Field(..., description="Embedding model identifier.")
@@ -175,8 +175,8 @@ class EmbeddingPipelineBuilder(BaseSettings):
 
         params = EmbeddingPipelineParameters(
             input_dir=_p("input_dir"),
-            csv_hashmap_path=_p("csv_hashmap_path"),
             glob_pattern=_p("glob_pattern"),
+            keys_to_index=_p("keys_to_index"),
             output_dir=_p("output_dir"),
             embedding_dir=_p("embedding_dir"),
             embedding_model=_p("embedding_model"),
@@ -210,7 +210,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
         pipeline: list[PipelineStep] = [
             JQLJsonlReader(
                 data_folder=p.input_dir,
-                csv_hashmap=p.csv_hashmap_path,
+                keys_to_index=p.keys_to_index,
                 glob_pattern=p.glob_pattern,
                 save_labels=p.save_labels,
             ),

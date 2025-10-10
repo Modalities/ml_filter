@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from typing import Optional
 
@@ -77,6 +78,7 @@ class SlurmExecutionSettings(BaseModel):
 
 class AnnotationPipelineParameters(BaseModel):
     embeddings_directory: str = Field(..., description="Path to directory containing HDF5 embedding files.")
+    output_keys: list[str] = Field(..., description="List of metadata keys to include in the annotated output files.")
     output_dir: Path = Field(..., description="Output directory for annotated JSONL files.")
     regression_head_checkpoints: dict[str, str] = Field(..., description="Mapping of model names to head checkpoint paths.")
     batch_size: int = Field(512, description="Batch size for processing embeddings.")
@@ -137,6 +139,7 @@ class AnnotationPipelineBuilder(BaseSettings):
         params = AnnotationPipelineParameters(
             embeddings_directory=params_cfg["embeddings_directory"],
             output_dir=params_cfg["output_dir"],
+            output_keys=params_cfg["output_keys"],
             regression_head_checkpoints=params_cfg["regression_head_checkpoints"],
             batch_size=params_cfg.get("batch_size", 512),
         )
@@ -164,7 +167,7 @@ class AnnotationPipelineBuilder(BaseSettings):
                 stats_writer=JsonlWriter(
                     output_folder=str(p.annotated_output_dir),
                     output_filename="${source_filename}.jsonl",
-                    adapter=stats_adapter,
+                    adapter=partial(stats_adapter, output_keys=p.output_keys),
                     expand_metadata=True,
                 ),
             ),

@@ -6,7 +6,7 @@ import gc
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import IO, Any, Callable, Literal, Optional
+from typing import IO, Any, Callable, List, Literal, Optional
 
 # --- Third-Party Libraries ---
 import h5py
@@ -162,7 +162,7 @@ class JQLJsonlReader(BaseDiskReader):
     def __init__(
         self,
         data_folder: DataFolderLike,
-        csv_hashmap: Path,
+        keys_to_index: list[str],
         paths_file: DataFileLike | None = None,
         compression: Literal["infer", "gzip", "zstd"] | None = "infer",
         limit: int = -1,
@@ -171,7 +171,7 @@ class JQLJsonlReader(BaseDiskReader):
         doc_progress: bool = False,
         adapter: Callable = None,
         text_key: str = "text",
-        id_key: str = "id",
+        id_key: str = "uuid",
         default_metadata: dict = None,
         recursive: bool = True,
         glob_pattern: str | None = None,
@@ -195,14 +195,29 @@ class JQLJsonlReader(BaseDiskReader):
         )
         self.compression = compression
         self.save_labels = save_labels
-        try:
-            self.hash_map = read_existing_hashes(csv_hashmap)
-        except FileNotFoundError:
-            logger.error(f"Hash CSV file not found at path: {csv_hashmap}")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to load hash map from {csv_hashmap}: {e}")
-            raise
+        self.keys_to_index = keys_to_index
+        self.n_keys = len(keys_to_index)
+
+        if self.n_keys == 0:
+            raise ValueError("keys_to_index must contain at least one key to index.")
+
+        # Prebuild a fast combiner function depending on key count
+        if self.n_keys == 1:
+            key = keys_to_index[0]
+            def _combine(md):
+                v = md.get(key)
+                return "" if v is None else str(v)
+        else:
+            keys = tuple(keys_to_index)  # make immutable, faster to loop
+            def _combine(md):
+                vals = []
+                append = vals.append
+                for k in keys:
+                    v = md.get(k)
+                    append("" if v is None else str(v))
+                return "__".join(vals)
+
+        self._combine_metadata_keys = _combine
 
     def read_file(self, filepath: str):
         import orjson
@@ -213,24 +228,20 @@ class JQLJsonlReader(BaseDiskReader):
                 full_file_path = str(self.data_folder.path) + "/" + filepath
                 logger.info("Reading file %s", full_file_path)
                 logger.info("data folder %s", self.data_folder.path)
-                file_hash = self.hash_map[full_file_path]
                 for li, line in enumerate(f):
                     with self.track_time():
                         try:
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
                             if not document:
                                 continue
-                            document.metadata["file_path"] = full_file_path
-                            document.metadata["document_id"] = file_hash + "_" + str(li)
+                            document.metadata["document_id"] = self._combine_metadata_keys(document.metadata)
+                            document.metadata["source_filename"] = _get_file_path(document)
                             if self.save_labels:
                                 # copy score into label for downstream consumers if enabled
                                 if "score" in document.metadata:
                                     document.metadata["label"] = document.metadata["score"]
                                 else:
                                     raise ValueError("No 'score' field found in document metadata to copy to 'label'.")
-                            document.metadata["source_filename"] = Path(full_file_path).relative_to(
-                                self.data_folder.path
-                            )
                         except (EOFError, JSONDecodeError) as e:
                             logger.warning(f"Error when reading `{filepath}`: {e}")
                             continue
@@ -470,7 +481,7 @@ class HDF5Writer(DiskWriter):
         super().close()
 
 
-def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) -> dict:
+def stats_adapter(writer: DiskWriter, document: Document, output_keys: list[str]) -> dict:
     """
     Adapter function for extracting metadata from a Document object, excluding the 'text' field.
 
@@ -490,15 +501,14 @@ def stats_adapter(writer: DiskWriter, document: Document, expand_metadata=True) 
 
     def safe_json(val):
         if isinstance(val, bytes):
-            return val.decode('utf-8', errors='ignore')  # or base64 if binary
+            return val.decode("utf-8", errors="ignore")
         return val
 
     data = {key: safe_json(val) for key, val in dataclasses.asdict(document).items() if val and key != "text"}
     if writer.expand_metadata and "metadata" in data:
         metadata = data.pop("metadata")
-        metadata = {k: safe_json(v) for k, v in metadata.items()}
-        data |= metadata
-    return data
+        metadata = {k: safe_json(v) for k, v in metadata.items() if k in output_keys}
+    return metadata
 
 
 def _get_file_path(doc: Document) -> str:
@@ -649,6 +659,7 @@ class JQLHead(PipelineStep):
     def __init__(
         self,
         regression_head_checkpoints: Optional[dict[str, str]] = None,
+        output_keys: list[str] = None,
         batch_size: int = 1_000,
         device_overwrite: Optional[str] = None,
         stats_writer: DiskWriter = None,
@@ -661,6 +672,7 @@ class JQLHead(PipelineStep):
         self.batch_size = batch_size
         self.device_overwrite = device_overwrite
         self.stats_writer = stats_writer
+        self.output_keys = output_keys
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
         """

@@ -4,10 +4,10 @@ params:
   # File selection
   glob_pattern: "**/*.jsonl"
   input_dir: /raid/s3/opengptx/abbas/processed_data_natural/${dataset_name}_set
-  csv_hashmap_path: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/dataset/hashes/${dataset_name}.csv
 
   # Output
   output_dir: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/mmbert_results/embeddings
+  keys_to_index: ["id", "aggregation_type"]
   embedding_dir: ${dataset_name}_embeddings
 
   # Model and embedding parameters
@@ -15,7 +15,7 @@ params:
   batch_size: 128
   writer_batch_size: 1000
   hdf5_dataset_name: train
-  save_labels: true
+  save_labels: false
   max_length: 8192
   padding: true
   truncation: true
