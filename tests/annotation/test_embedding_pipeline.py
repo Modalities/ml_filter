@@ -42,28 +42,15 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
                     f.write(json.dumps(doc) + "\n")
             self.input_files.append(file_path)
 
-        # Create CSV hashmap for all JSONL files
-        self.csv_hashmap_path = Path(self.tmp_dir) / "hashmap.csv"
-        hash_files_to_csv([Path(p) for p in self.input_files], self.csv_hashmap_path, chunk_size=1024 * 1024)
-
-        # Read the CSV hashmap to get md5 hashes
-        file_hashes = read_existing_hashes(self.csv_hashmap_path)
-
         # Rewrite JSONL files with hashed doc_ids of form "{md5}_{index}"
         for file_path in self.input_files:
-            md5_hash = file_hashes.get(str(file_path))
-            if md5_hash is None:
-                raise RuntimeError(f"MD5 hash not found for file: {file_path}")
-
             new_lines = []
             with open(file_path, "r") as f:
                 for idx, line in enumerate(f):
                     doc = json.loads(line)
-                    hashed_doc_id = f"{md5_hash}_{idx}"
-                    doc["id"] = hashed_doc_id
-                    doc["metadata"]["document_id"] = hashed_doc_id
+                    doc["metadata"]["document_id"] = str(random.randint(100000, 999999))
                     new_lines.append(json.dumps(doc))
-                    self.expected_doc_ids.add(hashed_doc_id)
+                    self.expected_doc_ids.add(doc["metadata"]["document_id"])
 
             with open(file_path, "w") as f:
                 f.write("\n".join(new_lines) + "\n")
@@ -78,8 +65,8 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
                     "params": {
                         "input_dir": self.input_dir,
                         "output_dir": self.output_dir,
+                        "keys_to_index": ["document_id"],
                         "embedding_dir": "embeddings",  # required by builder for output path
-                        "csv_hashmap_path": str(self.csv_hashmap_path),
                         "glob_pattern": "*.jsonl",
                         "embedding_model": "Snowflake/snowflake-arctic-embed-m-v2.0",
                         "hdf5_dataset_name": "train",

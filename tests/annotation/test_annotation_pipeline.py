@@ -49,6 +49,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
                 "Edu-JQL-Mistral-SF": mistral_ckpt_path
             },
             "output_dir": self.output_dir,
+            "output_keys": ["document_id"],
             "batch_size": 2,
             "tasks": 1,
             "local_tasks": 1,
@@ -81,16 +82,16 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         from datatrove.data import Document
         from datatrove.pipeline.writers import JsonlWriter
 
-        dummy_doc = Document(id="123", text="will_be_removed", metadata={"score": 0.95, "label": "positive"})
+        dummy_doc = Document(id="123", text="will_be_removed", metadata={"score": 0.95, "document_id": "123", "label": "positive"})
         dummy_writer = JsonlWriter(output_folder=self.output_dir, output_filename="dummy.jsonl", expand_metadata=True)
 
-        result = stats_adapter(dummy_writer, dummy_doc)
+        result = stats_adapter(dummy_writer, dummy_doc, output_keys=["document_id", "score"])
 
         # Ensure "text" is removed
         self.assertNotIn("text", result)
 
         # Ensure id is retained
-        self.assertEqual(result["id"], "123")
+        self.assertEqual(result["document_id"], "123")
 
         # Ensure metadata keys are flattened
         self.assertIn("score", result)
