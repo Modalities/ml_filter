@@ -6,18 +6,22 @@ from transformers import logging as hf_logging
 
 
 def setup_logging(log_dir="outputs/logs"):
+    logger = logging.getLogger()
+    if getattr(logger, "_ml_filter_logging", False):
+        return logger
+    setattr(logger, "_ml_filter_logging", True)
+
     os.makedirs(log_dir, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = os.path.join(log_dir, f"training_{timestamp}.log")
 
     # Root logger (for your own app code)
-    logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.handlers = []  # Clear existing handlers
 
     # File handler for root logger
-    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler = logging.FileHandler(log_file, mode="w")
     file_handler.setLevel(logging.INFO)
     file_formatter = logging.Formatter("%(asctime)s — %(levelname)s — %(name)s — %(message)s")
     file_handler.setFormatter(file_formatter)
@@ -49,4 +53,3 @@ def setup_logging(log_dir="outputs/logs"):
 
     logger.info(f"Logging is set up. Log file: {log_file}")
     return logger
-
