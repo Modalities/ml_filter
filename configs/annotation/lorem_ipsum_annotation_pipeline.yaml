@@ -15,5 +15,6 @@ local_settings:
   workers: 1
   local_tasks: 3
   local_rank_offset: 0
+  logging_dir: /raid/s3/opengptx/jude/repos/ml_filter/logs/annotation_pipeline_logs
 
 slurm_settings: null

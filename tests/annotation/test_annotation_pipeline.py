@@ -51,9 +51,14 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             "output_dir": self.output_dir,
             "output_keys": ["document_id"],
             "batch_size": 2,
+        },
+        "running_on_slurm": False,
+        "local_settings": {
             "tasks": 1,
             "local_tasks": 1,
             "local_rank_offset": 0,
+            "workers": 1,
+            "logging_dir": os.path.join(self.output_dir, "logs"),
         }}), f=self.config_path)
 
     def tearDown(self):

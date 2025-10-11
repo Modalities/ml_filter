@@ -6,6 +6,7 @@ from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
 from omegaconf import OmegaConf
+from omegaconf import DictConfig as _DictConfig
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,43 +16,42 @@ from ml_filter.annotation.datatrove_jql_annotator import (
     JQLEmbeddingReader,
 )
 
-
 # ---------------------------------------------------------------------------
 # Base Configuration Classes (can be reused from embedding pipeline)
 # ---------------------------------------------------------------------------
 
 class LocalExecutionSettings(BaseModel):
-    tasks: int = 1
-    local_tasks: int = 1
-    local_rank_offset: int = 0
-    workers: int = -1
-    logging_dir: Optional[str] = None
+    tasks: int
+    local_tasks: int
+    local_rank_offset: int
+    workers: int
+    logging_dir: Optional[str]
 
 
 class SlurmExecutionSettings(BaseModel):
-    tasks: int = 1
-    time: str = "00:30:00"
-    partition: str = "default"
-    cpus_per_task: int = 4
-    mem_per_cpu_gb: int = 8
-    workers: int = -1
-    job_name: str = "annotation_pipeline"
-    qos: str = "normal"
-    env_command: Optional[str] = None
-    condaenv: Optional[str] = None
-    venv_path: Optional[str] = None
-    sbatch_args: Optional[dict[str, str | int | float | bool]] = None
-    max_array_size: int = 1001
-    depends_job_id: Optional[str] = None
-    job_id_position: int = -1
-    logging_dir: Optional[str] = None
-    skip_completed: bool = True
-    slurm_logs_folder: Optional[str] = None
-    mail_type: str = "ALL"
-    mail_user: Optional[str] = None
-    requeue: bool = True
-    srun_args: Optional[dict[str, str | int | float | bool]] = None
-    tasks_per_job: int = 1
+    tasks: int
+    time: str
+    partition: str
+    cpus_per_task: int
+    mem_per_cpu_gb: int
+    workers: int
+    job_name: str
+    qos: str
+    env_command: Optional[str]
+    condaenv: Optional[str]
+    venv_path: Optional[str]
+    sbatch_args: Optional[dict[str, str | int | float | bool]]
+    max_array_size: int
+    depends_job_id: Optional[str]
+    job_id_position: int
+    logging_dir: Optional[str]
+    skip_completed: bool
+    slurm_logs_folder: Optional[str]
+    mail_type: str
+    mail_user: Optional[str]
+    requeue: bool
+    srun_args: Optional[dict[str, str | int | float | bool]]
+    tasks_per_job: int
 
     @model_validator(mode="before")
     def _normalize_sbatch(cls, values):
@@ -81,7 +81,7 @@ class AnnotationPipelineParameters(BaseModel):
     output_keys: list[str] = Field(..., description="List of metadata keys to include in the annotated output files.")
     output_dir: Path = Field(..., description="Output directory for annotated JSONL files.")
     regression_head_checkpoints: dict[str, str] = Field(..., description="Mapping of model names to head checkpoint paths.")
-    batch_size: int = Field(512, description="Batch size for processing embeddings.")
+    batch_size: int = Field(..., description="Batch size for processing embeddings.")
     
     @property
     def annotated_output_dir(self) -> Path:
@@ -103,14 +103,16 @@ class AnnotationPipelineBuilder(BaseSettings):
     # --- Validators ---
     @model_validator(mode="after")
     def validate_execution_mode(self):
-        if self.running_on_slurm and self.local_settings is not None:
-            raise ValueError("Running on Slurm requires slurm execution settings, not local settings.")
-        if self.running_on_slurm and self.slurm_settings is None:
-            self.slurm_settings = SlurmExecutionSettings()
-        elif not self.running_on_slurm and self.slurm_settings is not None:
-            raise ValueError("Running locally requires local execution settings, not Slurm settings.")
-        if not self.running_on_slurm and self.local_settings is None:
-            self.local_settings = LocalExecutionSettings()
+        if self.running_on_slurm:
+            if self.local_settings is not None:
+                raise ValueError("Running on Slurm requires only slurm_settings, not local_settings.")
+            if self.slurm_settings is None:
+                raise ValueError("running_on_slurm=True requires 'slurm_settings' section.")
+        else:
+            if self.slurm_settings is not None:
+                raise ValueError("Running locally requires only local_settings, not slurm_settings.")
+            if self.local_settings is None:
+                raise ValueError("running_on_slurm=False requires 'local_settings' section.")
         return self
 
     @model_validator(mode="after")
@@ -132,7 +134,9 @@ class AnnotationPipelineBuilder(BaseSettings):
             raise ValueError("YAML must contain a top-level 'params:' section (builder-style schema).")
 
         params_cfg = raw["params"]
-        rs = raw.get("running_on_slurm", False) if running_on_slurm is None else running_on_slurm
+        rs = raw.get("running_on_slurm") if running_on_slurm is None else running_on_slurm
+        if rs is None:
+            raise ValueError("YAML must specify 'running_on_slurm'.")
         slurm_settings = raw.get("slurm_settings", None)
         local_section = raw.get("local_settings", None)
 
@@ -141,17 +145,22 @@ class AnnotationPipelineBuilder(BaseSettings):
             output_dir=params_cfg["output_dir"],
             output_keys=params_cfg["output_keys"],
             regression_head_checkpoints=params_cfg["regression_head_checkpoints"],
-            batch_size=params_cfg.get("batch_size", 512),
+            batch_size=params_cfg["batch_size"],
         )
 
         local_settings_obj = None
-        if not rs and isinstance(local_section, dict):
+        if not rs:
+            if not isinstance(local_section, _DictConfig):
+                raise ValueError("Local run requires 'local_settings' section in YAML.")
             local_settings_obj = LocalExecutionSettings(**local_section)
+        else:
+            if slurm_settings is None:
+                raise ValueError("Slurm run requires 'slurm_settings' section in YAML.")
 
         builder_kwargs = {"params": params, "running_on_slurm": rs}
-        if local_settings_obj:
+        if not rs:
             builder_kwargs["local_settings"] = local_settings_obj
-        if rs and slurm_settings:
+        else:
             builder_kwargs["slurm_settings"] = SlurmExecutionSettings(**slurm_settings)
 
         return cls(**builder_kwargs)
