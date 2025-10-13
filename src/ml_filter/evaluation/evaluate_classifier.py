@@ -45,10 +45,13 @@ def compute_metrics_for_single_output(
 
     # Compute classification metrics only if labels appear to be discrete
     if not labels_are_continuous:
-        metrics["classification/accuracy"] = accuracy_score(labels, predictions)
-        metrics["classification/f1_weighted"] = f1_score(labels, predictions, average="weighted")
-        metrics["classification/f1_micro"] = f1_score(labels, predictions, average="micro")
-        metrics["classification/f1_macro"] = f1_score(labels, predictions, average="macro")
+        classification_metrics = {
+            "classification/accuracy": accuracy_score(labels, predictions),
+            "classification/f1_weighted": f1_score(labels, predictions, average="weighted"),
+            "classification/f1_micro": f1_score(labels, predictions, average="micro"),
+            "classification/f1_macro": f1_score(labels, predictions, average="macro"),
+        }
+        metrics.update(classification_metrics)
 
     # Calculate binary metrics for different thresholds
     for threshold in thresholds:
@@ -71,8 +74,8 @@ def compute_metrics_for_single_output(
         classes = np.unique(labels)
         classes.sort()
         f1_per_class = f1_score(labels, predictions, average=None)
-        for i, c in enumerate(classes):
-            metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
+        class_f1_metrics = {f"class_f1/f1_class_{c}": f1_per_class[i] for i, c in enumerate(classes)}
+        metrics.update(class_f1_metrics)
 
     logging.info(f"Computed {len(metrics)} total metrics")
     return metrics
