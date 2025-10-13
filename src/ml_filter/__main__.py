@@ -738,42 +738,6 @@ def entry_run_embedding_pipeline(config_file_path: Path):
     run_embedding_pipeline(config_file_path=config_file_path)
 
 
-@main.command(name="calculate_file_hashes")
-@click.option(
-    "--input_dir",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
-    required=True,
-    help="Directory containing .jsonl files to hash.",
-)
-@click.option(
-    "--output_csv",
-    type=click.Path(exists=False, path_type=Path),
-    required=True,
-    help="Path to the output CSV file.",
-)
-@click.option(
-    "--chunk_size",
-    type=int,
-    default=1024 * 1024,
-    show_default=True,
-    help="Chunk size in bytes for reading files.",
-)
-def hash_files_to_csv_cli(input_dir: Path, output_csv: Path, chunk_size: int):
-    """Compute MD5 hashes for all .jsonl files in a directory tree and write them with file paths to a CSV file.
-    Args:
-        input_dir (Path): Root directory in which to search recursively for .jsonl files.
-        output_csv (Path): Path to the output CSV file.
-        chunk_size (int): Chunk size in bytes for reading files.
-    """
-    # Recursively gather .jsonl files; sorted for deterministic ordering
-    jsonl_files = sorted(p for p in input_dir.rglob("*.jsonl") if p.is_file())
-    if not jsonl_files:
-        raise click.UsageError(f"No .jsonl files found in directory: {input_dir}")
-
-    hash_files_to_csv(list(jsonl_files), output_csv, chunk_size)
-    click.echo(f"Hashed {len(jsonl_files)} files (recursive) from {input_dir} -> {output_csv}")
-
-
 @main.command(name="run_annotation_pipeline")
 @click.option(
     "--config_file_path",
