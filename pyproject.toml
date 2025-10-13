@@ -9,9 +9,8 @@ dependencies = [
     "tqdm",
     "datasets",
     "pydantic",
-    "accelerate>=0.34.2",
-    #"transformers==4.49.0",
-    "transformers==4.44.2",
+    "transformers==4.57.0",
+    "flash-attn==2.8.3",
     "click",
     "click_pathlib",
     "Jinja2",
@@ -22,7 +21,6 @@ dependencies = [
     # If Keras is not installed this check is just skipped.
     "tf-keras==2.18.0",
     "deepl",
-    "accelerate",
     "openai",
     "statsmodels",
     "krippendorff",
@@ -34,7 +32,9 @@ dependencies = [
     "orjson",
     "dotenv",
     "lightning",
-    "h5py"
+    "h5py",
+    "pydantic_settings",
+    "accelerate~=1.6.0",
 
 
 ]
