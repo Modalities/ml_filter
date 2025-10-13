@@ -704,8 +704,6 @@ class JQLHead(PipelineStep):
         for name, path in self.regression_head_checkpoints.items():
             self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
 
-        # self.batch_size = find_max_batch_size(next(iter(self.regression_heads.values())))[0]
-
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
                 with self.track_time(unit='batch'):
@@ -719,8 +717,6 @@ class JQLHead(PipelineStep):
                             scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
-                        filepath = _get_file_path(doc)
-                        # doc.metadata["source_filename"] = Path(doc.metadata.get("file_path")).relative_to(writer.output_folder.path)
                         for name, score in scores.items():
                             doc.metadata[name] = score[batch_idx].item()
                         if writer:
