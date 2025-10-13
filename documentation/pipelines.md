@@ -13,16 +13,6 @@ The workflow consists of two sequential pipelines:
 
 Each pipeline can run locally (single or multi-process) or on a Slurm cluster (array jobs) using unified YAML configuration schemas validated by Pydantic models.
 
-## When to Use Which
-
-| Scenario | Use Embedding Pipeline | Use Annotation Pipeline |
-|----------|------------------------|--------------------------|
-| You only have raw JSONL text and need vector embeddings. | ✅ | ❌ |
-| You already created embeddings and want to score them with trained heads. | ❌ | ✅ |
-| You want to re-score with a different head but re-use old embeddings. | ❌ | ✅ |
-| You need to change the embedding model. | ✅ (re-run) | ✅ (after new embeddings) |
-| You added more JSONL source files. | ✅ (for new files) | ✅ |
-
 ## Directory Conventions
 
 ```
@@ -209,15 +199,3 @@ from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
 run_embedding_pipeline(Path("configs/embedding_job.yaml"))
 run_annotation_pipeline(Path("configs/annotation_job.yaml"))
 ```
-
----
-## Future Extensions
-- Add support for cosine similarity search indices post-embedding.
-- Add optional evaluation step directly in the annotation pipeline.
-- Provide automatic checkpoint download / registry resolution.
-
----
-## See Also
-- `documentation/aggregation.md`
-- `documentation/data_format.md`
-- `documentation/evaluation.md`
