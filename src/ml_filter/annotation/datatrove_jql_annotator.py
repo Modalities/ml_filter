@@ -335,7 +335,6 @@ class JQLEmbedder(PipelineStep):
                             f"""Processed {num_docs} docs in {duration:.2f}s in rank {rank}
                              → Throughput: {throughput:.2f} docs/sec"""
                         )
-                        # print("Peak memory allocated: ", torch.cuda.max_memory_allocated())
                         torch.cuda.empty_cache()
 
                     except RuntimeError as e:
@@ -509,12 +508,6 @@ def stats_adapter(writer: DiskWriter, document: Document, output_keys: list[str]
         metadata = data.pop("metadata")
         metadata = {k: safe_json(v) for k, v in metadata.items() if k in output_keys}
     return metadata
-
-
-def _get_file_path(doc: Document) -> str:
-    base_name = os.path.basename(doc.metadata.get("file_path", "default.jsonl"))
-    filepath = os.path.splitext(base_name)[0]
-    return filepath
 
 
 class JQLEmbeddingReader(BaseDiskReader):
