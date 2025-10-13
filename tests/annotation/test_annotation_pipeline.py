@@ -51,6 +51,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             "output_dir": self.output_dir,
             "output_keys": ["document_id"],
             "batch_size": 2,
+            "hdf5_dataset_name": "train",
         },
         "running_on_slurm": False,
         "local_settings": {
@@ -73,7 +74,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
     def test_jql_embedding_reader(self):
         from ml_filter.annotation.datatrove_jql_annotator import JQLEmbeddingReader
 
-        reader = JQLEmbeddingReader(data_folder=self.embeddings_dir)
+        reader = JQLEmbeddingReader(data_folder=self.embeddings_dir, dataset_name="train")
         docs = list(reader.run())
         self.assertGreater(len(docs), 0)
 

@@ -6,14 +6,15 @@ params:
     Gemma_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-gemma-snowflake-balanced.ckpt
     Llama_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-llama-snowflake-balanced.ckpt
   batch_size: 1000
+  hdf5_dataset_name: train
   output_keys: ["document_id", "score_Gemma_Snowflake", "score_Llama_Snowflake"]
 
 running_on_slurm: false
 
 local_settings:
-  tasks: 3
+  tasks: 1
   workers: 1
-  local_tasks: 3
+  local_tasks: 1
   local_rank_offset: 0
   logging_dir: ${params.output_dir}/logs
 

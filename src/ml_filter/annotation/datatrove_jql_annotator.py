@@ -371,7 +371,7 @@ class HDF5Writer(DiskWriter):
         expand_metadata: whether to expand nested metadata dicts (not used here).
         max_file_size: maximum file size in bytes before rotating to a new file (default: 5GB).
         schema: not used in HDF5 writer, included for compatibility with other writers.
-        dataset_name: name of the group inside each HDF5 file where datasets will be written (default: "train").
+        dataset_name: name of the group inside each HDF5 file where datasets will be written.
     """
 
     default_output_filename: str = None
@@ -514,7 +514,7 @@ class JQLEmbeddingReader(BaseDiskReader):
     """
     A specialized DiskReader that reads HDF5 (.h5) files containing precomputed embeddings.
 
-    Each .h5 file is expected to contain a group (e.g., 'train') with two datasets:
+    Each .h5 file is expected to contain a group with two datasets:
     - 'embeddings': a 2D array of floats representing document embeddings
     - 'document_id': a list of document identifiers
 
@@ -595,13 +595,10 @@ class JQLEmbeddingReader(BaseDiskReader):
 
             with self.data_folder.open(filepath, "rb") as fs_file:
                 with h5py.File(fs_file) as f:
+                    if self.dataset_name not in f:
+                        raise KeyError(f"Dataset '{self.dataset_name}' not found in {filepath}")
 
-                    dataset_name = "train"
-
-                    if dataset_name not in f:
-                        raise KeyError(f"Dataset '{dataset_name}' not found in {filepath}")
-
-                    grp = f[dataset_name]
+                    grp = f[self.dataset_name]
                     embeddings = torch.from_numpy(grp["embeddings"][:]).float()
                     document_ids = grp["document_id"][:]
 
@@ -613,7 +610,7 @@ class JQLEmbeddingReader(BaseDiskReader):
 
                     n_samples = len(embeddings)
 
-                    logger.info(f"Dataset '{dataset_name}' has {n_samples} samples in {filepath}")
+                    logger.info(f"Dataset '{self.dataset_name}' has {n_samples} samples in {filepath}")
 
                     for i in range(n_samples):
                         with self.track_time():

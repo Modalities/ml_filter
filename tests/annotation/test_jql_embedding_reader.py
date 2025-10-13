@@ -41,22 +41,22 @@ class TestJQLEmbeddingReader(unittest.TestCase):
             np.testing.assert_equal(doc.metadata["document_id"], expected_document_id[i])
 
     def test_read(self):
-        reader = JQLEmbeddingReader(self.tmp_dir)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train")
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels)
 
     def test_read_with_limit(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, limit=2)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", limit=2)
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels, limit=2)
 
     def test_read_with_skip(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, skip=1)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", skip=1)
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels, skip=1)
 
     def test_read_with_limit_and_skip(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, skip=1, limit=1)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", skip=1, limit=1)
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels, skip=1, limit=1)
 
@@ -66,7 +66,7 @@ class TestJQLEmbeddingReader(unittest.TestCase):
         with h5py.File(bad_file, "w") as f:
             f.create_group("wrong_group")
 
-        reader = JQLEmbeddingReader(self.tmp_dir, glob_pattern="bad_data.h5")
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", glob_pattern="bad_data.h5")
         documents = list(reader.run())
 
         # If dataset is missing, documents should be empty

@@ -9,6 +9,7 @@ params:
   # Output
   output_dir: /data/cat/ws/alju972f-regression_heads/dataset/mmbet_embeddings/test_set
   embedding_dir: ${dataset_name}_embeddings
+  keys_to_index: ["id", "aggregation_type"]
 
   # Model and embedding parameters
   embedding_model: jhu-clsp/mmBERT-base

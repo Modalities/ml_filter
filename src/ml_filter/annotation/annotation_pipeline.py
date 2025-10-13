@@ -82,6 +82,7 @@ class AnnotationPipelineParameters(BaseModel):
     output_dir: Path = Field(..., description="Output directory for annotated JSONL files.")
     regression_head_checkpoints: dict[str, str] = Field(..., description="Mapping of model names to head checkpoint paths.")
     batch_size: int = Field(..., description="Batch size for processing embeddings.")
+    dataset_name: str = Field(..., description="Name of the HDF5 dataset to use.")
     
     @property
     def annotated_output_dir(self) -> Path:
@@ -146,6 +147,7 @@ class AnnotationPipelineBuilder(BaseSettings):
             output_keys=params_cfg["output_keys"],
             regression_head_checkpoints=params_cfg["regression_head_checkpoints"],
             batch_size=params_cfg["batch_size"],
+            dataset_name=params_cfg["hdf5_dataset_name"],
         )
 
         local_settings_obj = None
@@ -169,7 +171,7 @@ class AnnotationPipelineBuilder(BaseSettings):
     def build_pipeline(self) -> list[PipelineStep]:
         p = self.params
         pipeline = [
-            JQLEmbeddingReader(data_folder=p.embeddings_directory),
+            JQLEmbeddingReader(data_folder=p.embeddings_directory, dataset_name=p.dataset_name),
             JQLHead(
                 regression_head_checkpoints=p.regression_head_checkpoints,
                 batch_size=p.batch_size,
