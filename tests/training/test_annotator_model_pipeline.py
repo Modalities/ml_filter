@@ -4,6 +4,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import pytest
 import torch
 from omegaconf import DictConfig
 from transformers import TrainingArguments
@@ -58,9 +59,6 @@ def test_init_training_args():
     assert training_args.output_dir == "./output"
 
 
-# TODO add load dataset test with hdf5 loader
-
-
 def test_run_embedding_training_pipeline(config_file, temp_output_dir):
     """Runs the full pipeline end-to-end."""
     import os
@@ -94,6 +92,57 @@ def test_custom_mse_loss_same_as_torch_implementation():
     target = target.to(dtype=logits.dtype)
     mse_loss_torch = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="mean")
     assert torch.allclose(custom_mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
+
+
+def test_custom_mse_loss_respects_reduction_sum():
+    num_tasks = 2
+    num_items_in_batch = 8
+    logits = torch.randn(num_items_in_batch, num_tasks)
+    target = torch.randn(num_items_in_batch, num_tasks)
+    predicted = SequenceClassifierOutput(logits=logits)
+    custom_mse_loss = mse_loss(
+        predicted,
+        target,
+        num_items_in_batch=num_items_in_batch,
+        num_tasks=num_tasks,
+        reduction="sum",
+    )
+    expected = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="sum")
+    assert torch.allclose(custom_mse_loss, expected, atol=1e-6), "Sum reduction mismatch"
+
+
+def test_custom_mse_loss_respects_reduction_none():
+    num_tasks = 3
+    num_items_in_batch = 4
+    logits = torch.randn(num_items_in_batch, num_tasks)
+    target = torch.randn(num_items_in_batch, num_tasks)
+    predicted = SequenceClassifierOutput(logits=logits)
+    custom_mse_loss = mse_loss(
+        predicted,
+        target,
+        num_items_in_batch=num_items_in_batch,
+        num_tasks=num_tasks,
+        reduction="none",
+    )
+    expected = torch.pow(logits - target, 2).view(-1)
+    assert custom_mse_loss.shape == expected.shape
+    assert torch.allclose(custom_mse_loss, expected, atol=1e-6), "Element-wise reduction mismatch"
+
+
+def test_custom_mse_loss_raises_on_invalid_reduction():
+    num_tasks = 1
+    num_items_in_batch = 2
+    logits = torch.randn(num_items_in_batch, num_tasks)
+    target = torch.randn(num_items_in_batch, num_tasks)
+    predicted = SequenceClassifierOutput(logits=logits)
+    with pytest.raises(ValueError):
+        mse_loss(
+            predicted,
+            target,
+            num_items_in_batch=num_items_in_batch,
+            num_tasks=num_tasks,
+            reduction="invalid",
+        )
 
 
 def _dummy_dataset_files(temp_output_dir: Path):

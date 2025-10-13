@@ -58,7 +58,6 @@ class EmbeddingRegressionModel(PreTrainedModel):
         head_params = {
             "input_dim": config.embedding_dim,
             "num_prediction_tasks": config.num_tasks,
-            "num_targets_per_prediction_task": torch.tensor(config.num_targets_per_task, dtype=torch.int64),
             "hidden_dim": config.hidden_dim,
         }
 

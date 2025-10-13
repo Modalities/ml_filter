@@ -40,7 +40,6 @@ def test_multi_target_regression_head():
         input_dim=768,
         hidden_dim=1000,
         num_prediction_tasks=2,
-        num_targets_per_prediction_task=torch.tensor([6, 6]),
     )
 
     # Dummy input

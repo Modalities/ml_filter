@@ -343,7 +343,8 @@ def _init_head_weights(model: EmbeddingRegressionModel):
 def _init_head_loss_fn(cfg) -> partial:
     """Initialize the loss function for the regression head."""
     num_tasks = cfg.data.num_tasks
-    return partial(mse_loss, num_tasks=num_tasks)
+    loss_reduction = cfg.training.get("loss_reduction", "mean")
+    return partial(mse_loss, num_tasks=num_tasks, reduction=loss_reduction)
 
 
 def _get_compute_metrics_fn(cfg: DictConfig) -> partial:
@@ -432,13 +433,15 @@ def mse_loss(
     mask = ~(target == ignored_index)
     target = target.to(dtype=logits.dtype)
     out = torch.pow((logits - target)[mask], 2)
-    reduction = "mean"
-    if reduction.lower() == "mean":
+    reduction_normalized = reduction.lower()
+    if reduction_normalized == "mean":
         return out.mean()
-    elif reduction.lower() == "sum":
+    elif reduction_normalized == "sum":
         return out.sum()
-    elif reduction.lower() == "none":
+    elif reduction_normalized == "none":
         return out
+    else:
+        raise ValueError(f"Unsupported reduction mode '{reduction}'. Expected one of ['mean', 'sum', 'none'].")
 
 
 def compute_embedding_metrics(
