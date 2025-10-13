@@ -21,11 +21,15 @@ In Eurolingua, we use this repository to filter out low-quality documents from t
 
 ![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_classifier_based_annotation.svg)
 
+## Documentation Map
+- [Pipelines: Embedding & Annotation](documentation/pipelines.md) – generate embeddings and run annotation heads at scale.
+- [Aggregation](documentation/aggregation.md) – how scores are combined (mean, max, min, majority, etc.).
+- [Data Format](documentation/data_format.md) – expected JSONL schema & label structure.
+- [Evaluation](documentation/evaluation.md) – metrics and evaluation utilities.
 
 ## Installation and Development
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md)
-
 
 ## Usage
 Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-face-models), you can proceed to score and the documents and trainer and classifier
@@ -35,12 +39,28 @@ Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-f
 python cli.py score_documents --config_file_path path/to/your/config.yaml
 
 ```
-### 2. How to Train a Classifier
-If you already have the score, you can train a classifier by running
+### 2. Create Embeddings at Scale
+Generate HDF5 embedding files from raw JSONL (see `documentation/pipelines.md` for full schema):
+```bash
+ml_filter run_embedding_pipeline --config_file_path configs/embedding_job.yaml
+```
+Outputs: one `.h5` per input file (embeddings + optional labels) under the configured embedding directory.
+
+### 3. How to Train a Classifier
+If you already have scores (e.g. LLM annotations), you can train a classifier by running
 ```script
 python cli.py train_classifier --config_file_path path/to/your/training_config.yaml
 ```
-### 3. Measure Interrater Reliability
+Trained model (and tokenizer) are saved under the `final` subdirectory of the configured output dir.
+
+### 4. Run Annotation Heads on Embeddings
+Apply one or more trained regression / classification heads to previously generated embeddings:
+```bash
+ml_filter run_annotation_pipeline --config_file_path configs/annotation_job.yaml
+```
+Outputs: `${source_filename}.jsonl` with predicted scores in `annotated_data/`.
+
+### 5. Measure Interrater Reliability
 If you have a dataset with scores annotated by multiple annotators, you can compute metrics to measure the interrater reliability with the command interrater_reliability. If you want to compare the scores in a single file (e.g. the human annotated ground truth data), run:
 ```script
 python cli.py interrater_reliability data_annotated.jsonl --output_file_path output.json
@@ -53,6 +73,7 @@ You can create plots for the distribution of annotations and the differences bet
 ```script
 python cli.py plot_scores data_annotated_by_model_1.jsonl data_annotated_by_model_2.jsonl --aggregation majority --output_dir outputs
 ```
+
 ## TGI
 
 This service relies on **TGI containers** (Text Generation Inference), which can be downloaded from [Hugging Face](https://huggingface.co). Follow the steps below to download and run the TGI container.
