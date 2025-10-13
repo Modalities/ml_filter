@@ -42,7 +42,7 @@ python cli.py score_documents --config_file_path path/to/your/config.yaml
 ### 2. Create Embeddings at Scale
 Generate HDF5 embedding files from raw JSONL (see `documentation/pipelines.md` for full schema):
 ```bash
-ml_filter run_embedding_pipeline --config_file_path configs/embedding_job.yaml
+python cli.py run_embedding_pipeline --config_file_path configs/embedding_job.yaml
 ```
 Outputs: one `.h5` per input file (embeddings + optional labels) under the configured embedding directory.
 
@@ -56,7 +56,7 @@ Trained model (and tokenizer) are saved under the `final` subdirectory of the co
 ### 4. Run Annotation Heads on Embeddings
 Apply one or more trained regression / classification heads to previously generated embeddings:
 ```bash
-ml_filter run_annotation_pipeline --config_file_path configs/annotation_job.yaml
+python cli.py run_annotation_pipeline --config_file_path configs/annotation_job.yaml
 ```
 Outputs: `${source_filename}.jsonl` with predicted scores in `annotated_data/`.
 

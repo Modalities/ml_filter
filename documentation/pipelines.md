@@ -2,6 +2,25 @@
 
 This document explains how to generate model embeddings for large JSONL corpora and then run regression / classification heads to obtain annotation scores at scale using MLFilter's Datatrove-based pipelines.
 
+## Installation
+
+Install ML-Filter (editable for development) and optionally with CUDA 12.6 wheels for PyTorch.
+
+Basic editable install (CPU or existing CUDA env):
+```bash
+pip install -e .
+```
+
+Install with CUDA 12.6 extra (will pull matching PyTorch wheels):
+```bash
+pip install .[cuda126] --extra-index-url https://download.pytorch.org/whl/cu126
+```
+
+Notes:
+- The `cuda126` extra expects a GPU environment with CUDA 12.6 capable drivers.
+- If you already have a suitable PyTorch installed, you can omit the extra and just use the editable install.
+- For development you may also want to install any project specific dev/test extras if they exist (see `pyproject.toml`).
+
 ## Overview
 
 The workflow consists of two sequential pipelines:
