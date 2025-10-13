@@ -204,12 +204,12 @@ class JQLJsonlReader(BaseDiskReader):
         # Prebuild a fast combiner function depending on key count
         if self.n_keys == 1:
             key = keys_to_index[0]
-            def _combine(md):
+            def _combine_keys(md: dict) -> str:
                 v = md.get(key)
                 return "" if v is None else str(v)
         else:
             keys = tuple(keys_to_index)  # make immutable, faster to loop
-            def _combine(md):
+            def _combine_keys(md: dict) -> str:
                 vals = []
                 append = vals.append
                 for k in keys:
@@ -217,7 +217,7 @@ class JQLJsonlReader(BaseDiskReader):
                     append("" if v is None else str(v))
                 return "__".join(vals)
 
-        self._combine_metadata_keys = _combine
+        self._combine_metadata_keys = _combine_keys
 
     def read_file(self, filepath: str):
         import orjson
