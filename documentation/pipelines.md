@@ -16,6 +16,20 @@ Install with CUDA 12.6 extra (will pull matching PyTorch wheels):
 pip install .[cuda126] --extra-index-url https://download.pytorch.org/whl/cu126
 ```
 
+---
+## TUD Capella Cluster Setup
+
+On the TUD Capella cluster, use the following commands to set up your environment:
+
+```bash
+module load CUDA/12.6.0
+pip install torch==2.6.0
+pip install -e .
+pip install .[cuda126] --extra-index-url https://download.pytorch.org/whl/cu126
+```
+
+This ensures the correct CUDA and PyTorch versions are loaded for GPU usage on Capella.
+
 Notes:
 - The `cuda126` extra expects a GPU environment with CUDA 12.6 capable drivers.
 - If you already have a suitable PyTorch installed, you can omit the extra and just use the editable install.
