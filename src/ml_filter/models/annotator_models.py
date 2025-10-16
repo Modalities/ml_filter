@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import torch
 from transformers import AutoConfig, PretrainedConfig
-from transformers.modeling_utils import ModelOutput, PreTrainedModel
+from transformers.modeling_utils import PreTrainedModel
 
 from constants import MODEL_CLASS_MAP
 from ml_filter.models.annotator_model_head import (
@@ -98,7 +98,7 @@ class AnnotatorModel(PreTrainedModel):
         token_type_ids: torch.Tensor | None = None,
         labels: torch.Tensor | None = None,
         return_dict: bool | None = None,
-    ) -> ModelOutput:
+    ):
         """Forward pass through the base model.
 
         Args:

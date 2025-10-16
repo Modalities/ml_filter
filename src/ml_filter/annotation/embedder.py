@@ -105,10 +105,10 @@ class SnowflakeArcticEmbedMV2_0:
         self.device = device
         self.dtype = dtype
 
-        # model_id = 'Snowflake/snowflake-arctic-embed-m-v2.0'
+        model_id = 'Snowflake/snowflake-arctic-embed-m-v2.0'
 
         ### Debugging
-        model_id = '/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0'
+        # model_id = '/leonardo_work/EUHPC_D21_101/alexj/repos/scripts/misc/models/Snowflake/snowflake-arctic-embed-m-v2.0'
 
         # Load the tokenizer specific to the embedding model.
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
