@@ -1,12 +1,11 @@
 # --- Standard Library ---
-import os
 import contextlib
 import dataclasses
 import gc
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import IO, Any, Callable, List, Literal, Optional
+from typing import IO, Any, Callable, Literal, Optional
 
 # --- Third-Party Libraries ---
 import h5py
@@ -22,11 +21,12 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.utils.batching import batched
 from datatrove.utils.logging import logger
+import orjson
+from orjson import JSONDecodeError
 from dotenv import load_dotenv
 from torch import bfloat16, cuda, no_grad
 
 from ml_filter.annotation.embedder import get_embedder_instance
-from ml_filter.data_processing.hash_data_files import read_existing_hashes
 from ml_filter.annotation.regression_head import RegressionHead
 
 load_dotenv()
@@ -220,8 +220,6 @@ class JQLJsonlReader(BaseDiskReader):
         self._combine_metadata_keys = _combine_keys
 
     def read_file(self, filepath: str):
-        import orjson
-        from orjson import JSONDecodeError
 
         with self.data_folder.open(filepath, "r", compression=self.compression) as f:
             try:
