@@ -273,12 +273,12 @@ class JQLEmbedder(PipelineStep):
     def __init__(
         self,
         embedder_model_id: str,
-        batch_size: int = 1_000,
-        device_overwrite: Optional[str] = None,
-        stats_writer: DiskWriter = None,
-        max_length: int = 8192,
-        padding: bool | str = True,
-        truncation: bool | str = True,
+        batch_size: int,
+        device_overwrite: Optional[str],
+        stats_writer: DiskWriter,
+        max_length: int,
+        padding: bool | str,
+        truncation: bool | str,
     ):
         super().__init__()
         self.embedder_model_id = embedder_model_id
@@ -290,7 +290,6 @@ class JQLEmbedder(PipelineStep):
         self.truncation = truncation
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
-        # torch.cuda.memory._record_memory_history(max_entries=100000)
         if not cuda.is_available():
             logger.warning("CUDA is not available, using CPU")
             device = "cpu"
