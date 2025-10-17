@@ -52,6 +52,10 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             "output_keys": ["document_id"],
             "batch_size": 2,
             "hdf5_dataset_name": "train",
+            "compression": "gzip",
+            "embedding_dtype": "bfloat16",
+            "model_dtype": "bfloat16",
+            "label_dtype": "bfloat16",
         },
         "running_on_slurm": False,
         "local_settings": {

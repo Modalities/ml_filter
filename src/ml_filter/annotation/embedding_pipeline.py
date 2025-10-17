@@ -1,14 +1,20 @@
 import logging
 from pathlib import Path
+from typing import Any
 
 from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
 from datatrove.pipeline.base import PipelineStep
+from ml_filter.annotation.utils import resolve_output_dtype
 from omegaconf import OmegaConf
 from omegaconf import DictConfig as _DictConfig
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ml_filter.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder, JQLJsonlReader
+from ml_filter.annotation.datatrove_jql_annotator import (
+    HDF5Writer,
+    JQLEmbedder,
+    JQLJsonlReader,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +23,11 @@ class EmbeddingPipelineParameters(BaseModel):
     input_dir: str = Field(..., description="Directory containing JSONL files.")
     glob_pattern: str = Field(..., description="Glob for selecting JSONL files.")
     keys_to_index: list[str] = Field(..., description="List of keys to index in the output HDF5.")
+    text_field: str = Field(..., description="Key name in JSON for the raw text field to embed.")
+    compression: str | None = Field(..., description="Compression for input JSONL files (infer/gzip/zstd/None).")
+    embedding_dtype: str = Field(..., description="Storage dtype for embeddings (float32, float16, bfloat16->float32 storage).")
+    label_dtype: str = Field(..., description="Storage dtype for labels (e.g., int8, float32). Optional if labels disabled.")
+    model_dtype: str = Field(..., description="Model compute dtype (float32, float16, bfloat16).")
     output_dir: Path = Field(..., description="Root output directory.")
     embedding_dir: str = Field(..., description="Subdirectory for embedding outputs.")
     embedding_model: str = Field(..., description="Embedding model identifier.")
@@ -177,6 +188,11 @@ class EmbeddingPipelineBuilder(BaseSettings):
             input_dir=_p("input_dir"),
             glob_pattern=_p("glob_pattern"),
             keys_to_index=_p("keys_to_index"),
+            text_field=_p("text_field"),
+            compression=_p("compression"),
+            embedding_dtype=_p("embedding_dtype"),
+            label_dtype=_p("label_dtype"),
+            model_dtype=_p("model_dtype"),
             output_dir=_p("output_dir"),
             embedding_dir=_p("embedding_dir"),
             embedding_model=_p("embedding_model"),
@@ -207,11 +223,19 @@ class EmbeddingPipelineBuilder(BaseSettings):
 
     def build_pipeline(self) -> list[PipelineStep]:
         p = self.params
+        # --- Unified precision validation & resolution ---
+        _resolved = resolve_output_dtype({
+            'model_dtype': p.model_dtype,
+            'embedding_dtype': p.embedding_dtype,
+            'label_dtype': p.label_dtype,
+        }, pipeline="embedding_pipeline")
         pipeline: list[PipelineStep] = [
             JQLJsonlReader(
                 data_folder=p.input_dir,
                 keys_to_index=p.keys_to_index,
                 glob_pattern=p.glob_pattern,
+                compression=p.compression,
+                text_key=p.text_field,
                 save_labels=p.save_labels,
             ),
             JQLEmbedder(
@@ -220,12 +244,18 @@ class EmbeddingPipelineBuilder(BaseSettings):
                 max_length=p.max_length,
                 padding=p.padding,
                 truncation=p.truncation,
+                model_dtype=_resolved['model_dtype'],
                 stats_writer=HDF5Writer(
                     output_folder=str(p.embedding_output_dir),
                     output_filename="${source_filename}.h5",
                     dataset_name=p.hdf5_dataset_name,
                     batch_size=p.writer_batch_size,
                     save_labels=p.save_labels,
+                    compression=p.compression,
+                    dtype_schema={
+                        "embedding_dtype": _resolved["embedding_dtype"],
+                        "label_dtype": _resolved["label_dtype"],
+                    },
                 ),
             ),
         ]

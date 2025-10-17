@@ -12,6 +12,7 @@ from datatrove.pipeline.base import DocumentsPipeline
 from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer
 from ml_filter.annotation.embedder import SnowflakeArcticEmbedMV2_0
 from ml_filter.data_processing.hash_data_files import compute_file_hash
+import torch
 
 
 class JQLEmbedderTestBase(unittest.TestCase):
@@ -49,7 +50,7 @@ class JQLEmbedderTestBase(unittest.TestCase):
 
 class TestJQLEmbedder(JQLEmbedderTestBase):
     def test_embedding_output_structure(self):
-        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2)
+        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16)
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         self.assertEqual(len(embedded_docs), len(self.input_docs))
@@ -66,14 +67,18 @@ class TestJQLEmbedder(JQLEmbedderTestBase):
 
 class TestHDF5Writer(JQLEmbedderTestBase):
     def test_write_and_verify_hdf5_output(self):
-        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2)
+        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16)
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         writer = HDF5Writer(
             output_folder=self.tmp_dir,
             output_filename="output.h5",  # Fixed string, not a template
             dataset_name="train",
-            batch_size=10
+            batch_size=10,
+            dtype_schema={
+                "embedding_dtype": np.float32,
+                "label_dtype": np.float16,
+            },
         )
         for doc in embedded_docs:
             writer.write(doc)
@@ -117,6 +122,7 @@ class TestJQLEmbedderMatchesManualEmbedding(JQLEmbedderTestBase):
             max_length=64,
             padding="max_length",
             truncation=True,
+            model_dtype=torch.bfloat16,
         )
         embedded_docs = list(embedder.run(self.doc_pipeline))
 

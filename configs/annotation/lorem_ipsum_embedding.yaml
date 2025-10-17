@@ -3,12 +3,19 @@ dataset_name: validation
 params:
   # File selection
   glob_pattern: "**/*.jsonl"
-  input_dir: /raid/s3/opengptx/abbas/processed_data_natural/${dataset_name}_set
+  input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/input #/raid/s3/opengptx/abbas/processed_data_natural/${dataset_name}_set
 
   # Output
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/mmbert_results/embeddings
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output
+  text_field: text
   keys_to_index: ["id", "aggregation_type"]
   embedding_dir: ${dataset_name}_embeddings
+  compression: 
+
+  # Precision
+  embedding_dtype: float32
+  label_dtype: int8
+  model_dtype: bfloat16
 
   # Model and embedding parameters
   embedding_model: jhu-clsp/mmBERT-base

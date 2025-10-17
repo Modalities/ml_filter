@@ -1,6 +1,6 @@
 params:
-  embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/embedding_ablations/mmbert_results/embeddings/validation_embeddings
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/embedding_output_dir/annotations_new_format/
+  embeddings_directory: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/validation_embeddings
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/annotations
 
   regression_head_checkpoints:
     Gemma_Snowflake: /raid/s3/opengptx/jude/repos/ml_filter/hessanAI/checkpoints/checkpoints/edu-gemma-snowflake-balanced.ckpt
@@ -9,7 +9,10 @@ params:
   batch_size: 1000
   hdf5_dataset_name: train
   output_keys: ["document_id", "score_Gemma_Snowflake", "score_Llama_Snowflake", "score_Mistral_Snowflake"]
-
+  model_dtype: bfloat16
+  embedding_dtype: bfloat16
+  label_dtype: bfloat16
+  compression: gzip
 running_on_slurm: false
 
 local_settings:

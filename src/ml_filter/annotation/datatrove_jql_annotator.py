@@ -257,12 +257,14 @@ class JQLEmbedder(PipelineStep):
     containing the embedding vector.
 
     Args:
-        embedder_model_id: HuggingFace model ID or local path to the embedding model.
-        Default is Snowflake Arctic embed v2.0.
-        batch_size: number of documents to process in one embedding batch. Default is 1000.
-        device_overwrite: manually specify a CUDA device (e.g., "0").
-        If None, a device is selected automatically per rank.
-        stats_writer: optional writer to log stats to disk during embedding.
+        embedder_model_id: HuggingFace model ID or local path.
+        batch_size: documents per embedding batch.
+        device_overwrite: explicit CUDA device id (e.g. "0").
+        stats_writer: optional writer yielding annotated docs.
+        max_length: tokenizer max sequence length.
+        padding: padding strategy.
+        truncation: truncation strategy.
+        model_dtype: string precision for model forward pass.
     """
 
     name = "🔢 - JQL-EMBEDDER"
@@ -272,11 +274,12 @@ class JQLEmbedder(PipelineStep):
         self,
         embedder_model_id: str,
         batch_size: int,
-        device_overwrite: Optional[str],
-        stats_writer: DiskWriter,
-        max_length: int,
-        padding: bool | str,
-        truncation: bool | str,
+        model_dtype: torch.dtype,
+        device_overwrite: Optional[str] = None,
+        stats_writer: DiskWriter = None,
+        max_length: int = 8192,
+        padding: bool | str = True,
+        truncation: bool | str = True,
     ):
         super().__init__()
         self.embedder_model_id = embedder_model_id
@@ -286,6 +289,7 @@ class JQLEmbedder(PipelineStep):
         self.max_length = max_length
         self.padding = padding
         self.truncation = truncation
+        self.model_dtype = model_dtype
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
         if not cuda.is_available():
@@ -299,7 +303,7 @@ class JQLEmbedder(PipelineStep):
             else:
                 device = f"cuda:{self.device_overwrite}"
 
-        embedder = get_embedder_instance(self.embedder_model_id, device, bfloat16)
+        embedder = get_embedder_instance(self.embedder_model_id, device, self.model_dtype)
 
         # self.batch_size = find_max_batch_size(embedder, max_limit=1000000, step=500)
 
@@ -383,14 +387,15 @@ class HDF5Writer(DiskWriter):
         batch_size: int = 1000,
         expand_metadata: bool = False,
         max_file_size: int = 5 * 2**30,
-        schema: Any = None,
+        dtype_schema: Any = None,
         dataset_name: str = "train",
         save_labels: bool = True,
+        compression: str = None,
     ):
         super().__init__(
             output_folder,
             output_filename,
-            compression=None,
+            compression=compression,
             adapter=adapter,
             mode="wb",
             expand_metadata=expand_metadata,
@@ -400,19 +405,20 @@ class HDF5Writer(DiskWriter):
         self._batches = defaultdict(list)
         self._file_counter = Counter()
         self.batch_size = batch_size
-        self.schema = schema
+        self.dtype_schema = dtype_schema
         self.dataset_name = dataset_name
         self.save_labels = save_labels
+        self.compression = compression
 
     def _write_batch(self, filename: str):
         if not self._batches[filename]:
             return
 
         batch = self._batches.pop(filename)
-        embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=np.float32)
+        embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=self.dtype_schema["embedding_dtype"])
         document_id = [doc["metadata"]["document_id"] for doc in batch]
         if self.save_labels and "label" in batch[0]["metadata"]:
-            labels = np.array([doc["metadata"]["label"] for doc in batch], dtype=np.float32)
+            labels = np.array([doc["metadata"]["label"] for doc in batch], dtype=self.dtype_schema["label_dtype"])
         else:
             labels = None
 
@@ -425,15 +431,15 @@ class HDF5Writer(DiskWriter):
             maxshape_emb = (None, embeddings.shape[1])
             maxshape_ids = (None,)
             emb_ds = group.create_dataset(
-                "embeddings", shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression="gzip", dtype=np.float32
+                "embeddings", shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression=self.compression, dtype=self.dtype_schema["embedding_dtype"]
             )
             dt = h5py.string_dtype(encoding="utf-8")
-            id_ds = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression="gzip", dtype=dt)
+            id_ds = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt)
             labels_ds = None
             if labels is not None:
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_ds = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression="gzip", dtype=np.float32
+                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
                 )
         else:
             group = file[group_name]
@@ -453,7 +459,7 @@ class HDF5Writer(DiskWriter):
                 # Create labels dataset now if first time labels appear
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_ds = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression="gzip", dtype=np.float32
+                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression="gzip", dtype=self.dtype_schema["label_dtype"]
                 )
             labels_ds.resize(new_size, axis=0)
             labels_ds[old_size:new_size] = labels
@@ -475,6 +481,49 @@ class HDF5Writer(DiskWriter):
         self._writers.clear()
         self._batches.clear()
         super().close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def stats_adapter(writer: DiskWriter, document: Document, output_keys: list[str]) -> dict:
@@ -650,6 +699,7 @@ class JQLHead(PipelineStep):
         batch_size: int = 1_000,
         device_overwrite: Optional[str] = None,
         stats_writer: DiskWriter = None,
+        dtype_schema: Any = None,
     ):
         super().__init__()
         if regression_head_checkpoints is None:
@@ -660,6 +710,7 @@ class JQLHead(PipelineStep):
         self.device_overwrite = device_overwrite
         self.stats_writer = stats_writer
         self.output_keys = output_keys
+        self.dtype_schema = dtype_schema
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
         """
@@ -689,13 +740,13 @@ class JQLHead(PipelineStep):
 
         self.regression_heads = {}
         for name, path in self.regression_head_checkpoints.items():
-            self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(bfloat16)
+            self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(self.dtype_schema["model_dtype"])
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
                 with self.track_time(unit='batch'):
                     # Convert embeddings back to tensors with bfloat16 dtype
-                    embeddings = [torch.tensor(doc.text, device=device, dtype=torch.bfloat16) for doc in doc_batch]
+                    embeddings = [torch.tensor(doc.text, device=device, dtype=self.dtype_schema["embedding_dtype"]) for doc in doc_batch]
                     embeddings_tensor = torch.stack(embeddings)
 
                     scores = {}

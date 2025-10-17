@@ -5,6 +5,7 @@ from typing import Optional
 from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers import JsonlWriter
+from ml_filter.annotation.utils import resolve_output_dtype
 from omegaconf import OmegaConf
 from omegaconf import DictConfig as _DictConfig
 from pydantic import BaseModel, Field, model_validator
@@ -83,7 +84,11 @@ class AnnotationPipelineParameters(BaseModel):
     regression_head_checkpoints: dict[str, str] = Field(..., description="Mapping of model names to head checkpoint paths.")
     batch_size: int = Field(..., description="Batch size for processing embeddings.")
     dataset_name: str = Field(..., description="Name of the HDF5 dataset to use.")
-    
+    compression: str | None = Field(..., description="Compression for input embedding files if relevant (not used for HDF5).")
+    embedding_dtype: str = Field(..., description="Storage dtype for embeddings (float32, float16, bfloat16->float32).")
+    label_dtype: str | None = Field(..., description="Storage dtype for labels (e.g., int8, float32). Optional.")
+    model_dtype: str = Field(..., description="Model compute dtype (float32, float16, bfloat16).")
+
     @property
     def annotated_output_dir(self) -> Path:
         return self.output_dir / "annotated_data"
@@ -141,13 +146,21 @@ class AnnotationPipelineBuilder(BaseSettings):
         slurm_settings = raw.get("slurm_settings", None)
         local_section = raw.get("local_settings", None)
 
+        # Helper fetch with default
+        def _p(name: str, default=None):
+            return params_cfg.get(name, default)
+
         params = AnnotationPipelineParameters(
-            embeddings_directory=params_cfg["embeddings_directory"],
-            output_dir=params_cfg["output_dir"],
-            output_keys=params_cfg["output_keys"],
-            regression_head_checkpoints=params_cfg["regression_head_checkpoints"],
-            batch_size=params_cfg["batch_size"],
-            dataset_name=params_cfg["hdf5_dataset_name"],
+            embeddings_directory=_p("embeddings_directory"),
+            output_dir=_p("output_dir"),
+            output_keys=_p("output_keys"),
+            regression_head_checkpoints=_p("regression_head_checkpoints"),
+            batch_size=_p("batch_size"),
+            dataset_name=_p("hdf5_dataset_name"),
+            compression=_p("compression"),
+            embedding_dtype=_p("embedding_dtype"),
+            label_dtype=_p("label_dtype"),
+            model_dtype=_p("model_dtype"),
         )
 
         local_settings_obj = None
@@ -170,11 +183,22 @@ class AnnotationPipelineBuilder(BaseSettings):
     # --- Build Pipeline ---
     def build_pipeline(self) -> list[PipelineStep]:
         p = self.params
+        # --- Unified precision validation & resolution ---
+        _resolved = resolve_output_dtype({
+            'model_dtype': p.model_dtype,
+            'embedding_dtype': p.embedding_dtype,
+            'label_dtype': p.label_dtype,
+        }, pipeline="annotation_pipeline")
         pipeline = [
             JQLEmbeddingReader(data_folder=p.embeddings_directory, dataset_name=p.dataset_name),
             JQLHead(
                 regression_head_checkpoints=p.regression_head_checkpoints,
                 batch_size=p.batch_size,
+                dtype_schema={
+                    "model_dtype": _resolved["model_dtype"],
+                    "embedding_dtype": _resolved["embedding_dtype"],
+                    "label_dtype": _resolved["label_dtype"],
+                },
                 stats_writer=JsonlWriter(
                     output_folder=str(p.annotated_output_dir),
                     output_filename="${source_filename}.jsonl",

@@ -76,6 +76,10 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
                         "padding": True,
                         "truncation": True,
                         "save_labels": False,
+                        "text_field": "text",
+                        "embedding_dtype": "float32",
+                        "model_dtype": "bfloat16",
+                        "label_dtype": "bfloat16",
                     },
                     "local_settings": {
                         "tasks": 2,
