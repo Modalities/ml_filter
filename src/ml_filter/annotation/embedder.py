@@ -11,84 +11,6 @@ def bytes_to_gib_str(bytes_val):
     return f"{bytes_val / 1024 ** 3:.2f} GiB"
 
 
-class GteMultilingualBase:
-    """
-    A wrapper class for the 'Alibaba-NLP/gte-multilingual-base' embedding model.
-
-    Attributes:
-        device (torch.device or str): The device on which to load the model (e.g., 'cuda', 'cpu').
-        dtype (torch.dtype): The data type for model computations (default: torch.bfloat16).
-        tokenizer (AutoTokenizer): The tokenizer associated with the GTE model.
-        model (AutoModel): The loaded GTE-Multilingual-Base model.
-    """
-
-    def __init__(self, device, dtype=torch.bfloat16):
-        """
-        Initializes the GteMultilingualBase model.
-
-        Args:
-            device (torch.device or str): The device to load the model onto (e.g., 'cuda', 'cpu').
-            dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
-        """
-
-        self.device = device
-        self.dtype = dtype
-
-        model_id = "Alibaba-NLP/gte-multilingual-base"
-
-        # Load the tokenizer specific to the embedding model.
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-        # Load the pre-trained GTE-Multilingual-Base model.
-        self.model = AutoModel.from_pretrained(
-            model_id,
-            trust_remote_code=True,  # Allows loading custom code from the model's repository.
-            torch_dtype=dtype,  # Sets the data type for model parameters and computations.
-            unpad_inputs=True,  # Optimizes for unpadded inputs if applicable.
-            use_memory_efficient_attention=True,  # Leverages memory-efficient attention mechanisms.
-        ).to(
-            device
-        )  # Move the model to the specified device.
-
-    def embed(self, texts, max_length: int = 8192, padding: bool | str = True, truncation: bool | str = True):
-        """
-        Generates embeddings for a list of text strings.
-
-        Args:
-            texts (list[str]): A list of text strings to embed.
-            max_length (int, optional): Maximum sequence length for tokenization.
-            Defaults to 8192.
-            padding (bool | str, optional): Padding strategy passed to tokenizer.
-             Defaults to True.
-            truncation (bool | str, optional): Truncation strategy passed to tokenizer .
-            Defaults to True.
-
-        Returns:
-            torch.Tensor: A tensor of shape (batch_size, embedding_dim)
-                          containing the normalized embeddings for the input texts.
-        """
-
-        # Tokenize the input texts, ensuring proper padding, truncation, and tensor conversion.
-        batch_tokens = self.tokenizer(
-            texts,
-            max_length=8192,  # Maximum sequence length for tokenization.
-            padding="longest",  # Pad to the length of the longest sequence in the batch.
-            truncation=True,  # Truncate sequences longer than max_length.
-            return_tensors="pt",  # Return PyTorch tensors.
-        ).to(
-            self.device
-        )  # Move tokens to the specified device.
-
-        with torch.no_grad():  # Disable gradient calculation for inference to save memory and speed up computation.
-            output = self.model(**batch_tokens)
-
-        # Extract the embeddings from the CLS token (first token) of the last hidden state.
-        embeddings = output.last_hidden_state[:, 0]
-        # Normalize the embeddings to unit length (L2 normalization).
-        embeddings = F.normalize(embeddings, p=2, dim=1)
-
-        return embeddings
-
-
 class SnowflakeArcticEmbedMV2_0:
     """
     A wrapper class for the 'Snowflake/snowflake-arctic-embed-m-v2.0' embedding model.
@@ -128,7 +50,6 @@ class SnowflakeArcticEmbedMV2_0:
             trust_remote_code=True,  # Allows loading custom code from the model's repository.
             torch_dtype=dtype,  # Sets the data type for model parameters and computations.
             unpad_inputs=True,  # Optimizes for unpadded inputs if applicable.
-            # device_map={'': device},     # Maps the model to the specified device.
             add_pooling_layer=False,  # Prevents adding an extra pooling layer if not needed.
             use_memory_efficient_attention=True,  # Leverages memory-efficient attention mechanisms.
         )
@@ -179,66 +100,6 @@ class SnowflakeArcticEmbedMV2_0:
 
         embeddings = embeddings.cpu().tolist()
         # torch.cuda.empty_cache()  # Clear CUDA memory cache to free up resources.
-
-        return embeddings
-
-
-class JinaEmbeddingsV3TextMatching:
-    """
-    A wrapper class for the 'jinaai/jina-embeddings-v3' model, specifically
-    configured for 'text-matching' tasks.
-
-    Attributes:
-        device (torch.device or str): The device on which to load the model.
-        dtype (torch.dtype): The data type for model computations (default: torch.bfloat16).
-        model (AutoModel): The loaded Jina Embeddings V3 model.
-    """
-
-    def __init__(self, device, dtype=torch.bfloat16):
-        """
-        Initializes the JinaEmbeddingsV3TextMatching model.
-
-        Args:
-            device (torch.device or str): The device to load the model onto.
-            dtype (torch.dtype, optional): The data type for model operations. Defaults to torch.bfloat16.
-        """
-
-        self.device = device
-        self.dtype = dtype
-
-        model_id = "jinaai/jina-embeddings-v3"
-
-        # Load the Jina Embeddings V3 model.
-        self.model = AutoModel.from_pretrained(
-            model_id,
-            trust_remote_code=True,  # Allows loading custom code from the model's repository.
-            torch_dtype=torch.bfloat16,  # Specifically set dtype to bfloat16 for this model.
-        ).to(
-            device
-        )  # Move the model to the specified device.
-
-    def embed(self, texts, max_length: int = 8192, padding: bool | str = True, truncation: bool | str = True):
-        """
-        Generates embeddings for a list of text strings using the Jina Embeddings V3 model
-        with a 'text-matching' task.
-        Args:
-            texts (list[str]): A list of text strings to embed.
-            max_length (int, optional): Maximum sequence length for tokenization. Defaults to 8192.
-            padding (bool | str, optional): Padding strategy passed to tokenizer. Defaults to True.
-            truncation (bool | str, optional): Truncation strategy passed to tokenizer. Defaults to True.
-
-        Returns:
-            torch.Tensor: A tensor of shape (batch_size, embedding_dim)
-                          containing the embeddings.
-        """
-
-        with torch.no_grad():  # Disable gradient calculation for inference.
-            # Use the model's built-in encode method with 'text-matching' task.
-            output = self.model.encode(texts, task="text-matching")
-
-        # Convert the output (which might be a numpy array or list) to a PyTorch tensor
-        # and move it to the specified device and data type.
-        embeddings = torch.tensor(output).to(self.device, self.dtype)
 
         return embeddings
 
