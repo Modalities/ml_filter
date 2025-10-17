@@ -306,6 +306,11 @@ class JQLEmbedder(PipelineStep):
 
         # self.batch_size = find_max_batch_size(embedder, max_limit=1000000, step=500)
 
+        # Throughput tracking (exclude first batch as warmup)
+        batch_index = 0
+        total_docs_excl_warmup = 0
+        total_time_excl_warmup = 0.0
+
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
                 with self.track_time(unit="batch"):
@@ -327,14 +332,18 @@ class JQLEmbedder(PipelineStep):
                         duration = time.time() - start_time
                         num_docs = len(doc_batch)
                         throughput = num_docs / duration if duration > 0 else 0
-                        logger.info(
-                            f"""Processed {num_docs} docs in {duration:.2f}s in rank {rank}
-                             → Throughput: {throughput:.2f} docs/sec"""
-                        )
-                        print(
-                            f"""Processed {num_docs} docs in {duration:.2f}s in rank {rank}
-                             → Throughput: {throughput:.2f} docs/sec"""
-                        )
+                        if batch_index == 0:
+                            logger.info(
+                                f"Warmup batch processed {num_docs} docs in {duration:.2f}s on rank {rank} (excluded from average throughput)."
+                            )
+                        else:
+                            total_docs_excl_warmup += num_docs
+                            total_time_excl_warmup += duration
+                            logger.info(
+                                f"Batch {batch_index} processed {num_docs} docs in {duration:.2f}s on rank {rank} → Throughput: {throughput:.2f} docs/sec"
+                            )
+                        batch_index += 1
+                        # Print removed to reduce stdout noise; rely on logging.
                         torch.cuda.empty_cache()
 
                     except RuntimeError as e:
@@ -349,6 +358,15 @@ class JQLEmbedder(PipelineStep):
                         else:
                             logger.error(f"Runtime error on rank {rank}: {e}")
                             raise e
+
+        # Final average throughput logging (exclude warmup)
+        if batch_index > 1 and total_time_excl_warmup > 0:
+            avg_throughput = total_docs_excl_warmup / total_time_excl_warmup
+            logger.info(
+                f"Average throughput (excluding warmup) on rank {rank}: {avg_throughput:.2f} docs/sec over {total_docs_excl_warmup} docs in {batch_index - 1} batches"
+            )
+        elif batch_index <= 1:
+            logger.info(f"Only warmup batch processed on rank {rank}; no average throughput computed.")
 
 
 class HDF5Writer(DiskWriter):
