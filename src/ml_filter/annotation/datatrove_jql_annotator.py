@@ -447,17 +447,12 @@ class HDF5Writer(DiskWriter):
             document_ids_dataset = group["document_id"]
             labels_dataset = group.get("labels") if "labels" in group else None
 
-        # Resize for new batch once and append
-        # Append the current in-memory batch to the on-disk datasets.
-        # We:
+        # Resize for new batch once and append the current in-memory batch to the on-disk datasets.
         # 1. Capture current length (current_row_count)
         # 2. Compute new total length after adding this batch (updated_row_count)
         # 3. Resize both datasets once
         # 4. Slice-assign the new rows
-        #
-        # Rationale:
-        # - Doing a single resize per batch (instead of per document) avoids quadratic reallocation cost.
-        # - Using explicit start/end indices keeps embeddings, ids (and labels below) aligned.
+        
         current_row_count = embeddings_dataset.shape[0]
         updated_row_count = current_row_count + embeddings.shape[0]
         embeddings_dataset.resize(updated_row_count, axis=0)
@@ -492,49 +487,6 @@ class HDF5Writer(DiskWriter):
         self._writers.clear()
         self._batches.clear()
         super().close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def stats_adapter(writer: DiskWriter, document: Document, output_keys: list[str]) -> dict:
