@@ -191,11 +191,11 @@ class JQLEmbedder(PipelineStep):
         embedder_model_id: str,
         batch_size: int,
         model_dtype: torch.dtype,
+        max_length: int,
+        padding: bool | str,
+        truncation: bool | str,
         device_overwrite: Optional[str] = None,
         stats_writer: DiskWriter = None,
-        max_length: int = 8192,
-        padding: bool | str = True,
-        truncation: bool | str = True,
     ):
         super().__init__()
         self.embedder_model_id = embedder_model_id

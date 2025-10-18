@@ -50,7 +50,7 @@ class JQLEmbedderTestBase(unittest.TestCase):
 
 class TestJQLEmbedder(JQLEmbedderTestBase):
     def test_embedding_output_structure(self):
-        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16)
+        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16, max_length=64, padding="max_length", truncation=True)
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         self.assertEqual(len(embedded_docs), len(self.input_docs))
@@ -67,7 +67,7 @@ class TestJQLEmbedder(JQLEmbedderTestBase):
 
 class TestHDF5Writer(JQLEmbedderTestBase):
     def test_write_and_verify_hdf5_output(self):
-        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16)
+        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16, max_length=64, padding="max_length", truncation=True)
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         writer = HDF5Writer(
