@@ -10,7 +10,7 @@ params:
   text_field: text
   keys_to_index: ["id", "aggregation_type"]
   embedding_dir: ${dataset_name}_embeddings
-  compression: 
+  compression: gzip
 
   # Precision
   embedding_dtype: float32

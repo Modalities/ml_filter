@@ -234,7 +234,6 @@ class EmbeddingPipelineBuilder(BaseSettings):
                 data_folder=p.input_dir,
                 keys_to_index=p.keys_to_index,
                 glob_pattern=p.glob_pattern,
-                compression=p.compression,
                 text_key=p.text_field,
                 save_labels=p.save_labels,
             ),

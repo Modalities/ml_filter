@@ -264,7 +264,7 @@ class JQLEmbedder(PipelineStep):
         max_length: tokenizer max sequence length.
         padding: padding strategy.
         truncation: truncation strategy.
-        model_dtype: string precision for model forward pass.
+        model_dtype: precision for model forward pass.
     """
 
     name = "🔢 - JQL-EMBEDDER"
@@ -459,7 +459,7 @@ class HDF5Writer(DiskWriter):
                 # Create labels dataset now if first time labels appear
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_ds = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression="gzip", dtype=self.dtype_schema["label_dtype"]
+                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
                 )
             labels_ds.resize(new_size, axis=0)
             labels_ds[old_size:new_size] = labels
