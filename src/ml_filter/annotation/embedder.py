@@ -314,14 +314,8 @@ def get_embedder_instance(model_id, device, dtype):
         ValueError: If an unknown `model_id` is provided.
     """
 
-    if model_id == "Alibaba-NLP/gte-multilingual-base":
-        embedder_class = GteMultilingualBase
-
-    elif model_id == "Snowflake/snowflake-arctic-embed-m-v2.0":
+    if model_id == "Snowflake/snowflake-arctic-embed-m-v2.0":
         embedder_class = SnowflakeArcticEmbedMV2_0
-
-    elif model_id == "jinaai/jina-embeddings-v3":
-        embedder_class = JinaEmbeddingsV3TextMatching
 
     elif model_id == "Qwen/Qwen3-Embedding-0.6B":
         embedder_class = Qwen3Embedder
