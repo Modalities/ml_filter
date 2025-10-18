@@ -430,39 +430,50 @@ class HDF5Writer(DiskWriter):
             group = file.create_group(group_name)
             maxshape_emb = (None, embeddings.shape[1])
             maxshape_ids = (None,)
-            emb_ds = group.create_dataset(
+            embeddings_dataset = group.create_dataset(
                 "embeddings", shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression=self.compression, dtype=self.dtype_schema["embedding_dtype"]
             )
             dt = h5py.string_dtype(encoding="utf-8")
-            id_ds = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt)
-            labels_ds = None
+            document_ids_dataset = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt)
+            labels_dataset = None
             if labels is not None:
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
-                labels_ds = group.create_dataset(
+                labels_dataset = group.create_dataset(
                     "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
                 )
         else:
             group = file[group_name]
-            emb_ds = group["embeddings"]
-            id_ds = group["document_id"]
-            labels_ds = group.get("labels") if "labels" in group else None
+            embeddings_dataset = group["embeddings"]
+            document_ids_dataset = group["document_id"]
+            labels_dataset = group.get("labels") if "labels" in group else None
 
         # Resize for new batch once and append
-        old_size = emb_ds.shape[0]
-        new_size = old_size + embeddings.shape[0]
-        emb_ds.resize(new_size, axis=0)
-        id_ds.resize(new_size, axis=0)
-        emb_ds[old_size:new_size, :] = embeddings
-        id_ds[old_size:new_size] = document_id
+        # Append the current in-memory batch to the on-disk datasets.
+        # We:
+        # 1. Capture current length (current_row_count)
+        # 2. Compute new total length after adding this batch (updated_row_count)
+        # 3. Resize both datasets once
+        # 4. Slice-assign the new rows
+        #
+        # Rationale:
+        # - Doing a single resize per batch (instead of per document) avoids quadratic reallocation cost.
+        # - Using explicit start/end indices keeps embeddings, ids (and labels below) aligned.
+        current_row_count = embeddings_dataset.shape[0]
+        updated_row_count = current_row_count + embeddings.shape[0]
+        embeddings_dataset.resize(updated_row_count, axis=0)
+        document_ids_dataset.resize(updated_row_count, axis=0)
+        embeddings_dataset[current_row_count:updated_row_count, :] = embeddings
+        document_ids_dataset[current_row_count:updated_row_count] = document_id
+
         if labels is not None:
-            if labels_ds is None:
+            if labels_dataset is None:
                 # Create labels dataset now if first time labels appear
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
-                labels_ds = group.create_dataset(
+                labels_dataset = group.create_dataset(
                     "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
                 )
-            labels_ds.resize(new_size, axis=0)
-            labels_ds[old_size:new_size] = labels
+            labels_dataset.resize(updated_row_count, axis=0)
+            labels_dataset[current_row_count:updated_row_count] = labels
 
     def _write(self, document: dict, file_handler: IO, filename: str):
         if filename not in self._writers:
