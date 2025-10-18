@@ -245,28 +245,6 @@ class Qwen3Embedder:
             # Select the last valid token for each sequence
             return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
 
-    def get_detailed_instruct(self, task_description: str, query: str) -> str:
-        """
-        Formats task instructions for the Qwen embedding model.
-
-        This method creates a standardized instruction format that combines
-        a task description with a specific query, following the Qwen model's
-        expected input format for optimal embedding generation.
-
-        Args:
-            task_description (str): Description of the task or context for the embedding.
-            query (str): The specific text query to be embedded.
-
-        Returns:
-            str: Formatted instruction string in the format:
-                 "Instruct: {task_description}\nQuery: {query}"
-
-        Example:
-            >>> embedder.get_detailed_instruct("Retrieve semantically similar text", "machine learning")
-            'Instruct: Retrieve semantically similar text\\nQuery: machine learning'
-        """
-        return f"Instruct: {task_description}\nQuery:{query}"
-
     def embed(self, texts, max_length: int, padding: bool, truncation: bool):
         """
         Generates embeddings for a list of text strings using the Qwen 3 embedding model.
