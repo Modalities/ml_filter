@@ -24,7 +24,7 @@ training:
   use_bf16: true
   weight_decay: 0.01 # 0.01
   eval_strategy: epoch
-  save_strategy: "no"
+  save_strategy: epoch
   logging_steps: 100
   seed: 42
   greater_is_better: true  # Spearman correlation is maximised
