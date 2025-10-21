@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any, Dict, List, Optional
 
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from transformers import AutoTokenizer
 
 
 class TokenizerWrapper(ABC):
@@ -55,7 +55,12 @@ class PreTrainedHFTokenizer(TokenizerWrapper):
         # also see here for the truncation and padding options and their effects:
         # https://huggingface.co/docs/transformers/pad_truncation#padding-and-truncation
 
-        self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=pretrained_model_name_or_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            unpad_inputs=True,
+            add_pooling_layer=False,
+            use_memory_efficient_attention=True,
+        )
         if special_tokens is not None:
             # TODO check if we always want to set
             # replace_additional_special_tokens=False

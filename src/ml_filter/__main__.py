@@ -18,7 +18,7 @@ from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
-from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
+from ml_filter.training.embedding_training_pipeline import run_embedding_head_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
@@ -151,17 +151,6 @@ def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, expe
 def entry_point_compare_experiments(config_file_path: Path):
     # TODO check if entry point still works. rename
     compare_experiments(config_file_path)
-
-
-@main.command(name="annotator_training_pipeline")
-@click.option(
-    "--config_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the config file.",
-)
-def entry_annotator_training_pipeline(config_file_path: Path):
-    run_annotator_training_pipeline(config_file_path=config_file_path)
 
 
 @main.command(name="chunk_jsonl")
@@ -760,6 +749,18 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
+
+
+@main.command(name="train_with_embeddings")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the config file.",
+)
+def entry_train_with_embeddings(config_file_path: Path):
+    """Train regression head using pre-computed embeddings."""
+    run_embedding_head_training_pipeline(config_file_path=config_file_path)
 
 
 if __name__ == "__main__":

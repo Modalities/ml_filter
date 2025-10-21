@@ -4,12 +4,9 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 import pytest
-import torch
 import yaml
 from omegaconf import OmegaConf
-from transformers import AutoConfig, BertForSequenceClassification
 
-from ml_filter.models.annotator_model_head import MultiTargetClassificationHead, MultiTargetRegressionHead
 from ml_filter.translate import DeepLClient, OpenAIClient, Translator
 
 
@@ -201,9 +198,16 @@ def temp_output_dir(tmp_path):
 
 
 @pytest.fixture
-def config_file(temp_output_dir):
-    """Creates a real configuration file for testing."""
+def config_file(temp_output_dir: Path):
+    """Creates a real configuration file for testing, pointing at split dirs."""
+    # ensure base and logs dir exist
     temp_output_dir.mkdir(parents=True, exist_ok=True)
+    (temp_output_dir / "logs").mkdir(parents=True, exist_ok=True)
+
+    # pre-create split dirs so they exist before the pipeline runs
+    for split in ("train", "val", "test"):
+        (temp_output_dir / split).mkdir(parents=True, exist_ok=True)
+
     cfg = {
         "training": {
             "output_dir_path": str(temp_output_dir),
@@ -214,39 +218,33 @@ def config_file(temp_output_dir):
             "save_strategy": "epoch",
             "logging_steps": 10,
             "logging_dir_path": str(temp_output_dir / "logs"),
-            "metric_for_best_model": "accuracy",
+            "metric_for_best_model": "eval_validation_edu/spearman_corr",
             "use_bf16": False,
             "greater_is_better": True,
-            "is_regression": True,
             "eval_strategy": "steps",
             "dataloader_num_workers": 1,
+            "wandb_run_name": "temp_run",
         },
         "model": {
-            "name": "facebookai/xlm-roberta-base",
-            "freeze_base_model_parameters": True,
-            "is_regression": True,
+            "regressor_hidden_dim": 1000,
+            "init_regression_weights": False,  # Add this missing key
+            "loading_params": {
+                "trust_remote_code": False,
+            },
         },
         "data": {
-            "text_column": "text",
-            "label_column": "labels",
-            "document_id_column": "id",
-            "train_file_path": str(temp_output_dir / "train.jsonl"),
-            "train_file_split": "train",
-            "val_file_path": str(temp_output_dir / "val.jsonl"),
-            "val_file_split": "train",
-            "test_file_path": str(temp_output_dir / "test.jsonl"),
-            "test_file_split": "train",
+            "train_file_path": str(temp_output_dir / "train"),  # directory
+            "train_file_split": "data",
+            "val_file_path": str(temp_output_dir / "val"),
+            "val_file_split": "data",
+            "test_file_path": str(temp_output_dir / "test"),
+            "test_file_split": "data",
+            "embeddings_dataset": "embeddings",
+            "labels_dataset": "labels",
             "num_tasks": 3,
-            "task_names": ["edu", "toxicity", "adult"],
-            "num_targets_per_task": [2, 3, 4],
+            "task_names": ["edu", "adult", "toxicity"],
+            "num_targets_per_task": [6, 6, 6],
             "num_processes": 2,
-        },
-        "tokenizer": {
-            "pretrained_model_name_or_path": "facebookai/xlm-roberta-base",
-            "add_generation_prompt": False,
-            "max_length": 128,
-            "padding": "max_length",
-            "truncation": True,
         },
     }
 

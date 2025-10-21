@@ -28,7 +28,6 @@ class MultiTargetRegressionHead(AnnotatorHead):
         input_dim: int,
         hidden_dim: int,
         num_prediction_tasks: int,
-        num_targets_per_prediction_task: torch.Tensor,
         use_bias: bool = True,
     ):
         """Initializes the multi-target regression head.
@@ -36,8 +35,6 @@ class MultiTargetRegressionHead(AnnotatorHead):
         Args:
             input_dim (int): Number of input features from the encoder.
             num_prediction_tasks (int): Number of regression tasks.
-            num_targets_per_prediction_task (Tensor): A tensor defining the number of classes per output
-                (used for normalization and scaling).
             use_bias (bool, optional): Whether to include a bias term in the linear layer. Defaults to True.
         """
         super().__init__()
@@ -54,6 +51,6 @@ class MultiTargetRegressionHead(AnnotatorHead):
             x (Tensor): Input tensor of shape `(batch_size, input_dim)`.
 
         Returns:
-            Tensor: Regression output tensor of shape `(batch_size, num_targets)`.
+            Tensor: Regression output tensor of shape `(batch_size, num_prediction_tasks)`.
         """
         return self.mlp(x)
