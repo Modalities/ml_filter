@@ -1,16 +1,20 @@
 settings:
-  model_name: google/gemma-2-9b-it
+  model_name: gpt-4o
   num_gpus: 1
-  tokenizer_name_or_path: ${settings.model_name}
+  tokenizer_name_or_path: google/gemma-2-9b-it
+  provider: openai
+  openai:
+    api_key: ${env:OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    
   paths:
     raw_data_file_paths:
-    - data/deu_Latn_sampled_500k_first200.jsonl
+    - /raid/fromm/ml_filter/data/test.jsonl
     start_indexes:
-    - 150   
-    output_directory_path: data/output
-    prompt_template_file_path: data/prompts/adult/adult_content_scoring_prompt.yaml
+    - 0   
+    output_directory_path: /raid/fromm/ml_filter/data/output
+    prompt_template_file_path: /raid/fromm/ml_filter/data/prompts/adult/adult_content_scoring_prompt.yaml
 llm_rest_client:
-  model_name: ${settings.model_name}
   max_tokens: 8192
   sampling_params:
     max_tokens: 500

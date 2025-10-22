@@ -5,7 +5,8 @@ settings:
   # we need to set this here manually as this is specified only when hosting the model
   num_gpus: 1
   tokenizer_name_or_path: ${settings.model_name}
-  
+  provider: local
+
   paths:
     raw_data_file_paths: 
     - data/test_fineweb2_dump.jsonl
@@ -15,7 +16,6 @@ settings:
     - 10   
 
 llm_rest_client:
-  model_name: ${settings.model_name}
   max_tokens: 8192 # The maximum total number of tokens supported by the model (input + output)
   sampling_params:
     max_tokens: 500 # The maximum number of tokens to generate

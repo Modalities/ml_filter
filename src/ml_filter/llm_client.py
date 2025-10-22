@@ -1,5 +1,6 @@
 import logging
 import shutil
+import os  # Add os import for environment variables
 from pathlib import Path
 
 from omegaconf import OmegaConf
@@ -20,13 +21,22 @@ class LLMClient:
         self.experiment_id = experiment_id
         self.rest_endpoint = rest_endpoint
 
+        # Register custom resolver for environment variables
+        OmegaConf.register_new_resolver(
+            "env",
+            lambda key: os.environ.get(key),
+            replace=True
+        )
+
+        # Existing resolver for eval
         OmegaConf.register_new_resolver("eval", eval)
+
+        # Load and validate configuration
         config_omegaconf = OmegaConf.load(config_file_path)
         config_resolved = OmegaConf.to_container(config_omegaconf, resolve=True)
         cfg = AnnotationPipelineConfig.model_validate(config_resolved)
 
         self.prompt_template_file_path = Path(cfg.prompt_builder.prompt_template_file_path)
-        # Create experiment directory and store the config as backup
         self.experiment_dir_path = Path(cfg.settings.paths.output_directory_path) / self.experiment_id
         self.experiment_dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -36,21 +46,22 @@ class LLMClient:
             cfg.prompt_builder.prompt_template_file_path,
             self.experiment_dir_path / Path(self.prompt_template_file_path).name,
         )
-        # Dataset related variables
         self.raw_data_file_paths = [Path(path) for path in cfg.settings.paths.raw_data_file_paths]
         self.start_indexes = [int(index) for index in cfg.settings.paths.start_indexes]
 
         # LLMRestClient related variables
         self.max_retries = cfg.llm_rest_client.max_retries
         self.backoff_factor = cfg.llm_rest_client.backoff_factor
-        self.model_name = cfg.llm_rest_client.model_name
+        self.model_name = cfg.settings.model_name
         self.timeout = cfg.llm_rest_client.timeout
         self.max_pool_connections = cfg.llm_rest_client.max_pool_connections
         self.max_pool_maxsize = cfg.llm_rest_client.max_pool_maxsize
         self.max_tokens = cfg.llm_rest_client.max_tokens
-
         self.verbose = cfg.llm_rest_client.verbose
         self.sampling_params = cfg.llm_rest_client.sampling_params
+        self.provider = cfg.settings.provider
+        self.openai_api_key = cfg.settings.openai.api_key if cfg.settings.openai else None
+        self.openai_base_url = cfg.settings.openai.base_url if cfg.settings.openai else None
 
         # Tokenizer related variables
         self.pretrained_model_name_or_path = Path(cfg.tokenizer.pretrained_model_name_or_path)
@@ -65,14 +76,7 @@ class LLMClient:
         self.jq_language_pattern = cfg.document_processor.jq_language_pattern
 
     def run(self):
-        """Runs the LLM service.
-
-        This method loads the dataset, initializes the tokenizer, LLMRestClient, and DocumentProcessor,
-        and then runs the document processing on the loaded data to obtain the model responses.
-        """
-
-        # Get Tokenizer
-        # This tokenizer is only used for applying the chat template, but is not applied within TGI.
+        """Runs the LLM service."""
         tokenizer = PreTrainedHFTokenizer(
             pretrained_model_name_or_path=self.pretrained_model_name_or_path,
             truncation=False,
@@ -82,7 +86,6 @@ class LLMClient:
             add_generation_prompt=self.add_generation_prompt,
         )
 
-        # Get LLMRestClient
         llm_rest_client = LLMRestClient(
             max_retries=self.max_retries,
             backoff_factor=self.backoff_factor,
@@ -95,9 +98,11 @@ class LLMClient:
             max_tokens=self.max_tokens,
             sampling_params=self.sampling_params,
             verbose=self.verbose,
+            provider=self.provider,
+            openai_api_key=self.openai_api_key,
+            openai_base_url=self.openai_base_url,
         )
 
-        # Get DocumentProcessor
         document_processor = DocumentProcessor(
             llm_rest_client=llm_rest_client,
             prompt_builder=PromptBuilder(
