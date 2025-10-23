@@ -814,27 +814,6 @@ def submit_collected_requests_to_batched_openai_api_cli(
 
 
 @main.command(name="get_costs_of_openai_batched_requests")
-# parser = argparse.ArgumentParser(
-#     description="Process 'batch_results.jsonl' files to generate a markdown cost report."
-# )
-# parser.add_argument("root_directory", type=str, help="The root directory to search recursively.")
-# parser.add_argument(
-#     "--cost-plan",
-#     type=str,
-#     choices=["batched", "not batched"],
-#     default="batched",
-#     help="The cost plan to use for calculations.",
-# )
-# parser.add_argument(
-#     "-o",
-#     "--output-file",
-#     type=str,
-#     default="report.md",
-#     help="Path to save the markdown report (default: report.md).",
-# )
-
-
-# args = parser.parse_args()
 @click.option(
     "--root_directory",
     type=str,
