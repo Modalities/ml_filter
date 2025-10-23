@@ -8,14 +8,21 @@ params:
   # Output
   output_dir: /data/cat/ws/alju972f-regression_heads/repos/data/embedding_creation/output
   keys_to_index: ["id", "aggregation_type"]
+  text_field: text
   embedding_dir: ${dataset_name}_embeddings
+  compression: gzip
+
+  # Precision
+  embedding_dtype: float32
+  label_dtype: int8
+  model_dtype: bfloat16
 
   # Model and embedding parameters
   embedding_model: jhu-clsp/mmBERT-base
-  batch_size: 300
+  batch_size: 512
   writer_batch_size: 1000
   hdf5_dataset_name: train
-  save_labels: true
+  save_labels: false
   max_length: 8192
   padding: true
   truncation: true
@@ -30,6 +37,7 @@ slurm_settings:
     nodes: 1
     ntasks: 1
     gres: gpu:4
+    exclusive: user
   partition: "capella"
   time: "04:00:00"
   cpus_per_task: 32
