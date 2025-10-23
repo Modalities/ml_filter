@@ -4,7 +4,7 @@ settings:
   tokenizer_name_or_path: ${settings.model_name}
   paths:
     raw_data_file_paths:
-    - data/deu_Latn_sampled_500k_first_200.jsonl
+    - data/debug/deu_Latn_sampled_500k_first_200.jsonl
     start_indexes:
     - 150   
     output_directory_path: data/output
