@@ -803,7 +803,7 @@ def submit_collected_requests_to_batched_openai_api_cli(
     from ml_filter.llm_api.openai_batch_request_collector import OpenAIBatchAPIRequestSubmitter
 
     input_files = [Path(p) for p in input_files]
-    # Not all mdoels are supported: https://community.openai.com/t/error-on-tryng-to-use-batches/935474/7
+    # Not all models are supported: https://community.openai.com/t/error-on-tryng-to-use-batches/935474/7
     collector = OpenAIBatchAPIRequestSubmitter(
         input_files=input_files, model_name=model_name, max_requests_per_file=max_requests_per_file
     )

@@ -82,6 +82,7 @@ class OpenAIBatchAPIRequestSubmitter:
                 self.logger.error(f"{batch_check.request_counts.failed} requests failed:")
                 error = self.client.files.content(batch_check.error_file_id).content.decode("utf-8")
                 self.logger.error(error)
+                return None
 
     def submit(self):
         batch_request_file_paths = self._store_batch_requests()
@@ -208,7 +209,7 @@ class LLMRestClientBatchCollector(LLMRestClient):
             processed_document (ProcessedDocument): The processed document.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the generated response.
+            List[ProcessedDocument]: A list containing the processed documents.
         """
 
         request = dict(
@@ -233,7 +234,7 @@ class LLMRestClientBatchCollector(LLMRestClient):
             response_dict (dict): The response dictionary.
 
         Returns:
-            str: The generated text.
+            List[str] | None: A list of generated texts or None if no choices are found.
         """
         choices = response_dict.get("choices")
         if choices is None or len(choices) == 0:

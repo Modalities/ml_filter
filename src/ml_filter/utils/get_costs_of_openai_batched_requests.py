@@ -2,11 +2,12 @@ import argparse
 import json
 from collections import defaultdict
 from pathlib import Path
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional
 
 from tabulate import tabulate
 
 # Pricing data (prices per 1M tokens)
-PRICES = {
+PRICES: Dict[str, Dict[str, Dict[str, Optional[float]]]] = {
     "batched": {
         "gpt-5": {"input": 0.625, "cached_input": 0.0625, "output": 5.00},
         "gpt-5-mini": {"input": 0.125, "cached_input": 0.0125, "output": 1.00},
@@ -43,7 +44,7 @@ PRICES = {
 }
 
 
-def get_model_price_key(model_name, price_keys):
+def get_model_price_key(model_name: str, price_keys: Iterable[str]) -> Optional[str]:
     """
     Finds the best matching price key for a given model name by finding the
     longest prefix match. This correctly distinguishes 'gpt-5' from 'gpt-5-mini'.
@@ -54,7 +55,7 @@ def get_model_price_key(model_name, price_keys):
     return max(matching_keys, key=len)
 
 
-def calculate_cost(model, usage, cost_plan):
+def calculate_cost(model: str, usage: Dict[str, Any], cost_plan: str) -> float:
     """Calculates the cost for a single API call based on token usage."""
     plan_prices = PRICES.get(cost_plan, {})
 
@@ -78,7 +79,7 @@ def calculate_cost(model, usage, cost_plan):
     return cost / 1_000_000
 
 
-def find_and_process_files(root_dir, output_file):
+def find_and_process_files(root_dir: str, output_file: str) -> None:
     """Finds all 'batch_results.jsonl' files and processes their content."""
     all_results = []
     total_cost_batched = 0.0
@@ -148,7 +149,13 @@ def find_and_process_files(root_dir, output_file):
     generate_markdown_report(all_results, folder_totals, total_cost_batched, total_cost_not_batched, output_file)
 
 
-def generate_markdown_report(results, folder_totals, total_cost_batched, total_cost_not_batched, output_file):
+def generate_markdown_report(
+    results: List[List[str]],
+    folder_totals: DefaultDict[str, Any],
+    total_cost_batched: float,
+    total_cost_not_batched: float,
+    output_file: str,
+) -> None:
     """Generates and saves the final report as a markdown file."""
     md_content = ["# 📊 Cost Analysis Report: Batched vs. Not Batched Plans", "\n---"]
 
@@ -237,11 +244,11 @@ def generate_markdown_report(results, folder_totals, total_cost_batched, total_c
     md_content.append(f"- **Not Batched Plan Total:** `${total_cost_not_batched:,.4f}`")
 
     try:
-        output_file = Path(output_file)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, "w", encoding="utf-8") as f:
+        output_file_path = Path(output_file)
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file_path, "w", encoding="utf-8") as f:
             f.write("\n".join(md_content))
-        print(f"✅ Report successfully saved to '{output_file}'")
+        print(f"✅ Report successfully saved to '{output_file_path}'")
     except IOError as e:
         print(f"❌ Error: Could not write report to '{output_file}'. Reason: {e}")
 

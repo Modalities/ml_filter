@@ -12,7 +12,7 @@ class PathsConfig(BaseModel):
 
     @field_validator("output_directory_path", mode="before")
     @classmethod
-    def create_directory_if_not_exists(cls, v: str) -> str:
+    def create_directory_if_not_exists(cls, v: str | Path) -> str | Path:
         """
         Validates the output directory path. If the directory does not exist,
         it is created.
