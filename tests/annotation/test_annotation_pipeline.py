@@ -34,11 +34,8 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             grp.create_dataset("document_id", data=doc_ids)
             grp.attrs["n_samples"] = 3
 
-        # Get the local cached path to the checkpoint
-        mistral_ckpt_path = cached_file(
-            "Jackal-AI/JQL-Edu-Heads",
-            "checkpoints/edu-mistral-snowflake-balanced.ckpt"
-        )
+        # Get the local path to the checkpoint
+        mistral_ckpt_path = str("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/tests/annotation/annotation_model_for_testing")
 
         # Create dummy OmegaConf config
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
@@ -107,7 +104,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         self.assertIn("score", result)
         self.assertEqual(result["score"], 0.95)
 
-    def test_run_pipeline(self):
+    def test_run_annotation_pipeline(self):
         run_annotation_pipeline(Path(self.config_path))
 
         # Check that output files exist (handle .jsonl.gz)
