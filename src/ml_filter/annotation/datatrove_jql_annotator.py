@@ -1,7 +1,6 @@
 # --- Standard Library ---
 import contextlib
 import dataclasses
-import gc
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -11,7 +10,6 @@ from typing import IO, Any, Callable, Literal, Optional
 import h5py
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 # --- Project-Specific Imports ---
 from datatrove.data import Document, DocumentsPipeline
@@ -24,10 +22,10 @@ from datatrove.utils.logging import logger
 import orjson
 from orjson import JSONDecodeError
 from dotenv import load_dotenv
-from torch import bfloat16, cuda, no_grad
+from torch import cuda, no_grad
 
 from ml_filter.annotation.embedder import get_embedder_instance
-from ml_filter.annotation.regression_head import RegressionHead
+from ml_filter.models.embedding_model import EmbeddingRegressionModel
 
 load_dotenv()
 
@@ -619,7 +617,10 @@ class JQLHead(PipelineStep):
 
         self.regression_heads = {}
         for name, path in self.regression_head_checkpoints.items():
-            self.regression_heads[name] = RegressionHead.load_from_checkpoint(path, map_location=device).to(self.dtype_schema["model_dtype"])
+            self.regression_heads[name] = EmbeddingRegressionModel.from_pretrained(path).to(self.dtype_schema["model_dtype"])
+            self.regression_heads[name].to(device)
+            self.regression_heads[name].eval()
+            
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
@@ -631,7 +632,7 @@ class JQLHead(PipelineStep):
                     scores = {}
                     with no_grad():
                         for name, regression_head in self.regression_heads.items():
-                            scores[f'score_{name}'] = regression_head(embeddings_tensor).cpu().squeeze(1)
+                            scores[f'score_{name}'] = regression_head(embeddings_tensor).logits.cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
                         for name, score in scores.items():
