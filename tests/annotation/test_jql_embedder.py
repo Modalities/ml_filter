@@ -130,10 +130,8 @@ class TestJQLEmbedderMatchesManualEmbedding(JQLEmbedderTestBase):
         for i, doc in enumerate(embedded_docs):
             actual = np.array(doc.metadata["embedding"])
             expected = manual_embeddings[i]
-            np.testing.assert_allclose(
+            np.testing.assert_array_equal(
                 actual,
                 expected,
-                rtol=1e-5,
-                atol=1e-5,
                 err_msg=f"Embedding mismatch at index {i}"
             )

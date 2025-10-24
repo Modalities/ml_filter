@@ -35,7 +35,8 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             grp.attrs["n_samples"] = 3
 
         # Get the local path to the checkpoint
-        mistral_ckpt_path = str("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/tests/annotation/annotation_model_for_testing")
+        test_dir = os.path.dirname(__file__)
+        mistral_ckpt_path = os.path.join(test_dir, "annotation_model_for_testing")
 
         # Create dummy OmegaConf config
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
