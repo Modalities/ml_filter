@@ -36,6 +36,7 @@ class DocumentProcessor:
         jq_language_pattern: str,
         start_indexes: List[int] = [],
         strings_to_remove: Optional[List[str]] = [],
+        document_id_column: str = "document_id",
     ):
         """Initializes the DocumentProcessor."""
         self.llm_rest_client = llm_rest_client
@@ -63,6 +64,7 @@ class DocumentProcessor:
             raise ValueError(f"Invalid score metric name: {score_metric_name}.")
 
         self.score_metric = score_metrics[score_metric_name]
+        self.document_id_column = document_id_column
         self.termination_event = multiprocessing.Event()
 
     @staticmethod
@@ -106,7 +108,7 @@ class DocumentProcessor:
 
     def _process_document(self, document: Dict[str, Any]) -> List[ProcessedDocument]:
         processed_document = ProcessedDocument(
-            document_id=document["document_id"],
+            document_id=document[self.document_id_column],
             original_text=document["text"],
             raw_data_file_path=document["raw_data_file_path"],
             language=document["language"],
@@ -140,11 +142,12 @@ class DocumentProcessor:
                 # error_string = "Request failed with status code 500: "
                 if "Request failed with status code 500" in error_string:
                     logger.error(
-                        f"Encountered status code 500 for document {document['document_id']}, aborting processing."
+                        f"Encountered status code 500 for document {document[self.document_id_column]}, "
+                        "aborting processing."
                     )
                     self.termination_event.set()  # Set the termination event here
                     return []
-                logger.warning(f"Error processing document with id {document['document_id']}: {error_string}")
+                logger.warning(f"Error processing document with id {document[self.document_id_column]}: {error_string}")
             all_processed_documents.append(processed_document)
         return all_processed_documents
 
@@ -180,11 +183,14 @@ class DocumentProcessor:
             annotation.errors.append(processed_document_variation.errors)
             annotation.time_stamps.append(processed_document_variation.timestamp)
             annotation.document_processing_status.append(processed_document_variation.document_processing_status)
+            annotation.request = processed_document_variation.request
 
         return annotation
 
     def _is_valid_document(self, document: Dict[str, str]) -> bool:
-        return len(document["text"]) > 0 and len(document["document_id"]) > 0 and len(document["language"]) > 0
+        return (
+            len(document["text"]) > 0 and len(document[self.document_id_column]) > 0 and len(document["language"]) > 0
+        )
 
     def _load_documents(self, raw_data_file_paths: List[Path], start_indexes: List[int]):
         for raw_data_file_path, index in zip(raw_data_file_paths, start_indexes):
@@ -216,11 +222,11 @@ class DocumentProcessor:
 
                     if not self._is_valid_document(document):
                         logger.warning(
-                            f"Invalid document with id: {document['document_id']}. "
+                            f"Invalid document with id: {document[self.document_id_column]}. "
                             + "Value of key 'text' has length of 0. Skipping."
                         )
                         continue
-                    self.doc_order.append(str(raw_data_file_path) + document["document_id"])
+                    self.doc_order.append(str(raw_data_file_path) + document[self.document_id_column])
                     self.documents_queue.put(document)
 
         # Add termination signal (None) once all documents are in the queue

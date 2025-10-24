@@ -1,6 +1,7 @@
+from pathlib import Path
 from typing import List, Optional
 
-from pydantic import BaseModel, DirectoryPath, Field, FilePath
+from pydantic import BaseModel, DirectoryPath, Field, FilePath, field_validator
 
 
 class PathsConfig(BaseModel):
@@ -8,6 +9,22 @@ class PathsConfig(BaseModel):
     output_directory_path: DirectoryPath
     prompt_template_file_path: FilePath
     start_indexes: List[int] = Field(default_factory=list)
+
+    @field_validator("output_directory_path", mode="before")
+    @classmethod
+    def create_directory_if_not_exists(cls, v: str | Path) -> str | Path:
+        """
+        Validates the output directory path. If the directory does not exist,
+        it is created.
+        """
+        # The input 'v' is the raw value (e.g., a string) before any other validation.
+        if isinstance(v, str):
+            Path(v).mkdir(parents=True, exist_ok=True)
+        elif isinstance(v, Path):
+            v.mkdir(parents=True, exist_ok=True)
+
+        # Return the original value to be processed by Pydantic's DirectoryPath validator.
+        return v
 
 
 class SettingsConfig(BaseModel):
@@ -48,6 +65,7 @@ class DocumentProcessorConfig(BaseModel):
     score_metric_name: str
     strings_to_remove: List[str] = Field(default_factory=list)
     jq_language_pattern: str
+    document_id_column: str
 
 
 class AnnotationPipelineConfig(BaseModel):

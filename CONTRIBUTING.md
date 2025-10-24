@@ -20,13 +20,13 @@ This will create a venv with Python3.11 and pip under `.venv`.
 Install the project via
 ```shell
 # ensure that you already created and activated a virtual environment before
-pip install .
+uv pip install .
 ```
 
 For developers, use
 ```shell
 # ensure that you already created and activated a virtual environment before
-pip install -e .[tests,linting]
+uv pip install -e .[tests,linting]
 pre-commit install --install-hooks
 ```
 

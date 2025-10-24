@@ -1,0 +1,42 @@
+settings:
+  model_name: google/gemma-2-27b-it
+  num_gpus: 1
+  tokenizer_name_or_path: ${settings.model_name}
+  paths:
+    raw_data_file_paths:
+    - data/debug/deu_Latn_sampled_500k_first_200.jsonl
+    start_indexes:
+    - 150   
+    output_directory_path: data/output
+    prompt_template_file_path: data/prompts/pii/pii_prompt.yaml
+llm_rest_client:
+  model_name: ${settings.model_name}
+  max_tokens: 8192
+  sampling_params:
+    max_tokens: 500
+    temperature: 0.7
+    n: 3
+    top_p: 0.9
+  max_pool_connections: 1000
+  max_pool_maxsize: 1000
+  max_retries: 2
+  backoff_factor: 0.4
+  timeout: 100
+  verbose: false
+  num_gpus: ${settings.num_gpus}
+  max_new_tokens: 500
+tokenizer:
+  pretrained_model_name_or_path: ${settings.tokenizer_name_or_path}
+  special_tokens: null
+  add_generation_prompt: true
+prompt_builder:
+  prompt_template_file_path: ${settings.paths.prompt_template_file_path}
+  max_prompt_length: 7690
+document_processor:
+  output_directory_path: ${settings.paths.output_directory_path}
+  queue_size: 1000
+  num_processes: 10
+  score_metric_name: pii_score
+  strings_to_remove: []
+  jq_language_pattern: .language
+  document_id_column: id
