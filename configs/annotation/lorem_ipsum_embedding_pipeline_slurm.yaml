@@ -1,0 +1,52 @@
+dataset_name: training
+
+params:
+  # File selection
+  glob_pattern: "**/*.jsonl"
+  input_dir: /data/cat/ws/alju972f-regression_heads/repos/data/embedding_creation/input #/data/cat/ws/alju972f-regression_heads/dataset/Regression_head/abbas/processed_data_natural/${dataset_name}_set
+
+  # Output
+  output_dir: /data/cat/ws/alju972f-regression_heads/repos/data/embedding_creation/output
+  keys_to_index: ["id", "aggregation_type"]
+  text_field: text
+  embedding_dir: ${dataset_name}_embeddings
+  compression: gzip
+
+  # Precision
+  embedding_dtype: float32
+  label_dtype: int8
+  model_dtype: bfloat16
+
+  # Model and embedding parameters
+  embedding_model: jhu-clsp/mmBERT-base
+  batch_size: 512
+  writer_batch_size: 1000
+  hdf5_dataset_name: train
+  save_labels: false
+  max_length: 8192
+  padding: true
+  truncation: true
+
+running_on_slurm: true
+
+local_settings: null
+
+slurm_settings:
+  sbatch_args:
+    account: "p_gptx"
+    nodes: 1
+    ntasks: 1
+    gres: gpu:4
+    exclusive: user
+  partition: "capella"
+  time: "04:00:00"
+  cpus_per_task: 32
+  mem_per_cpu_gb: 8
+  gpus_per_task: 4
+  job_name: "MMbert_embedder"
+  output: ${params.output_dir}/logs/%j.out
+  error: ${params.output_dir}/logs/%j.err
+  qos: "normal"
+  venv_path: /data/cat/ws/alju972f-regression_heads/repos/env/jql_pipeline/bin/activate
+  tasks: 1
+  workers: 1

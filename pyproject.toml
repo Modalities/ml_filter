@@ -9,7 +9,8 @@ dependencies = [
     "tqdm",
     "datasets",
     "pydantic",
-    "transformers",
+    "transformers==4.57.0",
+    "flash-attn==2.8.3",
     "click",
     "click_pathlib",
     "Jinja2",
@@ -21,19 +22,33 @@ dependencies = [
     "tf-keras==2.18.0",
     "deepl",
     "openai",
-    "accelerate>=0.34.2",
     "statsmodels",
     "krippendorff",
     "seaborn",
     "python-dotenv",
     "jq",
     "tabulate",
+    "datatrove==0.5.0",
+    "orjson",
+    "dotenv",
+    "lightning",
+    "h5py",
+    "pydantic_settings",
+    "accelerate~=1.6.0",
+
+
 ]
 
 [project.optional-dependencies]
 linting = ["pre-commit"]
 tests = ["pytest", "pytest-cov", "pytest-dotenv"]
 install_helper = ["ninja"]
+cuda126 = [
+  "torch==2.6.0+cu126",
+  "torchvision==0.21.0+cu126",
+  "torchaudio==2.6.0+cu126",
+  "xformers==0.0.29.post3"
+]
 
 [project.scripts]
 ml_filter = "ml_filter.__main__:main"
