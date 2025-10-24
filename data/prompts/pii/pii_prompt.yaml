@@ -1,0 +1,16 @@
+prompt: |
+  Below is an extract from a web page. Evaluate the level of Personally Identifiable Information (PII) present in the extract using the additive 5-point scoring system described below. Points are accumulated based on the presence and sensitivity of PII:
+
+  - Add 1 point if the extract contains any potential PII like a name, username, or other identifiers that could be linked to an individual, even if not uniquely identifying on their own.
+  - Add another point if the extract includes direct identifiers that can uniquely identify an individual, such as a full name, email address, phone number, or physical address.
+  - Award a third point if the extract contains sensitive PII like government ID numbers (e.g., SSN, passport), or financial information (e.g., credit card, bank account numbers).
+  - Grant a fourth point if the extract includes highly sensitive PII, such as medical records, biometric data, genetic information, or private communications.
+  - Bestow a fifth point if the extract is dominated by PII, such as a list or database of personal information for multiple individuals.
+  Note: If the extract contains no PII, the score is 0. Information about public figures that is already widely known, or data belonging to fictional characters, should also be scored 0. General discussions about data privacy that do not contain specific individuals' data should be scored based only on any actual PII examples present.
+  The extract:
+  {placeholder}
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'PII score: <total points>'
+
+prompt_name: pii_content_filter
