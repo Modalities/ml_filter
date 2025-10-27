@@ -12,14 +12,16 @@ from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, agg
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
+from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
+from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
-from ml_filter.data_processing.hash_data_files import hash_files_to_csv
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
-from ml_filter.training.annotator_model_pipeline import run_annotator_training_pipeline
+from ml_filter.training.embedding_training_pipeline import run_embedding_head_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
+from ml_filter.utils.get_costs_of_openai_batched_requests import find_and_process_files
 from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_hf_dataset_to_jsonl, split_dataset
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
@@ -127,7 +129,18 @@ def main() -> None:
     required=True,
     help="The endpoint for the LLM service.",
 )
-def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, experiment_id: Optional[str] = None):
+@click.option(
+    "--use_llm_rest_client_request_collector",
+    type=bool,
+    default=False,
+    help="Whether to use the LLM REST client request collector to run requests with OpenAI batched API.",
+)
+def entry_point_score_documents(
+    config_file_path: Path,
+    rest_endpoint: str,
+    use_llm_rest_client_request_collector,
+    experiment_id: Optional[str] = None,
+):
     with open(config_file_path, "rb") as f:
         hash_value = hashlib.sha256(f.read()).hexdigest()[:8]
     experiment_id_postfix = datetime.now().strftime("%Y-%m-%d__%H-%M-%S") + f"__{hash_value}"
@@ -136,7 +149,12 @@ def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, expe
         experiment_id = experiment_id_postfix
     else:
         experiment_id = experiment_id + f"/{experiment_id_postfix}"
-    llm_service = LLMClient(config_file_path=config_file_path, experiment_id=experiment_id, rest_endpoint=rest_endpoint)
+    llm_service = LLMClient(
+        config_file_path=config_file_path,
+        experiment_id=experiment_id,
+        rest_endpoint=rest_endpoint,
+        use_llm_rest_client_request_collector=use_llm_rest_client_request_collector,
+    )
     llm_service.run()
 
 
@@ -150,17 +168,6 @@ def entry_point_score_documents(config_file_path: Path, rest_endpoint: str, expe
 def entry_point_compare_experiments(config_file_path: Path):
     # TODO check if entry point still works. rename
     compare_experiments(config_file_path)
-
-
-@main.command(name="annotator_training_pipeline")
-@click.option(
-    "--config_file_path",
-    type=click_pathlib.Path(exists=False),
-    required=True,
-    help="Path to the config file.",
-)
-def entry_annotator_training_pipeline(config_file_path: Path):
-    run_annotator_training_pipeline(config_file_path=config_file_path)
 
 
 @main.command(name="chunk_jsonl")
@@ -364,7 +371,7 @@ def aggregate_human_annotations_cli(
     "--min_metrics",
     type=str,
     help="Comma-separated list of metrics for which lower is better."
-    + "All other metrics are considered to be better when higher.",
+         + "All other metrics are considered to be better when higher.",
 )
 @click.option(
     "--report_metrics",
@@ -724,26 +731,30 @@ def apply_score_transforms_cli(input_file_path: Path, output_file_path: Path) ->
     )
 
 
-@main.command(name="hash_files_to_csv")
-@click.argument("input_files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@main.command(name="run_embedding_pipeline")
 @click.option(
-    "--output_csv",
-    type=click.Path(exists=False, path_type=Path),
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
     required=True,
-    help="Path to the output CSV file.",
+    help="Path to a file with the YAML config file.",
 )
+def entry_run_embedding_pipeline(config_file_path: Path):
+    """Run annotation pipeline using precomputed embeddings from HDF5."""
+    run_embedding_pipeline(config_file_path=config_file_path)
+
+
+@main.command(name="run_annotation_pipeline")
 @click.option(
-    "--chunk_size",
-    type=int,
-    default=1024 * 1024,
-    show_default=True,
-    help="Chunk size in bytes for reading files.",
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
 )
-def hash_files_to_csv_cli(input_files: tuple[Path], output_csv: Path, chunk_size: int):
-    """
-    Compute MD5 hashes for multiple files and write the hashes with file paths to a CSV file.
-    """
-    hash_files_to_csv(list(input_files), output_csv, chunk_size)
+def entry_run_annotations(config_file_path: Path):
+    """Run annotation pipeline using precomputed embeddings from HDF5."""
+    run_annotation_pipeline(
+        config_file_path=config_file_path
+    )
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
@@ -755,6 +766,76 @@ def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[s
 
 def _get_target_language_codes_list_helper(target_language_codes: str) -> list[str]:
     return [lang_code.strip().lower() for lang_code in target_language_codes.split(",")]
+
+
+@main.command(name="submit_batch_requests")
+@click.argument("input_files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--model_name",
+    type=str,
+    required=True,
+    help="Name of the OpenAI model to use.",
+)
+@click.option(
+    "--max_requests_per_file",
+    type=int,
+    default=None,
+    help="Maximum number of requests to send per input file.",
+)
+@click.option(
+    "--check_status_only",
+    type=bool,
+    default=False,
+    help="Whether to check the status of existing batch requests only.",
+)
+def submit_collected_requests_to_batched_openai_api_cli(
+    input_files: tuple[Path], model_name: str, max_requests_per_file: int | None, check_status_only: bool
+):
+    """
+    CLI command to submit collected requests to the batched OpenAI API.
+    """
+    from ml_filter.llm_api.openai_batch_request_collector import OpenAIBatchAPIRequestSubmitter
+
+    input_files = [Path(p) for p in input_files]
+    # Not all models are supported: https://community.openai.com/t/error-on-tryng-to-use-batches/935474/7
+    collector = OpenAIBatchAPIRequestSubmitter(
+        input_files=input_files, model_name=model_name, max_requests_per_file=max_requests_per_file
+    )
+    if not check_status_only:
+        collector.submit()
+    else:
+        collector.check_status_maybe_get_results()
+
+
+@main.command(name="get_costs_of_openai_batched_requests")
+@click.option(
+    "--root_directory",
+    type=str,
+    required=True,
+    help="The root directory to search recursively.",
+)
+@click.option(
+    "-o",
+    "--output_file",
+    type=str,
+    default="report.md",
+    show_default=True,
+    help="Path to save the markdown report (default: report.md under the root dir).",
+)
+def get_costs_of_openai_batched_requests_cli(root_directory: str, output_file: str):
+    find_and_process_files(root_directory, output_file)
+
+
+@main.command(name="train_with_embeddings")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the config file.",
+)
+def entry_train_with_embeddings(config_file_path: Path):
+    """Train regression head using pre-computed embeddings."""
+    run_embedding_head_training_pipeline(config_file_path=config_file_path)
 
 
 if __name__ == "__main__":

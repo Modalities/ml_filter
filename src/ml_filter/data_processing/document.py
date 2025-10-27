@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from pydantic import BaseModel
 
@@ -13,6 +13,7 @@ class DocumentProcessingStatus(str, Enum):
     ERROR_SERVER = "error_server"
     ERROR_NO_GENERATED_TEXT = "error_no_generated_text"
     ERROR_FAULTY_SCORE = "error_faulty_score"
+    REQUEST_COLLECTED = "request_collected"
 
 
 class DocumentProcessingTags(str, Enum):
@@ -45,6 +46,8 @@ class ProcessedDocument:
     truncated_preprocessed_text: str = ""
     timestamp: int = 0
     out_tokens_per_second: float = 0
+    request: Union[dict, None] = None
+    messages: list[dict] = field(default_factory=list)
 
 
 class MetaInformation(BaseModel):
@@ -67,3 +70,4 @@ class Annotation(BaseModel):
     time_stamps: List[int] = []
     document_processing_status: List[DocumentProcessingStatus] = []
     meta_information: MetaInformation
+    request: Union[dict, None] = None

@@ -1,25 +1,20 @@
-import json
 import random
 import shutil
-from unittest.mock import MagicMock
+from pathlib import Path
 
+import h5py
 import numpy as np
+import pytest
 import torch
 from omegaconf import DictConfig
 from transformers import TrainingArguments
 from transformers.modeling_outputs import SequenceClassifierOutput
 
-from ml_filter.models.annotator_models import AnnotatorModel
-from ml_filter.tokenization.tokenized_dataset_builder import DataPreprocessor
-from ml_filter.tokenization.tokenizer_wrapper import PreTrainedHFTokenizer
-from ml_filter.training.annotator_model_pipeline import (
-    _init_model,
-    _init_tokenizer,
+from ml_filter.training.embedding_training_pipeline import (
     _init_training_args,
-    _load_datasets,
     _set_seeds,
-    multi_target_mse_loss,
-    run_annotator_training_pipeline,
+    mse_loss,
+    run_embedding_head_training_pipeline,
 )
 
 
@@ -35,35 +30,6 @@ def test_set_seeds():
     _set_seeds(42)
     random_numbers = [random.randint(0, 100) for _ in range(5)]
     assert random_numbers == expected_sequence, f"Random sequence mismatch: {random_numbers}"
-
-
-def test_init_tokenizer():
-    cfg = DictConfig(
-        {
-            "tokenizer": {
-                "pretrained_model_name_or_path": "bert-base-uncased",
-                "add_generation_prompt": False,
-            }
-        }
-    )
-    tokenizer = _init_tokenizer(cfg)
-    assert isinstance(tokenizer, PreTrainedHFTokenizer)
-
-
-def test_init_model():
-    cfg = DictConfig(
-        {
-            "model": {
-                "name": "facebookai/xlm-roberta-base",
-                "freeze_base_model_parameters": False,
-                "is_regression": False,
-            },
-            "data": {"num_tasks": 3, "num_targets_per_task": [2, 3, 4]},
-        }
-    )
-
-    model = _init_model(cfg)
-    assert isinstance(model, AnnotatorModel)
 
 
 def test_init_training_args():
@@ -83,6 +49,7 @@ def test_init_training_args():
                 "greater_is_better": False,
                 "eval_strategy": "steps",
                 "dataloader_num_workers": 4,
+                "wandb_run_name": "temp_run",
             }
         }
     )
@@ -92,28 +59,7 @@ def test_init_training_args():
     assert training_args.output_dir == "./output"
 
 
-def test_load_datasets():
-    cfg = DictConfig(
-        {
-            "data": {
-                "train_file_path": "train.json",
-                "train_file_split": "train",
-                "val_file_path": "val.json",
-                "val_file_split": "val",
-                "test_file_path": "test.json",
-                "test_file_split": "test",
-            }
-        }
-    )
-    tokenized_dataset_builder = MagicMock(spec=DataPreprocessor)
-    tokenized_dataset_builder.load_and_tokenize.side_effect = ["train_ds", "val_ds", "test_ds"]
-    train_dataset, eval_datasets = _load_datasets(cfg, tokenized_dataset_builder)
-    assert train_dataset == "train_ds"
-    assert eval_datasets["val"] == "val_ds"
-    assert eval_datasets["test"] == "test_ds"
-
-
-def test_run_annotator_pipeline(config_file, temp_output_dir):
+def test_run_embedding_training_pipeline(config_file, temp_output_dir):
     """Runs the full pipeline end-to-end."""
     import os
 
@@ -121,7 +67,7 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Use only GPUs 0 and 1
 
     _dummy_dataset_files(temp_output_dir)
-    run_annotator_training_pipeline(config_file)
+    run_embedding_head_training_pipeline(config_file)
 
     # Verify model output directory
     model_output_path = temp_output_dir / "final"
@@ -136,31 +82,98 @@ def test_run_annotator_pipeline(config_file, temp_output_dir):
 
 
 def test_custom_mse_loss_same_as_torch_implementation():
-    num_tasks = 3
+    num_tasks = 1
     num_items_in_batch = 16
     logits = torch.rand((num_items_in_batch, num_tasks)) * 3.0 - 1.0
     target = torch.randint(0, 2, (num_items_in_batch, num_tasks)).float()
     predicted = SequenceClassifierOutput(logits=logits)
-    mse_loss = multi_target_mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
+    custom_mse_loss = mse_loss(predicted, target, num_items_in_batch=num_items_in_batch, num_tasks=num_tasks)
     logits = predicted.logits
     target = target.to(dtype=logits.dtype)
     mse_loss_torch = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="mean")
-    assert torch.allclose(mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
+    assert torch.allclose(custom_mse_loss, mse_loss_torch, atol=1e-6), "MSE loss does not match PyTorch implementation"
 
 
-def _dummy_dataset_files(temp_output_dir):
-    """Creates dummy dataset files in JSONL format for the test."""
-    dummy_data = [
-        {"text": "Sample text 1", "labels": [1, 0, 1]},
-        {"text": "Sample text 2", "labels": [1, 1, 1]},
-        {"text": "Sample text 3", "labels": [0, 0, 0]},
-        {"text": "Sample text 4", "labels": [0, 1, 0]},
-    ]
+def test_custom_mse_loss_respects_reduction_sum():
+    num_tasks = 2
+    num_items_in_batch = 8
+    logits = torch.randn(num_items_in_batch, num_tasks)
+    target = torch.randn(num_items_in_batch, num_tasks)
+    predicted = SequenceClassifierOutput(logits=logits)
+    custom_mse_loss = mse_loss(
+        predicted,
+        target,
+        num_items_in_batch=num_items_in_batch,
+        num_tasks=num_tasks,
+        reduction="sum",
+    )
+    expected = torch.nn.functional.mse_loss(logits, target.view(-1, num_tasks), reduction="sum")
+    assert torch.allclose(custom_mse_loss, expected, atol=1e-6), "Sum reduction mismatch"
 
-    for split in ["train", "val", "test"]:
-        dataset_path = temp_output_dir / f"{split}.jsonl"
 
-        # Write each JSON object on a new line
-        with dataset_path.open("w") as f:
-            for item in dummy_data:
-                f.write(json.dumps(item) + "\n")
+def test_custom_mse_loss_respects_reduction_none():
+    num_tasks = 3
+    num_items_in_batch = 4
+    logits = torch.randn(num_items_in_batch, num_tasks)
+    target = torch.randn(num_items_in_batch, num_tasks)
+    predicted = SequenceClassifierOutput(logits=logits)
+    custom_mse_loss = mse_loss(
+        predicted,
+        target,
+        num_items_in_batch=num_items_in_batch,
+        num_tasks=num_tasks,
+        reduction="none",
+    )
+    expected = torch.pow(logits - target, 2).view(-1)
+    assert custom_mse_loss.shape == expected.shape
+    assert torch.allclose(custom_mse_loss, expected, atol=1e-6), "Element-wise reduction mismatch"
+
+
+def test_custom_mse_loss_raises_on_invalid_reduction():
+    num_tasks = 1
+    num_items_in_batch = 2
+    logits = torch.randn(num_items_in_batch, num_tasks)
+    target = torch.randn(num_items_in_batch, num_tasks)
+    predicted = SequenceClassifierOutput(logits=logits)
+    with pytest.raises(ValueError):
+        mse_loss(
+            predicted,
+            target,
+            num_items_in_batch=num_items_in_batch,
+            num_tasks=num_tasks,
+            reduction="invalid",
+        )
+
+
+def _dummy_dataset_files(temp_output_dir: Path):
+    """
+    Create minimal HDF5 files for train/val/test with 'embeddings' and 'scores' datasets,
+    each in its own split‑named subdirectory, using a lowercase .h5 extension.
+    """
+    splits = {"train": 20, "val": 10, "test": 10}
+
+    for split, n_examples in splits.items():
+        # 1) create the split directory
+        split_dir = temp_output_dir / split
+        split_dir.mkdir(parents=True, exist_ok=True)
+
+        # 2) write the HDF5 file inside it with a lowercase .h5 extension
+        hdf5_path = split_dir / f"{split}.h5"
+        with h5py.File(hdf5_path, "w") as f:
+            grp = f.create_group("data")
+
+            # embeddings: dummy embedding vectors (n_examples, embedding_dim)
+            # Using 768 as a typical embedding dimension
+            embedding_dim = 768
+            embeddings = np.random.randn(n_examples, embedding_dim).astype(np.float32)
+            grp.create_dataset("embeddings", data=embeddings)
+
+            # labels: regression targets, shape=(n_examples, num_tasks)
+            # Based on config: num_tasks=3, so create 3 task labels per example
+            num_tasks = 3
+            labels = np.random.rand(n_examples, num_tasks).astype(np.float32)
+            grp.create_dataset("labels", data=labels)
+
+            # id column
+            ids = np.arange(n_examples, dtype=np.int64)
+            grp.create_dataset("id", data=ids)
