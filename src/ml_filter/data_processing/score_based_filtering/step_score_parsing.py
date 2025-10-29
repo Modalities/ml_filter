@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from typing import Callable, Iterable, Literal
 
@@ -26,7 +27,6 @@ class ScoresParser(BaseDiskReader):
         self,
         data_folder: DataFolderLike,
         score_keys: Iterable[str],
-        hash_to_base_file: dict[str, Path],
         tokenized_data_path: Path,
         base_file_prefix: Path = Path(""),
         tokenized_data_extension: str = ".pbin",
@@ -61,7 +61,6 @@ class ScoresParser(BaseDiskReader):
         )
         self._score_keys = list(score_keys)
         assert len(self._score_keys) > 0, "At least one score key must be provided."
-        self._hash_to_base_file = hash_to_base_file
         self._tokenized_data_path = tokenized_data_path
         self._base_file_prefix = base_file_prefix
         self._tokenized_data_extension = tokenized_data_extension
@@ -76,8 +75,8 @@ class ScoresParser(BaseDiskReader):
 
         Returns: generator of Document
         """
-        base_file_hash, scores_as_list = self._parse_scores_jsonl_file(filepath)
-        tokenized_data_path = self._map_to_tokenized_data_path(base_file_hash)
+        base_file_path_or_name, scores_as_list = self._parse_scores_jsonl_file(filepath)
+        tokenized_data_path = self._map_to_tokenized_data_path(base_file_path_or_name)
         doc_content = {
             "text": ".",  # Text needs to be non-empty.
             self.SCORE_ENTRIES_KEY: scores_as_list,
@@ -87,37 +86,74 @@ class ScoresParser(BaseDiskReader):
         return [document]
 
     def _parse_scores_jsonl_file(self, filepath: str) -> tuple[str, list[dict[str, float]]]:
-        scores_for_idx: dict[int, dict[str, float]] = {}
-        hashes: set[str] = set()
+        scores_for_document_idx: dict[str, dict[str, float]] = {}
+        processed_count = 0
+        duplicate_counts: dict[str, int] = {}  # track counts per original document_id
+
         with self.data_folder.open(filepath, "r", compression=self._compression) as f:
-            for line in f:
+            for line_number, line in enumerate(f, start=1):
+                processed_count += 1
                 file_data = json.loads(line)
-                base_file_hash, document_idx = file_data["document_id"].rsplit("_", 1)
-                scores_for_idx[int(document_idx)] = {k: file_data[k] for k in self._score_keys}
-                hashes.add(base_file_hash)
-        self._verify_file_format(scores_for_idx, hashes)
-        scores_as_list = list(map(lambda x: x[1], sorted(scores_for_idx.items(), key=lambda x: x[0])))
-        base_file_hash = next(iter(hashes))
-        return base_file_hash, scores_as_list
+                document_id = file_data.get("document_id")
 
-    def _verify_file_format(self, scores_for_idx: dict[int, dict[str, float]], hashes: set[str]):
-        assert len(hashes) == 1, "All entries in the score file must refer to the same base file."
-        assert min(scores_for_idx.keys()) == 0 and max(scores_for_idx.keys()) + 1 == len(
-            scores_for_idx
-        ), "All indices in the score file must be continuous."
+                if document_id in scores_for_document_idx:
+                    # Generate a new unique ID with a numeric suffix to disambiguate duplicates.
+                    dup_count = duplicate_counts.get(document_id, 0) + 1
+                    duplicate_counts[document_id] = dup_count
+                    # Use underscore + count; ensure no collision with an existing (unlikely but safe guard if previous had suffix already)
+                    new_id = f"{document_id}_{dup_count}"
+                    while new_id in scores_for_document_idx:
+                        dup_count += 1
+                        duplicate_counts[document_id] = dup_count
+                        new_id = f"{document_id}_{dup_count}"
+                    print(
+                        f"Duplicate document_id '{document_id}' encountered at line {line_number} in {filepath}. Renamed to '{new_id}'."
+                    )
+                    document_id = new_id
 
-    def _map_to_tokenized_data_path(self, base_file_hash: str) -> Path:
-        """
-        Maps a base file hash to the corresponding tokenized data path.
+                scores_for_document_idx[document_id] = {k: float(file_data[k]) for k in self._score_keys}
+
+            self._verify_unique_ids(filepath, scores_for_document_idx, processed_count)
+            scores_as_list = [scores for _, scores in sorted(scores_for_document_idx.items(), key=lambda x: x[0])]
+            return f.name, scores_as_list
+
+    def _verify_unique_ids(self, filepath: str, scores_for_document_idx: dict[str, dict], processed_count: int):
+        """Verify that the number of unique document IDs matches the number of processed (valid) lines.
+
         Args:
-            base_file_hash (str): The hash of the base file.
+            filepath: Path to the scores JSONL file.
+            scores_for_document_idx: Mapping of document_id to its score dict.
+            processed_count: Number of lines that contained a valid document_id.
+        """
+        unique_ids = len(scores_for_document_idx)
+        if unique_ids != processed_count:
+            raise ValueError(
+                f"Mismatch in number of samples in scores file {filepath}: unique_ids={unique_ids} processed_lines={processed_count}."
+            )
+
+
+    def _map_to_tokenized_data_path(self, base_file_path: Path | str) -> Path:
+        """
+        Maps a base file path to the corresponding tokenized data path.
+        Args:
+            base_file_path (str): The path of the base file.
         Returns:
             Path: The path to the tokenized data file.
         """
-        if base_file_hash not in self._hash_to_base_file:
-            raise ValueError(f"Base file hash {base_file_hash} not found in the provided hash mapping.")
-        base_file = self._hash_to_base_file[base_file_hash]
-        base_file_rel = base_file.relative_to(self._base_file_prefix)
+        if isinstance(base_file_path, str):
+            base_file_path = Path(base_file_path)
+
+        # When prefix is effectively empty ("" or ".") just take the file name.
+        if str(self._base_file_prefix) in {"", "."}:
+            base_name = base_file_path.name  # ensure we only use the filename portion
+            base_file_rel = Path(base_name)
+        else:
+            # Use relative_to only if possible; otherwise fall back to filename.
+            try:
+                base_file_rel = base_file_path.relative_to(self._base_file_prefix)
+            except Exception:
+                base_file_rel = Path(base_file_path.name)
+
         tokenized_rel = base_file_rel.with_suffix(self._tokenized_data_extension)
         tokenized_data_path = self._tokenized_data_path / tokenized_rel
         if not tokenized_data_path.exists():

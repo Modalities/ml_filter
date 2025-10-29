@@ -64,7 +64,7 @@ class DataFiltering(PipelineStep):
         tokenized_file = Path(document["metadata"][ScoresParser.TOKENIZED_FILE_KEY])
         output_path = self._prepare_output_path(tokenized_file)
         filter_func = make_filter_func(scores, self._thresholds)
-        filter_dataset(src_path=tokenized_file, dst_path=output_path, filter_func=filter_func, sample_key="input_ids")
+        filter_dataset(src_path=tokenized_file, dst_path=output_path, filter_func=filter_func)
 
     def _prepare_output_path(self, tokenized_file: Path) -> Path:
         tokenized_file_rel = tokenized_file.relative_to(self._tokenized_data_path)

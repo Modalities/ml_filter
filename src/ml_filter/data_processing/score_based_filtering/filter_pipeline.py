@@ -70,7 +70,6 @@ class FilterPipelineBuilder(BaseSettings):
             tokenized_data_path=self.params.tokenized_data_path,
             output_folder=self.params.output_folder,
             thresholds=self.params.thresholds,
-            hash_to_base_file_mapping_csv=self.params.hash_to_base_file_mapping_csv,
             base_file_prefix=self.params.base_file_prefix,
             tokenized_data_extension=self.params.tokenized_data_extension,
         )
@@ -101,9 +100,6 @@ class FilterPipelineParameters(BaseModel):
     output_folder: Path = Field(..., description="The folder where the filtered datasets will be saved.")
     thresholds: dict[str, float] = Field(
         ..., description="Dictionary where keys are score names and values are thresholds to filter samples."
-    )
-    hash_to_base_file_mapping_csv: Path = Field(
-        ..., description="CSV file mapping base file hashes to their corresponding paths."
     )
     base_file_prefix: Path = Field(
         default=Path(""),
@@ -173,7 +169,6 @@ def build_pipeline(
     tokenized_data_path: Path,
     output_folder: Path,
     thresholds: dict[str, float],
-    hash_to_base_file_mapping_csv: Path,
     base_file_prefix: Path = Path(""),
     tokenized_data_extension: str = ".pbin",
 ) -> list[PipelineStep]:
@@ -194,15 +189,10 @@ def build_pipeline(
     assert score_path.is_dir(), f"Score path {score_path} must be a directory."
     assert output_folder.is_dir(), f"Output folder {output_folder} must be a directory."
     assert len(thresholds) > 0, "At least one threshold must be provided."
-    assert (
-        hash_to_base_file_mapping_csv.is_file()
-    ), f"Hash to base file mapping {hash_to_base_file_mapping_csv} must be a file."
-    hash_to_base_file = read_hash_to_base_file_mapping(hash_to_base_file_mapping_csv)
     pipeline: list[PipelineStep] = [
         ScoresParser(
             data_folder=str(score_path),
             score_keys=list(thresholds.keys()),
-            hash_to_base_file=hash_to_base_file,
             tokenized_data_path=tokenized_data_path,
             base_file_prefix=base_file_prefix,
             tokenized_data_extension=tokenized_data_extension,
@@ -215,24 +205,8 @@ def build_pipeline(
     ]
     return pipeline
 
-
-def read_hash_to_base_file_mapping(csv_file: Path) -> dict[str, Path]:
-    """
-    Reads a CSV file containing a mapping from base file hashes to their corresponding paths.
-    Args:
-        csv_file (Path): The path to the CSV file.
-    Returns:
-        dict[str, Path]: A dictionary mapping base file hashes to their corresponding paths.
-    """
-    hash_to_base_file: dict[str, Path] = {}
-    with open(csv_file, "r") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            hash_to_base_file[row["md5"]] = Path(row["file_path"])
-    return hash_to_base_file
-
-
 if __name__ == "__main__":
+    os.environ["FILTER_PIPELINE_YAML_FILE"] = str("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/data_processing/example_filter_pipeline_config.yaml")
     if len(sys.argv) > 1 or not (yaml_file := os.getenv("FILTER_PIPELINE_YAML_FILE")) or not os.path.isfile(yaml_file):
         print(
             "This script is intended to be used with a YAML configuration "

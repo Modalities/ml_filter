@@ -1,14 +1,13 @@
 params:
-  score_path: /path/to/annotations
-  tokenized_data_path: /path/to/tokenized
-  output_folder: /path/to/filtered
+  score_path: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/annotations
+  tokenized_data_path: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/tokenized
+  output_folder: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/outputs
 
   thresholds:
     score_Gemma_Snowflake: 3.0
     score_Llama_Snowflake: 2.0
 
-  hash_to_base_file_mapping_csv: path/to/hashes.csv
-  base_file_prefix: /path/to/raw
+  base_file_prefix: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/annotations
   tokenized_data_extension: .pbin
 
 running_on_slurm: false
