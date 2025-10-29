@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import os
 import sys
 from pathlib import Path
@@ -206,7 +205,6 @@ def build_pipeline(
     return pipeline
 
 if __name__ == "__main__":
-    os.environ["FILTER_PIPELINE_YAML_FILE"] = str("/raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/data_processing/example_filter_pipeline_config.yaml")
     if len(sys.argv) > 1 or not (yaml_file := os.getenv("FILTER_PIPELINE_YAML_FILE")) or not os.path.isfile(yaml_file):
         print(
             "This script is intended to be used with a YAML configuration "
