@@ -121,24 +121,23 @@ class LocalExecutionSettings(BaseModel):
 
 class SlurmExecutionSettings(BaseModel):
     """Settings for running the pipeline on a Slurm cluster."""
-
     tasks: int = 1
-    time: str = "00:15:00"
+    time: str = "00:30:00"
     partition: str = "default"
-    account: str | None = None  # FIXME is this supported?
-    cpus_per_task: int = 1
-    mem_per_cpu_gb: int = 2
+    cpus_per_task: int = 4
+    mem_per_cpu_gb: int = 8
     workers: int = -1
-    job_name: str = "data_processing"
+    job_name: str = "filtering_pipeline"
     qos: str = "normal"
     env_command: str | None = None
     condaenv: str | None = None
     venv_path: str | None = None
-    sbatch_args: dict[str, str] | None = None
+    # Allow users to supply any sbatch arg (e.g. nodes, ntasks, gres, account, output, error, gpus-per-task, etc.)
+    # using either snake_case or dash-case. Primitive values get coerced to strings.
+    sbatch_args: dict[str, str | int | float | bool] | None = None
     max_array_size: int = 1001
     depends_job_id: str | None = None
     job_id_position: int = -1
-    # job_id_retriever: Callable | None = None
     logging_dir: str | None = None
     skip_completed: bool = True
     slurm_logs_folder: str | None = None
@@ -150,8 +149,27 @@ class SlurmExecutionSettings(BaseModel):
     mail_type: str = "ALL"
     mail_user: str | None = None
     requeue: bool = True
-    srun_args: dict[str, str] | None = None
+    srun_args: dict[str, str | int | float | bool] | None = None
     tasks_per_job: int = 1
+
+    @model_validator(mode="before")
+    def _normalize_sbatch(cls, values):  # type: ignore[override]
+        """Normalize sbatch_args only.
+
+        - Accept numeric/bool types and coerce to string
+        - Fold common top-level keys (output, error, gpus_per_task) into sbatch_args
+        - Convert snake_case keys to dash-case
+        """
+        from omegaconf import DictConfig as _DictConfig  # local import
+
+        sbatch_args = values.get("sbatch_args") or {}
+        if isinstance(sbatch_args, _DictConfig):
+            sbatch_args = OmegaConf.to_container(sbatch_args, resolve=True)  # type: ignore[arg-type]
+        if not isinstance(sbatch_args, dict):
+            raise TypeError(f"sbatch_args must be a mapping if provided (got type {type(sbatch_args)})")
+
+        values["sbatch_args"] = sbatch_args
+        return values
 
 
 def run_pipeline(args: FilterPipelineBuilder) -> None:

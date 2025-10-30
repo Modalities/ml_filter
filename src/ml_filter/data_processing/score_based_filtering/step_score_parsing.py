@@ -106,9 +106,6 @@ class ScoresParser(BaseDiskReader):
                         dup_count += 1
                         duplicate_counts[document_id] = dup_count
                         new_id = f"{document_id}_{dup_count}"
-                    print(
-                        f"Duplicate document_id '{document_id}' encountered at line {line_number} in {filepath}. Renamed to '{new_id}'."
-                    )
                     document_id = new_id
 
                 scores_for_document_idx[document_id] = {k: float(file_data[k]) for k in self._score_keys}
