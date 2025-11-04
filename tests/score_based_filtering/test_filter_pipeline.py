@@ -11,22 +11,15 @@ Performance note: A simple tokenizer cache avoids repeatedly reloading the HF to
 
 # Standard library imports
 import json
-import os
-import sys
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from typing import List
+from typing import Any
 
 # Third-party imports
 import numpy as np
 from datatrove.executor import LocalPipelineExecutor
-
-# Local package imports: ensure src path is available.
-_SRC_PATH = Path(__file__).resolve().parents[3] / "ml_filter" / "src"
-if _SRC_PATH.exists() and str(_SRC_PATH) not in sys.path:
-    sys.path.insert(0, str(_SRC_PATH))
 
 from ml_filter.data_processing.score_based_filtering.step_data_filtering import make_filter_func
 from ml_filter.data_processing.score_based_filtering.step_score_parsing import ScoresParser
@@ -35,6 +28,7 @@ from ml_filter.data_processing.score_based_filtering.filter_pipeline import buil
 # ---------------------------------------------------------------------------
 # Helper constants & functions
 # ---------------------------------------------------------------------------
+_TOKENIZER_CACHE: dict[str, Any] = {}
 
 HEADER_SIZE = 64  # Mimics EmbeddedStreamData.HEADER_SIZE_IN_BYTES (simplified for tests)
 DATA_SECTION_LEN_BYTES = 8
@@ -46,10 +40,6 @@ def _write_jsonl(records: list[dict], path: Path) -> None:
     with path.open("w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
-
-
-from typing import Any
-_TOKENIZER_CACHE: dict[str, Any] = {}
 
 
 def _get_tokenizer(name: str):
@@ -147,9 +137,6 @@ def _detokenize_packed(packed_file: Path, tokenizer_name: str = "bert-base-multi
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
-# We'll monkeypatch filter_dataset used inside DataFiltering
-
 class TestMakeFilterFunc(unittest.TestCase):
     def test_filter_func_threshold_logic(self):
         scores = [
@@ -203,7 +190,6 @@ class TestScoresParserDuplicates(unittest.TestCase):
             {"score_A": 4.0, "score_B": 9.0},
         ]
         self.assertEqual(score_entries, expected_scores)
-
 
 
 class TestFilteringOrderPreservation(unittest.TestCase):
@@ -309,12 +295,12 @@ class TestTokenizeFilterDetokenizeRoundTrip(unittest.TestCase):
 
         # Detokenize filtered file and verify the surviving texts correspond exactly to expected_texts
         detok_texts = _detokenize_packed(filtered_files[0])
-        # Because the filtering operates on original sample indices, surviving samples should map directly
+        
         # Assert order and content match expected
         self.assertEqual(len(detok_texts), len(self.expected_texts))
         # Simple containment & order check (exact match)
         self.assertEqual(detok_texts, self.expected_texts, "Detokenized filtered texts do not match expected output")
 
 
-if __name__ == "__main__":  # Allow running this file directly.
+if __name__ == "__main__":
     unittest.main()
