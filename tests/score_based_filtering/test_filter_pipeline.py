@@ -302,5 +302,40 @@ class TestTokenizeFilterDetokenizeRoundTrip(unittest.TestCase):
         self.assertEqual(detok_texts, self.expected_texts, "Detokenized filtered texts do not match expected output")
 
 
+class TestScoresParserOrdering(unittest.TestCase):
+    def setUp(self):
+        self.tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp_dir)
+        self.scores_dir = Path(self.tmp_dir) / "scores"
+        self.tokenized_dir = Path(self.tmp_dir) / "tokenized"
+        self.scores_dir.mkdir(parents=True, exist_ok=True)
+        self.tokenized_dir.mkdir(parents=True, exist_ok=True)
+        (self.tokenized_dir / "samples.pbin").write_bytes(b"dummy")
+
+        scores_lines = [
+            '{"document_id": "sample1", "score_A": 1.0}',
+            '{"document_id": "sample2", "score_A": 2.0}',
+            '{"document_id": "sample10", "score_A": 10.0}',
+        ]
+        (self.scores_dir / "samples.jsonl").write_text("\n".join(scores_lines) + "\n", encoding="utf-8")
+
+        self.parser = ScoresParser(
+            data_folder=str(self.scores_dir),
+            score_keys=["score_A"],
+            tokenized_data_path=self.tokenized_dir,
+            base_file_prefix=Path(""),
+        )
+
+    def test_preserves_original_document_order(self):
+        docs_pipeline = self.parser.read_file("samples.jsonl")
+        self.assertEqual(len(docs_pipeline), 1)
+        score_entries = docs_pipeline[0].metadata[ScoresParser.SCORE_ENTRIES_KEY]
+        expected_scores = [
+            {"score_A": 1.0},
+            {"score_A": 2.0},
+            {"score_A": 10.0},
+        ]
+        self.assertEqual(score_entries, expected_scores)
+
 if __name__ == "__main__":
     unittest.main()

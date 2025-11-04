@@ -85,10 +85,18 @@ class ScoresParser(BaseDiskReader):
         document = self.get_document_from_dict(doc_content, filepath, 0)
         return [document]
 
-    def _parse_scores_jsonl_file(self, filepath: str) -> tuple[str, list[dict[str, float]]]:
-        scores_for_document_idx: dict[str, dict[str, float]] = {}
-        processed_count = 0
+    def _parse_scores_jsonl_file(
+        self, filepath: str
+    ) -> tuple[str, list[dict[str, float]]]:
+        """
+        Parse a JSONL file containing scores for documents.
+
+        Preserves the original file order, even when duplicate document_ids exist.
+        Duplicates are disambiguated with numeric suffixes, but order is preserved.
+        """
+        scores_for_document_idx: list[tuple[str, dict[str, float]]] = []
         duplicate_counts: dict[str, int] = {}  # track counts per original document_id
+        processed_count = 0
 
         with self.data_folder.open(filepath, "r", compression=self._compression) as f:
             for line_number, line in enumerate(f, start=1):
@@ -96,23 +104,24 @@ class ScoresParser(BaseDiskReader):
                 file_data = json.loads(line)
                 document_id = file_data.get("document_id")
 
-                if document_id in scores_for_document_idx:
-                    # Generate a new unique ID with a numeric suffix to disambiguate duplicates.
+                if any(doc_id == document_id or doc_id.startswith(f"{document_id}_") for doc_id, _ in scores_for_document_idx):
+                    # Generate a new unique ID for duplicates
                     dup_count = duplicate_counts.get(document_id, 0) + 1
                     duplicate_counts[document_id] = dup_count
-                    # Use underscore + count; ensure no collision with an existing (unlikely but safe guard if previous had suffix already)
                     new_id = f"{document_id}_{dup_count}"
-                    while new_id in scores_for_document_idx:
+                    while any(doc_id == new_id for doc_id, _ in scores_for_document_idx):
                         dup_count += 1
                         duplicate_counts[document_id] = dup_count
                         new_id = f"{document_id}_{dup_count}"
                     document_id = new_id
 
-                scores_for_document_idx[document_id] = {k: float(file_data[k]) for k in self._score_keys}
+                # Append to list to preserve original order
+                scores_for_document_idx.append(
+                    (document_id, {k: float(file_data[k]) for k in self._score_keys})
+                )
+        self._verify_unique_ids(filepath, dict(scores_for_document_idx), processed_count)
+        return filepath, [score_dict for _, score_dict in scores_for_document_idx]
 
-            self._verify_unique_ids(filepath, scores_for_document_idx, processed_count)
-            scores_as_list = [scores for _, scores in sorted(scores_for_document_idx.items(), key=lambda x: x[0])]
-            return f.name, scores_as_list
 
     def _verify_unique_ids(self, filepath: str, scores_for_document_idx: dict[str, dict], processed_count: int):
         """Verify that the number of unique document IDs matches the number of processed (valid) lines.
