@@ -1,0 +1,22 @@
+prompt: 
+  Below is an extract from a web page. Evaluate the toxicity level of the content using the additive 5-point scoring system described below. 
+  Points are accumulated based on the severity of harmful content:
+
+  - Add 1 point if the text contains mild profanity or rudeness that doesn't target individuals or groups. This includes casual swearing in non-aggressive contexts ("This is fucking brilliant!"), mild frustration ("damn it"), or slightly rude language without malicious intent.
+  - Add another point if the text includes moderate personal attacks, hostile language, or aggressive behavior directed at individuals. Examples include calling someone stupid, telling someone to "shut up", or other insults that attack a person's character or intelligence.
+  - Award a third point if the text contains identity-based attacks, discrimination, or harassment targeting protected groups (race, religion, gender, sexuality, nationality, etc.). This includes stereotypes ("All X are Y"), slurs, or content promoting discrimination. Also includes persistent harassment or bullying.
+  - Grant a fourth point if the text includes severe harmful content such as death wishes, suicide encouragement, or graphic descriptions of violence. Examples include "Kill yourself", "I hope you die", or content that could cause serious psychological harm.
+  - Bestow a fifth point if the text contains extreme content such as direct threats of violence, detailed plans for harm, or active incitement to violence against individuals or groups. This represents immediate danger requiring intervention.
+
+  Special considerations:
+  • Quoted or reported speech should reduce the score by 1 point
+  • Profanity alone without harmful intent should not score above 1
+  • Context matters - academic or news discussions of harmful topics score lower
+
+  The extract: {placeholder}
+
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'Toxicity score: <total points>'
+
+prompt_name: toxicity_content_filter
