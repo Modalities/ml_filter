@@ -1,0 +1,16 @@
+prompt: |
+  Below is an extract from a document. Evaluate the quality of its deliberative reasoning about a normative conflict using the additive 5‑point scoring system described below. Points are accumulated based on the depth and coherence of reflective‑equilibrium reasoning:
+
+  - Add 1 point if the extract explicitly identifies at least two norms, rules, or values in tension and describes the situation that creates the conflict.
+  - Add another point if it articulates the competing principles clearly and acknowledges the perspectives or interests of affected stakeholders.
+  - Award a third point if it supplies reason‑giving or empirical/contextual evidence that supports or challenges each principle, going beyond mere assertion.
+  - Grant a fourth point if it shows mutual adjustment toward coherence—weighing principles against each other, revising or limiting them, and addressing at least one objection.
+  - Bestow a fifth point if the extract reaches a reflective equilibrium: a balanced, publicly defensible resolution integrating principles, evidence, and stakeholder views.
+  
+  The extract:
+  {placeholder}
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'Reasoning score: <total points>'
+
+prompt_name: reasoning_content_filter
