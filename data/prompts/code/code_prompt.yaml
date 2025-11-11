@@ -1,0 +1,16 @@
+prompt: |
+  Below is an extract from a web page. Evaluate the instructional value of the extract for reasoning about programming / code using the additive 5‑point scoring system described below. Points are accumulated based on the depth and quality of reasoning support:
+  
+  - Add 1 point if the extract contains source code relevant to programming topics but no substantial reasoning—e.g., raw or messy code with minimal/no comments, promotional snippet dumps, or copy‑pasted examples without context.
+  - Add another point if the code is cleanly structured and/or uses meaningful names or inline comments that reveal some abstraction or intent, even if no comprehensive narrative explanation is present.
+  - Award a third point if the extract provides a natural‑language explanation of what the code does—such as “explain in plain English” sections, problem–solution framing, or high‑level summaries clarifying purpose and behavior.
+  - Grant a fourth point if the extract includes a step‑by‑step/line‑by‑line trace or analysis that walks through variable states, control flow, or algorithmic steps, helping readers mentally execute the code.
+  - Bestow a fifth point if the extract delivers meta‑level or developmental reasoning—discussing design decisions, refactor motivations, trade‑offs, performance considerations, or describing the goals/strategies guiding the implementation process.
+  
+  The extract:
+  {placeholder}
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'Code score: <total points>'
+
+prompt_name: code_content_filter
