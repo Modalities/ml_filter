@@ -32,7 +32,8 @@ LABEL_NUMPY_DTYPE_MAPPING: dict[str, np.dtype] = {
     "int32": np.int32,
     "float32": np.float32,
     "float16": np.float16,
-    "bfloat16": np.float32,  # degrade
+    "bfloat16": np.float32,
+    "string": np.str_,
 }
 
 def resolve_output_dtype(schema: Any, pipeline: str) -> dict[str, Any]:
