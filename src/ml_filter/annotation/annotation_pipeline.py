@@ -22,11 +22,11 @@ from ml_filter.annotation.datatrove_jql_annotator import (
 # ---------------------------------------------------------------------------
 
 class LocalExecutionSettings(BaseModel):
-    tasks: int
-    local_tasks: int
-    local_rank_offset: int
-    workers: int
-    logging_dir: Optional[str]
+    tasks: int = 1
+    local_tasks: int = 1
+    local_rank_offset: int = 0
+    workers: int = -1
+    logging_dir: str | None = None
 
 
 class SlurmExecutionSettings(BaseModel):
