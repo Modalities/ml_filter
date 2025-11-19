@@ -26,7 +26,7 @@ class LocalExecutionSettings(BaseModel):
     local_tasks: int
     local_rank_offset: int
     workers: int
-    logging_dir: Optional[str]
+    logging_dir: Optional[str] = None
 
 
 class SlurmExecutionSettings(BaseModel):

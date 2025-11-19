@@ -1,0 +1,30 @@
+
+
+params:
+  # Directory containing your .jsonl files (not the YAML file itself!)
+  input_dir: data/raw
+  glob_pattern: "*.jsonl"
+
+  # Which field in the JSONL contains the text?
+  text_field: text
+  # (Optional) If you have labels:
+  label_field: scores
+
+  embedding_dtype: float32   # stored embeddings in HDF5
+  label_dtype: float32       # if labels are written
+  model_dtype: float32       # computational precision of the model (alternatively: bfloat16/float16)
+
+  keys_to_index:
+    - "text"
+  output_dir: outputs
+  embedding_dir: embeddings_output
+  embedding_model: jhu-clsp/mmBERT-base
+  hdf5_dataset_name: train
+  batch_size: 12
+  writer_batch_size: 12
+  max_length: 512
+  padding: true
+  truncation: true
+  save_labels: true
+
+local_settings: {}
