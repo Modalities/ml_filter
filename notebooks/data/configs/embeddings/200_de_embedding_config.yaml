@@ -8,7 +8,7 @@ params:
   # Which field in the JSONL contains the text?
   text_field: text
   # (Optional) If you have labels:
-  # label_field: label
+  label_field: scores
 
   embedding_dtype: float32   # stored embeddings in HDF5
   label_dtype: float32       # if labels are written
@@ -25,6 +25,6 @@ params:
   max_length: 512
   padding: true
   truncation: true
-  save_labels: false
+  save_labels: true
 
 local_settings: {}
