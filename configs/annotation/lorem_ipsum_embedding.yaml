@@ -21,11 +21,15 @@ params:
   embedding_model: jhu-clsp/mmBERT-base
   batch_size: 128
   writer_batch_size: 1000
-  hdf5_dataset_name: train
+  hdf5_dataset_name: fineweb2
   save_labels: false
   max_length: 8192
   padding: true
   truncation: true
+  # Metadata key customization
+  embedding_key: embeddings
+  label_key: labels
+  document_id_key: document_ids
 
 running_on_slurm: false
 

@@ -88,6 +88,10 @@ class AnnotationPipelineParameters(BaseModel):
     embedding_dtype: str = Field(..., description="Storage dtype for embeddings (float32, float16, bfloat16->float32).")
     label_dtype: str | None = Field(..., description="Storage dtype for labels (e.g., int8, float32). Optional.")
     model_dtype: str = Field(..., description="Model compute dtype (float32, float16, bfloat16).")
+    embedding_key: str = Field("embedding", description="Metadata key for embedding vectors in HDF5 reader.")
+    document_id_key: str = Field("document_id", description="Metadata key for document id in reader output.")
+    label_key: str | None = Field("label", description="Metadata key for labels if present.")
+    score_prefix: str = Field("score_", description="Prefix applied to regression head score keys.")
 
     @property
     def annotated_output_dir(self) -> Path:
@@ -161,6 +165,10 @@ class AnnotationPipelineBuilder(BaseSettings):
             embedding_dtype=_p("embedding_dtype"),
             label_dtype=_p("label_dtype"),
             model_dtype=_p("model_dtype"),
+            embedding_key=_p("embedding_key"),
+            document_id_key=_p("document_id_key"),
+            label_key=_p("label_key"),
+            score_prefix=_p("score_prefix"),
         )
 
         local_settings_obj = None
@@ -189,8 +197,17 @@ class AnnotationPipelineBuilder(BaseSettings):
             'embedding_dtype': p.embedding_dtype,
             'label_dtype': p.label_dtype,
         }, pipeline="annotation_pipeline")
+        base_output_keys = p.output_keys
+        dynamic_score_keys = [f"{p.score_prefix}{name}" for name in p.regression_head_checkpoints.keys()]
+        output_keys = list(dict.fromkeys(base_output_keys + dynamic_score_keys))
+        
         pipeline = [
-            JQLEmbeddingReader(data_folder=p.embeddings_directory, dataset_name=p.dataset_name),
+            JQLEmbeddingReader(
+                data_folder=p.embeddings_directory,
+                dataset_name=p.dataset_name,
+                embedding_key=p.embedding_key,
+                document_id_key=p.document_id_key,
+            ),
             JQLHead(
                 regression_head_checkpoints=p.regression_head_checkpoints,
                 batch_size=p.batch_size,
@@ -199,10 +216,11 @@ class AnnotationPipelineBuilder(BaseSettings):
                     "embedding_dtype": _resolved["embedding_dtype"],
                     "label_dtype": _resolved["label_dtype"],
                 },
+                score_prefix=p.score_prefix,
                 stats_writer=JsonlWriter(
                     output_folder=str(p.annotated_output_dir),
                     output_filename="${source_filename}.jsonl",
-                    adapter=partial(stats_adapter, output_keys=p.output_keys),
+                    adapter=partial(stats_adapter, output_keys=output_keys),
                     expand_metadata=True,
                 ),
             ),

@@ -91,6 +91,8 @@ class JQLJsonlReader(BaseDiskReader):
         glob_pattern: str | None = None,
         shuffle_files: bool = False,
         save_labels: bool = True,
+        document_id_key: str = "document_id",
+        label_key: str = "label",
     ):
         super().__init__(
             data_folder,
@@ -109,6 +111,8 @@ class JQLJsonlReader(BaseDiskReader):
         )
         self.compression = compression
         self.save_labels = save_labels
+        self.document_id_key = document_id_key
+        self.label_key = label_key
         self.keys_to_index = keys_to_index
         self.n_keys = len(keys_to_index)
 
@@ -146,12 +150,12 @@ class JQLJsonlReader(BaseDiskReader):
                             document = self.get_document_from_dict(orjson.loads(line), filepath, li)
                             if not document:
                                 continue
-                            document.metadata["document_id"] = self._combine_metadata_keys(document.metadata)
+                            document.metadata[self.document_id_key] = self._combine_metadata_keys(document.metadata)
                             document.metadata["source_filename"] = _get_file_path(document)
                             if self.save_labels:
                                 # copy score into label for downstream consumers if enabled
                                 if "score" in document.metadata:
-                                    document.metadata["label"] = document.metadata["score"]
+                                    document.metadata[self.label_key] = document.metadata["score"]
                                 else:
                                     raise ValueError("No 'score' field found in document metadata to copy to 'label'.")
                         except (EOFError, JSONDecodeError) as e:
@@ -194,6 +198,7 @@ class JQLEmbedder(PipelineStep):
         truncation: bool | str,
         device_overwrite: Optional[str] = None,
         stats_writer: DiskWriter = None,
+        embedding_key: str = "embedding",
     ):
         super().__init__()
         self.embedder_model_id = embedder_model_id
@@ -204,6 +209,7 @@ class JQLEmbedder(PipelineStep):
         self.padding = padding
         self.truncation = truncation
         self.model_dtype = model_dtype
+        self.embedding_key = embedding_key
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
         if not cuda.is_available():
@@ -234,7 +240,7 @@ class JQLEmbedder(PipelineStep):
                         )
                         for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
                             # doc.metadata["source_filename"] = _get_file_path(doc)
-                            doc.metadata["embedding"] = embedding
+                            doc.metadata[self.embedding_key] = embedding
                             if writer:
                                 writer.write(doc, rank)
                             yield doc
@@ -305,6 +311,9 @@ class HDF5Writer(DiskWriter):
         dataset_name: str = "train",
         save_labels: bool = True,
         compression: str = None,
+        embedding_key: str = "embedding",
+        document_id_key: str = "document_id",
+        label_key: str = "label",
     ):
         super().__init__(
             output_folder,
@@ -323,16 +332,19 @@ class HDF5Writer(DiskWriter):
         self.dataset_name = dataset_name
         self.save_labels = save_labels
         self.compression = compression
+        self.embedding_key = embedding_key
+        self.document_id_key = document_id_key
+        self.label_key = label_key
 
     def _write_batch(self, filename: str):
         if not self._batches[filename]:
             return
 
         batch = self._batches.pop(filename)
-        embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=self.dtype_schema["embedding_dtype"])
-        document_id = [doc["metadata"]["document_id"] for doc in batch]
-        if self.save_labels and "label" in batch[0]["metadata"]:
-            labels = np.array([doc["metadata"]["label"] for doc in batch], dtype=self.dtype_schema["label_dtype"])
+        embeddings = np.stack([doc["metadata"][self.embedding_key] for doc in batch], dtype=self.dtype_schema["embedding_dtype"])
+        document_id = [doc["metadata"][self.document_id_key] for doc in batch]
+        if self.save_labels and self.label_key in batch[0]["metadata"]:
+            labels = np.array([doc["metadata"][self.label_key] for doc in batch], dtype=self.dtype_schema["label_dtype"])
         else:
             labels = None
 
@@ -479,6 +491,8 @@ class JQLEmbeddingReader(BaseDiskReader):
         recursive: bool = True,
         glob_pattern: str | None =  "**/*.h5",
         shuffle_files: bool = False,
+        embedding_key: str = "embedding",
+        document_id_key: str = "document_id",
     ):
         super().__init__(
             data_folder=data_folder,
@@ -496,6 +510,8 @@ class JQLEmbeddingReader(BaseDiskReader):
             shuffle_files=shuffle_files,
         )
         self.dataset_name = dataset_name
+        self.embedding_key = embedding_key
+        self.document_id_key = document_id_key
 
     def read_file(self, filepath: str):
         """
@@ -539,11 +555,11 @@ class JQLEmbeddingReader(BaseDiskReader):
                         with self.track_time():
                             doc_dict = {
                                 "id": str(i),
-                                "embeddings": embeddings[i].tolist(),
-                                "document_id": document_ids[i],
+                                self.text_key: embeddings[i].tolist(),
+                                self.document_id_key: document_ids[i],
                             }
                             doc = self.get_document_from_dict(doc_dict, filepath, i)
-                            doc.metadata["document_id"] = document_ids[i].decode('utf-8')
+                            doc.metadata[self.document_id_key] = document_ids[i].decode('utf-8')
                             doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path))
                             yield doc
 
@@ -577,6 +593,7 @@ class JQLHead(PipelineStep):
         device_overwrite: Optional[str] = None,
         stats_writer: DiskWriter = None,
         dtype_schema: Any = None,
+        score_prefix: str = "score_",
     ):
         super().__init__()
         if regression_head_checkpoints is None:
@@ -588,6 +605,7 @@ class JQLHead(PipelineStep):
         self.stats_writer = stats_writer
         self.output_keys = output_keys
         self.dtype_schema = dtype_schema
+        self.score_prefix = score_prefix
 
     def run(self, doc_pipeline: DocumentsPipeline, rank: int = 0, world_size: int = 1, **kwargs) -> DocumentsPipeline:
         """
@@ -632,7 +650,7 @@ class JQLHead(PipelineStep):
                     scores = {}
                     with no_grad():
                         for name, regression_head in self.regression_heads.items():
-                            scores[f'score_{name}'] = regression_head(embeddings_tensor).logits.cpu().squeeze(1)
+                            scores[f'{self.score_prefix}{name}'] = regression_head(embeddings_tensor).logits.cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
                         for name, score in scores.items():
