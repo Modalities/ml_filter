@@ -17,6 +17,11 @@ params:
   label_dtype: int8
   model_dtype: bfloat16
 
+  # Metadata key customization
+  embedding_key: embeddings
+  label_key: labels
+  document_id_key: document_ids
+
   # Model and embedding parameters
   embedding_model: jhu-clsp/mmBERT-base
   batch_size: 512
