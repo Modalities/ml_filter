@@ -41,22 +41,22 @@ class TestJQLEmbeddingReader(unittest.TestCase):
             np.testing.assert_equal(doc.metadata["document_id"], expected_document_id[i])
 
     def test_read(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, "train")
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", embedding_key="embeddings", document_id_key="document_id")
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels)
 
     def test_read_with_limit(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, "train", limit=2)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", limit=2, embedding_key="embeddings", document_id_key="document_id")
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels, limit=2)
 
     def test_read_with_skip(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, "train", skip=1)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", skip=1, embedding_key="embeddings", document_id_key="document_id")
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels, skip=1)
 
     def test_read_with_limit_and_skip(self):
-        reader = JQLEmbeddingReader(self.tmp_dir, "train", skip=1, limit=1)
+        reader = JQLEmbeddingReader(self.tmp_dir, "train", skip=1, limit=1, embedding_key="embeddings", document_id_key="document_id")
         documents = list(reader.run())
         self.check_same_data(documents, self.embeddings, self.labels, skip=1, limit=1)
 
