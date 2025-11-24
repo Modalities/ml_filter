@@ -357,21 +357,21 @@ class HDF5Writer(DiskWriter):
             maxshape_emb = (None, embeddings.shape[1])
             maxshape_ids = (None,)
             embeddings_dataset = group.create_dataset(
-                "embeddings", shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression=self.compression, dtype=self.dtype_schema["embedding_dtype"]
+                self.embedding_key, shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression=self.compression, dtype=self.dtype_schema["embedding_dtype"]
             )
             dt = h5py.string_dtype(encoding="utf-8")
-            document_ids_dataset = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt)
+            document_ids_dataset = group.create_dataset(self.document_id_key, shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt)
             labels_dataset = None
             if labels is not None:
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_dataset = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
+                    self.label_key, shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
                 )
         else:
             group = file[group_name]
-            embeddings_dataset = group["embeddings"]
-            document_ids_dataset = group["document_id"]
-            labels_dataset = group.get("labels") if "labels" in group else None
+            embeddings_dataset = group[self.embedding_key]
+            document_ids_dataset = group[self.document_id_key]
+            labels_dataset = group.get(self.label_key) if self.label_key in group else None
 
         # Resize for new batch once and append the current in-memory batch to the on-disk datasets.
         # 1. Capture current length (current_row_count)
@@ -391,7 +391,7 @@ class HDF5Writer(DiskWriter):
                 # Create labels dataset now if first time labels appear
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_dataset = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
+                    self.label_key, shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
                 )
             labels_dataset.resize(updated_row_count, axis=0)
             labels_dataset[current_row_count:updated_row_count] = labels
@@ -538,8 +538,8 @@ class JQLEmbeddingReader(BaseDiskReader):
                         raise KeyError(f"Dataset '{self.dataset_name}' not found in {filepath}")
 
                     grp = f[self.dataset_name]
-                    embeddings = torch.from_numpy(grp["embeddings"][:]).float()
-                    document_ids = grp["document_id"][:]
+                    embeddings = torch.from_numpy(grp[self.embedding_key][:]).float()
+                    document_ids = grp[self.document_id_key][:]
 
                     if len(embeddings) != len(document_ids):
                         raise ValueError(
