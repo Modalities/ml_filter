@@ -78,6 +78,7 @@ class SlurmExecutionSettings(BaseModel):
 # ---------------------------------------------------------------------------
 
 class AnnotationPipelineParameters(BaseModel):
+    glob_pattern: str = Field(..., description="Glob pattern to match embedding files in the embeddings directory.")
     embeddings_directory: str = Field(..., description="Path to directory containing HDF5 embedding files.")
     output_keys: list[str] = Field(..., description="List of metadata keys to include in the annotated output files.")
     output_dir: Path = Field(..., description="Output directory for annotated JSONL files.")
@@ -155,6 +156,7 @@ class AnnotationPipelineBuilder(BaseSettings):
             return params_cfg.get(name, default)
 
         params = AnnotationPipelineParameters(
+            glob_pattern=_p("glob_pattern"),
             embeddings_directory=_p("embeddings_directory"),
             output_dir=_p("output_dir"),
             output_keys=_p("output_keys"),
@@ -207,6 +209,7 @@ class AnnotationPipelineBuilder(BaseSettings):
                 dataset_name=p.dataset_name,
                 embedding_key=p.embedding_key,
                 document_id_key=p.document_id_key,
+                glob_pattern=p.glob_pattern,
             ),
             JQLHead(
                 regression_head_checkpoints=p.regression_head_checkpoints,

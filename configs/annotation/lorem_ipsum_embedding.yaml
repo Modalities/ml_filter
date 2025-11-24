@@ -10,7 +10,7 @@ params:
   text_field: text
   keys_to_index: ["id", "aggregation_type"]
   embedding_dir: ${dataset_name}_embeddings
-  compression: gzip
+  compression: null
 
   # Precision
   embedding_dtype: float32
@@ -26,6 +26,7 @@ params:
   max_length: 8192
   padding: true
   truncation: true
+
   # Metadata key customization
   embedding_key: embeddings
   label_key: labels
