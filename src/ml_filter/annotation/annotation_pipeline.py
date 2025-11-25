@@ -38,21 +38,28 @@ class SlurmExecutionSettings(BaseModel):
     workers: int
     job_name: str
     qos: str
-    env_command: Optional[str]
-    condaenv: Optional[str]
-    venv_path: Optional[str]
-    sbatch_args: Optional[dict[str, str | int | float | bool]]
-    max_array_size: int
-    depends_job_id: Optional[str]
-    job_id_position: int
-    logging_dir: Optional[str]
-    skip_completed: bool
-    slurm_logs_folder: Optional[str]
-    mail_type: str
-    mail_user: Optional[str]
-    requeue: bool
-    srun_args: Optional[dict[str, str | int | float | bool]]
-    tasks_per_job: int
+    env_command: str | None = None
+    condaenv: str | None = None
+    venv_path: str | None = None
+    # Allow users to supply any sbatch arg (e.g. nodes, ntasks, gres, account, output, error, gpus-per-task, etc.)
+    # using either snake_case or dash-case. Primitive values get coerced to strings.
+    sbatch_args: dict[str, str | int | float | bool] | None = None
+    max_array_size: int = 1001
+    depends_job_id: str | None = None
+    job_id_position: int = -1
+    logging_dir: str | None = None
+    skip_completed: bool = True
+    slurm_logs_folder: str | None = None
+    max_array_launch_parallel: bool = False
+    stagger_max_array_jobs: int = 0
+    run_on_dependency_fail: bool = False
+    randomize_start_duration: int = 0
+    requeue_signals: tuple[str] | None = ("SIGUSR1",)
+    mail_type: str = "ALL"
+    mail_user: str | None = None
+    requeue: bool = True
+    srun_args: dict[str, str | int | float | bool] | None = None
+    tasks_per_job: int = 1
 
     @model_validator(mode="before")
     def _normalize_sbatch(cls, values):
