@@ -27,6 +27,7 @@ dependencies = [
     "seaborn",
     "python-dotenv",
     "jq",
+    "sentencepiece",
     "tabulate",
     "datatrove==0.5.0",
     "orjson",
