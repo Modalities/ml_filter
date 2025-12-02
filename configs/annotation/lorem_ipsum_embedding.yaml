@@ -28,9 +28,9 @@ params:
   truncation: true
 
   # Metadata key customization
-  embedding_key: embeddings
-  label_key: Llama-3.3-70B-Instruct_aggregated_score
-  document_id_key: document_ids
+  embedding_key: embedding
+  label_key: score
+  document_id_key: document_id
 
 running_on_slurm: false
 
