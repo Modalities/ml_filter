@@ -41,7 +41,7 @@ def _get_file_path(doc: Document) -> str:
     Returns:
         str: The base filename without extension. Defaults to 'default' if no file_path is present.
     """
-    return Path(doc.metadata.get("file_path", "default.jsonl")).stem
+    return Path(doc.metadata.get("source_filename", "default.jsonl")).stem
 
 
 class JQLJsonlReader(BaseDiskReader):
@@ -151,7 +151,7 @@ class JQLJsonlReader(BaseDiskReader):
                             if not document:
                                 continue
                             document.metadata[self.document_id_key] = self._combine_metadata_keys(document.metadata)
-                            document.metadata["source_filename"] = _get_file_path(document)
+                            document.metadata["source_filename"] = filepath
                             if self.save_labels:
                                 # copy score into label for downstream consumers if enabled
                                 if "score" in document.metadata:
@@ -239,7 +239,7 @@ class JQLEmbedder(PipelineStep):
                             truncation=self.truncation,
                         )
                         for idx, (doc, embedding) in enumerate(zip(doc_batch, embeddings)):
-                            # doc.metadata["source_filename"] = _get_file_path(doc)
+                            doc.metadata["source_filename"] = _get_file_path(doc)
                             doc.metadata[self.embedding_key] = embedding
                             if writer:
                                 writer.write(doc, rank)
