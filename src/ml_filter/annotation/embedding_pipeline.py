@@ -38,6 +38,7 @@ class EmbeddingPipelineParameters(BaseModel):
     padding: bool | str = Field(..., description="Padding strategy.")
     truncation: bool | str = Field(..., description="Truncation strategy.")
     save_labels: bool = Field(..., description="Copy score->label if present when writing.")
+    label_field: str = Field("score", description="Field name in the JSONL input that stores the label value.")
     embedding_key: str = Field("embedding", description="Metadata key name for embedding vector.")
     label_key: str = Field("label", description="Metadata key name for label value when saved.")
     document_id_key: str = Field("document_id", description="Metadata key used for combined/document id.")
@@ -206,6 +207,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
             padding=_p("padding"),
             truncation=_p("truncation"),
             save_labels=_p("save_labels"),
+            label_field=_p("label_field", "score"),
             embedding_key=_p("embedding_key"),
             label_key=_p("label_key"),
             document_id_key=_p("document_id_key"),
@@ -242,6 +244,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
                 glob_pattern=p.glob_pattern,
                 text_key=p.text_field,
                 save_labels=p.save_labels,
+                label_field=p.label_field,
                 document_id_key=p.document_id_key,
                 label_key=p.label_key,
             ),

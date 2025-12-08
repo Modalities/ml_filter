@@ -93,6 +93,7 @@ class JQLJsonlReader(BaseDiskReader):
         save_labels: bool = True,
         document_id_key: str = "document_id",
         label_key: str = "label",
+        label_field: str = "score",
     ):
         super().__init__(
             data_folder,
@@ -113,6 +114,7 @@ class JQLJsonlReader(BaseDiskReader):
         self.save_labels = save_labels
         self.document_id_key = document_id_key
         self.label_key = label_key
+        self.label_field = label_field
         self.keys_to_index = keys_to_index
         self.n_keys = len(keys_to_index)
 
@@ -147,17 +149,18 @@ class JQLJsonlReader(BaseDiskReader):
                 for li, line in enumerate(f):
                     with self.track_time():
                         try:
-                            document = self.get_document_from_dict(orjson.loads(line), filepath, li)
+                            raw_record = orjson.loads(line)
+                            document = self.get_document_from_dict(raw_record, filepath, li)
                             if not document:
                                 continue
                             document.metadata[self.document_id_key] = self._combine_metadata_keys(document.metadata)
                             document.metadata["source_filename"] = filepath
                             if self.save_labels:
                                 # copy score into label for downstream consumers if enabled
-                                if "score" in document.metadata:
-                                    document.metadata[self.label_key] = document.metadata["score"]
+                                if self.label_field in document.metadata:
+                                    document.metadata[self.label_key] = document.metadata[self.label_field]
                                 else:
-                                    raise ValueError("No 'score' field found in document metadata to copy to 'label'.")
+                                    raise ValueError(f"No '{self.label_field}' field found in document metadata to copy to '{self.label_key}'.")
                         except (EOFError, JSONDecodeError) as e:
                             logger.warning(f"Error when reading `{filepath}`: {e}")
                             continue
