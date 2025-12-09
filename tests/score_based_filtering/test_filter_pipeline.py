@@ -313,9 +313,10 @@ class TestScoresParserOrdering(unittest.TestCase):
         (self.tokenized_dir / "samples.pbin").write_bytes(b"dummy")
 
         scores_lines = [
-            '{"document_id": "sample1", "score_A": 1.0}',
-            '{"document_id": "sample2", "score_A": 2.0}',
-            '{"document_id": "sample10", "score_A": 10.0}',
+            '{"document_id": "sample_1_2", "score_A": 1.0}',
+            '{"document_id": "sample_1_1", "score_A": 4.0}',
+            '{"document_id": "sample_2", "score_A": 2.0}',
+            '{"document_id": "sample_10", "score_A": 10.0}',
         ]
         (self.scores_dir / "samples.jsonl").write_text("\n".join(scores_lines) + "\n", encoding="utf-8")
 
@@ -332,6 +333,7 @@ class TestScoresParserOrdering(unittest.TestCase):
         score_entries = docs_pipeline[0].metadata[ScoresParser.SCORE_ENTRIES_KEY]
         expected_scores = [
             {"score_A": 1.0},
+            {"score_A": 4.0},
             {"score_A": 2.0},
             {"score_A": 10.0},
         ]

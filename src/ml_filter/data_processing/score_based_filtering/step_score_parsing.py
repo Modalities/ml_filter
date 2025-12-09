@@ -96,6 +96,8 @@ class ScoresParser(BaseDiskReader):
         """
         scores_for_document_idx: list[tuple[str, dict[str, float]]] = []
         duplicate_counts: dict[str, int] = {}  # track counts per original document_id
+        seen_document_ids: set[str] = set()
+        prefixes_with_suffixes: set[str] = set()
         processed_count = 0
 
         with self.data_folder.open(filepath, "r", compression=self._compression) as f:
@@ -104,16 +106,20 @@ class ScoresParser(BaseDiskReader):
                 file_data = json.loads(line)
                 document_id = file_data.get("document_id")
 
-                if any(doc_id == document_id or doc_id.startswith(f"{document_id}_") for doc_id, _ in scores_for_document_idx):
+                if document_id in seen_document_ids or document_id in prefixes_with_suffixes:
                     # Generate a new unique ID for duplicates
                     dup_count = duplicate_counts.get(document_id, 0) + 1
-                    duplicate_counts[document_id] = dup_count
                     new_id = f"{document_id}_{dup_count}"
-                    while any(doc_id == new_id for doc_id, _ in scores_for_document_idx):
+                    while new_id in seen_document_ids:
                         dup_count += 1
-                        duplicate_counts[document_id] = dup_count
                         new_id = f"{document_id}_{dup_count}"
+                    duplicate_counts[document_id] = dup_count
                     document_id = new_id
+
+                seen_document_ids.add(document_id)
+                prefix, _, suffix = document_id.rpartition("_")
+                if suffix:
+                    prefixes_with_suffixes.add(prefix)
 
                 # Append to list to preserve original order
                 scores_for_document_idx.append(
