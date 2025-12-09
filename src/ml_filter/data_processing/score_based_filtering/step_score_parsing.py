@@ -126,7 +126,7 @@ class ScoresParser(BaseDiskReader):
                     (document_id, {k: float(file_data[k]) for k in self._score_keys})
                 )
         self._verify_unique_ids(filepath, dict(scores_for_document_idx), processed_count)
-        return filepath, [score_dict for _, score_dict in scores_for_document_idx]
+        return f.name, [score_dict for _, score_dict in scores_for_document_idx]
 
 
     def _verify_unique_ids(self, filepath: str, scores_for_document_idx: dict[str, dict], processed_count: int):
@@ -144,7 +144,7 @@ class ScoresParser(BaseDiskReader):
             )
 
 
-    def _map_to_tokenized_data_path(self, base_file_path: Path | str) -> Path:
+    def _map_to_tokenized_data_path(self, file_path: Path | str) -> Path:
         """
         Maps a base file path to the corresponding tokenized data path.
         Args:
@@ -152,19 +152,19 @@ class ScoresParser(BaseDiskReader):
         Returns:
             Path: The path to the tokenized data file.
         """
-        if isinstance(base_file_path, str):
-            base_file_path = Path(base_file_path)
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
 
         # When prefix is effectively empty ("" or ".") just take the file name.
         if str(self._base_file_prefix) in {"", "."}:
-            base_name = base_file_path.name  # ensure we only use the filename portion
+            base_name = file_path.name  # ensure we only use the filename portion
             base_file_rel = Path(base_name)
         else:
             # Use relative_to only if possible; otherwise fall back to filename.
             try:
-                base_file_rel = base_file_path.relative_to(self._base_file_prefix)
+                base_file_rel = file_path.relative_to(self._base_file_prefix)
             except Exception:
-                base_file_rel = Path(base_file_path.name)
+                base_file_rel = Path(file_path.name)
 
         tokenized_rel = base_file_rel.with_suffix(self._tokenized_data_extension)
         tokenized_data_path = self._tokenized_data_path / tokenized_rel
