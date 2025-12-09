@@ -18,7 +18,6 @@ class DataPreprocessor:
         text_column: str,
         label_column: str,
         max_length: int,
-        is_regression: bool,
         num_processes: int,
         document_id_column: str = "document_id",
         truncation: bool = True,
@@ -31,7 +30,6 @@ class DataPreprocessor:
             text_column (str): The name of the column containing text to tokenize.
             label_column (str): The name of the column containing labels.
             max_length (int): The maximum tokenized sequence length.
-            is_regression (bool): Whether the task is regression or classification.
             document_id_column (str, optional): Column name for unique document IDs. Defaults to "document_id".
             truncation (bool, optional): Whether to truncate sequences exceeding `max_length`. Defaults to True.
             padding (bool, optional): Whether to pad sequences shorter than `max_length`. Defaults to True.
@@ -47,7 +45,6 @@ class DataPreprocessor:
         self.text_column = text_column
         self.label_column = label_column
         self.max_length = max_length
-        self.is_regression = is_regression
         self.document_id_column = document_id_column
         self.truncation = truncation
         self.padding = padding
@@ -125,6 +122,7 @@ class DataPreprocessor:
                 return_tensors="pt",
             )
             labels = self._take_scores(batch)
+
             assert len(labels.shape) == 2
 
             return {**tokenized, "labels": labels}
@@ -138,7 +136,7 @@ class DataPreprocessor:
 
     def _take_scores(self, batch: LazyBatch) -> torch.Tensor:
         """Extracts scores from a batch."""
-        dtype = torch.float if self.is_regression else torch.long
+        dtype = torch.float
         scores_entry = batch[self.label_column]
         if isinstance(scores_entry, dict):
             scores_entry = self._take_scores_from_sub_dict(scores_entry)

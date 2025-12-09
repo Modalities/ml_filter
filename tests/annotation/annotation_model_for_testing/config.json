@@ -1,0 +1,14 @@
+{
+  "architectures": [
+    "EmbeddingRegressionModel"
+  ],
+  "dtype": "float32",
+  "embedding_dim": 768,
+  "hidden_dim": 1000,
+  "is_regression": true,
+  "num_targets_per_task": [
+    6
+  ],
+  "num_tasks": 1,
+  "transformers_version": "4.56.1"
+}

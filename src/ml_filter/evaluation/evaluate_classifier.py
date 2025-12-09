@@ -1,6 +1,8 @@
+import logging
 from typing import Dict, List
 
 import numpy as np
+from scipy.stats import spearmanr
 from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
 
 
@@ -33,11 +35,23 @@ def compute_metrics_for_single_output(
     """
     metrics = {}
 
-    # Compute classification metrics
-    metrics["classification/accuracy"] = accuracy_score(labels, predictions)
-    metrics["classification/f1_weighted"] = f1_score(labels, predictions, average="weighted")
-    metrics["classification/f1_micro"] = f1_score(labels, predictions, average="micro")
-    metrics["classification/f1_macro"] = f1_score(labels, predictions, average="macro")
+    # Check if labels are continuous (contain non-integer values)
+    labels_are_continuous = not np.all(labels == labels.astype(int))
+
+    if labels_are_continuous:
+        logging.warning("Detected continuous labels - skipping classification metrics")
+    else:
+        logging.info(f"Detected discrete labels with {len(np.unique(labels))} unique classes")
+
+    # Compute classification metrics only if labels appear to be discrete
+    if not labels_are_continuous:
+        classification_metrics = {
+            "classification/accuracy": accuracy_score(labels, predictions),
+            "classification/f1_weighted": f1_score(labels, predictions, average="weighted"),
+            "classification/f1_micro": f1_score(labels, predictions, average="micro"),
+            "classification/f1_macro": f1_score(labels, predictions, average="macro"),
+        }
+        metrics.update(classification_metrics)
 
     # Calculate binary metrics for different thresholds
     for threshold in thresholds:
@@ -53,12 +67,15 @@ def compute_metrics_for_single_output(
     # Compute regression-like metrics
     metrics["regression/mse"] = mean_squared_error(labels, predictions_raw)
     metrics["regression/mae"] = mean_absolute_error(labels, predictions_raw)
+    metrics["spearman_corr"], _ = spearmanr(predictions_raw, labels)
 
-    # Add f1 scores for each class
-    classes = np.unique(labels)
-    classes.sort()
-    f1_per_class = f1_score(labels, predictions, average=None)
-    for i, c in enumerate(classes):
-        metrics[f"class_f1/f1_class_{c}"] = f1_per_class[i]
+    # Add f1 scores for each class only if labels are discrete
+    if not labels_are_continuous:
+        classes = np.unique(labels)
+        classes.sort()
+        f1_per_class = f1_score(labels, predictions, average=None)
+        class_f1_metrics = {f"class_f1/f1_class_{c}": f1_per_class[i] for i, c in enumerate(classes)}
+        metrics.update(class_f1_metrics)
 
+    logging.info(f"Computed {len(metrics)} total metrics")
     return metrics

@@ -6,26 +6,27 @@ Key Features:
 
 - Training of Classifiers: MLFilter provides training functionalities allowing users to train and fine-tune classifiers based on the generated datasets. This feature enables the creation of specialized models tailored to specific needs and domains, enhancing the utility of the framework for a wide range of applications.
 
-## Usage in Eurolingua-GPT
-In Eurolingua, we use this repository to filter out low-quality documents from the Common Crawl dataset. The filtered dataset is then used to train the Eurolingua GPT model(s). The following diagram illustrates the workflow, that is closely related to [Fineweb-EDU](https://arxiv.org/pdf/2406.17557): 
+## Usage
+We use this repository to filter out low-quality documents from the Common Crawl dataset. The filtered dataset is then used to train the Eurolingua GPT model(s). The following diagram illustrates the workflow, that is closely related to [Fineweb-EDU](https://arxiv.org/pdf/2406.17557): 
 
 1. We start with a Common Crawl (CC) subset (e.g., 200,000 documents per language) that we want to score e.g., w.r.t. the amount of educational content. We use an LLM to score these documents based on the instructios defined in a prompt.
 
-![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_prompt_based_annotation.svg)
 
 2. The scored documents are then used to train a classifier (probably Roberta) that can be used to filter out low-quality / non-educational documents. 
 
-![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_classifier_training.svg)
 
-3. The classifier is used to filter out low-quality documents from the entire CC dataset. The filtered dataset is then used to train the Eurolingu GPT model(s).
+3. The classifier is used to filter out low-quality documents from the entire CC dataset. The filtered dataset is then used to train the model(s).
 
-![](https://github.com/EuroLingua-GPT/ml_filter/blob/translation_cli/documentation/diagrams/ml_filters_classifier_based_annotation.svg)
 
+## Documentation Map
+- [Pipelines: Embedding & Annotation](documentation/pipelines.md) – generate embeddings and run annotation heads at scale.
+- [Aggregation](documentation/aggregation.md) – how scores are combined (mean, max, min, majority, etc.).
+- [Data Format](documentation/data_format.md) – expected JSONL schema & label structure.
+- [Evaluation](documentation/evaluation.md) – metrics and evaluation utilities.
 
 ## Installation and Development
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md)
-
 
 ## Usage
 Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-face-models), you can proceed to score and the documents and trainer and classifier
@@ -35,12 +36,28 @@ Once you have [setup TGI container](#setting-up-the-tgi-container-with-hugging-f
 python cli.py score_documents --config_file_path path/to/your/config.yaml
 
 ```
-### 2. How to Train a Classifier
-If you already have the score, you can train a classifier by running
+### 2. Create Embeddings at Scale
+Generate HDF5 embedding files from raw JSONL (see `documentation/pipelines.md` for full schema):
+```bash
+python cli.py run_embedding_pipeline --config_file_path configs/embedding_job.yaml
+```
+Outputs: one `.h5` per input file (embeddings + optional labels) under the configured embedding directory.
+
+### 3. How to Train a Classifier
+If you already have scores (e.g. LLM annotations), you can train a classifier by running
 ```script
 python cli.py train_classifier --config_file_path path/to/your/training_config.yaml
 ```
-### 3. Measure Interrater Reliability
+Trained model (and tokenizer) are saved under the `final` subdirectory of the configured output dir.
+
+### 4. Run Annotation Heads on Embeddings
+Apply one or more trained regression / classification heads to previously generated embeddings:
+```bash
+python cli.py run_annotation_pipeline --config_file_path configs/annotation_job.yaml
+```
+Outputs: `${source_filename}.jsonl` with predicted scores in `annotated_data/`.
+
+### 5. Measure Interrater Reliability
 If you have a dataset with scores annotated by multiple annotators, you can compute metrics to measure the interrater reliability with the command interrater_reliability. If you want to compare the scores in a single file (e.g. the human annotated ground truth data), run:
 ```script
 python cli.py interrater_reliability data_annotated.jsonl --output_file_path output.json
@@ -53,6 +70,7 @@ You can create plots for the distribution of annotations and the differences bet
 ```script
 python cli.py plot_scores data_annotated_by_model_1.jsonl data_annotated_by_model_2.jsonl --aggregation majority --output_dir outputs
 ```
+
 ## TGI
 
 This service relies on **TGI containers** (Text Generation Inference), which can be downloaded from [Hugging Face](https://huggingface.co). Follow the steps below to download and run the TGI container.
@@ -145,6 +163,19 @@ Alternativley, just use execute `bash scripts/host_vllm_model.sh $CONTAINER_NAME
 ```bash
 bash scripts/host_vllm_model.sh my_vllm_container 9123 meta-llama/Llama-3.1-8B-Instruct
 ```
+
+##### Mistral
+For mistral models make sure to manually set the correct chat template file in the tokenizer_config.json.
+We tried hosting the model as described by MistralAI, 
+```bash
+vllm serve mistralai/Mistral-Small-3.1-24B-Instruct-2503 --tensor-parallel-size 4 --port 8003 --tokenizer_mode mistral --config_format mistral --load_format mistral
+```
+
+but still ran into:
+```bash
+ValueError: Cannot use chat template functions because tokenizer.chat_template is not set and no template argument was passed! For information about writing templates and setting the tokenizer.chat_template attribute, please see the documentation at
+```
+
 
 #### Test the hosted model
 ```bash
@@ -242,27 +273,26 @@ add_generation_prompt (bool):  If this is set, a prompt with the token(s) that i
                 template for this argument to have any effect.
 We expect it to work best, if set to true.
 
-## Training an annotation model
+## Training a regression head from pre-computed embeddings
 
 Example call for running the training pipeline:
 ```
-ml_filter annotator_training_pipeline --config_file_path path/to/your/config/file.yaml
+ml_filter train_with_embeddings --config_file_path path/to/your/config/file.yaml
 ```
+
 Example configs can be found in [configs/train_classifier](configs/train_classifier/). The most important settings are:
 | Setting                              | Description                                                                                                                      |
 |--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| `model.name`                         | The name of the base model to be used for training. Only models specified in [src/constants.py](src/constants.py) are supported. |
-| `model.freeze_base_model_parameters` | Whether the base model weights should be trained or frozen.                                                                      |
-| `...is_regression`                   | Whether a regression head or a classification head should be used.                                                               |
-| `...num_tasks`                       | How many tasks should be trained for (e.g. when scoring for educational and adult content together).                             |
-| `...num_targets_per_task`            | A list of length num_tasks specifying the number of targets/classes/score values for each task.                                  |
-| `data.train_file_path`               | Path to the training dataset file.                                                                                               |
-| `data.val_file_path`                 | Path to the validation dataset file.                                                                                             |
-| `training.learning_rate`             | The learning rate for the optimizer during training.                                                                             |
-| `training.batch_size`                | The number of samples per batch during training.                                                                                 |
-| `training.num_epochs`                | The total number of epochs for training the model.                                                                               |
-| `training.output_dir_path`             | Directory where the trained model and logs will be saved.                 |
+| `model.regressor_hidden_dim`         | Hidden dimension of the MLP regression head that consumes embeddings.                                                            |
+| `model.init_regression_weights`      | Whether to apply the optional warm-start initialisation for faster convergence.                                                  |
+| `data.train_file_path`               | Directory containing HDF5 shards with a `train` group that stores embeddings and labels.                                         |
+| `data.val_file_path` / `data.test_file_path` | Optional directories with evaluation shards; each shard must expose the same datasets as training.                      |
+| `data.embeddings_dataset` / `data.labels_dataset` | Dataset keys inside each HDF5 group that hold the embedding matrix and label matrix.                                    |
+| `data.task_names`                    | Task names used when logging per-task metrics (e.g. `["edu"]`).                                                                  |
+| `data.num_targets_per_task`          | Number of discrete levels per task; used to derive categorical thresholds for metrics.                                           |
+| `training.batch_size`                | Per-device batch size used when loading the embedding tensors.                                                                   |
+| `training.metric_for_best_model`     | Full metric name emitted by the Trainer (e.g. `eval_validation_edu/spearman_corr`).                                              |
 
-The data should consist of a .jsonl file or a directory structure containing such. Each JSON line should contain a text field matching the data.text_column key from the config. Its value should be a string. Additionally, a scores key specified by data.label_column should contain a list of length num_tasks with the i-th value being in `0, ..., num_targets_per_task[i] - 1`.
+Each HDF5 shard should expose a group (default: `train`) containing two datasets: one with embedding vectors (`data.embeddings_dataset`) and one with labels (`data.labels_dataset`). The labels must be stored as arrays shaped `(num_samples, num_tasks)` (a trailing singleton dimension for single-task setups is fine).
 
-The final model will be saved in the `final` subdirectory of `training.output_dir_path`. It will be a transformers style PreTrainedModel and can be loaded via `AnnotatorModel.from_pretrained(".../final")`. Additionally, a copy of the tokenizer of the base model will be saved in the same directory and can be loaded via `AutoTokenizer.from_pretrained(".../final")`.
+The final head checkpoint will be saved in the `final` subdirectory of `training.output_dir_path`. It can be reloaded via `EmbeddingRegressionModel.from_pretrained(".../final")`. If you initialise the head from an external script, make sure the embedding dimension matches the vectors you used at training time.
