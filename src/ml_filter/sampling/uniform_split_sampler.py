@@ -1,6 +1,5 @@
 """Uniform split sampler: split by label first, then oversample within each split."""
 
-import argparse
 import logging
 from pathlib import Path
 from typing import List, Tuple
@@ -9,7 +8,6 @@ import numpy as np
 import pandas as pd
 
 from ml_filter.utils.uniform_split_sampler_utils import (
-    load_sampler_config,
     log_distribution,
     normalize_score_value,
     per_label_targets,
@@ -20,7 +18,7 @@ from ml_filter.utils.uniform_split_sampler_utils import (
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[3] / "configs" / "sampler" / "uniform_split_sampler.yaml"
+__all__ = ["UniformSplitSampler"]
 
 
 class UniformSplitSampler:
@@ -185,23 +183,3 @@ class UniformSplitSampler:
             val_df = val_df.sample(frac=1, random_state=self.random_seed + 1).reset_index(drop=True)
 
         return train_df, val_df, train_target_total, val_target_total
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Run the uniform split sampler.")
-    parser.add_argument(
-        "-c",
-        "--config",
-        type=Path,
-        default=DEFAULT_CONFIG_PATH,
-        help=f"Path to the sampler config file (default: {DEFAULT_CONFIG_PATH})",
-    )
-    args = parser.parse_args()
-
-    config = load_sampler_config(args.config)
-    sampler = UniformSplitSampler(**config)
-    sampler.process_all_files()
-
-
-if __name__ == "__main__":
-    main()
