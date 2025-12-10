@@ -31,7 +31,6 @@ from ml_filter.data_processing.score_based_filtering.filter_pipeline import buil
 _TOKENIZER_CACHE: dict[str, Any] = {}
 
 HEADER_SIZE = 64  # Mimics EmbeddedStreamData.HEADER_SIZE_IN_BYTES (simplified for tests)
-DATA_SECTION_LEN_BYTES = 8
 TOKEN_SIZE_DESC_LEN_BYTES = 4
 
 

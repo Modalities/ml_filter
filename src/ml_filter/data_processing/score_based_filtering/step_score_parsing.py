@@ -144,11 +144,11 @@ class ScoresParser(BaseDiskReader):
 
     def _map_to_tokenized_data_path(self, file_path: Path | str) -> Path:
         """
-        Maps a base file path to the corresponding tokenized data path.
+        Maps a file path to the corresponding tokenized data path.
         Args:
-            base_file_path (str): The path of the base file.
+            file_path: The path of the jsonl annotated file.
         Returns:
-            Path: The path to the tokenized data file.
+            Path: The path to the corresponding tokenized data file.
         """
         if isinstance(file_path, str):
             file_path = Path(file_path)
