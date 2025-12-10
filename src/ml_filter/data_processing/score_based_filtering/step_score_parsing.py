@@ -16,7 +16,6 @@ class ScoresParser(BaseDiskReader):
     """
 
     name = "ScoresParser"
-    # type = "Parser"
     _requires_dependencies = []
 
     SCORE_ENTRIES_KEY = "score_entries"

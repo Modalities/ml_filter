@@ -12,9 +12,11 @@ from ml_filter.data_processing.score_based_filtering.step_score_parsing import S
 
 try:
     from modalities.dataloader.filter_packed_data import filter_dataset
-except ImportError:
-    logging.error("The filtering pipeline requires the 'modalities' package to be installed.")
-    exit(1)
+except ImportError as exc:
+    raise ImportError(
+        "The filtering pipeline requires the optional dependency 'modalities'. "
+        "Install it via `pip install modalities` and try again."
+    ) from exc
 
 
 class DataFiltering(PipelineStep):
