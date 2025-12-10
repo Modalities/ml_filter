@@ -1,16 +1,16 @@
-dataset_name: validation
+dataset_name: train
 
 params:
   # File selection
   glob_pattern: "**/*.jsonl"
-  input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/input #/raid/s3/opengptx/abbas/processed_data_natural/${dataset_name}_set
+  input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_classifier/sampled_output/Llama-3.3-70B-Instruct_aggregated_score/training_set #/raid/s3/opengptx/abbas/processed_data_natural/${dataset_name}_set
 
   # Output
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/output_testing
   text_field: text
-  keys_to_index: ["id", "aggregation_type"]
+  label_field: score
+  keys_to_index: ["id"]
   embedding_dir: ${dataset_name}_embeddings
-  compression: gzip
 
   # Precision
   embedding_dtype: float32
@@ -18,21 +18,26 @@ params:
   model_dtype: bfloat16
 
   # Model and embedding parameters
-  embedding_model: jhu-clsp/mmBERT-base
-  batch_size: 128
+  embedding_model: Snowflake/snowflake-arctic-embed-m-v2.0 #jhu-clsp/mmBERT-base
+  batch_size: 256
   writer_batch_size: 1000
-  hdf5_dataset_name: train
-  save_labels: false
+  hdf5_dataset_name: fineweb2
+  save_labels: true
   max_length: 8192
   padding: true
   truncation: true
 
+  # Metadata key customization
+  embedding_key: embedding
+  label_key: score
+  document_id_key: document_id
+
 running_on_slurm: false
 
 local_settings:
-  tasks: 2
-  workers: 2
-  local_tasks: 2
+  tasks: 1
+  workers: 1
+  local_tasks: 1
   local_rank_offset: 0
 
 slurm_settings: null

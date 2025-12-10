@@ -43,6 +43,10 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         OmegaConf.save(config=OmegaConf.create({
             "params": {
             "embeddings_directory": self.embeddings_dir,
+            "embedding_key": "embeddings",
+            "document_id_key": "document_id",
+            "glob_pattern": "**/*.h5",
+            "score_prefix": "score_",
             "regression_head_checkpoints": {
                 "Edu-JQL-Mistral-SF": mistral_ckpt_path
             },
@@ -76,7 +80,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
     def test_jql_embedding_reader(self):
         from ml_filter.annotation.datatrove_jql_annotator import JQLEmbeddingReader
 
-        reader = JQLEmbeddingReader(data_folder=self.embeddings_dir, dataset_name="train")
+        reader = JQLEmbeddingReader(data_folder=self.embeddings_dir, dataset_name="train", embedding_key="embeddings", document_id_key="document_id")
         docs = list(reader.run())
         self.assertGreater(len(docs), 0)
 

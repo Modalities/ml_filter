@@ -88,10 +88,10 @@ class TestHDF5Writer(JQLEmbedderTestBase):
         with h5py.File(h5_path, "r") as f:
             self.assertIn("train", f)
             group = f["train"]
-            self.assertIn("embeddings", group)
+            self.assertIn("embedding", group)
             self.assertIn("document_id", group)
 
-            embeddings = group["embeddings"][:]
+            embeddings = group["embedding"][:]
             doc_ids = group["document_id"][:]
 
             self.assertEqual(embeddings.shape[0], len(self.input_docs))

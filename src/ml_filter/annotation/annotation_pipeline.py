@@ -38,21 +38,28 @@ class SlurmExecutionSettings(BaseModel):
     workers: int
     job_name: str
     qos: str
-    env_command: Optional[str]
-    condaenv: Optional[str]
-    venv_path: Optional[str]
-    sbatch_args: Optional[dict[str, str | int | float | bool]]
-    max_array_size: int
-    depends_job_id: Optional[str]
-    job_id_position: int
-    logging_dir: Optional[str]
-    skip_completed: bool
-    slurm_logs_folder: Optional[str]
-    mail_type: str
-    mail_user: Optional[str]
-    requeue: bool
-    srun_args: Optional[dict[str, str | int | float | bool]]
-    tasks_per_job: int
+    env_command: str | None = None
+    condaenv: str | None = None
+    venv_path: str | None = None
+    # Allow users to supply any sbatch arg (e.g. nodes, ntasks, gres, account, output, error, gpus-per-task, etc.)
+    # using either snake_case or dash-case. Primitive values get coerced to strings.
+    sbatch_args: dict[str, str | int | float | bool] | None = None
+    max_array_size: int = 1001
+    depends_job_id: str | None = None
+    job_id_position: int = -1
+    logging_dir: str | None = None
+    skip_completed: bool = True
+    slurm_logs_folder: str | None = None
+    max_array_launch_parallel: bool = False
+    stagger_max_array_jobs: int = 0
+    run_on_dependency_fail: bool = False
+    randomize_start_duration: int = 0
+    requeue_signals: tuple[str] | None = ("SIGUSR1",)
+    mail_type: str = "ALL"
+    mail_user: str | None = None
+    requeue: bool = True
+    srun_args: dict[str, str | int | float | bool] | None = None
+    tasks_per_job: int = 1
 
     @model_validator(mode="before")
     def _normalize_sbatch(cls, values):
@@ -78,6 +85,7 @@ class SlurmExecutionSettings(BaseModel):
 # ---------------------------------------------------------------------------
 
 class AnnotationPipelineParameters(BaseModel):
+    glob_pattern: str = Field(..., description="Glob pattern to match embedding files in the embeddings directory.")
     embeddings_directory: str = Field(..., description="Path to directory containing HDF5 embedding files.")
     output_keys: list[str] = Field(..., description="List of metadata keys to include in the annotated output files.")
     output_dir: Path = Field(..., description="Output directory for annotated JSONL files.")
@@ -88,6 +96,10 @@ class AnnotationPipelineParameters(BaseModel):
     embedding_dtype: str = Field(..., description="Storage dtype for embeddings (float32, float16, bfloat16->float32).")
     label_dtype: str | None = Field(..., description="Storage dtype for labels (e.g., int8, float32). Optional.")
     model_dtype: str = Field(..., description="Model compute dtype (float32, float16, bfloat16).")
+    embedding_key: str = Field("embedding", description="Metadata key for embedding vectors in HDF5 reader.")
+    document_id_key: str = Field("document_id", description="Metadata key for document id in reader output.")
+    label_key: str | None = Field("label", description="Metadata key for labels if present.")
+    score_prefix: str = Field("score_", description="Prefix applied to regression head score keys.")
 
     @property
     def annotated_output_dir(self) -> Path:
@@ -151,6 +163,7 @@ class AnnotationPipelineBuilder(BaseSettings):
             return params_cfg.get(name, default)
 
         params = AnnotationPipelineParameters(
+            glob_pattern=_p("glob_pattern"),
             embeddings_directory=_p("embeddings_directory"),
             output_dir=_p("output_dir"),
             output_keys=_p("output_keys"),
@@ -161,6 +174,10 @@ class AnnotationPipelineBuilder(BaseSettings):
             embedding_dtype=_p("embedding_dtype"),
             label_dtype=_p("label_dtype"),
             model_dtype=_p("model_dtype"),
+            embedding_key=_p("embedding_key"),
+            document_id_key=_p("document_id_key"),
+            label_key=_p("label_key"),
+            score_prefix=_p("score_prefix"),
         )
 
         local_settings_obj = None
@@ -189,8 +206,18 @@ class AnnotationPipelineBuilder(BaseSettings):
             'embedding_dtype': p.embedding_dtype,
             'label_dtype': p.label_dtype,
         }, pipeline="annotation_pipeline")
+        base_output_keys = p.output_keys
+        dynamic_score_keys = [f"{p.score_prefix}{name}" for name in p.regression_head_checkpoints.keys()]
+        output_keys = list(dict.fromkeys(base_output_keys + dynamic_score_keys))
+        
         pipeline = [
-            JQLEmbeddingReader(data_folder=p.embeddings_directory, dataset_name=p.dataset_name),
+            JQLEmbeddingReader(
+                data_folder=p.embeddings_directory,
+                dataset_name=p.dataset_name,
+                embedding_key=p.embedding_key,
+                document_id_key=p.document_id_key,
+                glob_pattern=p.glob_pattern,
+            ),
             JQLHead(
                 regression_head_checkpoints=p.regression_head_checkpoints,
                 batch_size=p.batch_size,
@@ -199,10 +226,11 @@ class AnnotationPipelineBuilder(BaseSettings):
                     "embedding_dtype": _resolved["embedding_dtype"],
                     "label_dtype": _resolved["label_dtype"],
                 },
+                score_prefix=p.score_prefix,
                 stats_writer=JsonlWriter(
                     output_folder=str(p.annotated_output_dir),
                     output_filename="${source_filename}.jsonl",
-                    adapter=partial(stats_adapter, output_keys=p.output_keys),
+                    adapter=partial(stats_adapter, output_keys=output_keys),
                     expand_metadata=True,
                 ),
             ),
