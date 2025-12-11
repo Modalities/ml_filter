@@ -20,11 +20,12 @@ class FilterPipelineBuilder(BaseSettings):
     The pipeline consists of steps for parsing scores and filtering datasets based on those scores.
 
     Besides initializing this class directly, it can also be configured using a YAML file or environment variables.
-    The YAML file can be specified using the `FILTER_PIPELINE_YAML_FILE` environment variable.
+    The YAML file can be specified using the `config_file_path` argument.
     If no YAML file is provided, the class will use default settings and environment variables.
     """
 
     model_config = SettingsConfigDict(env_prefix="filter_pipeline_", env_nested_delimiter="__")
+    _config_file_path: str | None = None
 
     # Pipeline configuration parameters
     params: FilterPipelineParameters
@@ -82,13 +83,19 @@ class FilterPipelineBuilder(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
+        yaml_file = getattr(cls, "_config_file_path", None)
         return (
             init_settings,
             env_settings,
-            YamlConfigSettingsSource(settings_cls, yaml_file=os.getenv("FILTER_PIPELINE_YAML_FILE")),
+            YamlConfigSettingsSource(settings_cls, yaml_file=yaml_file),
             dotenv_settings,
             file_secret_settings,
         )
+
+    @classmethod
+    def from_yaml(cls, config_file_path: str):
+        cls._config_file_path = config_file_path
+        return cls()
 
 
 class FilterPipelineParameters(BaseModel):
