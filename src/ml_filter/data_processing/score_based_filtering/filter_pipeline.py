@@ -153,18 +153,18 @@ class SlurmExecutionSettings(BaseModel):
     tasks_per_job: int = 1
 
     @model_validator(mode="before")
-    def _normalize_sbatch(cls, values):  # type: ignore[override]
+    def _normalize_sbatch(cls, values):
         """Normalize sbatch_args only.
 
         - Accept numeric/bool types and coerce to string
         - Fold common top-level keys (output, error, gpus_per_task) into sbatch_args
         - Convert snake_case keys to dash-case
         """
-        from omegaconf import DictConfig as _DictConfig  # local import
+        from omegaconf import DictConfig as _DictConfig, OmegaConf
 
         sbatch_args = values.get("sbatch_args") or {}
         if isinstance(sbatch_args, _DictConfig):
-            sbatch_args = OmegaConf.to_container(sbatch_args, resolve=True)  # type: ignore[arg-type]
+            sbatch_args = OmegaConf.to_container(sbatch_args, resolve=True)
         if not isinstance(sbatch_args, dict):
             raise TypeError(f"sbatch_args must be a mapping if provided (got type {type(sbatch_args)})")
 
