@@ -227,15 +227,3 @@ def build_pipeline(
         ),
     ]
     return pipeline
-
-if __name__ == "__main__":
-    if len(sys.argv) > 1 or not (yaml_file := os.getenv("FILTER_PIPELINE_YAML_FILE")) or not os.path.isfile(yaml_file):
-        print(
-            "This script is intended to be used with a YAML configuration "
-            "file set via the environment variable `FILTER_PIPELINE_YAML_FILE`.\n"
-            "If you want to run it without a YAML file, please import from it "
-            "and use the FilterPipelineBuilder class directly."
-        )
-        exit(1)
-    args = FilterPipelineBuilder()
-    run_pipeline(args)
