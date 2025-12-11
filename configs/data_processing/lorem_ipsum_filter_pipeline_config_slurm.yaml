@@ -1,0 +1,34 @@
+params:
+  score_path: /leonardo_work/EUHPC_D21_101/alexj/repos/data/annotations
+  tokenized_data_path: /leonardo_work/EUHPC_D21_101/alexj/repos/data/tokenized
+  output_folder: /leonardo_work/EUHPC_D21_101/alexj/repos/data/outputs
+
+  thresholds:
+    score_Gemma_Snowflake: 3.0
+    score_Llama_Snowflake: 2.0
+
+  base_file_prefix: /leonardo_work/EUHPC_D21_101/alexj/repos/data/annotations
+  tokenized_data_extension: .pbin
+
+running_on_slurm: true
+
+local_settings: null
+
+slurm_settings:
+  sbatch_args:
+    account: "EUHPC_E05_119"
+    nodes: 1
+    ntasks: 1
+    gres: gpu:1
+  partition: "boost_usr_prod"
+  time: "00:30:00"
+  cpus_per_task: 32
+  gpus_per_task: 1
+  mem_per_gpu: "8G"
+  job_name: "lorem_ipsum_filtering"
+  output: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.out
+  error: /data/cat/ws/alju972f-annotation_at_scale/.vscode/data/embedding_output_dir/scripts/slurm_output/%j.err
+  qos: "boost_qos_dbg" #"normal"
+  venv_path: /leonardo_work/EUHPC_D21_101/alexj/repos/scripts/env/venv_annotation_pipeline/bin/activate
+  tasks: 1
+  workers: 1

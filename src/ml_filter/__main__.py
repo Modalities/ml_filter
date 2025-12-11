@@ -757,6 +757,22 @@ def entry_run_annotations(config_file_path: Path):
     )
 
 
+@main.command(name="run_filter_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the YAML config file for the filter pipeline.",
+)
+def run_filter_pipeline_cli(config_file_path: Path):
+    """
+    CLI command to run the score-based filtering pipeline using a YAML config file.
+    """
+    from ml_filter.data_processing.score_based_filtering.filter_pipeline import FilterPipelineBuilder, run_pipeline
+    args = FilterPipelineBuilder.from_yaml(str(config_file_path))
+    run_pipeline(args)
+
+
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
     translation_service_type = TranslationServiceType[translation_service]
     return TranslatorFactory.get_translator(

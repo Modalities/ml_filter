@@ -1,0 +1,21 @@
+params:
+  score_path: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/annotations
+  tokenized_data_path: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/tokenized
+  output_folder: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/outputs
+
+  thresholds:
+    score_Gemma_Snowflake: 3.0
+    score_Llama_Snowflake: 2.0
+
+  base_file_prefix: /raid/s3/opengptx/jude/repos/ml_filter/data/filtering_folder/annotations
+  tokenized_data_extension: .pbin
+
+running_on_slurm: false
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  logging_dir: null
+
+slurm_settings: null
