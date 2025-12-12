@@ -3,6 +3,6 @@ output_dir: /home/abbas-khan/ml_filter/src/ml_filter/sampling/processed_data_uni
 validation_fraction: 0.10
 score_column: score
 random_seed: 42
-max_oversampling_ratio: 10.0
+max_upsample_factor: 10.0
 # Set per_label_target to force each score label to aim for this many samples per language file (before split)
 per_label_target: 32800

@@ -2,14 +2,14 @@
 
 import logging
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
 
 from ml_filter.utils.uniform_split_sampler_utils import (
+    extract_score_value,
     log_distribution,
-    normalize_score_value,
     per_label_targets,
     sample_with_cap,
     save_dataset,
@@ -29,7 +29,7 @@ class UniformSplitSampler:
         validation_fraction: float = 0.10,
         score_column: str = "score",
         random_seed: int = 42,
-        max_oversampling_ratio: float = 10.0,
+        max_upsample_factor: float = 10.0,
         per_label_target: int | None = None,
     ):
         self.input_dir = Path(input_dir)
@@ -37,7 +37,7 @@ class UniformSplitSampler:
         self.validation_fraction = validation_fraction
         self.score_column = score_column
         self.random_seed = random_seed
-        self.max_oversampling_ratio = max_oversampling_ratio
+        self.max_upsample_factor = max_upsample_factor
         self.per_label_target = per_label_target
 
         self.train_dir = self.output_dir / "training_set"
@@ -47,44 +47,44 @@ class UniformSplitSampler:
 
         np.random.seed(self.random_seed)
 
-    def process_all_files(self):
+    def process_all_files(self) -> None:
         jsonl_files = sorted(self.input_dir.glob("*.jsonl"))
         if not jsonl_files:
             logger.error("No JSONL files found in %s", self.input_dir)
             return
 
-        datasets: List[Tuple[str, pd.DataFrame]] = []
+        datasets: Dict[Path, pd.DataFrame] = {}
         for path in jsonl_files:
             df = self._load_file(path)
             if not df.empty:
-                datasets.append((path.name, df))
+                datasets[path] = df
 
         if not datasets:
             logger.error("No valid datasets to process.")
             return
 
-        for filename, df in datasets:
-            language = df.get("language", pd.Series(["unknown"])).iloc[0]
-            logger.info("\nProcessing %s (%s) with %d available rows", filename, language, len(df))
+        for path, df in datasets.items():
+            dataset_name = path.name.replace(".jsonl", "")
+            logger.info("\nProcessing %s with %d available rows", dataset_name, len(df))
 
             target_size = len(df)
             train_df, val_df, train_target_total, val_target_total = self._build_splits(df, target_size)
 
             save_dataset(
                 train_df,
-                self.train_dir / f"{filename.replace('.jsonl', '')}_train.jsonl",
+                self.train_dir / f"{dataset_name}_train.jsonl",
                 score_column=self.score_column,
                 log=logger,
             )
             save_dataset(
                 val_df,
-                self.val_dir / f"{filename.replace('.jsonl', '')}_val.jsonl",
+                self.val_dir / f"{dataset_name}_val.jsonl",
                 score_column=self.score_column,
                 log=logger,
             )
 
-            log_distribution(train_df, self.score_column, f"Training ({language})", train_target_total, logger)
-            log_distribution(val_df, self.score_column, f"Validation ({language})", val_target_total, logger)
+            log_distribution(train_df, self.score_column, "Training", train_target_total, logger)
+            log_distribution(val_df, self.score_column, "Validation", val_target_total, logger)
 
         logger.info("\nAll files processed. Output written to %s", self.output_dir)
 
@@ -99,20 +99,20 @@ class UniformSplitSampler:
             logger.error("File %s missing required column '%s'", file_path, self.score_column)
             return pd.DataFrame()
 
-        df[self.score_column] = df[self.score_column].apply(normalize_score_value)
+        df[self.score_column] = df[self.score_column].apply(extract_score_value)
         df[self.score_column] = pd.to_numeric(df[self.score_column], errors="coerce")
         df = df.dropna(subset=[self.score_column])
 
         df = df[df[self.score_column].apply(lambda x: int(x) == float(x))]
-        df["language"] = file_path.name.split("_sampled", 1)[0]
 
         logger.info("Loaded %d valid rows from %s", len(df), file_path.name)
         return df
 
-    def _build_splits(self, df: pd.DataFrame, target_size: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _build_splits(self, df: pd.DataFrame, target_size: int) -> Tuple[pd.DataFrame, pd.DataFrame, int, int]:
         unique_scores = sorted(df[self.score_column].unique())
         if not unique_scores:
-            return df.head(0).copy(), df.head(0).copy()
+            empty = df.head(0).copy()
+            return empty, empty, 0, 0
 
         per_label_total_target = (
             float(self.per_label_target) if self.per_label_target is not None else (target_size / len(unique_scores))
@@ -155,7 +155,7 @@ class UniformSplitSampler:
                 "train",
                 seed_offset=0,
                 random_seed=self.random_seed,
-                max_oversampling_ratio=self.max_oversampling_ratio,
+                max_upsample_factor=self.max_upsample_factor,
                 log=logger,
             )
             val_sample = sample_with_cap(
@@ -165,7 +165,7 @@ class UniformSplitSampler:
                 "validation",
                 seed_offset=10_000,
                 random_seed=self.random_seed,
-                max_oversampling_ratio=self.max_oversampling_ratio,
+                max_upsample_factor=self.max_upsample_factor,
                 log=logger,
             )
 

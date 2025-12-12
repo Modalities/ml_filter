@@ -37,7 +37,7 @@ def test_uniform_split_sampler_uses_fixture_distribution(tmp_path):
         validation_fraction=0.2,
         score_column="score",
         random_seed=123,
-        max_oversampling_ratio=1.0,
+        max_upsample_factor=1.0,
     )
     sampler.process_all_files()
 
@@ -86,7 +86,7 @@ def test_uniform_split_sampler_honors_per_label_target(tmp_path):
         validation_fraction=0.0,
         score_column="score",
         random_seed=11,
-        max_oversampling_ratio=10.0,
+        max_upsample_factor=10.0,
         per_label_target=2,
     )
     sampler.process_all_files()
@@ -98,7 +98,7 @@ def test_uniform_split_sampler_honors_per_label_target(tmp_path):
     assert train_counts == {0: 2, 1: 2, 2: 2}
 
 
-def test_uniform_split_sampler_respects_max_oversampling_ratio(tmp_path):
+def test_uniform_split_sampler_respects_max_upsample_factor(tmp_path):
     input_dir = tmp_path / "input_sparse"
     output_dir = tmp_path / "output_sparse"
 
@@ -123,7 +123,7 @@ def test_uniform_split_sampler_respects_max_oversampling_ratio(tmp_path):
         validation_fraction=0.0,
         score_column="score",
         random_seed=7,
-        max_oversampling_ratio=2.0,
+        max_upsample_factor=2.0,
         per_label_target=500,
     )
     sampler.process_all_files()
@@ -140,4 +140,4 @@ def test_uniform_split_sampler_respects_max_oversampling_ratio(tmp_path):
     assert train_counts == {0: 2, 1: 4, 2: 6}
 
     for score, available in source_counts.items():
-        assert train_counts[score] <= available * sampler.max_oversampling_ratio
+        assert train_counts[score] <= available * sampler.max_upsample_factor

@@ -21,10 +21,12 @@ def load_sampler_config(config_path: Path) -> Dict[str, Any]:
     return config
 
 
-def normalize_score_value(value):
+def extract_score_value(value: Any) -> float | int | np.floating | np.integer | None:
+    """Extract a scalar score from lists/arrays when present."""
+
     if isinstance(value, (list, tuple, np.ndarray)):
-        return value[0] if value else np.nan
-    return value
+        return value[0] if len(value) > 0 else np.nan
+    return value  # type: ignore[return-value]
 
 
 def split_label_pools(
@@ -37,8 +39,9 @@ def split_label_pools(
     train_pools: Dict[float, pd.DataFrame] = {}
     val_pools: Dict[float, pd.DataFrame] = {}
 
+    grouped = df.groupby(score_column)
     for score in unique_scores:
-        label_data = df[df[score_column] == score]
+        label_data = grouped.get_group(score) if score in grouped.groups else df.head(0).copy()
         if label_data.empty:
             base = df.head(0).copy()
             train_pools[score] = base.copy()
@@ -65,14 +68,14 @@ def sample_with_cap(
     split_name: str,
     seed_offset: int,
     random_seed: int,
-    max_oversampling_ratio: float,
+    max_upsample_factor: float,
     log: logging.Logger | None = None,
 ) -> pd.DataFrame:
     if pool.empty or target <= 0:
         return pool.head(0).copy()
 
-    max_allowed = int(len(pool) * max_oversampling_ratio)
-    if max_allowed <= 0:
+    max_allowed = int(len(pool) * max_upsample_factor)
+    if max_allowed == 0:
         return pool.head(0).copy()
 
     effective_target = min(target, max_allowed)
@@ -110,7 +113,7 @@ def per_label_targets(scores: List[float], total_target: int) -> Dict[float, int
     return targets
 
 
-def save_dataset(df: pd.DataFrame, path: Path, score_column: str, log: logging.Logger | None = None):
+def save_dataset(df: pd.DataFrame, path: Path, score_column: str, log: logging.Logger | None = None) -> None:
     df_to_write = df.copy()
     if not df_to_write.empty:
         df_to_write[score_column] = df_to_write[score_column].apply(lambda x: [x])
@@ -125,7 +128,7 @@ def log_distribution(
     label: str,
     target_total: float | None = None,
     log: logging.Logger | None = None,
-):
+) -> None:
     log_ref = log or logger
     if df.empty:
         log_ref.info("%s: 0 samples", label)
