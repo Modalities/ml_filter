@@ -26,7 +26,7 @@ def extract_score_value(value: Any) -> float | int | np.floating | np.integer | 
 
     if isinstance(value, (list, tuple, np.ndarray)):
         return value[0] if len(value) > 0 else np.nan
-    return value  # type: ignore[return-value]
+    return value
 
 
 def split_label_pools(
@@ -71,12 +71,13 @@ def sample_with_cap(
     max_upsample_factor: float,
     log: logging.Logger | None = None,
 ) -> pd.DataFrame:
+    if max_upsample_factor < 1:
+        raise ValueError("max_upsample_factor must be >= 1")
+
     if pool.empty or target <= 0:
         return pool.head(0).copy()
 
     max_allowed = int(len(pool) * max_upsample_factor)
-    if max_allowed == 0:
-        return pool.head(0).copy()
 
     effective_target = min(target, max_allowed)
 
