@@ -12,12 +12,13 @@ from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, agg
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
-from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
 from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
+from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
 from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf
+from ml_filter.sampling.uniform_split_sampler import UniformSplitSampler
 from ml_filter.training.embedding_training_pipeline import run_embedding_head_training_pipeline
 from ml_filter.translate import TranslationServiceType, TranslatorFactory
 from ml_filter.utils.chunk_data import chunk_jsonl
@@ -26,6 +27,7 @@ from ml_filter.utils.manipulate_datasets import apply_score_transforms, convert_
 from ml_filter.utils.manipulate_documents import merge_and_sort_jsonl_files
 from ml_filter.utils.manipulate_prompt import add_target_language_to_prompt
 from ml_filter.utils.statistics import compute_num_words_and_chars_in_jsonl, run_word_count_jsonl_files
+from ml_filter.utils.uniform_split_sampler_utils import load_sampler_config
 
 input_file_path_option = click.option(
     "--input_file_path",
@@ -168,6 +170,19 @@ def entry_point_score_documents(
 def entry_point_compare_experiments(config_file_path: Path):
     # TODO check if entry point still works. rename
     compare_experiments(config_file_path)
+
+
+@main.command(name="uniform_split_sampler")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=True),
+    required=True,
+    help="Path to the YAML config file for the uniform split sampler.",
+)
+def entry_point_uniform_split_sampler(config_file_path: Path):
+    config = load_sampler_config(config_file_path)
+    sampler = UniformSplitSampler(**config)
+    sampler.process_all_files()
 
 
 @main.command(name="chunk_jsonl")
@@ -371,7 +386,7 @@ def aggregate_human_annotations_cli(
     "--min_metrics",
     type=str,
     help="Comma-separated list of metrics for which lower is better."
-         + "All other metrics are considered to be better when higher.",
+    + "All other metrics are considered to be better when higher.",
 )
 @click.option(
     "--report_metrics",
@@ -752,9 +767,7 @@ def entry_run_embedding_pipeline(config_file_path: Path):
 )
 def entry_run_annotations(config_file_path: Path):
     """Run annotation pipeline using precomputed embeddings from HDF5."""
-    run_annotation_pipeline(
-        config_file_path=config_file_path
-    )
+    run_annotation_pipeline(config_file_path=config_file_path)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
