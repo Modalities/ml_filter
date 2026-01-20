@@ -1,28 +1,18 @@
-prompt: Assess the following text to determine whether it is safe for inclusion in a pre-training dataset for a large-language model.
+prompt: |
+  Below is an extract from a web page. Evaluate the level of explicit sexual material or content inappropriate for general audiences using the additive 5-point scoring system described below. 
+  Points are accumulated based on the degree of inappropriateness:
 
-  The text must NOT contain any of the following:
+  - Add 1 point if the extract contains mild sexual innuendo or suggestive content that is not explicit, generally acceptable for most audiences but possibly unsuitable for young children.
+  - Add another point if the extract includes moderate sexual content or references that are more direct but not graphic, inappropriate for children though potentially acceptable for teens.
+  - Award a third point if the extract contains explicit sexual references or mild explicit imagery, clearly unsuitable for minors.
+  - Grant a fourth point if the extract includes strong explicit sexual content or graphic imagery, intended for adults only.
+  - Bestow a fifth point if the extract is dominated by hardcore explicit sexual material, such as pornography, highly inappropriate for general audiences.
+  Note: Topics like sexual education, health-related sexual organ discussions, LGBTQ+ issues, contraception, or intimate hygiene should 
+  be scored 0 if presented educationally and without explicit intent.
+  The extract:
+  {placeholder}
+  After examining the extract:
+  - Briefly justify your score, up to 100 words.
+  - Conclude with the score using the format: 'Adult score: <total points>'
 
-  1. Harmful content: Language that encourages or incites harm, violence, or hatred.
-  2. Toxic content: Insulting, abusive, or demeaning language intended to provoke or offend others.
-  3. Racist or sexist content: Statements that promote discrimination, prejudice, or stereotypes based on race, gender, religion, or other identities.
-  4. Adult content: Explicit sexual material or content inappropriate for general audiences.
-
-  Instructions:
-
-  1. Review the text provided below.
-  2. Decide if the text is safe, unsafe, or unclear based on the criteria above.
-  3. Provide a brief justification (up to 100 words) for your decision.
-  4. Conclude with one of the following responses representing your final decision:
-  - Safe content: yes (the text meets all safety criteria)
-  - Safe content: no (the text violates safety criteria)
-  - Safe content: unsure (if the decision is unclear)
-
-Text to evaluate: 
-{placeholder}
-
-Your response:
-
-Justification (up to 100 words):
-[Write here]
-
-Final decision: Safe content? [yes/no/unsure]
+prompt_name: adult_content_filter
