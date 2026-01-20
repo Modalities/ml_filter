@@ -1,0 +1,53 @@
+# Runnable local config using the dummy paired data under ml_filter/src/ml_filter/data
+# Run with:
+#   python -m ml_filter.data_processing.jsonl_filtering.threshold_filter_pipeline \
+#     ml_filter/src/ml_filter/config/data_processing/threshold_filter_pipeline_local_dummy.yaml
+
+running_on_slurm: false
+
+params:
+  # --- Input ---
+  text_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/text_jsonl
+  scores_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/score_jsonl
+  domains_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/domains_jsonl
+  # Relative paths file (avoid globbing issues)
+  paths_file: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/score_jsonl/dummy_paths.txt
+  glob_pattern: null
+  recursive: true
+  compression: null
+
+  # --- Filtering ---
+  score_keys:
+    - score_Gemma_Snowflake
+    - score_Llama_Snowflake
+  thresholds_by_score_key:
+    score_Gemma_Snowflake: 0.0
+    score_Llama_Snowflake: 0.0
+
+  text_jsonl_id_key: id
+  score_jsonl_id_key: id
+  text_jsonl_text_key: text
+  domain_jsonl_id_key: id
+  domain_jsonl_domain_key: domain
+  accepted_domains:
+    - wikipedia.org
+    - stackexchange.com
+
+  # --- Optional: word-count filter ---
+  min_num_words: null
+  num_words_column: text
+
+  # --- Paired alignment error handling ---
+  on_mismatch: raise
+  max_mismatches_per_file: 0
+
+  # --- Output ---
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/threshold_filter_pipeline_local_dummy
+  output_filename: "${file_relpath}"
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: -1
+  logging_dir: null

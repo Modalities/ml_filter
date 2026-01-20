@@ -198,6 +198,7 @@ class PairedThresholdFilter(BaseDiskReader):
                                 f"Missing score keys {missing} in scores file {scores_path} at line={li}"
                             )
 
+                        domain_value = None
                         if domains_data is not None:
                             domain_value = domains_data.get(self._domain_jsonl_domain_key)
                             if domain_value is None:
@@ -218,6 +219,12 @@ class PairedThresholdFilter(BaseDiskReader):
                                 text_data["file_stem"] = stem
 
                             text_data.setdefault("file_relpath", filepath)
+
+                            # Add scores and (optional) domain to metadata for output.
+                            for key, value in score_dict.items():
+                                text_data.setdefault(key, value)
+                            if domain_value is not None:
+                                text_data.setdefault(self._domain_jsonl_domain_key, domain_value)
 
                             payload = {
                                 "id": text_data.get(self._text_jsonl_id_key),

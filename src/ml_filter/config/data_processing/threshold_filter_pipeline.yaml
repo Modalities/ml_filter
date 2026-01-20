@@ -4,8 +4,11 @@
 running_on_slurm: false
 
 params:
-  # Input JSONL location
-  input_dir: /path/to/input_jsonl_dir
+  # Input JSONL locations (paired mode)
+  text_input_dir: /path/to/input/text_jsonl_dir
+  scores_input_dir: /path/to/input/scores_jsonl_dir
+  domains_input_dir: null  # optional paired domains JSONL dir
+  paths_file: null  # optional file listing relative paths
   glob_pattern: "**/*.jsonl"   # optional
   recursive: true
   compression: infer           # infer | gzip | zstd | null
@@ -19,12 +22,24 @@ params:
     score: 0.5
 
   # Document field names in the JSONL
-  id_key: document_id
-  text_key: text
+  text_jsonl_id_key: document_id
+  score_jsonl_id_key: document_id
+  text_jsonl_text_key: text
+  domain_jsonl_id_key: document_id
+  domain_jsonl_domain_key: domain
+  accepted_domains: []
+
+  # Paired alignment error handling
+  on_mismatch: raise  # raise | skip_line | skip_file
+  max_mismatches_per_file: 0
+
+  # Optional word-count filter
+  min_num_words: null
+  num_words_column: text
 
   # Output
   output_dir: /path/to/output_dir
-  output_filename: "${source_filename}.jsonl"
+  output_filename: "${file_relpath}"
 
 # ------------------------------------------------------------
 # Execution settings: choose ONE block depending on running_on_slurm

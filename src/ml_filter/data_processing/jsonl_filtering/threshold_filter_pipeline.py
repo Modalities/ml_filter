@@ -25,6 +25,23 @@ from ml_filter.data_processing.jsonl_filtering.paired_threshold_filter import Pa
 from ml_filter.data_processing.jsonl_filtering.numwords_filter import NumWordsFilter
 
 
+def _jsonl_writer_adapter(self, document):
+    """Return id/text plus configured score/domain fields for output."""
+    data = {
+        "id": getattr(document, "id", None),
+        "text": getattr(document, "text", None),
+    }
+    metadata = getattr(document, "metadata", None)
+    if isinstance(metadata, dict):
+        for key in getattr(self, "score_keys", []):
+            if key in metadata:
+                data[key] = metadata[key]
+        domain_key = getattr(self, "domain_key", None)
+        if domain_key and domain_key in metadata:
+            data[domain_key] = metadata[domain_key]
+    return data
+
+
 class LocalExecutionSettings(BaseModel):
     tasks: int = 1
     local_tasks: int = 1
@@ -292,14 +309,16 @@ class ThresholdFilterPipelineBuilder(BaseSettings):
                 )
             )
 
-        pipeline.append(
-            JsonlWriter(
-                output_folder=str(p.output_dir),
-                output_filename=p.output_filename,
-                expand_metadata=True,
-                compression=None
-            )
+        writer = JsonlWriter(
+            output_folder=str(p.output_dir),
+            output_filename=p.output_filename,
+            expand_metadata=False,
+            adapter=_jsonl_writer_adapter,
+            compression=None,
         )
+        writer.score_keys = p.score_keys
+        writer.domain_key = p.domain_jsonl_domain_key if p.domains_input_dir else None
+        pipeline.append(writer)
         return pipeline
 
     def build_executor(self) -> LocalPipelineExecutor | SlurmPipelineExecutor:

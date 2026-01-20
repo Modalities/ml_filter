@@ -59,12 +59,11 @@ local_settings:
     assert b.params.accepted_domains == ["wikipedia.org", "stackexchange.com"]
 
     pipeline = b.build_pipeline()
-    assert len(pipeline) == 4
+    assert len(pipeline) == 3
     assert pipeline[0].name == "Paired_Filter_By_Threshold"
-    assert pipeline[1].name == "Filter_By_Domain"
-    assert pipeline[2].name == "Filter_By_NumWords"
+    assert pipeline[1].name == "Filter_By_NumWords"
     # Datatrove's JsonlWriter uses a friendly name (currently "🐿 Jsonl"),
     # so just assert it's a writer-ish final step.
-    assert "jsonl" in pipeline[3].name.lower()
+    assert "jsonl" in pipeline[2].name.lower()
 
     assert b.params.output_filename == "${file_relpath}"

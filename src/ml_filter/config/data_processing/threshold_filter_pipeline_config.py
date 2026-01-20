@@ -18,7 +18,13 @@ from pydantic import BaseModel, Field
 
 
 class ThresholdFilterParamsConfig(BaseModel):
-    input_dir: str = Field(..., description="Directory containing JSONL files to filter.")
+    text_input_dir: str | None = Field(None, description="Directory containing text JSONL files.")
+    scores_input_dir: str | None = Field(None, description="Directory containing scores JSONL files.")
+    domains_input_dir: str | None = Field(None, description="Directory containing domains JSONL files.")
+    paths_file: str | None = Field(
+        None,
+        description="Optional file containing one relative input path per line (relative to scores_input_dir).",
+    )
     glob_pattern: str | None = Field(None, description="Glob pattern relative to input_dir. Optional.")
     recursive: bool = Field(True, description="Whether to search files recursively.")
     compression: str | None = Field("infer", description="Compression for JSONL inputs (infer/gzip/zstd/None).")
@@ -29,11 +35,39 @@ class ThresholdFilterParamsConfig(BaseModel):
         description="Only these keys are used for threshold filtering; others are ignored.",
     )
 
-    id_key: str = Field("document_id", description="Key in JSON for the document id.")
-    text_key: str = Field("text", description="Key in JSON for text (required by Document adapter).")
+    text_jsonl_id_key: str = Field("document_id", description="Key in TEXT JSONL for the document id.")
+    score_jsonl_id_key: str = Field("document_id", description="Key in SCORES JSONL for the document id.")
+    domain_jsonl_id_key: str = Field("document_id", description="Key in DOMAINS JSONL for the document id.")
+    domain_jsonl_domain_key: str = Field("domain", description="Key in DOMAINS JSONL for the domain string.")
+    text_jsonl_text_key: str = Field("text", description="Key in TEXT JSONL for the text content.")
+    accepted_domains: list[str] = Field(
+        default_factory=list,
+        description="Accepted domain values when domains_input_dir is provided.",
+    )
+
+    on_mismatch: str = Field(
+        "raise",
+        description="Behavior when ids mismatch in paired files: raise|skip_line|skip_file.",
+    )
+    max_mismatches_per_file: int = Field(
+        0,
+        description=(
+            "Safety limit for id mismatches per file when on_mismatch != 'raise'. "
+            "0 means unlimited."
+        ),
+    )
+
+    min_num_words: int | None = Field(
+        None,
+        description="If set, keep only lines whose word-count (in num_words_column) is >= this value.",
+    )
+    num_words_column: str = Field(
+        "text",
+        description="JSON key to compute word-count from when min_num_words is provided.",
+    )
 
     output_dir: Path = Field(..., description="Output directory for filtered JSONL files.")
-    output_filename: str = Field("${source_filename}.jsonl", description="Output filename template.")
+    output_filename: str = Field("${file_relpath}", description="Output filename template.")
 
 
 class ThresholdFilterLocalSettingsConfig(BaseModel):
