@@ -1,0 +1,74 @@
+# Example config for running the threshold filter pipeline on Slurm.
+# This follows the builder-style schema used across ml_filter pipelines.
+
+running_on_slurm: true
+
+params:
+  # --- Input ---
+  # Paired mode: separate folders for text JSONLs and score JSONLs (same relative filenames)
+  text_input_dir: /path/to/input/text_jsonl_dir
+  scores_input_dir: /path/to/input/scores_jsonl_dir
+  domains_input_dir: /path/to/input/domains_jsonl_dir
+  # Optional file containing one relative input path per line (relative to scores_input_dir).
+  # Keep it outside scores_input_dir so it doesn't get picked up as an input shard.
+  paths_file: null
+  glob_pattern: "**/*.jsonl"
+  recursive: true
+  compression: infer
+
+  # --- Filtering ---
+  # These keys must exist on each line.
+  score_keys:
+    - score
+  # Only these keys are actually threshold-filtered.
+  thresholds_by_score_key:
+    score: 0.5
+
+  # --- Optional: word-count filter (applied after threshold filtering) ---
+  # If set, keep only docs where len(str(<num_words_column>).split()) >= min_num_words
+  min_num_words: null
+  num_words_column: text
+
+  text_jsonl_id_key: document_id
+  score_jsonl_id_key: document_id
+  text_jsonl_text_key: text
+  domain_jsonl_id_key: document_id
+  domain_jsonl_domain_key: domain
+  accepted_domains:
+    - wikipedia.org
+    - stackexchange.com
+
+  # --- Output ---
+  output_dir: /path/to/output/filtered_jsonl
+  # Preserve the input folder hierarchy in the output.
+  output_filename: "${file_relpath}"
+
+slurm_settings:
+  tasks: 64
+  time: "02:00:00"
+  partition: default
+  cpus_per_task: 4
+  mem_per_cpu_gb: 8
+  workers: -1
+  job_name: threshold_filter_pipeline
+  qos: normal
+
+  # Optional
+  # env_command: "source ~/.bashrc"
+  # condaenv: myenv
+  # venv_path: /path/to/venv
+
+  # Optional: pass-through sbatch args (values can be str/int/float/bool)
+  # sbatch_args:
+  #   account: my_account
+  #   gres: gpu:1
+  #   output: slurm-%j.out
+
+  max_array_size: 1001
+  tasks_per_job: 1
+  skip_completed: true
+  slurm_logs_folder: null
+  mail_type: ALL
+  mail_user: null
+  requeue: true
+  srun_args: null

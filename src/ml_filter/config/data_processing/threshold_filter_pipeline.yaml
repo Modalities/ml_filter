@@ -1,0 +1,63 @@
+# Threshold filter pipeline config (builder-style)
+# Used by: ml_filter.data_processing.jsonl_filtering.threshold_filter_pipeline.run_threshold_filter_pipeline
+
+running_on_slurm: false
+
+params:
+  # Input JSONL location
+  input_dir: /path/to/input_jsonl_dir
+  glob_pattern: "**/*.jsonl"   # optional
+  recursive: true
+  compression: infer           # infer | gzip | zstd | null
+
+  # Filtering
+  # - score_keys: keys we read + require to exist on each line
+  # - thresholds_by_score_key: only these keys are actually used for filtering
+  score_keys:
+    - score
+  thresholds_by_score_key:
+    score: 0.5
+
+  # Document field names in the JSONL
+  id_key: document_id
+  text_key: text
+
+  # Output
+  output_dir: /path/to/output_dir
+  output_filename: "${source_filename}.jsonl"
+
+# ------------------------------------------------------------
+# Execution settings: choose ONE block depending on running_on_slurm
+# ------------------------------------------------------------
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: -1
+  logging_dir: null
+
+# slurm_settings:
+#   tasks: 1
+#   time: "00:30:00"
+#   partition: "default"
+#   cpus_per_task: 4
+#   mem_per_cpu_gb: 8
+#   workers: -1
+#   job_name: "threshold_filter_pipeline"
+#   qos: "normal"
+#   env_command: null
+#   condaenv: null
+#   venv_path: null
+#   sbatch_args: null
+#   max_array_size: 1001
+#   depends_job_id: null
+#   job_id_position: -1
+#   logging_dir: null
+#   skip_completed: true
+#   slurm_logs_folder: null
+#   mail_type: "ALL"
+#   mail_user: null
+#   requeue: true
+#   srun_args: null
+#   tasks_per_job: 1

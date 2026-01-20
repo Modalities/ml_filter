@@ -1,0 +1,45 @@
+# Example config for running ONLY the num-words filter locally.
+# Note: this still uses the threshold_filter_pipeline builder, but disables
+# threshold filtering by providing empty thresholds_by_score_key (no score gates).
+
+running_on_slurm: false
+
+params:
+  # --- Input ---
+  text_input_dir: /path/to/input/text_jsonl_dir
+  scores_input_dir: /path/to/input/scores_jsonl_dir
+  domains_input_dir: null
+  paths_file: null
+  glob_pattern: "**/*.jsonl"
+  recursive: true
+  compression: infer
+
+  # --- Threshold filtering (disabled) ---
+  # We still need score_keys to exist on each input line (they're loaded by ScoresParser).
+  # If you truly don't want to require any score fields, we can make score_keys optional
+  # in ScoresParser + builder.
+  score_keys:
+    - score
+  thresholds_by_score_key: {}
+
+  # --- Num-words filtering (enabled) ---
+  min_num_words: 200
+  num_words_column: text
+
+  text_jsonl_id_key: document_id
+  score_jsonl_id_key: document_id
+  text_jsonl_text_key: text
+  domain_jsonl_id_key: document_id
+  domain_jsonl_domain_key: domain
+  accepted_domains: []
+
+  # --- Output ---
+  output_dir: /path/to/output/filtered_jsonl
+  output_filename: "${file_relpath}"
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: -1
+  logging_dir: null

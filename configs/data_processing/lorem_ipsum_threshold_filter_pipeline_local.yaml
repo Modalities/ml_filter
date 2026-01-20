@@ -1,0 +1,61 @@
+# Example config for running the threshold filter pipeline locally.
+# This follows the builder-style schema used across ml_filter pipelines.
+
+running_on_slurm: false
+
+params:
+  # --- Input ---
+  # Paired mode: separate folders for text JSONLs and score JSONLs (same relative filenames)
+  text_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/data/text_jsonl
+  scores_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/data/score_jsonl
+  domains_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/data/domains_jsonl
+  # Provide a paths_file to avoid fsspec globbing issues in some environments.
+  # Paths in this file are relative to scores_input_dir.
+  paths_file: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/configs/data_processing/dummy_paths_recursive.txt
+  glob_pattern: null
+  recursive: true
+  compression: null
+
+  # --- Filtering ---
+  score_keys:
+    - score_Gemma_Snowflake
+    - score_Llama_Snowflake
+  thresholds_by_score_key:
+    score_Gemma_Snowflake: 0.0
+    score_Llama_Snowflake: 0.0
+
+  # --- Optional: word-count filter (applied after threshold filtering) ---
+  # If set, keep only docs where len(str(<num_words_column>).split()) >= min_num_words
+  # Example combined run: enable this to apply BOTH threshold + num-words filtering.
+  min_num_words: 12
+  num_words_column: text
+
+  text_jsonl_id_key: id
+  score_jsonl_id_key: id
+  text_jsonl_text_key: text
+  domain_jsonl_id_key: id
+  domain_jsonl_domain_key: domain
+  accepted_domains:
+    - wikipedia.org
+    - stackexchange.com
+
+  # --- Paired alignment error handling ---
+  # If your text/scores files occasionally have id mismatches, you can choose how to proceed:
+  #   - raise: fail fast (default)
+  #   - skip_line: skip mismatched pairs and continue
+  #   - skip_file: stop this file and move on to the next
+  on_mismatch: skip_line
+  # Safety limit when on_mismatch != raise (0 = unlimited)
+  max_mismatches_per_file: 10
+  # --- Output ---
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/lorem_ipsum_threshold_filter_pipeline_local
+  # Datatrove's JsonlWriter uses Python string.Template variables.
+  # `file_relpath` preserves the input relative path (folder hierarchy + filename).
+  output_filename: "${file_relpath}"
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: -1
+  logging_dir: null
