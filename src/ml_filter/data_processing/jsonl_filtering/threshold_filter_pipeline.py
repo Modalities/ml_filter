@@ -87,12 +87,7 @@ class SlurmExecutionSettings(BaseModel):
 
 
 class ThresholdFilterPipelineParameters(BaseModel):
-    # Reader
-    # If you have separate folders for text JSONLs and score JSONLs, set BOTH:
-    #   - text_input_dir
-    #   - scores_input_dir
-    # When set, filtering decisions are made from scores JSONL, but the output Documents
-    # are built from the text JSONL.
+
     text_input_dir: str | None = Field(None, description="Directory containing text JSONL files.")
     scores_input_dir: str | None = Field(None, description="Directory containing scores JSONL files.")
     domains_input_dir: str | None = Field(None, description="Directory containing domains JSONL files.")

@@ -1,17 +1,9 @@
-# Runnable local config using the dummy paired data under ml_filter/src/ml_filter/data
-# Run with:
-#   python -m ml_filter.data_processing.jsonl_filtering.threshold_filter_pipeline \
-#     ml_filter/src/ml_filter/config/data_processing/threshold_filter_pipeline_local_dummy.yaml
-
 running_on_slurm: false
 
 params:
-  # --- Input ---
-  text_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/text_jsonl
-  scores_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/score_jsonl
-  domains_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/domains_jsonl
-  # Relative paths file (avoid globbing issues)
-  paths_file: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/score_jsonl/dummy_paths.txt
+  text_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/data/text_jsonl
+  scores_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/data/score_jsonl
+  domains_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/data/domain_jsonl
   glob_pattern: null
   recursive: true
   compression: null
@@ -55,7 +47,7 @@ params:
   max_mismatches_per_file: 0
 
   # --- Output ---
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/threshold_filter_pipeline_local_dummy
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/output/threshold_filter_pipeline_local_dummy
   output_filename: "${file_relpath}"
 
 local_settings:
