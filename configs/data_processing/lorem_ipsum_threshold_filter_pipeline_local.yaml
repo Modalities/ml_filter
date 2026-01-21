@@ -23,6 +23,7 @@ params:
   thresholds_by_score_key:
     score_Gemma_Snowflake: 0.0
     score_Llama_Snowflake: 0.0
+  thresholds_by_folder: {}
 
   # --- Optional: word-count filter (applied after threshold filtering) ---
   # If set, keep only docs where len(str(<num_words_column>).split()) >= min_num_words

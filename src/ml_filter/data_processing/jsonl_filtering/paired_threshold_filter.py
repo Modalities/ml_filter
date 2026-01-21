@@ -45,6 +45,7 @@ class PairedThresholdFilter(BaseDiskReader):
         scores_data_folder: DataFolderLike,
         score_keys: Iterable[str],
         thresholds_by_score_key: Mapping[str, float],
+        thresholds_by_folder: Mapping[str, Mapping[str, float]] | None = None,
         text_jsonl_id_key: str = "document_id",
         score_jsonl_id_key: str = "document_id",
         text_jsonl_text_key: str = "text",
@@ -89,6 +90,9 @@ class PairedThresholdFilter(BaseDiskReader):
         if len(self._score_keys) == 0:
             raise ValueError("score_keys must contain at least one key")
         self._thresholds_by_score_key = dict(thresholds_by_score_key)
+        self._thresholds_by_folder = {
+            str(folder): dict(thresholds) for folder, thresholds in (thresholds_by_folder or {}).items()
+        }
         self._text_jsonl_id_key = text_jsonl_id_key
         self._score_jsonl_id_key = score_jsonl_id_key
         self._text_jsonl_text_key = text_jsonl_text_key
@@ -209,7 +213,7 @@ class PairedThresholdFilter(BaseDiskReader):
                             if str(domain_value) not in self._accepted_domains:
                                 continue
 
-                        if self._passes_thresholds(score_dict):
+                        if self._passes_thresholds(score_dict, filepath):
                             if "file_stem" not in text_data:
                                 stem = Path(filepath).name
                                 if stem.endswith(".jsonl.gz"):
@@ -248,8 +252,14 @@ class PairedThresholdFilter(BaseDiskReader):
                     if domains_f is not None:
                         domains_f.close()
 
-    def _passes_thresholds(self, score_dict: Mapping[str, float]) -> bool:
-        for k, threshold in self._thresholds_by_score_key.items():
+    def _passes_thresholds(self, score_dict: Mapping[str, float], filepath: str) -> bool:
+        thresholds = self._thresholds_by_score_key
+        if self._thresholds_by_folder:
+            folder = Path(filepath).parts[0] if filepath else None
+            if folder in self._thresholds_by_folder:
+                thresholds = self._thresholds_by_folder[folder]
+
+        for k, threshold in thresholds.items():
             if k not in score_dict or score_dict[k] < threshold:
                 return False
         return True

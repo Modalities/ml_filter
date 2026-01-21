@@ -264,6 +264,44 @@ def test_paired_threshold_filter_raises_when_text_file_missing(tmp_path: Path):
         list(reader.read_file("shard01/a.jsonl"))
 
 
+def test_paired_threshold_filter_per_folder_thresholds(tmp_path: Path):
+    text_dir = tmp_path / "text"
+    scores_dir = tmp_path / "scores"
+
+    _write_jsonl(
+        text_dir / "Deu_Latn" / "a.jsonl",
+        [
+            {"id": "d1", "text": "hello"},
+            {"id": "d2", "text": "keep me"},
+        ],
+    )
+    _write_jsonl(
+        scores_dir / "Deu_Latn" / "a.jsonl",
+        [
+            {"id": "d1", "score_Gemma_Snowflake": 1.4},
+            {"id": "d2", "score_Gemma_Snowflake": 1.6},
+        ],
+    )
+
+    reader = PairedThresholdFilter(
+        text_data_folder=str(text_dir),
+        scores_data_folder=str(scores_dir),
+        score_keys=["score_Gemma_Snowflake"],
+        thresholds_by_score_key={"score_Gemma_Snowflake": 0.5},
+        thresholds_by_folder={
+            "Deu_Latn": {"score_Gemma_Snowflake": 1.5},
+        },
+        text_jsonl_id_key="id",
+        score_jsonl_id_key="id",
+        text_jsonl_text_key="text",
+        recursive=True,
+        glob_pattern=None,
+    )
+
+    docs = list(reader.read_file("Deu_Latn/a.jsonl"))
+    assert [d.id for d in docs] == ["d2"]
+
+
 def test_paired_threshold_filter_skips_txt_entries(tmp_path: Path):
     text_dir = tmp_path / "text"
     scores_dir = tmp_path / "scores"

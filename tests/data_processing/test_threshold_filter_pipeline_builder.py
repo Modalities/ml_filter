@@ -23,6 +23,9 @@ params:
   score_keys: [score_Gemma_Snowflake]
   thresholds_by_score_key:
     score_Gemma_Snowflake: 0.5
+  thresholds_by_folder:
+    Deu_Latn:
+      score_Gemma_Snowflake: 1.5
 
   min_num_words: 10
   num_words_column: text
@@ -57,6 +60,7 @@ local_settings:
     assert b.params.domain_jsonl_id_key == "id"
     assert b.params.domain_jsonl_domain_key == "domain"
     assert b.params.accepted_domains == ["wikipedia.org", "stackexchange.com"]
+    assert b.params.thresholds_by_folder == {"Deu_Latn": {"score_Gemma_Snowflake": 1.5}}
 
     pipeline = b.build_pipeline()
     assert len(pipeline) == 3

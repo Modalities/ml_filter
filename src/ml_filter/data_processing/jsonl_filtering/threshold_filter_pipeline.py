@@ -110,6 +110,13 @@ class ThresholdFilterPipelineParameters(BaseModel):
         default_factory=dict,
         description="Only these keys are used for threshold filtering; others are ignored.",
     )
+    thresholds_by_folder: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description=(
+            "Optional per-folder overrides for score thresholds. Keys are top-level folder names "
+            "(e.g., Deu_Latn) and values are per-score thresholds for files under that folder."
+        ),
+    )
     # Paired-mode id keys (explicit)
     text_jsonl_id_key: str = Field(
         "document_id",
@@ -243,6 +250,7 @@ class ThresholdFilterPipelineBuilder(BaseSettings):
             compression=_p("compression", "infer"),
             score_keys=list(_p("score_keys")),
             thresholds_by_score_key=dict(_p("thresholds_by_score_key", {})),
+            thresholds_by_folder=dict(_p("thresholds_by_folder", {})),
             text_jsonl_id_key=_p("text_jsonl_id_key", _p("document_id_key", "document_id")),
             score_jsonl_id_key=_p("score_jsonl_id_key", _p("document_id_key", "document_id")),
             domain_jsonl_id_key=_p("domain_jsonl_id_key", _p("document_id_key", "document_id")),
@@ -281,6 +289,7 @@ class ThresholdFilterPipelineBuilder(BaseSettings):
             scores_data_folder=p.scores_input_dir,
             score_keys=p.score_keys,
             thresholds_by_score_key=p.thresholds_by_score_key,
+            thresholds_by_folder=p.thresholds_by_folder,
             text_jsonl_id_key=p.text_jsonl_id_key,
             score_jsonl_id_key=p.score_jsonl_id_key,
             text_jsonl_text_key=p.text_jsonl_text_key,

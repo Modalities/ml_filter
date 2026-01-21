@@ -5,10 +5,10 @@ running_on_slurm: false
 
 params:
   # Input JSONL locations (paired mode)
-  text_input_dir: /path/to/input/text_jsonl_dir
-  scores_input_dir: /path/to/input/scores_jsonl_dir
-  domains_input_dir: null  # optional paired domains JSONL dir
-  paths_file: null  # optional file listing relative paths
+  text_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/text_jsonl
+  scores_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/score_jsonl
+  domains_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/domains_jsonl
+  paths_file: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/src/ml_filter/data/score_jsonl/dummy_paths.txt
   glob_pattern: "**/*.jsonl"   # optional
   recursive: true
   compression: infer           # infer | gzip | zstd | null
@@ -17,9 +17,25 @@ params:
   # - score_keys: keys we read + require to exist on each line
   # - thresholds_by_score_key: only these keys are actually used for filtering
   score_keys:
-    - score
+    - score_Gemma_Snowflake
+    - score_Llama_Snowflake
   thresholds_by_score_key:
-    score: 0.5
+    score_Gemma_Snowflake: 0.0
+    score_Llama_Snowflake: 0.0
+  # Optional per-folder overrides (top-level folder names)
+  thresholds_by_folder:
+    Deu_Latn:
+      score_Gemma_Snowflake: 1.5
+      score_Llama_Snowflake: 1.5
+    Fra_Latn:
+      score_Gemma_Snowflake: 1.6
+      score_Llama_Snowflake: 1.6
+    Ita_Latn:
+      score_Gemma_Snowflake: 1.4
+      score_Llama_Snowflake: 1.4
+    Spa_Latn:
+      score_Gemma_Snowflake: 1.7
+      score_Llama_Snowflake: 1.7
 
   # Document field names in the JSONL
   text_jsonl_id_key: document_id
@@ -27,7 +43,9 @@ params:
   text_jsonl_text_key: text
   domain_jsonl_id_key: document_id
   domain_jsonl_domain_key: domain
-  accepted_domains: []
+  accepted_domains:
+    - wikipedia.org
+    - stackexchange.com
 
   # Paired alignment error handling
   on_mismatch: raise  # raise | skip_line | skip_file
@@ -38,7 +56,7 @@ params:
   num_words_column: text
 
   # Output
-  output_dir: /path/to/output_dir
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/ml_filter/outputs/threshold_filter_pipeline_local_dummy
   output_filename: "${file_relpath}"
 
 # ------------------------------------------------------------

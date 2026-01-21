@@ -34,6 +34,13 @@ class ThresholdFilterParamsConfig(BaseModel):
         default_factory=dict,
         description="Only these keys are used for threshold filtering; others are ignored.",
     )
+    thresholds_by_folder: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description=(
+            "Optional per-folder overrides for score thresholds. Keys are top-level folder names "
+            "(e.g., Deu_Latn) and values are per-score thresholds for files under that folder."
+        ),
+    )
 
     text_jsonl_id_key: str = Field("document_id", description="Key in TEXT JSONL for the document id.")
     score_jsonl_id_key: str = Field("document_id", description="Key in SCORES JSONL for the document id.")
