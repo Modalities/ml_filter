@@ -4,7 +4,7 @@ from typing import Callable, Iterable, Literal, Mapping
 
 from loguru import logger
 
-from datatrove.io import DataFileLike, DataFolder, DataFolderLike
+from datatrove.io import DataFolder, DataFolderLike
 from datatrove.pipeline.readers.base import BaseDiskReader
 
 
@@ -54,7 +54,6 @@ class PairedThresholdFilter(BaseDiskReader):
         domain_jsonl_id_key: str = "document_id",
         domain_jsonl_domain_key: str = "domain",
         compression: Literal["infer", "gzip", "zstd"] | None = None,
-        paths_file: DataFileLike | None = None,
         limit: int = -1,
         skip: int = 0,
         file_progress: bool = False,
@@ -71,7 +70,6 @@ class PairedThresholdFilter(BaseDiskReader):
         # We want to enumerate using the scores folder, because that's our gating source.
         super().__init__(
             data_folder=scores_data_folder,
-            paths_file=paths_file,
             limit=limit,
             skip=skip,
             file_progress=file_progress,
@@ -110,12 +108,6 @@ class PairedThresholdFilter(BaseDiskReader):
 
     def read_file(self, filepath: str):
         """Read paired files (scores + text) and yield filtered text Documents."""
-        # If a paths_file is used, BaseDiskReader will also read it to enumerate
-        # paths. Some Datatrove versions may include that file in the returned
-        # shard list as well; skip it defensively.
-        if filepath.endswith(".txt"):
-            return
-
         # filepath is relative to scores_data_folder due to BaseDiskReader.
         scores_path = filepath
         text_path = filepath

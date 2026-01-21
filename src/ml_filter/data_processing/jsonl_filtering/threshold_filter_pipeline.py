@@ -91,10 +91,6 @@ class ThresholdFilterPipelineParameters(BaseModel):
     text_input_dir: str | None = Field(None, description="Directory containing text JSONL files.")
     scores_input_dir: str | None = Field(None, description="Directory containing scores JSONL files.")
     domains_input_dir: str | None = Field(None, description="Directory containing domains JSONL files.")
-    paths_file: str | None = Field(
-        None,
-        description="Optional file containing one relative input path per line (relative to scores_input_dir).",
-    )
     glob_pattern: str | None = Field(None, description="Glob pattern relative to input_dir. Optional.")
     recursive: bool = Field(True, description="Whether to search files recursively.")
     compression: str | None = Field("infer", description="Compression for JSONL inputs (infer/gzip/zstd/None).")
@@ -239,7 +235,6 @@ class ThresholdFilterPipelineBuilder(BaseSettings):
             text_input_dir=_p("text_input_dir", None),
             scores_input_dir=_p("scores_input_dir", None),
             domains_input_dir=_p("domains_input_dir", None),
-            paths_file=_p("paths_file", None),
             glob_pattern=_p("glob_pattern"),
             recursive=_p("recursive", True),
             compression=_p("compression", "infer"),
@@ -293,7 +288,6 @@ class ThresholdFilterPipelineBuilder(BaseSettings):
             domain_jsonl_id_key=p.domain_jsonl_id_key,
             domain_jsonl_domain_key=p.domain_jsonl_domain_key,
             compression=p.compression,  # type: ignore[arg-type]
-            paths_file=p.paths_file,
             recursive=p.recursive,
             glob_pattern=p.glob_pattern,
             on_mismatch=p.on_mismatch,  # type: ignore[arg-type]

@@ -15,7 +15,6 @@ params:
   text_input_dir: /tmp/text
   scores_input_dir: /tmp/scores
   domains_input_dir: /tmp/domains
-  paths_file: /tmp/paths.txt
   glob_pattern: null
   recursive: false
   compression: null
@@ -53,7 +52,6 @@ local_settings:
     assert b.params.text_input_dir == "/tmp/text"
     assert b.params.scores_input_dir == "/tmp/scores"
     assert b.params.domains_input_dir == "/tmp/domains"
-    assert b.params.paths_file == "/tmp/paths.txt"
     assert b.params.text_jsonl_id_key == "id"
     assert b.params.score_jsonl_id_key == "id"
     assert b.params.text_jsonl_text_key == "text"
