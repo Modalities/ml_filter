@@ -1,0 +1,29 @@
+params:
+  input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/annotations/annotated_data
+  glob_pattern: "**/*.jsonl"
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/quantiles
+  compression: null
+  output_compression: null
+  score_field: scores
+  selection_quantile: 0.9
+  report_filename: quantile_report.yaml
+  quantile_data_dir: quantile_data
+
+running_on_slurm: true
+
+local_settings: null
+
+slurm_settings:
+  sbatch_args:
+    account: "p_gptx"
+    nodes: 1
+    ntasks: 1
+  partition: "capella"
+  time: "00:30:00"
+  cpus_per_task: 4
+  mem_per_cpu_gb: 8
+  job_name: "quantile_pipeline"
+  qos: "normal"
+  venv_path: /data/cat/ws/alju972f-regression_heads/repos/env/jql_pipeline/bin/activate
+  tasks: 1
+  workers: 1
