@@ -1,0 +1,58 @@
+running_on_slurm: false
+
+params:
+  text_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/data/text_jsonl
+  scores_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/data/score_jsonl
+  domains_input_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/data/domain_jsonl
+  glob_pattern: null
+  recursive: true
+  compression: null
+
+  # --- Filtering ---
+  score_keys:
+    - score_Gemma_Snowflake
+    - score_Llama_Snowflake
+  thresholds_by_score_key:
+    score_Gemma_Snowflake: 0.0
+    score_Llama_Snowflake: 0.0
+  thresholds_by_folder:
+    Deu_Latn:
+      score_Gemma_Snowflake: 1.5
+      score_Llama_Snowflake: 1.5
+    Fra_Latn:
+      score_Gemma_Snowflake: 1.6
+      score_Llama_Snowflake: 1.6
+    Ita_Latn:
+      score_Gemma_Snowflake: 1.4
+      score_Llama_Snowflake: 1.4
+    Spa_Latn:
+      score_Gemma_Snowflake: 1.7
+      score_Llama_Snowflake: 1.7
+
+  text_jsonl_id_key: id
+  score_jsonl_id_key: id
+  text_jsonl_text_key: text
+  domain_jsonl_id_key: id
+  domain_jsonl_domain_key: domain
+  accepted_domains:
+    - wikipedia.org
+    - stackexchange.com
+
+  # --- Optional: word-count filter ---
+  min_num_words: null
+  num_words_column: text
+
+  # --- Paired alignment error handling ---
+  on_mismatch: raise
+  max_mismatches_per_file: 0
+
+  # --- Output ---
+  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/soofi_filtering/filters/output/threshold_filter_pipeline_local_dummy
+  output_filename: "${file_relpath}"
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: -1
+  logging_dir: null
