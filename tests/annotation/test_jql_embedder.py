@@ -6,13 +6,13 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import torch
 from datatrove.data import Document
 from datatrove.pipeline.base import DocumentsPipeline
 
-from ml_filter.annotation.datatrove_jql_annotator import JQLEmbedder, HDF5Writer
-from ml_filter.annotation.embedder import SnowflakeArcticEmbedMV2_0
+from ml_filter.data_pipelines.annotation.datatrove_jql_annotator import HDF5Writer, JQLEmbedder
+from ml_filter.data_pipelines.annotation.embedder import SnowflakeArcticEmbedMV2_0
 from ml_filter.data_processing.hash_data_files import compute_file_hash
-import torch
 
 
 class JQLEmbedderTestBase(unittest.TestCase):
@@ -22,11 +22,7 @@ class JQLEmbedderTestBase(unittest.TestCase):
 
         # Create one dummy .jsonl file with 3 lines
         jsonl_path = Path(self.tmp_dir) / "doc_0.jsonl"
-        lines = [
-            "This is document 0.",
-            "This is document 1.",
-            "This is document 2."
-        ]
+        lines = ["This is document 0.", "This is document 1.", "This is document 2."]
         with jsonl_path.open("w") as f:
             for line in lines:
                 f.write(f"{line}\n")
@@ -36,21 +32,25 @@ class JQLEmbedderTestBase(unittest.TestCase):
         # Create documents using file_path and document_id
         self.input_docs = []
         for i, text in enumerate(lines):
-            self.input_docs.append(Document(
-                id=str(i),
-                text=text,
-                metadata={
-                    "file_path": f"doc_{i}.jsonl",
-                    "document_id": f"{file_hash}_{i}"
-                }
-            ))
+            self.input_docs.append(
+                Document(
+                    id=str(i), text=text, metadata={"file_path": f"doc_{i}.jsonl", "document_id": f"{file_hash}_{i}"}
+                )
+            )
 
         self.doc_pipeline = DocumentsPipeline(self.input_docs)
 
 
 class TestJQLEmbedder(JQLEmbedderTestBase):
     def test_embedding_output_structure(self):
-        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16, max_length=64, padding="max_length", truncation=True)
+        embedder = JQLEmbedder(
+            embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
+            batch_size=2,
+            model_dtype=torch.bfloat16,
+            max_length=64,
+            padding="max_length",
+            truncation=True,
+        )
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         self.assertEqual(len(embedded_docs), len(self.input_docs))
@@ -67,7 +67,14 @@ class TestJQLEmbedder(JQLEmbedderTestBase):
 
 class TestHDF5Writer(JQLEmbedderTestBase):
     def test_write_and_verify_hdf5_output(self):
-        embedder = JQLEmbedder(embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0", batch_size=2, model_dtype=torch.bfloat16, max_length=64, padding="max_length", truncation=True)
+        embedder = JQLEmbedder(
+            embedder_model_id="Snowflake/snowflake-arctic-embed-m-v2.0",
+            batch_size=2,
+            model_dtype=torch.bfloat16,
+            max_length=64,
+            padding="max_length",
+            truncation=True,
+        )
         embedded_docs = list(embedder.run(self.doc_pipeline))
 
         writer = HDF5Writer(
@@ -106,7 +113,7 @@ class TestHDF5Writer(JQLEmbedderTestBase):
 
 class TestJQLEmbedderMatchesManualEmbedding(JQLEmbedderTestBase):
     def test_jql_embedder_matches_snowflake_embed_class(self):
-        device = 'cuda'
+        device = "cuda"
         model_wrapper = SnowflakeArcticEmbedMV2_0(device=device)
 
         # Sample input documents
@@ -130,8 +137,4 @@ class TestJQLEmbedderMatchesManualEmbedding(JQLEmbedderTestBase):
         for i, doc in enumerate(embedded_docs):
             actual = np.array(doc.metadata["embedding"])
             expected = manual_embeddings[i]
-            np.testing.assert_array_equal(
-                actual,
-                expected,
-                err_msg=f"Embedding mismatch at index {i}"
-            )
+            np.testing.assert_array_equal(actual, expected, err_msg=f"Embedding mismatch at index {i}")

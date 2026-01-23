@@ -8,14 +8,14 @@ from typing import Optional
 import click
 import click_pathlib
 
-from ml_filter.ablations.quantile_pipeline import run_quantile_pipeline
 from ml_filter.analysis.aggregate_scores import aggregate_human_annotations, aggregate_scores
 from ml_filter.analysis.collect_ir_metrics import collect_ir_metrics
 from ml_filter.analysis.evaluate_predicted_annotations import evaluate_predicted_annotations
 from ml_filter.analysis.plot_score_distributions import plot_differences_in_scores, plot_scores
-from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
-from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
 from ml_filter.compare_experiments import compare_experiments
+from ml_filter.data_pipelines.ablations.quantile_pipeline import run_quantile_pipeline
+from ml_filter.data_pipelines.annotation.annotation_pipeline import run_annotation_pipeline
+from ml_filter.data_pipelines.annotation.embedding_pipeline import run_embedding_pipeline
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
 from ml_filter.sample_from_hf_dataset import sample_from_hf_dataset, upload_file_to_hf

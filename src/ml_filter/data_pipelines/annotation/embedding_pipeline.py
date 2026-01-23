@@ -1,20 +1,19 @@
 import logging
 from pathlib import Path
-from typing import Any
+from typing import ClassVar
 
 from datatrove.executor import LocalPipelineExecutor, SlurmPipelineExecutor
 from datatrove.pipeline.base import PipelineStep
-from ml_filter.annotation.utils import resolve_output_dtype
-from omegaconf import OmegaConf
 from omegaconf import DictConfig as _DictConfig
-from pydantic import BaseModel, Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from omegaconf import OmegaConf
+from pydantic import BaseModel, Field
+from pydantic_settings import SettingsConfigDict
 
-from ml_filter.annotation.datatrove_jql_annotator import (
-    HDF5Writer,
-    JQLEmbedder,
-    JQLJsonlReader,
-)
+from ml_filter.data_pipelines.execution_settings import LocalExecutionSettings, SlurmExecutionSettings
+from ml_filter.data_pipelines.pipeline_builder import PipelineBuilderBase
+
+from .datatrove_jql_annotator import HDF5Writer, JQLEmbedder, JQLJsonlReader
+from .utils import resolve_output_dtype
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +24,12 @@ class EmbeddingPipelineParameters(BaseModel):
     keys_to_index: list[str] = Field(..., description="List of keys to index in the output HDF5.")
     text_field: str = Field(..., description="Key name in JSON for the raw text field to embed.")
     compression: str | None = Field(..., description="Compression for input JSONL files (infer/gzip/zstd/None).")
-    embedding_dtype: str = Field(..., description="Storage dtype for embeddings (float32, float16, bfloat16->float32 storage).")
-    label_dtype: str = Field(..., description="Storage dtype for labels (e.g., int8, float32). Optional if labels disabled.")
+    embedding_dtype: str = Field(
+        ..., description="Storage dtype for embeddings (float32, float16, bfloat16->float32 storage)."
+    )
+    label_dtype: str = Field(
+        ..., description="Storage dtype for labels (e.g., int8, float32). Optional if labels disabled."
+    )
     model_dtype: str = Field(..., description="Model compute dtype (float32, float16, bfloat16).")
     output_dir: Path = Field(..., description="Root output directory.")
     embedding_dir: str = Field(..., description="Subdirectory for embedding outputs.")
@@ -44,93 +47,11 @@ class EmbeddingPipelineParameters(BaseModel):
         return self.output_dir / self.embedding_dir
 
 
-class LocalExecutionSettings(BaseModel):
-    tasks: int = 1
-    local_tasks: int = 1
-    local_rank_offset: int = 0
-    workers: int = -1
-    logging_dir: str | None = None
-
-
-class SlurmExecutionSettings(BaseModel):
-    tasks: int = 1
-    time: str = "00:30:00"
-    partition: str = "default"
-    cpus_per_task: int = 4
-    mem_per_cpu_gb: int = 8
-    workers: int = -1
-    job_name: str = "embedding_pipeline"
-    qos: str = "normal"
-    env_command: str | None = None
-    condaenv: str | None = None
-    venv_path: str | None = None
-    # Allow users to supply any sbatch arg (e.g. nodes, ntasks, gres, account, output, error, gpus-per-task, etc.)
-    # using either snake_case or dash-case. Primitive values get coerced to strings.
-    sbatch_args: dict[str, str | int | float | bool] | None = None
-    max_array_size: int = 1001
-    depends_job_id: str | None = None
-    job_id_position: int = -1
-    logging_dir: str | None = None
-    skip_completed: bool = True
-    slurm_logs_folder: str | None = None
-    max_array_launch_parallel: bool = False
-    stagger_max_array_jobs: int = 0
-    run_on_dependency_fail: bool = False
-    randomize_start_duration: int = 0
-    requeue_signals: tuple[str] | None = ("SIGUSR1",)
-    mail_type: str = "ALL"
-    mail_user: str | None = None
-    requeue: bool = True
-    srun_args: dict[str, str | int | float | bool] | None = None
-    tasks_per_job: int = 1
-
-    @model_validator(mode="before")
-    def _normalize_sbatch(cls, values):  # type: ignore[override]
-        """Normalize sbatch_args only.
-
-        - Accept numeric/bool types and coerce to string
-        - Fold common top-level keys (output, error, gpus_per_task) into sbatch_args
-        - Convert snake_case keys to dash-case
-        """
-        from omegaconf import DictConfig as _DictConfig  # local import
-
-        sbatch_args = values.get("sbatch_args") or {}
-        if isinstance(sbatch_args, _DictConfig):
-            sbatch_args = OmegaConf.to_container(sbatch_args, resolve=True)  # type: ignore[arg-type]
-        if not isinstance(sbatch_args, dict):
-            raise TypeError(f"sbatch_args must be a mapping if provided (got type {type(sbatch_args)})")
-
-        values["sbatch_args"] = sbatch_args
-        return values
-
-
-class EmbeddingPipelineBuilder(BaseSettings):
+class EmbeddingPipelineBuilder(PipelineBuilderBase):
     model_config = SettingsConfigDict(env_prefix="embedding_pipeline_", env_nested_delimiter="__")
 
     params: EmbeddingPipelineParameters
-    running_on_slurm: bool = False
-    local_settings: LocalExecutionSettings | None = None
-    slurm_settings: SlurmExecutionSettings | None = None
-
-    @model_validator(mode="after")
-    def slurm_vs_local(self):
-        if self.running_on_slurm and self.local_settings is not None:
-            raise ValueError("Running on Slurm requires slurm execution settings, not local settings.")
-        if self.running_on_slurm and self.slurm_settings is None:
-            self.slurm_settings = SlurmExecutionSettings()
-        elif not self.running_on_slurm and self.slurm_settings is not None:
-            raise ValueError("Running locally requires local execution settings, not Slurm settings.")
-        if not self.running_on_slurm and self.local_settings is None:
-            self.local_settings = LocalExecutionSettings()
-        return self
-
-    @model_validator(mode="after")
-    def set_logging_dir(self):
-        if self.local_settings is not None and self.local_settings.logging_dir is None:
-            self.local_settings.logging_dir = str(self.params.output_dir / "logs")
-        if self.slurm_settings is not None and self.slurm_settings.logging_dir is None:
-            self.slurm_settings.logging_dir = str(self.params.output_dir / "logs")
-        return self
+    default_job_name: ClassVar[str] = "embedding_pipeline"
 
     @classmethod
     def from_yaml(
@@ -164,7 +85,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
         rs = raw.get("running_on_slurm", False) if running_on_slurm is None else running_on_slurm
         slurm_settings = raw.get("slurm_settings", None)
         local_section = raw.get("local_settings", None)
-    
+
         if isinstance(local_section, _DictConfig):
             local_section = OmegaConf.to_container(local_section, resolve=True)
         if isinstance(slurm_settings, _DictConfig):
@@ -202,7 +123,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
             max_length=_p("max_length"),
             padding=_p("padding"),
             truncation=_p("truncation"),
-            save_labels=_p("save_labels")
+            save_labels=_p("save_labels"),
         )
         builder_kwargs = {"params": params, "running_on_slurm": rs}
 
@@ -217,18 +138,23 @@ class EmbeddingPipelineBuilder(BaseSettings):
             if isinstance(local_section, _DictConfig):
                 local_section = OmegaConf.to_container(local_section, resolve=True)
             if isinstance(local_section, dict):
-                builder_kwargs["local_settings"] = LocalExecutionSettings(**{k: v for k, v in local_section.items() if k in LocalExecutionSettings.model_fields})
+                builder_kwargs["local_settings"] = LocalExecutionSettings(
+                    **{k: v for k, v in local_section.items() if k in LocalExecutionSettings.model_fields}
+                )
 
         return cls(**builder_kwargs)
 
     def build_pipeline(self) -> list[PipelineStep]:
         p = self.params
         # --- Unified precision validation & resolution ---
-        _resolved = resolve_output_dtype({
-            'model_dtype': p.model_dtype,
-            'embedding_dtype': p.embedding_dtype,
-            'label_dtype': p.label_dtype,
-        }, pipeline="embedding_pipeline")
+        _resolved = resolve_output_dtype(
+            {
+                "model_dtype": p.model_dtype,
+                "embedding_dtype": p.embedding_dtype,
+                "label_dtype": p.label_dtype,
+            },
+            pipeline="embedding_pipeline",
+        )
         pipeline: list[PipelineStep] = [
             JQLJsonlReader(
                 data_folder=p.input_dir,
@@ -243,7 +169,7 @@ class EmbeddingPipelineBuilder(BaseSettings):
                 max_length=p.max_length,
                 padding=p.padding,
                 truncation=p.truncation,
-                model_dtype=_resolved['model_dtype'],
+                model_dtype=_resolved["model_dtype"],
                 stats_writer=HDF5Writer(
                     output_folder=str(p.embedding_output_dir),
                     output_filename="${source_filename}.h5",

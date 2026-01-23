@@ -5,7 +5,10 @@
 
 # Unified model compute dtype mapping (torch only)
 from typing import Any
-import torch, numpy as np  # local import for dtypes
+
+import numpy as np  # local import for dtypes
+import torch
+
 MODEL_TORCH_DTYPE_MAPPING: dict[str, torch.dtype] = {
     "bfloat16": torch.bfloat16,
     "float16": torch.float16,
@@ -35,6 +38,7 @@ LABEL_NUMPY_DTYPE_MAPPING: dict[str, np.dtype] = {
     "bfloat16": np.float32,  # degrade
 }
 
+
 def resolve_output_dtype(schema: Any, pipeline: str) -> dict[str, Any]:
     """Resolve and validate precision dtypes based on pipeline context.
 
@@ -50,27 +54,31 @@ def resolve_output_dtype(schema: Any, pipeline: str) -> dict[str, Any]:
       - label_dtype always resolved via LABEL_NUMPY_DTYPE_MAPPING (storage dtype) if provided
 
     Defaults when schema is not a dict:
-        model = torch.bfloat16, embedding = np.float32 (embedding_pipeline) or torch.bfloat16 (annotation_pipeline), label = np.float16
+        model = torch.bfloat16,
+        embedding = np.float32 (embedding_pipeline) or torch.bfloat16 (annotation_pipeline),
+        label = np.float16
     """
     if pipeline not in {"embedding_pipeline", "annotation_pipeline"}:
         raise ValueError("pipeline must be 'embedding_pipeline' or 'annotation_pipeline'")
 
     if not isinstance(schema, dict):
         return {
-            'model_dtype': torch.bfloat16,
-            'embedding_dtype': np.float32 if pipeline == "embedding_pipeline" else torch.bfloat16,
-            'label_dtype': np.float16,
+            "model_dtype": torch.bfloat16,
+            "embedding_dtype": np.float32 if pipeline == "embedding_pipeline" else torch.bfloat16,
+            "label_dtype": np.float16,
         }
 
-    model_raw = str(schema.get('model_dtype')).lower()
-    emb_raw = str(schema.get('embedding_dtype')).lower()
-    label_raw = str(schema.get('label_dtype')).lower()
+    model_raw = str(schema.get("model_dtype")).lower()
+    emb_raw = str(schema.get("embedding_dtype")).lower()
+    label_raw = str(schema.get("label_dtype")).lower()
 
     if model_raw not in MODEL_TORCH_DTYPE_MAPPING:
-        raise ValueError(f"Unsupported model dtype '{model_raw}'. Allowed: {', '.join(MODEL_TORCH_DTYPE_MAPPING.keys())}")
+        raise ValueError(
+            f"Unsupported model dtype '{model_raw}'. Allowed: {', '.join(MODEL_TORCH_DTYPE_MAPPING.keys())}"
+        )
 
     # Choose embedding mapping based on pipeline
-    if pipeline == 'embedding_pipeline':
+    if pipeline == "embedding_pipeline":
         emb_map = EMBED_NUMPY_DTYPE_MAPPING
     else:  # annotation_pipeline
         emb_map = EMBED_TORCH_DTYPE_MAPPING
@@ -87,7 +95,7 @@ def resolve_output_dtype(schema: Any, pipeline: str) -> dict[str, Any]:
         )
 
     return {
-        'model_dtype': MODEL_TORCH_DTYPE_MAPPING[model_raw],
-        'embedding_dtype': emb_map[emb_raw],
-        'label_dtype': LABEL_NUMPY_DTYPE_MAPPING[label_raw],
+        "model_dtype": MODEL_TORCH_DTYPE_MAPPING[model_raw],
+        "embedding_dtype": emb_map[emb_raw],
+        "label_dtype": LABEL_NUMPY_DTYPE_MAPPING[label_raw],
     }
