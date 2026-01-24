@@ -27,7 +27,10 @@ class QuantilePipelineParameters(BaseModel):
         None,
         description="Compression for output JSONL files (infer/gzip/None).",
     )
-    score_field: str = Field(..., description="Field name that stores scores.")
+    score_fields: list[str] = Field(
+        ...,
+        description="Score fields to average per document (e.g. ['score_llama', 'score_mistral']).",
+    )
     selection_quantile: float = Field(..., description="Top fraction of data to keep (e.g., 0.2 keeps top 20%).")
     report_filename: str = Field("quantile_report.yaml", description="Filename for the YAML report.")
     quantile_data_dir: str = Field("quantile_data", description="Subdirectory for filtered outputs.")
@@ -83,13 +86,17 @@ class QuantilePipelineBuilder(PipelineBuilderBase):
         def get_param(name: str, default=None):
             return params_cfg.get(name, default)
 
+        score_fields = get_param("score_fields", None)
+        if not isinstance(score_fields, list) or not all(isinstance(field, str) for field in score_fields):
+            raise TypeError("score_fields must be a list of strings.")
+
         params = QuantilePipelineParameters(
             input_dir=get_param("input_dir"),
             glob_pattern=get_param("glob_pattern"),
             output_dir=get_param("output_dir"),
             compression=get_param("compression"),
             output_compression=get_param("output_compression", None),
-            score_field=get_param("score_field", "scores"),
+            score_fields=score_fields,
             selection_quantile=get_param("selection_quantile"),
             report_filename=get_param("report_filename", "quantile_report.yaml"),
             quantile_data_dir=get_param("quantile_data_dir", "quantile_data"),
@@ -115,7 +122,7 @@ class QuantilePipelineBuilder(PipelineBuilderBase):
                 data_folder=params.input_dir,
                 glob_pattern=params.glob_pattern,
                 compression=params.compression,
-                score_field=params.score_field,
+                score_fields=params.score_fields,
                 selection_quantile=params.selection_quantile,
                 report_path=params.report_path,
             ),

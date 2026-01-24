@@ -9,8 +9,6 @@ from pathlib import Path
 import orjson
 from datatrove.data import Document
 from datatrove.io import DataFileLike, DataFolderLike, get_shard_from_paths_file
-from datatrove.utils.logging import logger
-from orjson import JSONDecodeError
 
 
 def raw_data_adapter(writer, document: Document) -> dict:
@@ -79,21 +77,6 @@ def language_from_path(filepath: str) -> str:
     return parts[0]
 
 
-def iter_jsonl(data_folder: DataFolderLike, filepath: str, compression: str | None):
-    """Yield (line_number, json_obj) for a single JSONL file."""
-    with data_folder.open(filepath, "r", compression=compression) as f:
-        for line_index, raw_line in enumerate(f):
-            try:
-                raw = orjson.loads(raw_line)
-            except (EOFError, JSONDecodeError) as e:
-                logger.warning("Error when reading `%s`: %s", filepath, e)
-                continue
-            if not isinstance(raw, dict):
-                logger.warning("Skipping non-object JSON in `%s` at line %s", filepath, line_index)
-                continue
-            yield line_index, raw
-
-
 def list_input_files(
     data_folder: DataFolderLike,
     paths_file: DataFileLike | None,
@@ -115,37 +98,6 @@ def group_files_by_language(filepaths: list[str]) -> dict[str, list[str]]:
     return language_directories
 
 
-def compute_language_histogram(
-    filepaths: list[str],
-    score_field: str,
-    selection_quantile: float,
-    data_folder: DataFolderLike,
-    compression: str | None,
-):
-    """Compute bucket counts and threshold across all files in a language directory."""
-    scores: list[float] = []
-    total_scored = 0
-    score_counts = {i: 0 for i in range(6)}
-    for filepath in filepaths:
-        for _, row in iter_jsonl(data_folder, filepath, compression):
-            if score_field not in row:
-                raise ValueError(f"Missing '{score_field}' in {filepath}")
-            try:
-                score_value = parse_score(row.get(score_field))
-            except ValueError as exc:
-                raise ValueError(f"Invalid '{score_field}' value in {filepath}: {row.get(score_field)!r}") from exc
-            scores.append(score_value)
-            score_counts[score_bucket(score_value)] += 1
-            total_scored += 1
-
-    if not scores:
-        raise ValueError(f"No scores found for score field '{score_field}' in {len(filepaths)} files.")
-
-    scores.sort()
-    selection_threshold = compute_quantile(scores, 1.0 - selection_quantile)
-    return total_scored, selection_threshold, score_counts
-
-
 def ranked_report_path(report_path: Path, rank: int, world_size: int) -> Path:
     """Write separate report files per rank to avoid clobbering."""
     if world_size <= 1:
@@ -162,10 +114,18 @@ def write_language_report(record: dict, report_path: Path) -> None:
         f.write("---\n")
         f.write(f"language: {yaml_string(record['language'])}\n")
         f.write(f"file_count: {record['file_count']}\n")
-        f.write(f"score_field: {yaml_string(record['score_field'])}\n")
-        f.write(f"total_scored: {record['total_scored']}\n")
+        score_fields = record["score_fields"]
+        if isinstance(score_fields, list):
+            f.write("score_fields:\n")
+            for field in score_fields:
+                f.write(f"  - {yaml_string(field)}\n")
+        else:
+            f.write(f"score_fields: {yaml_string(str(score_fields))}\n")
+        f.write(f"total_rows_scored: {record['total_rows_scored']}\n")
         f.write(f"selection_quantile: {record['selection_quantile']}\n")
         f.write(f"selection_threshold: {yaml_value(record['selection_threshold'])}\n")
-        f.write("score_counts:\n")
-        for bucket in range(6):
-            f.write(f"  {bucket}: {record['score_counts'][bucket]}\n")
+        f.write("averaged_score_counts:\n")
+        score_counts = record["averaged_score_counts"]
+        for score_value in sorted(score_counts):
+            formatted_score = format(score_value, ".15g")
+            f.write(f"  {formatted_score}: {score_counts[score_value]}\n")

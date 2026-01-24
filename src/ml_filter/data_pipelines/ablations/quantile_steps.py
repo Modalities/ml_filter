@@ -3,21 +3,24 @@
 from pathlib import Path
 from typing import Iterable
 
+import orjson
 from datatrove.data import Document
 from datatrove.io import DataFileLike, DataFolderLike
 from datatrove.pipeline.readers.base import BaseDiskReader
+from orjson import JSONDecodeError
 
 from .utils import (
-    compute_language_histogram,
+    compute_quantile,
     group_files_by_language,
     list_input_files,
+    parse_score,
     ranked_report_path,
     write_language_report,
 )
 
 
 class QuantileJsonlReader(BaseDiskReader):
-    """Read JSONL files and report per-language quantile thresholds."""
+    """Read JSONL files and report per-language quantile thresholds for averaged scores."""
 
     name = "QuantileJsonlReader"
     _requires_dependencies = ["orjson"]
@@ -25,7 +28,7 @@ class QuantileJsonlReader(BaseDiskReader):
     def __init__(
         self,
         data_folder: DataFolderLike,
-        score_field: str,
+        score_fields: list[str],
         selection_quantile: float,
         report_path: Path,
         paths_file: DataFileLike | None = None,
@@ -61,14 +64,52 @@ class QuantileJsonlReader(BaseDiskReader):
             raise ValueError("selection_quantile must be within [0, 1].")
 
         self.compression = compression
-        self.score_field = score_field
+        self.score_fields = score_fields
         self.selection_quantile = selection_quantile
         self.report_path = Path(report_path)
         self.source_filename_field = "source_filename"
 
+    def _iter_jsonl(self, filepath: str):
+        """Read a JSONL file and yield each row as a dict with its line index."""
+        with self.data_folder.open(filepath, "r", compression=self.compression) as f:
+            for line_index, raw_line in enumerate(f):
+                try:
+                    raw = orjson.loads(raw_line)
+                except (EOFError, JSONDecodeError) as exc:
+                    raise ValueError(f"Invalid JSON in `{filepath}` at line {line_index}") from exc
+                if not isinstance(raw, dict):
+                    raise ValueError(f"Expected JSON object in `{filepath}` at line {line_index}")
+                yield line_index, raw
+
     def read_file(self, filepath: str) -> Iterable[Document]:
-        """BaseDiskReader API; use run() which computes per-language thresholds."""
-        raise RuntimeError("QuantileJsonlReader requires per-language thresholds; use run() instead of read_file().")
+        """Required by BaseDiskReader but not used by QuantileJsonlReader."""
+        raise NotImplementedError("QuantileJsonlReader does not support read_file().")
+
+    def _compute_language_histogram(self, filepaths: list[str]):
+        """Compute bucket counts and threshold using averaged per-row scores."""
+        average_scores: list[float] = []
+        total_rows_scored = 0
+        score_value_counts: dict[float, int] = {}
+        for filepath in filepaths:
+            for _, row in self._iter_jsonl(filepath):
+                missing_fields = [field for field in self.score_fields if field not in row]
+                if missing_fields:
+                    raise ValueError(f"Missing score fields {missing_fields} in {filepath}")
+                try:
+                    row_scores = [parse_score(row.get(field)) for field in self.score_fields]
+                except ValueError as exc:
+                    raise ValueError(f"Invalid score value in {filepath} for fields {self.score_fields}") from exc
+                average_score = sum(row_scores) / len(row_scores)
+                average_scores.append(average_score)
+                score_value_counts[average_score] = score_value_counts.get(average_score, 0) + 1
+                total_rows_scored += 1
+
+        if total_rows_scored == 0:
+            raise ValueError(f"No rows with score fields {self.score_fields} found in {len(filepaths)} files.")
+
+        average_scores.sort()
+        selection_threshold = compute_quantile(average_scores, 1.0 - self.selection_quantile)
+        return total_rows_scored, selection_threshold, score_value_counts
 
     def run(self, data: Iterable[Document] = None, rank: int = 0, world_size: int = 1) -> Iterable[Document]:
         """Group files by language, compute thresholds, and write reports."""
@@ -85,27 +126,22 @@ class QuantileJsonlReader(BaseDiskReader):
 
         all_languages = sorted(language_directories)
         # Deterministic sharding: each rank handles every Nth language.
+        # Each rank handles every Nth language, starting at its rank index.
         languages_for_rank = [lang for i, lang in enumerate(all_languages) if i % world_size == rank]
         report_path = ranked_report_path(self.report_path, rank, world_size)
 
         for language in languages_for_rank:
             filepaths = language_directories[language]
-            total_scored, selection_threshold, score_counts = compute_language_histogram(
-                filepaths=filepaths,
-                score_field=self.score_field,
-                selection_quantile=self.selection_quantile,
-                data_folder=self.data_folder,
-                compression=self.compression,
-            )
+            total_rows_scored, quantile_threshold, score_value_counts = self._compute_language_histogram(filepaths)
             write_language_report(
                 {
                     "language": language,
                     "file_count": len(filepaths),
-                    "score_field": self.score_field,
-                    "total_scored": total_scored,
+                    "score_fields": self.score_fields,
+                    "total_rows_scored": total_rows_scored,
                     "selection_quantile": self.selection_quantile,
-                    "selection_threshold": selection_threshold,
-                    "score_counts": score_counts,
+                    "selection_threshold": quantile_threshold,
+                    "averaged_score_counts": score_value_counts,
                 },
                 report_path,
             )

@@ -4,7 +4,7 @@ params:
   output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/quantiles
   compression: null
   output_compression: null
-  score_field: scores
+  score_fields: ["score_llama", "score_mistral", "score_gemma"]
   selection_quantile: 0.9
   report_filename: quantile_report.yaml
   quantile_data_dir: quantile_data
@@ -17,7 +17,8 @@ slurm_settings:
   sbatch_args:
     account: "p_gptx"
     nodes: 1
-    ntasks: 1
+    ntasks: 1 # i think its better to use nodes_per_task right under slurm settings and remove this line
+    gres: gpu:1
   partition: "capella"
   time: "00:30:00"
   cpus_per_task: 4

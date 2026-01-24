@@ -201,7 +201,7 @@ Each line contains original metadata (from `output_keys`) plus head outputs (sco
 ---
 ## Quantile Ablation Pipeline
 
-Computes per-language JSONL score quantiles and emits a YAML report.
+Computes per-language JSONL score quantiles using per-row averaged scores and emits a YAML report.
 
 ### YAML Schema (`QuantilePipelineParameters`)
 
@@ -211,7 +211,7 @@ Computes per-language JSONL score quantiles and emits a YAML report.
 | `glob_pattern` | str | Glob selecting which JSONL files to process (e.g. `*.jsonl`). |
 | `output_dir` | path | Base output directory. |
 | `compression` | str/None | Compression for input JSONL files (`infer`, `gzip`, `zstd`, `None`). |
-| `score_field` | str | Field name that stores the score. |
+| `score_fields` | list[str] | Score fields to average per document (e.g. `["score_llama", "score_mistral"]`). |
 | `selection_quantile` | float | Top fraction to keep (e.g. `0.2` keeps top 20%). |
 | `report_filename` | str | Filename for the YAML report (default `quantile_report.yaml`). |
 
@@ -226,7 +226,7 @@ params:
   output_dir: outputs
   compression: infer
   output_compression: gzip
-  score_field: score
+  score_fields: ["score_llama", "score_mistral", "score_gemma"]
   selection_quantile: 0.2
 local_settings: {}
 ```

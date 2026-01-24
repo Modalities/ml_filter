@@ -1,10 +1,10 @@
 params:
-  input_dir: /raid/s3/opengptx/akhan/ml_filter/data/test_quantile
+  input_dir: /raid/s3/opengptx/akhan/ml_filter/data/dummy_quantile_data
   glob_pattern: "**/*.jsonl"
   output_dir: /raid/s3/opengptx/akhan/ml_filter/outputs
   compression: null
   output_compression: null
-  score_field: score
+  score_fields: ["score_llama", "score_mistral", "score_gemma"]
   selection_quantile: 0.15
   report_filename: quantile_report.yaml
   quantile_data_dir: quantile_data
@@ -12,7 +12,7 @@ params:
 running_on_slurm: false
 
 local_settings:
-  tasks: 1
+  tasks: 1  # world_size (number of ranks / shards)
   local_tasks: 1
   local_rank_offset: 0
   workers: 1
