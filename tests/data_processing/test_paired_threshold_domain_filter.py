@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from ml_filter.data_processing.jsonl_filtering.paired_threshold_filter import PairedThresholdFilter
+from ml_filter.data_pipelines.filtering.paired_threshold_filter import PairedThresholdFilter
+
+
 
 
 def _write_jsonl(path: Path, rows: list[dict]) -> None:

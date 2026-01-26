@@ -21,8 +21,11 @@ from omegaconf import DictConfig as _DictConfig
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ml_filter.data_processing.jsonl_filtering.paired_threshold_filter import PairedThresholdFilter
-from ml_filter.data_processing.jsonl_filtering.numwords_filter import NumWordsFilter
+from ml_filter.data_pipelines.execution_settings import LocalExecutionSettings, SlurmExecutionSettings
+from ml_filter.data_pipelines.filtering.numwords_filter import NumWordsFilter
+from ml_filter.data_pipelines.filtering.paired_threshold_filter import PairedThresholdFilter
+from ml_filter.data_pipelines.pipeline_builder import PipelineBuilderBase
+
 
 
 def _jsonl_writer_adapter(self, document):
@@ -40,50 +43,6 @@ def _jsonl_writer_adapter(self, document):
         if domain_key and domain_key in metadata:
             data[domain_key] = metadata[domain_key]
     return data
-
-
-class LocalExecutionSettings(BaseModel):
-    tasks: int = 1
-    local_tasks: int = 1
-    local_rank_offset: int = 0
-    workers: int = -1
-    logging_dir: str | None = None
-
-
-class SlurmExecutionSettings(BaseModel):
-    tasks: int = 1
-    time: str = "00:30:00"
-    partition: str = "default"
-    cpus_per_task: int = 4
-    mem_per_cpu_gb: int = 8
-    workers: int = -1
-    job_name: str = "threshold_filter_pipeline"
-    qos: str = "normal"
-    env_command: str | None = None
-    condaenv: str | None = None
-    venv_path: str | None = None
-    sbatch_args: dict[str, str | int | float | bool] | None = None
-    max_array_size: int = 1001
-    depends_job_id: str | None = None
-    job_id_position: int = -1
-    logging_dir: str | None = None
-    skip_completed: bool = True
-    slurm_logs_folder: str | None = None
-    mail_type: str = "ALL"
-    mail_user: str | None = None
-    requeue: bool = True
-    srun_args: dict[str, str | int | float | bool] | None = None
-    tasks_per_job: int = 1
-
-    @model_validator(mode="before")
-    def _normalize_sbatch(cls, values):  # type: ignore[override]
-        sbatch_args = values.get("sbatch_args") or {}
-        if isinstance(sbatch_args, _DictConfig):
-            sbatch_args = OmegaConf.to_container(sbatch_args, resolve=True)  # type: ignore[arg-type]
-        if not isinstance(sbatch_args, dict):
-            raise TypeError(f"sbatch_args must be a mapping if provided (got type {type(sbatch_args)})")
-        values["sbatch_args"] = sbatch_args
-        return values
 
 
 class ThresholdFilterPipelineParameters(BaseModel):
@@ -174,7 +133,7 @@ class ThresholdFilterPipelineParameters(BaseModel):
     )
 
 
-class ThresholdFilterPipelineBuilder(BaseSettings):
+class ThresholdFilterPipelineBuilder(PipelineBuilderBase):
     model_config = SettingsConfigDict(env_prefix="threshold_filter_pipeline_", env_nested_delimiter="__")
 
     params: ThresholdFilterPipelineParameters

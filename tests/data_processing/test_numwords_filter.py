@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datatrove.data import Document
 
-from ml_filter.data_processing.jsonl_filtering.numwords_filter import NumWordsFilter
+from ml_filter.data_pipelines.filtering.numwords_filter import NumWordsFilter
+
 
 
 def test_numwords_filter_uses_metadata_column():

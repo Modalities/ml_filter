@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ml_filter.data_processing.jsonl_filtering.threshold_filter_pipeline import ThresholdFilterPipelineBuilder
+from ml_filter.data_pipelines.filtering.threshold_filter_pipeline import ThresholdFilterPipelineBuilder
+
+
 
 
 def test_builder_from_yaml_parses_paired_mode(tmp_path: Path):
