@@ -1,0 +1,26 @@
+params:
+  input_dir: /raid/s3/opengptx/akhan/ml_filter/data/dummy_quantile_data
+  glob_pattern: "**/*.jsonl"
+  compression: null
+  score_fields:
+    - score_llama
+    - score_mistral
+    - score_gemma
+  buckets:
+    - [0.5, 1.0]
+    - [1.0, 2.0]
+    - [3.0, 3.9]
+    - [4.0, 4.9]
+  output_dir: /raid/s3/opengptx/akhan/ml_filter/outputs
+  output_subdir: data_buckets
+  bucket_filename_template: "{lower}_{upper}_bucked_{language}.jsonl"
+
+running_on_slurm: false
+
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: 1
+
+slurm_settings: null

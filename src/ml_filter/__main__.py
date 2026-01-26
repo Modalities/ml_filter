@@ -16,6 +16,7 @@ from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_pipelines.ablations.quantile_pipeline import run_quantile_pipeline
 from ml_filter.data_pipelines.annotation.annotation_pipeline import run_annotation_pipeline
 from ml_filter.data_pipelines.annotation.embedding_pipeline import run_embedding_pipeline
+from ml_filter.data_pipelines.data_splitter.data_splitter_pipeline import run_data_splitter_pipeline
 from ml_filter.data_pipelines.filtering.threshold_filter_pipeline import run_threshold_filter_pipeline
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
@@ -767,6 +768,18 @@ def entry_run_annotations(config_file_path: Path):
 def entry_run_quantile_pipeline(config_file_path: Path):
     """Run quantile pipeline to filter JSONL by per-file quantile threshold."""
     run_quantile_pipeline(config_file_path=config_file_path)
+
+
+@main.command(name="run_data_splitter_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_run_data_splitter_pipeline(config_file_path: Path):
+    """Run data splitter pipeline to bucket JSONL rows by average score."""
+    run_data_splitter_pipeline(config_file_path=config_file_path)
 
 
 @main.command(name="run_threshold_filter_pipeline")

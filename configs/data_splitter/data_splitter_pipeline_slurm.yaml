@@ -1,0 +1,34 @@
+params:
+  input_dir: /raid/s3/opengptx/akhan/ml_filter/data/dummy_quantile_data
+  glob_pattern: "**/*.jsonl"
+  compression: null
+  score_fields:
+    - score_llama
+    - score_mistral
+    - score_gemma
+  buckets:
+    - [0.5, 1.0]
+    - [1.0, 2.0]
+    - [3.0, 3.9]
+    - [4.0, 4.9]
+  output_dir: /raid/s3/opengptx/akhan/ml_filter/outputs
+  output_subdir: data_buckets
+  bucket_filename_template: "{lower}_{upper}_bucked_{language}.jsonl"
+
+running_on_slurm: true
+
+local_settings: null
+
+slurm_settings:
+  sbatch_args:
+    account: "p_gptx"
+    nodes: 1
+    ntasks: 1
+  partition: "capella"
+  time: "00:30:00"
+  cpus_per_task: 4
+  mem_per_cpu_gb: 8
+  job_name: "data_splitter_pipeline"
+  qos: "normal"
+  tasks: 1
+  workers: 1
