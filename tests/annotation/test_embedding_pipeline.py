@@ -9,8 +9,7 @@ from pathlib import Path
 import h5py
 from omegaconf import OmegaConf
 
-from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
-from ml_filter.data_processing.hash_data_files import hash_files_to_csv, read_existing_hashes
+from ml_filter.data_pipelines.annotation.embedding_pipeline import run_embedding_pipeline
 
 
 class TestRunEmbeddingPipeline(unittest.TestCase):
@@ -157,8 +156,9 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
                 h5_doc_ids = [d.decode() if isinstance(d, bytes) else d for d in group["document_id"][:]]
 
                 # Count parity
-                self.assertEqual(len(jsonl_lines), len(h5_doc_ids),
-                                 f"Mismatch in doc count for {jsonl_path} vs {h5_path}")
+                self.assertEqual(
+                    len(jsonl_lines), len(h5_doc_ids), f"Mismatch in doc count for {jsonl_path} vs {h5_path}"
+                )
 
                 # ID alignment
                 for i, jsonl_line in enumerate(jsonl_lines):
@@ -171,7 +171,8 @@ class TestRunEmbeddingPipeline(unittest.TestCase):
                 shard_sample_counts.append(embeddings.shape[0])
                 total_samples += embeddings.shape[0]
 
-        self.assertEqual(total_samples, self.total_docs,
-                         f"Total samples {total_samples} != expected {self.total_docs}")
-        self.assertTrue(any(count < total_samples for count in shard_sample_counts),
-                        "No spillover detected, all samples in one shard.")
+        self.assertEqual(total_samples, self.total_docs, f"Total samples {total_samples} != expected {self.total_docs}")
+        self.assertTrue(
+            any(count < total_samples for count in shard_sample_counts),
+            "No spillover detected, all samples in one shard.",
+        )

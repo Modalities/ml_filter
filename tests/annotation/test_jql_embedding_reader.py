@@ -6,7 +6,7 @@ import unittest
 import h5py
 import numpy as np
 
-from ml_filter.annotation.datatrove_jql_annotator import JQLEmbeddingReader
+from ml_filter.data_pipelines.annotation.datatrove_jql_annotator import JQLEmbeddingReader
 
 
 class TestJQLEmbeddingReader(unittest.TestCase):

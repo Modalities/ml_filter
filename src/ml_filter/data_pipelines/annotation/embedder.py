@@ -167,6 +167,7 @@ class MmBertEmbedder:
 
         return embeddings.cpu().tolist()
 
+
 class Qwen3Embedder:
     """
     A wrapper class for the 'Qwen/Qwen3-Embedding-8B' embedding model.

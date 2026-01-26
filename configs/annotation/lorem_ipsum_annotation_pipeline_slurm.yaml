@@ -15,7 +15,7 @@ slurm_settings:
   sbatch_args:
     account: "p_gptx"
     nodes: 1
-    ntasks: 1
+    ntasks: 1 # i think its better to use nodes_per_task right under slurm settings and remove this line
     gres: gpu:1
   partition: "capella"
   time: "04:00:00"
