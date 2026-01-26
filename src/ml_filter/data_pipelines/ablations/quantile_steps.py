@@ -108,7 +108,7 @@ class QuantileJsonlReader(BaseDiskReader):
             raise ValueError(f"No rows with score fields {self.score_fields} found in {len(filepaths)} files.")
 
         average_scores.sort()
-        selection_threshold = compute_quantile(average_scores, 1.0 - self.selection_quantile)
+        selection_threshold = compute_quantile(average_scores, self.selection_quantile)
         return total_rows_scored, selection_threshold, score_value_counts
 
     def run(self, data: Iterable[Document] = None, rank: int = 0, world_size: int = 1) -> Iterable[Document]:

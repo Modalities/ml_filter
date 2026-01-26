@@ -5,7 +5,7 @@ params:
   compression: null
   output_compression: null
   score_fields: ["score_llama", "score_mistral", "score_gemma"]
-  selection_quantile: 0.15
+  selection_quantile: 0.80
   report_filename: quantile_report.yaml
   quantile_data_dir: quantile_data
 

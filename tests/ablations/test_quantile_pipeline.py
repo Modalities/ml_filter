@@ -102,4 +102,4 @@ def test_quantile_interpolation(tmp_path: Path) -> None:
     docs = list(yaml.safe_load_all(report_path.read_text(encoding="utf-8")))
     report = {doc["language"]: doc for doc in docs}
 
-    assert report["lang_interp"]["selection_threshold"] == 4.5
+    assert report["lang_interp"]["selection_threshold"] == 1.5
