@@ -1,7 +1,7 @@
 params:
-  input_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/annotations/annotated_data
+  input_dir: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/jude/hplt3/annotations/annotations/deu_Latn
   glob_pattern: "**/*.jsonl"
-  output_dir: /raid/s3/opengptx/jude/repos/ml_filter/data/throughput_analysis/output/quantiles
+  output_dir: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/jude/repos/ml_filter/outputs/quantile_calc/deu_Latn
   compression: null
   output_compression: null
   score_fields: ["score_llama", "score_mistral", "score_gemma"]
@@ -16,15 +16,13 @@ local_settings: null
 slurm_settings:
   sbatch_args:
     account: "p_gptx"
-    nodes: 1
-    ntasks: 1 # i think its better to use nodes_per_task right under slurm settings and remove this line
-    gres: gpu:1
-  partition: "capella"
+  partition: "barnard"
   time: "00:30:00"
   cpus_per_task: 4
   mem_per_cpu_gb: 8
   job_name: "quantile_pipeline"
   qos: "normal"
-  venv_path: /data/cat/ws/alju972f-regression_heads/repos/env/jql_pipeline/bin/activate
+  venv_path: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/jude/envs/data-ablations/bin/activate
   tasks: 1
   workers: 1
+
