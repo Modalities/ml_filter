@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from ml_filter.data_pipelines.ablations.quantile_steps import QuantileJsonlReader
+from ml_filter.data_pipelines.quantile.quantile_steps import QuantileJsonlReader
 
 
 def test_average_scores_and_threshold(tmp_path: Path) -> None:
