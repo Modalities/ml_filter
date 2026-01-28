@@ -16,6 +16,7 @@ from ml_filter.compare_experiments import compare_experiments
 from ml_filter.data_pipelines.annotation.annotation_pipeline import run_annotation_pipeline
 from ml_filter.data_pipelines.annotation.embedding_pipeline import run_embedding_pipeline
 from ml_filter.data_pipelines.filtering.threshold_filter_pipeline import run_threshold_filter_pipeline
+from ml_filter.data_pipelines.filtering.average_threshold_filter_pipeline import run_average_threshold_filter_pipeline
 from ml_filter.data_pipelines.quantile.quantile_pipeline import run_quantile_pipeline
 from ml_filter.data_processing.deduplication import deduplicate_jsonl
 from ml_filter.llm_client import LLMClient
@@ -779,6 +780,18 @@ def entry_run_quantile_pipeline(config_file_path: Path):
 def entry_run_threshold_filter_pipeline(config_file_path: Path):
     """Run threshold filter pipeline using scores and text JSONL files."""
     run_threshold_filter_pipeline(config_file_path)
+
+
+@main.command(name="run_average_threshold_filter_pipeline")
+@click.option(
+    "--config_file_path",
+    type=click_pathlib.Path(exists=False),
+    required=True,
+    help="Path to a file with the YAML config file.",
+)
+def entry_run_average_threshold_filter_pipeline(config_file_path: Path):
+    """Run average-threshold filter pipeline using scores and text JSONL files."""
+    run_average_threshold_filter_pipeline(config_file_path)
 
 
 def _get_translator_helper(translation_service: str, ignore_tag_text: Optional[str] = None):
