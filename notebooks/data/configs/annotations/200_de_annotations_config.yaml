@@ -1,0 +1,19 @@
+params:
+  embeddings_directory: outputs/embeddings_output
+  output_keys: ["doc_id", "text"]
+  output_dir: outputs/annotations_output
+  regression_head_checkpoints:
+    edu_quality: /home/mehdi-ali/.cache/huggingface/hub/models--JQL-AI--JQL-Edu-Heads/snapshots/5cb4a2d26c7961950b0facd1d8a390374027b7e4/checkpoints/pt
+  batch_size: 12
+  compression: null          # no compression for HDF5 files
+  embedding_dtype: float32   # stored embeddings in HDF5
+  label_dtype: float32       # if labels are written
+  model_dtype: float32       # computational precision of the model (alternatively: bfloat16/float16)
+  hdf5_dataset_name: train
+local_settings:
+  tasks: 1
+  local_tasks: 1
+  local_rank_offset: 0
+  workers: 4
+
+running_on_slurm: false

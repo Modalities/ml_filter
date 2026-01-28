@@ -1,4 +1,4 @@
-# Embedding & Annotation Pipelines
+# Embedding, Annotation, and Ablation Pipelines
 
 This document explains how to generate model embeddings for large JSONL corpora and then run regression / classification heads to obtain annotation scores at scale using MLFilter's Datatrove-based pipelines.
 
@@ -37,7 +37,7 @@ Notes:
 
 ## Overview
 
-The workflow consists of two sequential pipelines:
+The workflow consists of two sequential pipelines plus optional ablation runs:
 
 1. Embedding Pipeline (`run_embedding_pipeline`)  
    Reads raw JSONL documents, tokenizes & feeds them through an embedding model, and stores embeddings (optionally with labels) into per-source HDF5 files.
@@ -199,6 +199,47 @@ Per embedding source file: `${source_filename}.jsonl` written to:
 Each line contains original metadata (from `output_keys`) plus head outputs (scores / predictions).
 
 ---
+## Quantile Ablation Pipeline
+
+Computes per-language JSONL score quantiles using per-row averaged scores and emits a YAML report.
+
+### YAML Schema (`QuantilePipelineParameters`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input_dir` | str | Directory containing JSONL files. |
+| `glob_pattern` | str | Glob selecting which JSONL files to process (e.g. `*.jsonl`). |
+| `output_dir` | path | Base output directory. |
+| `compression` | str/None | Compression for input JSONL files (`infer`, `gzip`, `zstd`, `None`). |
+| `score_fields` | list[str] | Score fields to average per document (e.g. `["score_llama", "score_mistral"]`). |
+| `selection_quantile` | float | Top fraction to keep (e.g. `0.2` keeps top 20%). |
+| `report_filename` | str | Filename for the YAML report (default `quantile_report.yaml`). |
+
+Execution mode fields mirror other pipelines: `running_on_slurm`, `local_settings` or `slurm_settings`.
+
+### Minimal Local Example
+```yaml
+running_on_slurm: false
+params:
+  input_dir: data/jsonl
+  glob_pattern: "*.jsonl"
+  output_dir: outputs
+  compression: infer
+  output_compression: gzip
+  score_fields: ["score_llama", "score_mistral", "score_gemma"]
+  selection_quantile: 0.2
+local_settings: {}
+```
+
+### Running
+```bash
+ml_filter run_quantile_pipeline --config_file_path configs/quantile_job.yaml
+```
+
+### Outputs
+- YAML report at `<output_dir>/<report_filename>` (or per-rank when running on Slurm).
+
+---
 ## Chaining the Pipelines
 
 1. Generate embeddings: `run_embedding_pipeline` → HDF5 files.  
@@ -226,8 +267,8 @@ Each line contains original metadata (from `output_keys`) plus head outputs (sco
 ## Programmatic Usage Sketch
 ```python
 from pathlib import Path
-from ml_filter.annotation.embedding_pipeline import run_embedding_pipeline
-from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline
+from ml_filter.data_pipelines.annotation.embedding_pipeline import run_embedding_pipeline
+from ml_filter.data_pipelines.annotation.annotation_pipeline import run_annotation_pipeline
 
 run_embedding_pipeline(Path("configs/embedding_job.yaml"))
 run_annotation_pipeline(Path("configs/annotation_job.yaml"))

@@ -8,14 +8,12 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from transformers.utils.hub import cached_file
 from omegaconf import OmegaConf
 
-from ml_filter.annotation.annotation_pipeline import run_annotation_pipeline  # adjust import if needed
+from ml_filter.data_pipelines.annotation.annotation_pipeline import run_annotation_pipeline
 
 
 class TestRunAnnotationPipeline(unittest.TestCase):
-
     def setUp(self):
         self.tmp_dir = tempfile.mkdtemp()
         self.embeddings_dir = os.path.join(self.tmp_dir, "embeddings")
@@ -28,7 +26,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
             grp = f.create_group("train")
             grp.create_dataset("embeddings", data=np.random.rand(3, 768).astype(np.float32))
             # Define a UTF-8 string dtype with variable length strings
-            dt = h5py.string_dtype(encoding='utf-8')
+            dt = h5py.string_dtype(encoding="utf-8")
             doc_ids = np.array([f"testfile_{i}" for i in range(3)], dtype=dt)
 
             grp.create_dataset("document_id", data=doc_ids)
@@ -40,29 +38,33 @@ class TestRunAnnotationPipeline(unittest.TestCase):
 
         # Create dummy OmegaConf config
         self.config_path = os.path.join(self.tmp_dir, "config.yaml")
-        OmegaConf.save(config=OmegaConf.create({
-            "params": {
-            "embeddings_directory": self.embeddings_dir,
-            "regression_head_checkpoints": {
-                "Edu-JQL-Mistral-SF": mistral_ckpt_path
-            },
-            "output_dir": self.output_dir,
-            "output_keys": ["document_id"],
-            "batch_size": 2,
-            "hdf5_dataset_name": "train",
-            "compression": "gzip",
-            "embedding_dtype": "bfloat16",
-            "model_dtype": "bfloat16",
-            "label_dtype": "bfloat16",
-        },
-        "running_on_slurm": False,
-        "local_settings": {
-            "tasks": 1,
-            "local_tasks": 1,
-            "local_rank_offset": 0,
-            "workers": 1,
-            "logging_dir": os.path.join(self.output_dir, "logs"),
-        }}), f=self.config_path)
+        OmegaConf.save(
+            config=OmegaConf.create(
+                {
+                    "params": {
+                        "embeddings_directory": self.embeddings_dir,
+                        "regression_head_checkpoints": {"Edu-JQL-Mistral-SF": mistral_ckpt_path},
+                        "output_dir": self.output_dir,
+                        "output_keys": ["document_id"],
+                        "batch_size": 2,
+                        "hdf5_dataset_name": "train",
+                        "compression": "gzip",
+                        "embedding_dtype": "bfloat16",
+                        "model_dtype": "bfloat16",
+                        "label_dtype": "bfloat16",
+                    },
+                    "running_on_slurm": False,
+                    "local_settings": {
+                        "tasks": 1,
+                        "local_tasks": 1,
+                        "local_rank_offset": 0,
+                        "workers": 1,
+                        "logging_dir": os.path.join(self.output_dir, "logs"),
+                    },
+                }
+            ),
+            f=self.config_path,
+        )
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dir)
@@ -74,7 +76,7 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         self.assertEqual(cfg.params.output_dir, self.output_dir)
 
     def test_jql_embedding_reader(self):
-        from ml_filter.annotation.datatrove_jql_annotator import JQLEmbeddingReader
+        from ml_filter.data_pipelines.annotation.datatrove_jql_annotator import JQLEmbeddingReader
 
         reader = JQLEmbeddingReader(data_folder=self.embeddings_dir, dataset_name="train")
         docs = list(reader.run())
@@ -86,11 +88,14 @@ class TestRunAnnotationPipeline(unittest.TestCase):
         self.assertIn("file_path", doc.metadata)
 
     def test_stats_adapter_format(self):
-        from ml_filter.annotation.datatrove_jql_annotator import stats_adapter
         from datatrove.data import Document
         from datatrove.pipeline.writers import JsonlWriter
 
-        dummy_doc = Document(id="123", text="will_be_removed", metadata={"score": 0.95, "document_id": "123", "label": "positive"})
+        from ml_filter.data_pipelines.annotation.datatrove_jql_annotator import stats_adapter
+
+        dummy_doc = Document(
+            id="123", text="will_be_removed", metadata={"score": 0.95, "document_id": "123", "label": "positive"}
+        )
         dummy_writer = JsonlWriter(output_folder=self.output_dir, output_filename="dummy.jsonl", expand_metadata=True)
 
         result = stats_adapter(dummy_writer, dummy_doc, output_keys=["document_id", "score"])

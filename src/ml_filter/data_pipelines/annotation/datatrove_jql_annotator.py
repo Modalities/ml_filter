@@ -9,6 +9,7 @@ from typing import IO, Any, Callable, Literal, Optional
 # --- Third-Party Libraries ---
 import h5py
 import numpy as np
+import orjson
 import torch
 
 # --- Project-Specific Imports ---
@@ -19,15 +20,16 @@ from datatrove.pipeline.readers.base import BaseDiskReader
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.utils.batching import batched
 from datatrove.utils.logging import logger
-import orjson
-from orjson import JSONDecodeError
 from dotenv import load_dotenv
+from orjson import JSONDecodeError
 from torch import cuda, no_grad
 
-from ml_filter.annotation.embedder import get_embedder_instance
 from ml_filter.models.embedding_model import EmbeddingRegressionModel
 
+from .embedder import get_embedder_instance
+
 load_dotenv()
+
 
 def _get_file_path(doc: Document) -> str:
     """
@@ -118,11 +120,14 @@ class JQLJsonlReader(BaseDiskReader):
         # Prebuild a fast combiner function depending on key count
         if self.n_keys == 1:
             key = keys_to_index[0]
+
             def _combine_keys(md: dict) -> str:
                 v = md.get(key)
                 return "" if v is None else str(v)
+
         else:
             keys = tuple(keys_to_index)  # make immutable, faster to loop
+
             def _combine_keys(md: dict) -> str:
                 vals = []
                 append = vals.append
@@ -134,7 +139,6 @@ class JQLJsonlReader(BaseDiskReader):
         self._combine_metadata_keys = _combine_keys
 
     def read_file(self, filepath: str):
-
         with self.data_folder.open(filepath, "r", compression=self.compression) as f:
             try:
                 full_file_path = str(self.data_folder.path) + "/" + filepath
@@ -329,7 +333,9 @@ class HDF5Writer(DiskWriter):
             return
 
         batch = self._batches.pop(filename)
-        embeddings = np.stack([doc["metadata"]["embedding"] for doc in batch], dtype=self.dtype_schema["embedding_dtype"])
+        embeddings = np.stack(
+            [doc["metadata"]["embedding"] for doc in batch], dtype=self.dtype_schema["embedding_dtype"]
+        )
         document_id = [doc["metadata"]["document_id"] for doc in batch]
         if self.save_labels and "label" in batch[0]["metadata"]:
             labels = np.array([doc["metadata"]["label"] for doc in batch], dtype=self.dtype_schema["label_dtype"])
@@ -345,15 +351,25 @@ class HDF5Writer(DiskWriter):
             maxshape_emb = (None, embeddings.shape[1])
             maxshape_ids = (None,)
             embeddings_dataset = group.create_dataset(
-                "embeddings", shape=(0, embeddings.shape[1]), maxshape=maxshape_emb, compression=self.compression, dtype=self.dtype_schema["embedding_dtype"]
+                "embeddings",
+                shape=(0, embeddings.shape[1]),
+                maxshape=maxshape_emb,
+                compression=self.compression,
+                dtype=self.dtype_schema["embedding_dtype"],
             )
             dt = h5py.string_dtype(encoding="utf-8")
-            document_ids_dataset = group.create_dataset("document_id", shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt)
+            document_ids_dataset = group.create_dataset(
+                "document_id", shape=(0,), maxshape=maxshape_ids, compression=self.compression, dtype=dt
+            )
             labels_dataset = None
             if labels is not None:
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_dataset = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
+                    "labels",
+                    shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]),
+                    maxshape=maxshape_labels,
+                    compression=self.compression,
+                    dtype=self.dtype_schema["label_dtype"],
                 )
         else:
             group = file[group_name]
@@ -366,7 +382,7 @@ class HDF5Writer(DiskWriter):
         # 2. Compute new total length after adding this batch (updated_row_count)
         # 3. Resize both datasets once
         # 4. Slice-assign the new rows
-        
+
         current_row_count = embeddings_dataset.shape[0]
         updated_row_count = current_row_count + embeddings.shape[0]
         embeddings_dataset.resize(updated_row_count, axis=0)
@@ -379,7 +395,11 @@ class HDF5Writer(DiskWriter):
                 # Create labels dataset now if first time labels appear
                 maxshape_labels = (None,) if labels.ndim == 1 else (None, labels.shape[1])
                 labels_dataset = group.create_dataset(
-                    "labels", shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]), maxshape=maxshape_labels, compression=self.compression, dtype=self.dtype_schema["label_dtype"]
+                    "labels",
+                    shape=(0,) if labels.ndim == 1 else (0, labels.shape[1]),
+                    maxshape=maxshape_labels,
+                    compression=self.compression,
+                    dtype=self.dtype_schema["label_dtype"],
                 )
             labels_dataset.resize(updated_row_count, axis=0)
             labels_dataset[current_row_count:updated_row_count] = labels
@@ -477,7 +497,7 @@ class JQLEmbeddingReader(BaseDiskReader):
         id_key: str = "document_id",
         default_metadata: dict = None,
         recursive: bool = True,
-        glob_pattern: str | None =  "**/*.h5",
+        glob_pattern: str | None = "**/*.h5",
         shuffle_files: bool = False,
     ):
         super().__init__(
@@ -515,7 +535,6 @@ class JQLEmbeddingReader(BaseDiskReader):
             ValueError: If the number of embeddings and IDs do not match.
         """
         try:
-
             with self.data_folder.open(filepath, "rb") as fs_file:
                 with h5py.File(fs_file) as f:
                     if self.dataset_name not in f:
@@ -543,8 +562,10 @@ class JQLEmbeddingReader(BaseDiskReader):
                                 "document_id": document_ids[i],
                             }
                             doc = self.get_document_from_dict(doc_dict, filepath, i)
-                            doc.metadata["document_id"] = document_ids[i].decode('utf-8')
-                            doc.metadata["source_filename"] = str(Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path))
+                            doc.metadata["document_id"] = document_ids[i].decode("utf-8")
+                            doc.metadata["source_filename"] = str(
+                                Path(doc.metadata.get("file_path")).relative_to(self.data_folder.path)
+                            )
                             yield doc
 
         except Exception as e:
@@ -566,6 +587,7 @@ class JQLHead(PipelineStep):
         device_overwrite (str, optional): Manually specify CUDA device (e.g., '0' or 'cuda:1').
         stats_writer (DiskWriter, optional): Optional writer to log or save document scores.
     """
+
     name = "🔢 - JQL-HEAD"
     type = "🔢 - JQL-HEAD"
 
@@ -605,34 +627,38 @@ class JQLHead(PipelineStep):
             Document: Each document enriched with predicted scores in its metadata.
         """
         if not cuda.is_available():
-            logger.warning('CUDA is not available, using CPU')
-            device = 'cpu'
+            logger.warning("CUDA is not available, using CPU")
+            device = "cpu"
         else:
             if self.device_overwrite is None:
                 device_count = cuda.device_count()
                 cuda_device_id = rank % device_count
-                device = f'cuda:{cuda_device_id}'
+                device = f"cuda:{cuda_device_id}"
             else:
-                device = f'cuda:{self.device_overwrite}'
+                device = f"cuda:{self.device_overwrite}"
 
         self.regression_heads = {}
         for name, path in self.regression_head_checkpoints.items():
-            self.regression_heads[name] = EmbeddingRegressionModel.from_pretrained(path).to(self.dtype_schema["model_dtype"])
+            self.regression_heads[name] = EmbeddingRegressionModel.from_pretrained(path).to(
+                self.dtype_schema["model_dtype"]
+            )
             self.regression_heads[name].to(device)
             self.regression_heads[name].eval()
-            
 
         with self.stats_writer if self.stats_writer else contextlib.nullcontext() as writer:
             for doc_batch in batched(doc_pipeline, self.batch_size):
-                with self.track_time(unit='batch'):
+                with self.track_time(unit="batch"):
                     # Convert embeddings back to tensors with bfloat16 dtype
-                    embeddings = [torch.tensor(doc.text, device=device, dtype=self.dtype_schema["embedding_dtype"]) for doc in doc_batch]
+                    embeddings = [
+                        torch.tensor(doc.text, device=device, dtype=self.dtype_schema["embedding_dtype"])
+                        for doc in doc_batch
+                    ]
                     embeddings_tensor = torch.stack(embeddings)
 
                     scores = {}
                     with no_grad():
                         for name, regression_head in self.regression_heads.items():
-                            scores[f'score_{name}'] = regression_head(embeddings_tensor).logits.cpu().squeeze(1)
+                            scores[f"score_{name}"] = regression_head(embeddings_tensor).logits.cpu().squeeze(1)
 
                     for batch_idx, doc in enumerate(doc_batch):
                         for name, score in scores.items():

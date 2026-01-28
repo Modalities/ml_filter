@@ -1,0 +1,28 @@
+params:
+  input_dir: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/jude/hplt3/annotations/annotations/deu_Latn
+  glob_pattern: "**/*.jsonl"
+  output_dir: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/jude/repos/ml_filter/outputs/quantile_calc/deu_Latn
+  compression: null
+  output_compression: null
+  score_fields: ["score_llama", "score_mistral", "score_gemma"]
+  selection_quantile: 0.9
+  report_filename: quantile_report.yaml
+  quantile_data_dir: quantile_data
+
+running_on_slurm: true
+
+local_settings: null
+
+slurm_settings:
+  sbatch_args:
+    account: "p_gptx"
+  partition: "barnard"
+  time: "00:30:00"
+  cpus_per_task: 4
+  mem_per_cpu_gb: 8
+  job_name: "quantile_pipeline"
+  qos: "normal"
+  venv_path: /data/horse/ws/s6690609-gptx_traindata/s6690609-gptx_traindata-1744239642/jude/envs/data-ablations/bin/activate
+  tasks: 1
+  workers: 1
+
